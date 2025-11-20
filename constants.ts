@@ -1,0 +1,86 @@
+import { Video, Creator, VideoCategory, Difficulty, RevenueStats } from './types';
+
+export const MOCK_CREATORS: Creator[] = [
+  {
+    id: 'c1',
+    name: '김기천 마스터',
+    bio: '블랙벨트 3단, 20년의 지도 경력. 기본기의 정석을 가르칩니다.',
+    profileImage: 'https://picsum.photos/200/200?random=1',
+    subscriberCount: 12500,
+  },
+  {
+    id: 'c2',
+    name: '박수민 선수',
+    bio: '월드 프로 챔피언. 모던 주짓수와 레그락 스페셜리스트.',
+    profileImage: 'https://picsum.photos/200/200?random=2',
+    subscriberCount: 8900,
+  },
+];
+
+export const MOCK_VIDEOS: Video[] = [
+  {
+    id: 'v1',
+    title: '완벽한 암바 피니시 디테일',
+    description: '상대가 방어할 때 그립을 뜯어내는 3가지 핵심 원리를 배웁니다.',
+    creatorId: 'c1',
+    creatorName: '김기천 마스터',
+    category: VideoCategory.Technique,
+    difficulty: Difficulty.Beginner,
+    thumbnailUrl: 'https://picsum.photos/600/400?random=3',
+    length: '15:20',
+    price: 25000,
+    views: 1205,
+    createdAt: '2023-10-01',
+  },
+  {
+    id: 'v2',
+    title: '데라히바 가드 셋업 & 스윕',
+    description: '오픈 가드 플레이어를 위한 필수 데라히바 가드 운영법.',
+    creatorId: 'c2',
+    creatorName: '박수민 선수',
+    category: VideoCategory.Technique,
+    difficulty: Difficulty.Intermediate,
+    thumbnailUrl: 'https://picsum.photos/600/400?random=4',
+    length: '22:10',
+    price: 30000,
+    views: 890,
+    createdAt: '2023-10-05',
+  },
+  {
+    id: 'v3',
+    title: '고강도 드릴 루틴 10분',
+    description: '지치지 않는 체력을 위한 솔로 드릴 루틴입니다.',
+    creatorId: 'c1',
+    creatorName: '김기천 마스터',
+    category: VideoCategory.Drill,
+    difficulty: Difficulty.Beginner,
+    thumbnailUrl: 'https://picsum.photos/600/400?random=5',
+    length: '10:00',
+    price: 15000,
+    views: 3400,
+    createdAt: '2023-09-20',
+  },
+  {
+    id: 'v4',
+    title: '인사이드 힐훅 엔트리 분석',
+    description: '스파링 영상 분석을 통해 안전하고 정확하게 힐훅을 거는 법을 익힙니다.',
+    creatorId: 'c2',
+    creatorName: '박수민 선수',
+    category: VideoCategory.Sparring,
+    difficulty: Difficulty.Advanced,
+    thumbnailUrl: 'https://picsum.photos/600/400?random=6',
+    length: '35:00',
+    price: 45000,
+    views: 560,
+    createdAt: '2023-10-12',
+  },
+];
+
+export const MOCK_REVENUE_STATS: RevenueStats[] = [
+  { month: '1월', revenue: 1200000, watchHours: 150 },
+  { month: '2월', revenue: 1450000, watchHours: 180 },
+  { month: '3월', revenue: 1300000, watchHours: 160 },
+  { month: '4월', revenue: 1800000, watchHours: 220 },
+  { month: '5월', revenue: 2100000, watchHours: 260 },
+  { month: '6월', revenue: 2400000, watchHours: 300 },
+];
