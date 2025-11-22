@@ -82,12 +82,14 @@ export interface RevenueStats {
 export interface TrainingLog {
   id: string;
   userId: string;
+  userName?: string;
   date: string;
   durationMinutes: number;
   techniques: string[];
   sparringRounds: number;
   notes: string;
   isPublic: boolean;
+  location?: string;
   youtubeUrl?: string;
   createdAt: string;
   user?: {
@@ -108,12 +110,24 @@ export interface LogFeedback {
 export type SkillCategory = 'Standing' | 'Guard' | 'Guard Pass' | 'Side' | 'Mount' | 'Back';
 export type SkillStatus = 'learning' | 'mastered';
 
+export interface SkillSubcategory {
+  id: string;
+  userId: string;
+  category: SkillCategory;
+  name: string;
+  displayOrder: number;
+  createdAt: string;
+}
+
 export interface UserSkill {
   id: string;
   userId: string;
   category: SkillCategory;
+  subcategoryId?: string;
+  subcategoryName?: string;
   courseId: string;
   courseTitle?: string;
+  creatorName?: string;
   status: SkillStatus;
   createdAt: string;
   updatedAt: string;
@@ -141,8 +155,49 @@ export interface Coupon {
   maxUses?: number;
   usedCount: number;
   expiresAt?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export type BeltLevel = 'White' | 'Blue' | 'Purple' | 'Brown' | 'Black';
 
+// Feedback System Types
+export interface FeedbackSettings {
+  enabled: boolean;
+  price: number;
+  turnaroundDays: number;
+  maxActiveRequests: number;
+}
+
+export type FeedbackStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface FeedbackRequest {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  instructorId: string;
+  instructorName?: string;
+  videoUrl: string;
+  description: string;
+  status: FeedbackStatus;
+  price: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface FeedbackResponse {
+  id: string;
+  requestId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface FeedbackPayment {
+  id: string;
+  requestId: string;
+  studentId: string;
+  instructorId: string;
+  amount: number;
+  platformFee: number;
+  instructorRevenue: number;
+  paidAt: string;
+}

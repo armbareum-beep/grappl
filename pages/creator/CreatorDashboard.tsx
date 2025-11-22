@@ -3,16 +3,18 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses, calculateCreatorEarnings } from '../../lib/api';
 import { Course } from '../../types';
-import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package, MessageSquare } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { MarketingTab } from '../../components/creator/MarketingTab';
+import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
+import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'marketing'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests'>('overview');
 
     useEffect(() => {
         async function fetchData() {
@@ -133,12 +135,31 @@ export const CreatorDashboard: React.FC = () => {
                         <Package className="w-4 h-4" />
                         마케팅 (번들 & 쿠폰)
                     </button>
+                    <button
+                        onClick={() => setActiveTab('feedback')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'feedback'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <MessageSquare className="w-4 h-4" />
+                        1:1 피드백 설정
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('requests')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'requests'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <MessageSquare className="w-4 h-4" />
+                        피드백 요청
+                    </button>
                 </div>
 
                 {/* Tab Content */}
                 {activeTab === 'overview' ? (
                     <>
-
                         {/* Courses List */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                             <div className="flex justify-between items-center mb-6">
@@ -178,7 +199,15 @@ export const CreatorDashboard: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </>
+                ) : activeTab === 'marketing' ? (
+                    <MarketingTab />
+                ) : activeTab === 'feedback' ? (
+                    <FeedbackSettingsTab />
+                ) : (
+                    <FeedbackRequestsTab />
+                )}
             </div>
-            );
+        </div>
+    );
 };

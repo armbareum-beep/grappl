@@ -85,7 +85,7 @@ export const Settings: React.FC = () => {
 
         try {
             // Update user name
-            const { error } = await updateUserProfile(user?.id || '', { name: displayName });
+            const { error } = await updateUserProfile({ name: displayName });
             if (error) throw error;
 
             // Update creator bio if applicable

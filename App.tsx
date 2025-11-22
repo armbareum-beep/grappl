@@ -16,6 +16,7 @@ import { AdminCourseList } from './pages/admin/AdminCourseList';
 import { CreatorApprovalList } from './pages/admin/CreatorApprovalList';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { FeaturedContent } from './pages/admin/FeaturedContent';
+import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -59,6 +60,11 @@ const App: React.FC = () => {
           <Route path="/admin/featured" element={
             <AdminRoute>
               <FeaturedContent />
+            </AdminRoute>
+          } />
+          <Route path="/admin/marketing" element={
+            <AdminRoute>
+              <AdminMarketing />
             </AdminRoute>
           } />
           <Route path="/login" element={<Login />} />

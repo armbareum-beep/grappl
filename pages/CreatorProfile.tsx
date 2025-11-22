@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, Video as VideoIcon, Award, BookOpen } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator } from '../lib/api';
-import { Creator, Course } from '../types';
+import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest } from '../lib/api';
+import { Creator, Course, FeedbackSettings } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { Button } from '../components/Button';
 
@@ -12,19 +12,28 @@ export const CreatorProfile: React.FC = () => {
     const { user } = useAuth();
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [videoUrl, setVideoUrl] = useState('');
+    const [description, setDescription] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
             if (!id) return;
 
             try {
-                const [creatorData, coursesData] = await Promise.all([
+                const [creatorData, coursesData, feedbackData] = await Promise.all([
                     getCreatorById(id),
                     getCoursesByCreator(id),
+                    getFeedbackSettings(id)
                 ]);
                 setCreator(creatorData);
                 setCourses(coursesData);
+                if (feedbackData.data) {
+                    setFeedbackSettings(feedbackData.data);
+                }
             } catch (error) {
                 console.error('Error fetching creator data:', error);
             } finally {
@@ -34,6 +43,36 @@ export const CreatorProfile: React.FC = () => {
 
         fetchData();
     }, [id]);
+
+    const handleSubmitFeedbackRequest = async () => {
+        if (!user || !id || !videoUrl.trim() || !feedbackSettings) return;
+
+        // Validate YouTube URL
+        const isValidYouTubeUrl = videoUrl.includes('youtube.com/watch') || videoUrl.includes('youtu.be/');
+        if (!isValidYouTubeUrl) {
+            alert('올바른 YouTube URL을 입력해주세요.');
+            return;
+        }
+
+        setSubmitting(true);
+        const { error } = await createFeedbackRequest({
+            studentId: user.id,
+            instructorId: id,
+            videoUrl: videoUrl.trim(),
+            description: description.trim(),
+            price: feedbackSettings.price
+        });
+
+        if (!error) {
+            alert('피드백 요청이 완료되었습니다!');
+            setShowFeedbackModal(false);
+            setVideoUrl('');
+            setDescription('');
+        } else {
+            alert('요청 중 오류가 발생했습니다.');
+        }
+        setSubmitting(false);
+    };
 
     if (loading) {
         return (
@@ -135,6 +174,113 @@ export const CreatorProfile: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* 1:1 Feedback Section */}
+            {feedbackSettings?.enabled && user?.id !== creator.id && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-8 text-white">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <MessageSquare className="w-8 h-8" />
+                                    <h3 className="text-2xl font-bold">1:1 피드백 받기</h3>
+                                </div>
+                                <p className="text-purple-100 mb-4">
+                                    {creator.name} 인스트럭터에게 직접 피드백을 받아보세요
+                                </p>
+                                <div className="flex flex-wrap gap-4 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <DollarSign className="w-4 h-4" />
+                                        <span>₩{feedbackSettings.price.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4" />
+                                        <span>{feedbackSettings.turnaroundDays}일 이내 응답</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowFeedbackModal(true)}
+                                className="px-8 py-3 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-colors shadow-lg"
+                            >
+                                피드백 요청하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Feedback Request Modal */}
+            {showFeedbackModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full p-8">
+                        <h2 className="text-2xl font-bold text-slate-900 mb-6">피드백 요청하기</h2>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    YouTube 영상 URL *
+                                </label>
+                                <input
+                                    type="url"
+                                    value={videoUrl}
+                                    onChange={(e) => setVideoUrl(e.target.value)}
+                                    placeholder="https://youtube.com/watch?v=..."
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    YouTube에 업로드한 영상의 링크를 입력해주세요 (비공개/unlisted 가능)
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    질문 / 설명 (선택사항)
+                                </label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={4}
+                                    placeholder="어떤 부분에 대한 피드백을 원하시나요?"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                            </div>
+
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-semibold text-slate-900">결제 금액</span>
+                                    <span className="text-2xl font-bold text-purple-600">
+                                        ₩{feedbackSettings?.price.toLocaleString()}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-600">
+                                    {feedbackSettings?.turnaroundDays}일 이내에 텍스트 피드백을 받으실 수 있습니다
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowFeedbackModal(false);
+                                    setVideoUrl('');
+                                    setDescription('');
+                                }}
+                                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleSubmitFeedbackRequest}
+                                disabled={!videoUrl.trim() || submitting}
+                                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {submitting ? '요청 중...' : '결제 및 요청하기'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Creator Courses */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

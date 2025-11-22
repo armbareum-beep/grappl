@@ -7,8 +7,9 @@ import { TrainingLogForm } from '../components/journal/TrainingLogForm';
 import { PublicJournalFeed } from '../components/journal/PublicJournalFeed';
 import { LogDetailModal } from '../components/journal/LogDetailModal';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
+import { TrainingCalendar } from '../components/journal/TrainingCalendar';
 import { Button } from '../components/Button';
-import { Plus, BookOpen, Globe, User, Target } from 'lucide-react';
+import { Plus, BookOpen, Globe, User, Target, Calendar as CalendarIcon, List } from 'lucide-react';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
@@ -16,6 +17,8 @@ export const Journal: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     const [activeTab, setActiveTab] = useState<'my' | 'community' | 'skills'>('my');
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
 
     const fetchLogs = async () => {
@@ -142,10 +145,53 @@ export const Journal: React.FC = () => {
 
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-slate-900">최근 기록</h2>
-                            <span className="text-sm text-slate-500">총 {logs.length}개의 기록</span>
+                            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <List className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('calendar')}
+                                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <CalendarIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
 
-                        <TrainingLogList logs={logs} onDelete={handleDelete} />
+                        {viewMode === 'list' ? (
+                            <TrainingLogList logs={logs} onDelete={handleDelete} />
+                        ) : (
+                            <div className="space-y-6">
+                                <TrainingCalendar
+                                    logs={logs}
+                                    onDateSelect={setSelectedDate}
+                                    selectedDate={selectedDate}
+                                />
+
+                                {selectedDate && (
+                                    <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="font-semibold text-slate-900">
+                                                {selectedDate}의 기록
+                                            </h3>
+                                            <button
+                                                onClick={() => setSelectedDate(null)}
+                                                className="text-sm text-slate-500 hover:text-slate-700"
+                                            >
+                                                닫기
+                                            </button>
+                                        </div>
+                                        <TrainingLogList
+                                            logs={logs.filter(log => log.date === selectedDate)}
+                                            onDelete={handleDelete}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </>
                 ) : activeTab === 'skills' ? (
                     <SkillTreeTab />
