@@ -31,10 +31,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
-                <span className="text-white font-black text-xl">G</span>
-              </div>
-              <span className="text-2xl font-black text-slate-900">Grappl</span>
+              <img src="/logo.png" alt="Grappolio" className="w-10 h-10 object-contain" />
+              <span className="text-2xl font-black text-slate-900">Grappolio</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -230,10 +228,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="grid md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-black text-lg">G</span>
-                </div>
-                <span className="text-xl font-black text-slate-900">Grappl</span>
+                <img src="/logo.png" alt="Grappolio" className="w-8 h-8 object-contain" />
+                <span className="text-xl font-black text-slate-900">Grappolio</span>
               </div>
               <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
                 세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.

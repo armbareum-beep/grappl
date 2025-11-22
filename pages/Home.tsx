@@ -63,11 +63,11 @@ export const Home: React.FC = () => {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
-            주짓수 실력을 <span className="text-blue-500">한 단계</span> 업그레이드하세요
+            매트를 지배하는 <span className="text-blue-500">기술의</span> 정점
           </h1>
           <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
-            세계적인 선수들의 테크닉과 노하우를 언제 어디서나 배워보세요.
-            체계적인 커리큘럼으로 당신의 성장을 도와드립니다.
+            세계적인 챔피언들의 노하우가 담긴 체계적인 커리큘럼.
+            Grappolio와 함께 당신의 주짓수를 한 단계 업그레이드하세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/browse">
