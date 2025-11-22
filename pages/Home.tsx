@@ -3,25 +3,27 @@ import { Link } from 'react-router-dom';
 import { PlayCircle, CheckCircle, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { MOCK_CREATORS } from '../constants';
-import { getFeaturedContent, getCourseById, getCreatorById, getCourses } from '../lib/api';
+import { getFeaturedContent, getCourseById, getCreatorById, getCourses, getCreators } from '../lib/api';
 import { Creator, Course } from '../types';
 import { CourseCard } from '../components/CourseCard';
 
 export const Home: React.FC = () => {
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [featuredCreators, setFeaturedCreators] = useState<Creator[]>([]);
+  const [featuredContent, setFeaturedContent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchFeatured() {
       try {
-        const { data: featuredData } = await getFeaturedContent();
+        const { data } = await getFeaturedContent();
+        setFeaturedContent(data);
 
         // Fetch featured courses
-        if (featuredData?.featuredCourseIds && featuredData.featuredCourseIds.length > 0) {
-          const coursePromises = featuredData.featuredCourseIds.map((id: string) => getCourseById(id));
-          const courses = await Promise.all(coursePromises);
-          setFeaturedCourses(courses.filter(c => c !== null) as Course[]);
+        if (data?.featuredCourseIds && data.featuredCourseIds.length > 0) {
+          const allCourses = await getCourses();
+          const featured = allCourses.filter(c => data.featuredCourseIds.includes(c.id));
+          setFeaturedCourses(featured);
         } else {
           // Fallback: show latest courses
           const allCourses = await getCourses();
@@ -29,13 +31,14 @@ export const Home: React.FC = () => {
         }
 
         // Fetch featured creators
-        if (featuredData?.featuredCreatorIds && featuredData.featuredCreatorIds.length > 0) {
-          const creatorPromises = featuredData.featuredCreatorIds.map((id: string) => getCreatorById(id));
-          const creators = await Promise.all(creatorPromises);
-          setFeaturedCreators(creators.filter(c => c !== null) as Creator[]);
+        if (data?.featuredCreatorIds && data.featuredCreatorIds.length > 0) {
+          const allCreators = await getCreators();
+          const featured = allCreators.filter(c => data.featuredCreatorIds.includes(c.id));
+          setFeaturedCreators(featured);
         } else {
-          // Fallback: show from MOCK_CREATORS
-          setFeaturedCreators(MOCK_CREATORS.slice(0, 2));
+          // Fallback: show random creators
+          const allCreators = await getCreators();
+          setFeaturedCreators(allCreators.slice(0, 2));
         }
       } catch (error) {
         console.error('Error fetching featured content:', error);
@@ -50,13 +53,24 @@ export const Home: React.FC = () => {
     fetchFeatured();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
       <div className="relative bg-slate-900 text-white py-24 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <img
-            src="https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80"
+            src={featuredContent?.heroImageUrl || "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80"}
             alt="Jiu Jitsu Background"
             className="w-full h-full object-cover"
           />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Bell, Shield, CreditCard, ChevronRight, Plus, Trash2, Check, Upload as UploadIcon } from 'lucide-react';
-import { updateUserProfile, uploadProfileImage, updateCreatorProfileImage, getCreatorById } from '../lib/api';
+import { updateUserProfile, uploadProfileImage, updateCreatorProfileImage, getCreatorById, updateCreatorProfile } from '../lib/api';
 
 type SettingsSection = 'profile' | 'notifications' | 'security' | 'payment';
 
@@ -15,6 +15,7 @@ export const Settings: React.FC = () => {
 
     // Profile State
     const [displayName, setDisplayName] = useState(user?.user_metadata?.name || '');
+    const [bio, setBio] = useState('');
 
     // Load creator profile image if user is creator
     React.useEffect(() => {
@@ -23,6 +24,7 @@ export const Settings: React.FC = () => {
                 const creator = await getCreatorById(user.id);
                 if (creator) {
                     setProfileImageUrl(creator.profileImage);
+                    setBio(creator.bio || '');
                 }
             }
         }
@@ -82,8 +84,16 @@ export const Settings: React.FC = () => {
         setMessage(null);
 
         try {
+            // Update user name
             const { error } = await updateUserProfile(user?.id || '', { name: displayName });
             if (error) throw error;
+
+            // Update creator bio if applicable
+            if (isCreator && user) {
+                const { error: bioError } = await updateCreatorProfile(user.id, { bio });
+                if (bioError) throw bioError;
+            }
+
             setMessage({ type: 'success', text: '프로필이 업데이트되었습니다.' });
         } catch (err) {
             console.error(err);
@@ -168,6 +178,20 @@ export const Settings: React.FC = () => {
                                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
+
+                            {isCreator && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">자기소개 (Bio)</label>
+                                    <textarea
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        rows={4}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="수강생들에게 자신을 소개해보세요."
+                                    />
+                                </div>
+                            )}
+
                             <button
                                 type="submit"
                                 disabled={loading}

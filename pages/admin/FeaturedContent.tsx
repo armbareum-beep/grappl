@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, Star } from 'lucide-react';
-import { getCourses, getCreators, getFeaturedContent, updateFeaturedContent } from '../../lib/api';
+import { ArrowLeft, Save, Star, Upload } from 'lucide-react';
+import { getCourses, getCreators, getFeaturedContent, updateFeaturedContent, uploadHeroImage } from '../../lib/api';
 import { Course, Creator } from '../../types';
 import { Button } from '../../components/Button';
 
@@ -10,6 +10,7 @@ export const FeaturedContent: React.FC = () => {
     const [creators, setCreators] = useState<Creator[]>([]);
     const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
     const [selectedCreatorIds, setSelectedCreatorIds] = useState<string[]>([]);
+    const [heroImageUrl, setHeroImageUrl] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -28,6 +29,7 @@ export const FeaturedContent: React.FC = () => {
                 if (featuredData.data) {
                     setSelectedCourseIds(featuredData.data.featuredCourseIds || []);
                     setSelectedCreatorIds(featuredData.data.featuredCreatorIds || []);
+                    setHeroImageUrl(featuredData.data.heroImageUrl || '');
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -66,7 +68,8 @@ export const FeaturedContent: React.FC = () => {
         try {
             await updateFeaturedContent({
                 featuredCourseIds: selectedCourseIds,
-                featuredCreatorIds: selectedCreatorIds
+                featuredCreatorIds: selectedCreatorIds,
+                heroImageUrl
             });
             alert('홈 화면 설정이 저장되었습니다! 🎉');
         } catch (error) {
@@ -112,6 +115,59 @@ export const FeaturedContent: React.FC = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Hero Image Section */}
+                <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Star className="w-5 h-5 text-blue-600" />
+                        <h2 className="text-xl font-bold text-slate-900">홈 화면 메인 이미지</h2>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4">홈 화면 상단에 표시될 이미지를 업로드하세요.</p>
+
+                    <div className="flex items-start gap-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={heroImageUrl}
+                                    readOnly
+                                    placeholder="이미지 URL이 여기에 표시됩니다"
+                                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500"
+                                />
+                            </div>
+                            <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                <Upload className="w-4 h-4 text-slate-600" />
+                                <span className="text-sm font-medium text-slate-700">이미지 업로드</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        try {
+                                            setSaving(true);
+                                            const { url, error } = await uploadHeroImage(file);
+                                            if (error) throw error;
+                                            if (url) setHeroImageUrl(url);
+                                        } catch (err) {
+                                            console.error('Upload failed:', err);
+                                            alert('이미지 업로드에 실패했습니다.');
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        {heroImageUrl && (
+                            <div className="w-32 h-20 rounded-lg overflow-hidden border border-slate-200">
+                                <img src={heroImageUrl} alt="Hero Preview" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {/* Featured Courses Section */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
                     <div className="flex items-center gap-2 mb-4">
@@ -131,8 +187,8 @@ export const FeaturedContent: React.FC = () => {
                                     key={course.id}
                                     onClick={() => toggleCourse(course.id)}
                                     className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${isSelected
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-slate-200 hover:border-slate-300'
                                         }`}
                                 >
                                     {isSelected && (
@@ -176,8 +232,8 @@ export const FeaturedContent: React.FC = () => {
                                     key={creator.id}
                                     onClick={() => toggleCreator(creator.id)}
                                     className={`relative cursor-pointer rounded-lg border-2 p-6 transition-all ${isSelected
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-slate-200 hover:border-slate-300'
                                         }`}
                                 >
                                     {isSelected && (

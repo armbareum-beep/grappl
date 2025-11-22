@@ -93,6 +93,42 @@ export const MyLibrary: React.FC = () => {
         </div>
       </div>
 
+      {/* Subscriber Features Info */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-12">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">🌟 구독자 전용 혜택</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                <PlayCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-900">무제한 수강</h4>
+                <p className="text-sm text-slate-600">모든 강좌를 제한 없이 자유롭게 수강하세요.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-900">오프라인 저장</h4>
+                <p className="text-sm text-slate-600">앱에서 영상을 다운로드하여 데이터 걱정 없이 시청하세요.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                <PlayCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-900">4K 초고화질</h4>
+                <p className="text-sm text-slate-600">선명한 화질로 디테일한 기술을 확인하세요.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {courses.length === 0 ? (
           <div className="text-center py-20">

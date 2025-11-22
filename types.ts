@@ -76,3 +76,14 @@ export interface RevenueStats {
   revenue: number;
   watchHours: number;
 }
+
+export interface TrainingLog {
+  id: string;
+  userId: string;
+  date: string;
+  durationMinutes: number;
+  techniques: string[];
+  sparringRounds: number;
+  notes: string;
+  createdAt: string;
+}
