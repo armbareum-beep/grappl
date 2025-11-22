@@ -18,7 +18,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '홈', href: '/', icon: Video },
     { name: '둘러보기', href: '/browse', icon: BookOpen },
     { name: '요금제', href: '/pricing', icon: DollarSign },
-    { name: '내 라이브러리', href: '/library', icon: BookOpen },
     { name: '수련 일지', href: '/journal', icon: BookOpen },
   ];
 
@@ -32,8 +31,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <img src="/logo.png" alt="Grappolio" className="w-10 h-10 object-contain" />
-              <span className="text-2xl font-black text-slate-900">Grappolio</span>
+              <img src="/logo.png" alt="Grapplio" className="w-10 h-10 object-contain" />
+              <span className="text-2xl font-black text-slate-900">Grapplio</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -97,6 +96,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                   {userMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50">
+                      <Link
+                        to="/library"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <BookOpen className="w-4 h-4" />
+                          <span>내 라이브러리</span>
+                        </div>
+                      </Link>
                       <Link
                         to="/settings"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -184,6 +193,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
               {user ? (
                 <>
+                  <Link
+                    to="/library"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <BookOpen className="w-5 h-5" />
+                    <span>내 라이브러리</span>
+                  </Link>
                   <Link
                     to="/settings"
                     className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
