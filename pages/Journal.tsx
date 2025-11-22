@@ -6,15 +6,16 @@ import { TrainingLogList } from '../components/journal/TrainingLogList';
 import { TrainingLogForm } from '../components/journal/TrainingLogForm';
 import { PublicJournalFeed } from '../components/journal/PublicJournalFeed';
 import { LogDetailModal } from '../components/journal/LogDetailModal';
+import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { Button } from '../components/Button';
-import { Plus, BookOpen, Globe, User } from 'lucide-react';
+import { Plus, BookOpen, Globe, User, Target } from 'lucide-react';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
+    const [activeTab, setActiveTab] = useState<'my' | 'community' | 'skills'>('my');
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
 
     const fetchLogs = async () => {
@@ -102,6 +103,16 @@ export const Journal: React.FC = () => {
                             내 수련 기록
                         </button>
                         <button
+                            onClick={() => setActiveTab('skills')}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'skills'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            <Target className="w-4 h-4" />
+                            스킬 로드맵
+                        </button>
+                        <button
                             onClick={() => setActiveTab('community')}
                             className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'community'
                                 ? 'text-blue-600 border-b-2 border-blue-600'
@@ -136,6 +147,8 @@ export const Journal: React.FC = () => {
 
                         <TrainingLogList logs={logs} onDelete={handleDelete} />
                     </>
+                ) : activeTab === 'skills' ? (
+                    <SkillTreeTab />
                 ) : (
                     <PublicJournalFeed onLogClick={setSelectedLog} />
                 )}

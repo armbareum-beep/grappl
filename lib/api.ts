@@ -1,6 +1,8 @@
 
+
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon } from '../types';
+
 
 // Revenue split constants
 export const DIRECT_PRODUCT_CREATOR_SHARE = 0.8; // 80% to creator for individual product sales
@@ -1070,3 +1072,242 @@ export async function createLogFeedback(logId: string, userId: string, content: 
 
     return { error };
 }
+
+// ==================== SKILL TREE ====================
+
+/**
+ * Get user's skills
+ */
+export async function getUserSkills(userId: string) {
+    const { data, error } = await supabase
+        .from('user_skills')
+        .select(`
+            *,
+            courses (
+                id,
+                title
+            )
+        `)
+        .eq('user_id', userId);
+
+    if (error) return { data: null, error };
+
+    const skills: UserSkill[] = data.map((skill: any) => ({
+        id: skill.id,
+        userId: skill.user_id,
+        category: skill.category,
+        courseId: skill.course_id,
+        courseTitle: skill.courses?.title,
+        status: skill.status,
+        createdAt: skill.created_at,
+        updatedAt: skill.updated_at
+    }));
+
+    return { data: skills, error: null };
+}
+
+/**
+ * Add or update a user skill
+ */
+export async function upsertUserSkill(userId: string, category: SkillCategory, courseId: string, status: SkillStatus) {
+    const { error } = await supabase
+        .from('user_skills')
+        .upsert({
+            user_id: userId,
+            category,
+            course_id: courseId,
+            status,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'user_id,category,course_id'
+        });
+
+    return { error };
+}
+
+/**
+ * Delete a user skill
+ */
+export async function deleteUserSkill(skillId: string) {
+    const { error } = await supabase
+        .from('user_skills')
+        .delete()
+        .eq('id', skillId);
+
+    return { error };
+}
+
+// ==================== BELT SYSTEM ====================
+
+/**
+ * Calculate user's belt level based on total spending
+ */
+export async function getUserBeltLevel(userId: string): Promise<BeltLevel> {
+    // Get total spending from user_courses
+    const { data: purchases } = await supabase
+        .from('user_courses')
+        .select('price_paid')
+        .eq('user_id', userId);
+
+    const totalSpent = purchases?.reduce((sum, p) => sum + (p.price_paid || 0), 0) || 0;
+
+    // Belt thresholds
+    if (totalSpent >= 1000000) return 'Black';
+    if (totalSpent >= 500000) return 'Brown';
+    if (totalSpent >= 300000) return 'Purple';
+    if (totalSpent >= 100000) return 'Blue';
+    return 'White';
+}
+
+// ==================== BUNDLES ====================
+
+/**
+ * Get all bundles
+ */
+export async function getBundles() {
+    const { data, error } = await supabase
+        .from('bundles')
+        .select(`
+            *,
+            creator:creators(name),
+            bundle_courses(course_id)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) return { data: null, error };
+
+    const bundles: Bundle[] = data.map((bundle: any) => ({
+        id: bundle.id,
+        creatorId: bundle.creator_id,
+        creatorName: bundle.creator?.name,
+        title: bundle.title,
+        description: bundle.description,
+        price: bundle.price,
+        thumbnailUrl: bundle.thumbnail_url,
+        courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
+        createdAt: bundle.created_at
+    }));
+
+    return { data: bundles, error: null };
+}
+
+/**
+ * Create a bundle
+ */
+export async function createBundle(bundle: {
+    creatorId: string;
+    title: string;
+    description: string;
+    price: number;
+    thumbnailUrl?: string;
+    courseIds: string[];
+}) {
+    // 1. Create bundle
+    const { data: newBundle, error: bundleError } = await supabase
+        .from('bundles')
+        .insert({
+            creator_id: bundle.creatorId,
+            title: bundle.title,
+            description: bundle.description,
+            price: bundle.price,
+            thumbnail_url: bundle.thumbnailUrl
+        })
+        .select()
+        .single();
+
+    if (bundleError) return { error: bundleError };
+
+    // 2. Add courses to bundle
+    const bundleCourses = bundle.courseIds.map(courseId => ({
+        bundle_id: newBundle.id,
+        course_id: courseId
+    }));
+
+    const { error: coursesError } = await supabase
+        .from('bundle_courses')
+        .insert(bundleCourses);
+
+    if (coursesError) return { error: coursesError };
+
+    return { data: newBundle, error: null };
+}
+
+/**
+ * Purchase a bundle (Mock)
+ */
+export async function purchaseBundle(userId: string, bundleId: string, price: number) {
+    const { error } = await supabase
+        .from('user_bundles')
+        .insert({
+            user_id: userId,
+            bundle_id: bundleId,
+            price_paid: price
+        });
+
+    return { error };
+}
+
+// ==================== COUPONS ====================
+
+/**
+ * Validate and apply coupon
+ */
+export async function validateCoupon(code: string) {
+    const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code.toUpperCase())
+        .single();
+
+    if (error) return { data: null, error };
+
+    // Check if expired
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        return { data: null, error: { message: 'Coupon has expired' } };
+    }
+
+    // Check if max uses reached
+    if (data.max_uses && data.used_count >= data.max_uses) {
+        return { data: null, error: { message: 'Coupon has reached maximum uses' } };
+    }
+
+    const coupon: Coupon = {
+        id: data.id,
+        code: data.code,
+        creatorId: data.creator_id,
+        discountType: data.discount_type,
+        value: data.value,
+        maxUses: data.max_uses,
+        usedCount: data.used_count,
+        expiresAt: data.expires_at,
+        createdAt: data.created_at
+    };
+
+    return { data: coupon, error: null };
+}
+
+/**
+ * Create a coupon
+ */
+export async function createCoupon(coupon: {
+    code: string;
+    creatorId: string;
+    discountType: 'percent' | 'fixed';
+    value: number;
+    maxUses?: number;
+    expiresAt?: string;
+}) {
+    const { error } = await supabase
+        .from('coupons')
+        .insert({
+            code: coupon.code.toUpperCase(),
+            creator_id: coupon.creatorId,
+            discount_type: coupon.discountType,
+            value: coupon.value,
+            max_uses: coupon.maxUses,
+            expires_at: coupon.expiresAt
+        });
+
+    return { error };
+}
+

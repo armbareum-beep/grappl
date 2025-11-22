@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses, calculateCreatorEarnings } from '../../lib/api';
 import { Course } from '../../types';
-import { BookOpen, DollarSign, Eye, TrendingUp, Clock } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package } from 'lucide-react';
 import { Button } from '../../components/Button';
+import { MarketingTab } from '../../components/creator/MarketingTab';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'overview' | 'marketing'>('overview');
 
     useEffect(() => {
         async function fetchData() {
@@ -110,46 +112,73 @@ export const CreatorDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Courses List */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-slate-900">내 강좌</h2>
-                        <Link to="/creator/courses/new">
-                            <Button>새 강좌 만들기</Button>
-                        </Link>
-                    </div>
+                {/* Tab Navigation */}
+                <div className="flex space-x-4 border-b border-slate-200 mb-8">
+                    <button
+                        onClick={() => setActiveTab('overview')}
+                        className={`pb-4 px-2 text-sm font-medium transition-colors ${activeTab === 'overview'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        대시보드
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('marketing')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'marketing'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Package className="w-4 h-4" />
+                        마케팅 (번들 & 쿠폰)
+                    </button>
+                </div>
 
-                    {courses.length === 0 ? (
-                        <div className="text-center py-12">
-                            <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                            <p className="text-slate-500 mb-4">아직 개설한 강좌가 없습니다.</p>
-                            <Link to="/creator/courses/new">
-                                <Button>첫 강좌 만들기</Button>
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {courses.map((course) => (
-                                <div key={course.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-lg text-slate-900">{course.title}</h3>
-                                            <p className="text-sm text-slate-600 mt-1">{course.description}</p>
-                                            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-                                                <span>조회수: {course.views.toLocaleString()}</span>
-                                                <span>가격: {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}</span>
+                {/* Tab Content */}
+                {activeTab === 'overview' ? (
+                    <>
+
+                        {/* Courses List */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-slate-900">내 강좌</h2>
+                                <Link to="/creator/courses/new">
+                                    <Button>새 강좌 만들기</Button>
+                                </Link>
+                            </div>
+
+                            {courses.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                    <p className="text-slate-500 mb-4">아직 개설한 강좌가 없습니다.</p>
+                                    <Link to="/creator/courses/new">
+                                        <Button>첫 강좌 만들기</Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {courses.map((course) => (
+                                        <div key={course.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <h3 className="font-bold text-lg text-slate-900">{course.title}</h3>
+                                                    <p className="text-sm text-slate-600 mt-1">{course.description}</p>
+                                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+                                                        <span>조회수: {course.views.toLocaleString()}</span>
+                                                        <span>가격: {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}</span>
+                                                    </div>
+                                                </div>
+                                                <Link to={`/creator/courses/${course.id}/edit`}>
+                                                    <Button variant="outline" size="sm">수정</Button>
+                                                </Link>
                                             </div>
                                         </div>
-                                        <Link to={`/creator/courses/${course.id}/edit`}>
-                                            <Button variant="outline" size="sm">수정</Button>
-                                        </Link>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
             </div>
-        </div>
-    );
+            );
 };
