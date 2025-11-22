@@ -9,13 +9,19 @@ export const Browse: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
-  const [selectedPriceRange, setSelectedPriceRange] = useState<string>('All');
+  const [maxPrice, setMaxPrice] = useState<number>(100000);
+  const [priceFilter, setPriceFilter] = useState<number>(100000);
 
   useEffect(() => {
     async function fetchCourses() {
       try {
         const data = await getCourses();
         setCourses(data);
+        if (data.length > 0) {
+          const max = Math.max(...data.map(c => c.price));
+          setMaxPrice(max);
+          setPriceFilter(max);
+        }
       } catch (error) {
         console.error('Error fetching courses:', error);
       } finally {
@@ -29,17 +35,7 @@ export const Browse: React.FC = () => {
   const filteredCourses = courses.filter((course) => {
     const categoryMatch = selectedCategory === 'All' || course.category === selectedCategory;
     const difficultyMatch = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
-
-    let priceMatch = true;
-    if (selectedPriceRange === 'Free') {
-      priceMatch = course.price === 0;
-    } else if (selectedPriceRange === 'Under30k') {
-      priceMatch = course.price > 0 && course.price < 30000;
-    } else if (selectedPriceRange === 'Under50k') {
-      priceMatch = course.price >= 30000 && course.price < 50000;
-    } else if (selectedPriceRange === '50kPlus') {
-      priceMatch = course.price >= 50000;
-    }
+    const priceMatch = course.price <= priceFilter;
 
     return categoryMatch && difficultyMatch && priceMatch;
   });
@@ -95,17 +91,25 @@ export const Browse: React.FC = () => {
           ))}
         </select>
 
-        <select
-          value={selectedPriceRange}
-          onChange={(e) => setSelectedPriceRange(e.target.value)}
-          className="block w-full md:w-auto rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-        >
-          <option value="All">모든 가격</option>
-          <option value="Free">무료</option>
-          <option value="Under30k">~₩30,000</option>
-          <option value="Under50k">₩30,000~₩50,000</option>
-          <option value="50kPlus">₩50,000+</option>
-        </select>
+        <div className="flex flex-col w-full md:w-64">
+          <div className="flex justify-between text-sm text-slate-600 mb-1">
+            <span>최대 가격</span>
+            <span className="font-medium">₩{priceFilter.toLocaleString()}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max={maxPrice}
+            step="1000"
+            value={priceFilter}
+            onChange={(e) => setPriceFilter(Number(e.target.value))}
+            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          />
+          <div className="flex justify-between text-xs text-slate-400 mt-1">
+            <span>0원</span>
+            <span>₩{maxPrice.toLocaleString()}</span>
+          </div>
+        </div>
       </div>
 
       {/* Grid */}
