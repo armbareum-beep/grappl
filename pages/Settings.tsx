@@ -19,7 +19,7 @@ export const Settings: React.FC = () => {
     // Load creator profile image if user is creator
     React.useEffect(() => {
         async function loadCreatorProfile() {
-            if (isCreator && user && !profileImageUrl) {
+            if (isCreator && user) {
                 const creator = await getCreatorById(user.id);
                 if (creator) {
                     setProfileImageUrl(creator.profileImage);
@@ -68,11 +68,6 @@ export const Settings: React.FC = () => {
             }
 
             setMessage({ type: 'success', text: '프로필 이미지가 업데이트되었습니다.' });
-
-            // Reload page after 1 second to reflect changes everywhere
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
         } catch (err) {
             console.error(err);
             setMessage({ type: 'error', text: '이미지 업로드에 실패했습니다.' });
