@@ -48,7 +48,7 @@ export const Login: React.FC = () => {
             {isLogin ? '로그인' : '회원가입'}
           </h2>
           <p className="mt-2 text-slate-600">
-            {isLogin ? 'Grappl 계정으로 로그인하세요' : '새로운 계정을 만드세요'}
+            {isLogin ? 'Grapplay 계정으로 로그인하세요' : '새로운 계정을 만드세요'}
           </p>
         </div>
 
@@ -169,7 +169,7 @@ export const Login: React.FC = () => {
             ← 홈으로 돌아가기
           </Link>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };

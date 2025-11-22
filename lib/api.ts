@@ -962,6 +962,111 @@ export async function getTrainingLogs(userId: string) {
     return { data: logs, error: null };
 }
 
+/**
+ * Create a new training log
+ */
+export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
+    const { error } = await supabase
+        .from('training_logs')
+        .insert({
+            user_id: log.userId,
+            date: log.date,
+            duration_minutes: log.durationMinutes,
+            techniques: log.techniques,
+            sparring_rounds: log.sparringRounds,
+            notes: log.notes,
+            is_public: log.isPublic,
+            location: log.location,
+            youtube_url: log.youtubeUrl
+        });
+
+    return { error };
+}
+
+/**
+ * Delete a training log
+ */
+export async function deleteTrainingLog(logId: string) {
+    const { error } = await supabase
+        .from('training_logs')
+        .delete()
+        .eq('id', logId);
+
+    return { error };
+}
+
+/**
+ * Get public training logs (Community Feed) with pagination
+ */
+export async function getPublicTrainingLogs(page: number = 1, limit: number = 10) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // 1. Fetch logs without join first to avoid FK errors
+    const { data, count, error } = await supabase
+        .from('training_logs')
+        .select('*', { count: 'exact' })
+        .eq('is_public', true)
+        .order('date', { ascending: false })
+        .range(from, to);
+
+    if (error) {
+        console.error('Error fetching public logs:', error);
+        return { data: null, count: 0, error };
+    }
+
+    if (!data || data.length === 0) {
+        return { data: [], count: 0, error: null };
+    }
+
+    // 2. Extract user IDs
+    const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
+
+    // 3. Fetch user names manually (robust against missing FKs)
+    const { data: users } = await supabase
+        .from('users')
+        .select('id, name')
+        .in('id', userIds);
+
+    // 4. Create a map of userId -> name
+    const userMap: Record<string, string> = {};
+    if (users) {
+        users.forEach((u: any) => {
+            userMap[u.id] = u.name;
+        });
+    }
+
+    // 5. Also try to fetch creator names if they are instructors (fallback)
+    const { data: creators } = await supabase
+        .from('creators')
+        .select('id, name')
+        .in('id', userIds);
+
+    if (creators) {
+        creators.forEach((c: any) => {
+            // Prefer creator name if available (might be more official)
+            userMap[c.id] = c.name;
+        });
+    }
+
+    const logs: TrainingLog[] = data.map((log: any) => ({
+        id: log.id,
+        userId: log.user_id,
+        userName: userMap[log.user_id] || 'User',
+        date: log.date,
+        durationMinutes: log.duration_minutes,
+        techniques: log.techniques || [],
+        sparringRounds: log.sparring_rounds,
+        notes: log.notes,
+        isPublic: log.is_public,
+        location: log.location,
+        youtubeUrl: log.youtube_url,
+        createdAt: log.created_at,
+    }));
+
+    return { data: logs, count: count || 0, error: null };
+}
+
 export async function getLogFeedback(logId: string) {
     // 1. Fetch feedback without join
     const { data, error } = await supabase

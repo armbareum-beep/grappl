@@ -96,7 +96,7 @@ export const Pricing: React.FC = () => {
             <h3 className="text-xl font-semibold text-white">월간 구독</h3>
             <p className="mt-4 text-slate-400 text-sm">지속적인 성장을 위한 최고의 선택.</p>
             <div className="mt-6">
-              <span className="text-4xl font-bold text-white">₩29,000</span>
+              <span className="text-4xl font-bold text-white">₩55,000</span>
               <span className="text-base font-medium text-slate-400">/월</span>
             </div>
             <ul className="mt-6 space-y-4 flex-1">
@@ -133,7 +133,7 @@ export const Pricing: React.FC = () => {
             <h3 className="text-xl font-semibold text-slate-900">연간 구독</h3>
             <p className="mt-4 text-slate-500 text-sm">1년 결제하고 2개월 무료 혜택.</p>
             <div className="mt-6">
-              <span className="text-4xl font-bold text-slate-900">₩290,000</span>
+              <span className="text-4xl font-bold text-slate-900">₩550,000</span>
               <span className="text-base font-medium text-slate-500">/년</span>
             </div>
             <ul className="mt-6 space-y-4 flex-1">

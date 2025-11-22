@@ -15,7 +15,7 @@ export const CreatorLayout: React.FC = () => {
             <div className="w-64 bg-white border-r border-slate-200 hidden md:block fixed h-full z-10">
                 <div className="p-6 border-b border-slate-200">
                     <Link to="/" className="flex items-center gap-2 text-blue-600 font-bold text-xl">
-                        <span>Grappl</span>
+                        <span>Grapplay</span>
                         <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">Creator</span>
                     </Link>
                 </div>
@@ -32,30 +32,30 @@ export const CreatorLayout: React.FC = () => {
                     </Link>
                     <Link
                         to="/creator/courses"
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/courses')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
+                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/courses')
+                                ? 'bg-blue-50 text-blue-600 font-medium'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            } `}
                     >
                         <BookOpen className="w-5 h-5" />
                         강좌 관리
                     </Link>
                     <Link
                         to="/creator/analytics"
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/analytics')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
+                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/analytics')
+                                ? 'bg-blue-50 text-blue-600 font-medium'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            } `}
                     >
                         <BarChart2 className="w-5 h-5" />
                         분석 (준비중)
                     </Link>
                     <Link
                         to="/creator/settings"
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/settings')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
+                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/settings')
+                                ? 'bg-blue-50 text-blue-600 font-medium'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            } `}
                     >
                         <Settings className="w-5 h-5" />
                         설정 (준비중)
