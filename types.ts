@@ -19,17 +19,46 @@ export interface Creator {
   subscriberCount: number;
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName: string;
+  category: VideoCategory;
+  difficulty: Difficulty;
+  thumbnailUrl: string;
+  price: number;
+  views: number;
+  lessonCount?: number;
+  createdAt: string;
+}
+
+export interface Lesson {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  lessonNumber: number;
+  vimeoUrl?: string;
+  length: string;
+  difficulty: Difficulty;
+  createdAt: string;
+}
+
+// Keep Video interface for backward compatibility
 export interface Video {
   id: string;
   title: string;
   description: string;
   creatorId: string;
-  creatorName: string; // Denormalized for ease
+  creatorName: string;
   category: VideoCategory;
   difficulty: Difficulty;
   thumbnailUrl: string;
-  length: string; // e.g., "12:30"
-  price: number; // 0 if free/subscription only
+  vimeoUrl?: string;
+  length: string;
+  price: number;
   views: number;
   createdAt: string;
 }

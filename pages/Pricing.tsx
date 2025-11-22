@@ -1,8 +1,57 @@
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { Button } from '../components/Button';
+import { useAuth } from '../contexts/AuthContext';
+import { purchaseSubscription } from '../lib/api';
 
 export const Pricing: React.FC = () => {
+  const { user, isSubscribed } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSubscription = async (plan: 'monthly' | 'yearly') => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await purchaseSubscription(user.id, plan);
+      if (error) {
+        alert('구독 처리 중 오류가 발생했습니다.');
+      } else {
+        alert('구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.');
+        // Force reload to update context state since we're using localStorage
+        window.location.href = '/#/browse';
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isSubscribed) {
+    return (
+      <div className="bg-slate-50 py-20 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check className="w-8 h-8" />
+          </div>
+          <h2 className="text-3xl font-bold text-slate-900 mb-4">이미 구독 중입니다! 🎉</h2>
+          <p className="text-slate-600 mb-8">모든 강좌를 무제한으로 이용하실 수 있습니다.</p>
+          <Link to="/browse">
+            <Button size="lg">강좌 보러 가기</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-50 py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -33,7 +82,9 @@ export const Pricing: React.FC = () => {
               </li>
             </ul>
             <div className="mt-8">
-              <Button variant="outline" className="w-full">영상 둘러보기</Button>
+              <Link to="/browse">
+                <Button variant="outline" className="w-full">영상 둘러보기</Button>
+              </Link>
             </div>
           </div>
 
@@ -67,7 +118,13 @@ export const Pricing: React.FC = () => {
               </li>
             </ul>
             <div className="mt-8">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 border-none">지금 구독하기</Button>
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 border-none"
+                onClick={() => handleSubscription('monthly')}
+                disabled={loading}
+              >
+                {loading ? '처리 중...' : '지금 구독하기'}
+              </Button>
             </div>
           </div>
 
@@ -94,7 +151,14 @@ export const Pricing: React.FC = () => {
               </li>
             </ul>
             <div className="mt-8">
-              <Button variant="outline" className="w-full">연간 결제하기</Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleSubscription('yearly')}
+                disabled={loading}
+              >
+                {loading ? '처리 중...' : '연간 결제하기'}
+              </Button>
             </div>
           </div>
         </div>
