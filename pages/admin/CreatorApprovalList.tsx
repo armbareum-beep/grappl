@@ -45,37 +45,37 @@ export const CreatorApprovalList: React.FC = () => {
     };
 
     const handleApprove = async (creatorId: string) => {
-        if (!window.confirm('???�리?�이?��? ?�인?�시겠습?�까?')) return;
+        if (!window.confirm('이 인스트럭터를 승인하시겠습니까?')) return;
 
         const { error } = await approveCreator(creatorId);
 
         if (error) {
-            alert('?�인 �??�류가 발생?�습?�다: ' + error.message);
+            alert('승인 중 오류가 발생했습니다: ' + error.message);
             return;
         }
 
-        alert('?�리?�이?��? ?�인?�었?�니?? ?��');
+        alert('인스트럭터가 승인되었습니다! 🎉');
         fetchPendingCreators(); // Refresh list
     };
 
     const handleReject = async (creatorId: string) => {
-        if (!window.confirm('???�리?�이???�청??거�??�시겠습?�까? ???�업?� ?�돌�????�습?�다.')) return;
+        if (!window.confirm('이 인스트럭터 신청을 거부하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
         const { error } = await rejectCreator(creatorId);
 
         if (error) {
-            alert('거�? �??�류가 발생?�습?�다: ' + error.message);
+            alert('거부 중 오류가 발생했습니다: ' + error.message);
             return;
         }
 
-        alert('?�리?�이???�청??거�??�었?�니??');
+        alert('인스트럭터 신청이 거부되었습니다.');
         fetchPendingCreators(); // Refresh list
     };
 
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-slate-600">로딩 �?..</div>
+                <div className="text-slate-600">로딩 중...</div>
             </div>
         );
     }
@@ -83,15 +83,15 @@ export const CreatorApprovalList: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto py-8 px-4">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">?�리?�이???�인 관�?/h1>
-                <p className="text-slate-600">?�인 ?��?중인 ?�리?�이???�청??관리합?�다.</p>
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">인스트럭터 승인 관리</h1>
+                <p className="text-slate-600">승인 대기 중인 인스트럭터 신청을 관리합니다.</p>
             </div>
 
             {creators.length === 0 ? (
                 <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
                     <Clock className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">?�인 ?��?중인 ?�청???�습?�다</h3>
-                    <p className="text-slate-600">?�로???�리?�이???�청???�어?�면 ?�기???�시?�니??</p>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">승인 대기 중인 신청이 없습니다</h3>
+                    <p className="text-slate-600">새로운 인스트럭터 신청이 들어오면 여기에 표시됩니다.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -117,7 +117,7 @@ export const CreatorApprovalList: React.FC = () => {
                                     </div>
 
                                     <div className="mb-4">
-                                        <h4 className="text-sm font-semibold text-slate-700 mb-1">?�기?�개</h4>
+                                        <h4 className="text-sm font-semibold text-slate-700 mb-1">자기소개</h4>
                                         <p className="text-slate-600">{creator.bio}</p>
                                     </div>
 
@@ -128,7 +128,7 @@ export const CreatorApprovalList: React.FC = () => {
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Clock className="w-3 h-3" />
-                                            <span>?�청?? {new Date(creator.created_at).toLocaleDateString('ko-KR')}</span>
+                                            <span>신청일: {new Date(creator.created_at).toLocaleDateString('ko-KR')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -139,14 +139,14 @@ export const CreatorApprovalList: React.FC = () => {
                                         className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
                                     >
                                         <CheckCircle className="w-4 h-4" />
-                                        ?�인
+                                        승인
                                     </button>
                                     <button
                                         onClick={() => handleReject(creator.id)}
                                         className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
                                     >
                                         <XCircle className="w-4 h-4" />
-                                        거�?
+                                        거부
                                     </button>
                                 </div>
                             </div>
