@@ -9,6 +9,7 @@ import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
+import { Journal } from './pages/Journal';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
 import { AdminCourseList } from './pages/admin/AdminCourseList';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
           <Route path="/become-creator" element={<BecomeCreator />} />
           <Route path="/creator/:id" element={<CreatorProfile />} />
           <Route path="/library" element={<MyLibrary />} />
+          <Route path="/journal" element={<Journal />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin/courses" element={
             <AdminRoute>

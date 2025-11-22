@@ -28,8 +28,12 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   // If className contains color/background classes, don't apply variant styles
-  const hasCustomStyles = className.includes('bg-') || className.includes('text-');
-  const variantClass = hasCustomStyles ? '' : variants[variant];
+  // We check for 'bg-' but exclude 'bg-transparent' which might be used with outline/ghost
+  // We check for 'text-' but exclude size classes like 'text-sm', 'text-lg', 'text-xl'
+  const hasCustomBg = className.split(' ').some(cls => cls.startsWith('bg-') && cls !== 'bg-transparent');
+  const hasCustomText = className.split(' ').some(cls => cls.startsWith('text-') && !['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'].includes(cls));
+
+  const variantClass = (hasCustomBg || hasCustomText) ? '' : variants[variant];
 
   return (
     <button

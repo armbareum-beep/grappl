@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog } from '../types';
 
 // Revenue split constants
 export const DIRECT_PRODUCT_CREATOR_SHARE = 0.8; // 80% to creator for individual product sales
@@ -528,6 +528,7 @@ export async function getFeaturedContent() {
     return {
         data: {
             heroVideoId: null, // Use default logic if null
+            heroImageUrl: null, // Custom hero image URL
             featuredCourseIds: [], // Empty means use default "Popular" logic
             featuredCreatorIds: [] // Empty means use default logic
         },
@@ -676,12 +677,51 @@ export async function uploadProfileImage(userId: string, file: File): Promise<{ 
 }
 
 /**
+ * Upload hero image to Supabase Storage
+ */
+export async function uploadHeroImage(file: File): Promise<{ url: string | null; error: any }> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `hero-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // Upload file to storage
+    const { error: uploadError } = await supabase.storage
+        .from('hero-images') // Using 'hero-images' bucket
+        .upload(filePath, file, {
+            upsert: true,
+        });
+
+    if (uploadError) {
+        return { url: null, error: uploadError };
+    }
+
+    // Get public URL
+    const { data } = supabase.storage
+        .from('hero-images')
+        .getPublicUrl(filePath);
+
+    return { url: data.publicUrl, error: null };
+}
+
+/**
  * Update creator profile image
  */
 export async function updateCreatorProfileImage(creatorId: string, imageUrl: string) {
     const { error } = await supabase
         .from('creators')
         .update({ profile_image: imageUrl })
+        .eq('id', creatorId);
+
+    return { error };
+}
+
+/**
+ * Update creator profile (bio, etc.)
+ */
+export async function updateCreatorProfile(creatorId: string, updates: { bio?: string }) {
+    const { error } = await supabase
+        .from('creators')
+        .update(updates)
         .eq('id', creatorId);
 
     return { error };
@@ -865,4 +905,62 @@ export async function purchaseSubscription(userId: string, plan: 'monthly' | 'ye
     // but ideally the component calling this handles the UI update or re-checks auth
 
     return { error: null };
+}
+
+// ==================== TRAINING LOG (JOURNAL) ====================
+
+/**
+ * Get training logs for a user
+ */
+export async function getTrainingLogs(userId: string) {
+    const { data, error } = await supabase
+        .from('training_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+    if (error) return { data: null, error };
+
+    const logs: TrainingLog[] = data.map((log: any) => ({
+        id: log.id,
+        userId: log.user_id,
+        date: log.date,
+        durationMinutes: log.duration_minutes,
+        techniques: log.techniques || [],
+        sparringRounds: log.sparring_rounds,
+        notes: log.notes,
+        createdAt: log.created_at
+    }));
+
+    return { data: logs, error: null };
+}
+
+/**
+ * Create a new training log
+ */
+export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
+    const { error } = await supabase
+        .from('training_logs')
+        .insert({
+            user_id: log.userId,
+            date: log.date,
+            duration_minutes: log.durationMinutes,
+            techniques: log.techniques,
+            sparring_rounds: log.sparringRounds,
+            notes: log.notes
+        });
+
+    return { error };
+}
+
+/**
+ * Delete a training log
+ */
+export async function deleteTrainingLog(logId: string) {
+    const { error } = await supabase
+        .from('training_logs')
+        .delete()
+        .eq('id', logId);
+
+    return { error };
 }

@@ -19,6 +19,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '둘러보기', href: '/browse', icon: BookOpen },
     { name: '요금제', href: '/pricing', icon: DollarSign },
     { name: '내 라이브러리', href: '/library', icon: BookOpen },
+    { name: '수련 일지', href: '/journal', icon: BookOpen },
   ];
 
   const isActive = (path: string) => location.pathname === path;

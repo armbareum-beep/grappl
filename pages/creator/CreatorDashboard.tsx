@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses, calculateCreatorEarnings } from '../../lib/api';
 import { Course } from '../../types';
-import { BookOpen, DollarSign, Eye, TrendingUp } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Clock } from 'lucide-react';
 import { Button } from '../../components/Button';
 
 export const CreatorDashboard: React.FC = () => {
@@ -58,7 +58,7 @@ export const CreatorDashboard: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Stats Cards */}
-                <div className="grid md:grid-cols-4 gap-6 mb-8">
+                <div className="grid md:grid-cols-5 gap-6 mb-8">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-slate-500 text-sm">총 강좌</span>
@@ -73,6 +73,20 @@ export const CreatorDashboard: React.FC = () => {
                             <Eye className="w-5 h-5 text-green-600" />
                         </div>
                         <p className="text-3xl font-bold text-slate-900">{totalViews.toLocaleString()}</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-500 text-sm">시청 시간 (점유율)</span>
+                            <Clock className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <p className="text-2xl font-bold text-slate-900">
+                            {earnings?.creatorWatchTime || 0}분
+                            <span className="text-sm text-slate-500 font-normal ml-2">
+                                ({(earnings?.watchTimeShare * 100 || 0).toFixed(1)}%)
+                            </span>
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">전체 {earnings?.totalWatchTime || 0}분 중</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
