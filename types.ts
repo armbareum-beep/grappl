@@ -1,8 +1,10 @@
 export enum VideoCategory {
-  Technique = 'Technique',
-  Drill = 'Drill',
-  Sparring = 'Sparring',
-  Lecture = 'Lecture',
+  Standing = 'Standing',
+  Guard = 'Guard',
+  GuardPass = 'Guard Pass',
+  Side = 'Side',
+  Mount = 'Mount',
+  Back = 'Back',
 }
 
 export enum Difficulty {
@@ -102,3 +104,45 @@ export interface LogFeedback {
   content: string;
   createdAt: string;
 }
+
+export type SkillCategory = 'Standing' | 'Guard' | 'Guard Pass' | 'Side' | 'Mount' | 'Back';
+export type SkillStatus = 'learning' | 'mastered';
+
+export interface UserSkill {
+  id: string;
+  userId: string;
+  category: SkillCategory;
+  courseId: string;
+  courseTitle?: string;
+  status: SkillStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bundle {
+  id: string;
+  creatorId: string;
+  creatorName?: string;
+  title: string;
+  description: string;
+  price: number;
+  thumbnailUrl?: string;
+  courseIds?: string[];
+  courses?: Course[];
+  createdAt: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  creatorId: string;
+  discountType: 'percent' | 'fixed';
+  value: number;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+export type BeltLevel = 'White' | 'Blue' | 'Purple' | 'Brown' | 'Black';
+
