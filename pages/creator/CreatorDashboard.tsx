@@ -9,12 +9,14 @@ import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
 
+import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
+
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests' | 'payout'>('overview');
 
     useEffect(() => {
         async function fetchData() {
@@ -115,21 +117,21 @@ export const CreatorDashboard: React.FC = () => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex space-x-4 border-b border-slate-200 mb-8">
+                <div className="flex space-x-4 border-b border-slate-200 mb-8 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('overview')}
-                        className={`pb-4 px-2 text-sm font-medium transition-colors ${activeTab === 'overview'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
+                        className={`pb-4 px-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         대시보드
                     </button>
                     <button
                         onClick={() => setActiveTab('marketing')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'marketing'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'marketing'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <Package className="w-4 h-4" />
@@ -137,9 +139,9 @@ export const CreatorDashboard: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('feedback')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'feedback'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'feedback'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <MessageSquare className="w-4 h-4" />
@@ -147,13 +149,23 @@ export const CreatorDashboard: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('requests')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'requests'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'requests'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <MessageSquare className="w-4 h-4" />
                         피드백 요청
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('payout')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'payout'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <DollarSign className="w-4 h-4" />
+                        정산 설정
                     </button>
                 </div>
 
@@ -204,8 +216,10 @@ export const CreatorDashboard: React.FC = () => {
                     <MarketingTab />
                 ) : activeTab === 'feedback' ? (
                     <FeedbackSettingsTab />
-                ) : (
+                ) : activeTab === 'requests' ? (
                     <FeedbackRequestsTab />
+                ) : (
+                    <PayoutSettingsTab />
                 )}
             </div>
         </div>

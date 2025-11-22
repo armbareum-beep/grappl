@@ -726,6 +726,40 @@ export async function updateCreatorProfile(creatorId: string, updates: { bio?: s
         .eq('id', creatorId);
 
     return { error };
+    return { error };
+}
+
+/**
+ * Update creator payout settings
+ */
+export async function updatePayoutSettings(creatorId: string, settings: { type: 'individual' | 'business' }) {
+    const { error } = await supabase
+        .from('creators')
+        .update({ payout_settings: settings })
+        .eq('id', creatorId);
+
+    return { error };
+}
+
+/**
+ * Get creator payout settings
+ */
+export async function getPayoutSettings(creatorId: string) {
+    const { data, error } = await supabase
+        .from('creators')
+        .select('stripe_account_id, payout_settings')
+        .eq('id', creatorId)
+        .single();
+
+    if (error) return { data: null, error };
+
+    return {
+        data: {
+            stripeAccountId: data.stripe_account_id,
+            payoutSettings: data.payout_settings
+        },
+        error: null
+    };
 }
 
 // ==================== ADMIN COURSE MANAGEMENT ====================
