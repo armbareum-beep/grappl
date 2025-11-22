@@ -19,6 +19,10 @@ export interface Creator {
   bio: string;
   profileImage: string;
   subscriberCount: number;
+  stripeAccountId?: string;
+  payoutSettings?: {
+    type: 'individual' | 'business';
+  };
 }
 
 export interface Course {
