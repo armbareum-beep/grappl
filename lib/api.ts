@@ -733,13 +733,35 @@ export async function updateCreatorProfile(creatorId: string, updates: { bio?: s
  * Delete a course (admin only)
  */
 export async function deleteCourse(courseId: string) {
-    // First delete all lessons
-    await supabase
+    // 1. Get all lessons to delete their progress
+    const { data: lessons } = await supabase
         .from('lessons')
+        .select('id')
+        .eq('course_id', courseId);
+
+    const lessonIds = lessons?.map(l => l.id) || [];
+
+    if (lessonIds.length > 0) {
+        // 2. Delete lesson progress
+        await supabase
+            .from('lesson_progress')
+            .delete()
+            .in('lesson_id', lessonIds);
+
+        // 3. Delete lessons
+        await supabase
+            .from('lessons')
+            .delete()
+            .eq('course_id', courseId);
+    }
+
+    // 4. Delete user enrollments (user_courses)
+    await supabase
+        .from('user_courses')
         .delete()
         .eq('course_id', courseId);
 
-    // Then delete the course
+    // 5. Delete the course
     const { error } = await supabase
         .from('courses')
         .delete()
@@ -929,6 +951,8 @@ export async function getTrainingLogs(userId: string) {
         techniques: log.techniques || [],
         sparringRounds: log.sparring_rounds,
         notes: log.notes,
+        isPublic: log.is_public || false,
+        youtubeUrl: log.youtube_url,
         createdAt: log.created_at
     }));
 
@@ -947,7 +971,9 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
             duration_minutes: log.durationMinutes,
             techniques: log.techniques,
             sparring_rounds: log.sparringRounds,
-            notes: log.notes
+            notes: log.notes,
+            is_public: log.isPublic,
+            youtube_url: log.youtubeUrl
         });
 
     return { error };
@@ -961,6 +987,86 @@ export async function deleteTrainingLog(logId: string) {
         .from('training_logs')
         .delete()
         .eq('id', logId);
+
+    return { error };
+}
+
+/**
+ * Get public training logs (Community Feed)
+ */
+export async function getPublicTrainingLogs() {
+    // In a real app, we would join with auth.users to get names, 
+    // but Supabase doesn't allow joining auth.users directly easily.
+    // For MVP, we might need a 'profiles' table or just use email from metadata if available in a public view.
+    // For now, we'll assume there's a way to get user info or just show 'User'.
+    // A better approach for MVP is to create a 'public_profiles' view or table.
+    // Let's assume we have a 'profiles' table or similar, OR we just fetch logs and display without names for now if complex.
+    // Wait, we can use the 'creators' table if they are creators, but for normal users it's harder.
+    // Let's just fetch the logs for now.
+
+    const { data, error } = await supabase
+        .from('training_logs')
+        .select('*')
+        .eq('is_public', true)
+        .order('date', { ascending: false })
+        .limit(50);
+
+    if (error) return { data: null, error };
+
+    const logs: TrainingLog[] = data.map((log: any) => ({
+        id: log.id,
+        userId: log.user_id,
+        date: log.date,
+        durationMinutes: log.duration_minutes,
+        techniques: log.techniques || [],
+        sparringRounds: log.sparring_rounds,
+        notes: log.notes,
+        isPublic: log.is_public,
+        youtubeUrl: log.youtube_url,
+        createdAt: log.created_at,
+        // We'll need to fetch user names separately or use a view in the future
+        user: { name: 'Unknown User', email: '' }
+    }));
+
+    return { data: logs, error: null };
+}
+
+/**
+ * Get feedback for a log
+ */
+export async function getLogFeedback(logId: string) {
+    const { data, error } = await supabase
+        .from('log_feedback')
+        .select('*')
+        .eq('log_id', logId)
+        .order('created_at', { ascending: true });
+
+    if (error) return { data: null, error };
+
+    // Mocking user name for now as we can't join auth.users easily
+    const feedback = data.map((item: any) => ({
+        id: item.id,
+        logId: item.log_id,
+        userId: item.user_id,
+        userName: 'User', // Placeholder
+        content: item.content,
+        createdAt: item.created_at
+    }));
+
+    return { data: feedback, error: null };
+}
+
+/**
+ * Create feedback
+ */
+export async function createLogFeedback(logId: string, userId: string, content: string) {
+    const { error } = await supabase
+        .from('log_feedback')
+        .insert({
+            log_id: logId,
+            user_id: userId,
+            content
+        });
 
     return { error };
 }

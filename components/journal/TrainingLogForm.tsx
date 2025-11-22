@@ -14,6 +14,8 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     const [duration, setDuration] = useState(90);
     const [sparringRounds, setSparringRounds] = useState(3);
     const [notes, setNotes] = useState('');
+    const [isPublic, setIsPublic] = useState(false);
+    const [youtubeUrl, setYoutubeUrl] = useState('');
     const [techniqueInput, setTechniqueInput] = useState('');
     const [techniques, setTechniques] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -39,7 +41,9 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 durationMinutes: duration,
                 sparringRounds,
                 notes,
-                techniques
+                techniques,
+                isPublic,
+                youtubeUrl
             });
         } finally {
             setSubmitting(false);
@@ -122,6 +126,33 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                     placeholder="오늘 수련에서 느낀 점이나 피드백을 기록하세요."
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none"
                 />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={isPublic}
+                            onChange={(e) => setIsPublic(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-900">커뮤니티에 공개</span>
+                    </label>
+                    <p className="text-xs text-slate-500 ml-6">
+                        공개하면 다른 유저들이 보고 피드백을 남길 수 있습니다.
+                    </p>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">YouTube 영상 링크 (선택)</label>
+                    <input
+                        type="url"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                        placeholder="https://youtube.com/watch?v=..."
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                </div>
             </div>
 
             <div className="flex justify-end gap-3">

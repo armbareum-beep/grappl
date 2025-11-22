@@ -85,5 +85,20 @@ export interface TrainingLog {
   techniques: string[];
   sparringRounds: number;
   notes: string;
+  isPublic: boolean;
+  youtubeUrl?: string;
+  createdAt: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface LogFeedback {
+  id: string;
+  logId: string;
+  userId: string;
+  userName: string;
+  content: string;
   createdAt: string;
 }
