@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { purchaseSubscription } from '../lib/api';
 
 export const Pricing: React.FC = () => {
-  const { user, isSubscribed } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
 
@@ -35,22 +35,22 @@ export const Pricing: React.FC = () => {
     }
   };
 
-  if (isSubscribed) {
-    return (
-      <div className="bg-slate-50 py-20 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-8 h-8" />
-          </div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">이미 구독 중입니다! 🎉</h2>
-          <p className="text-slate-600 mb-8">모든 강좌를 무제한으로 이용하실 수 있습니다.</p>
-          <Link to="/browse">
-            <Button size="lg">강좌 보러 가기</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // if (isSubscribed) {
+  //   return (
+  //     <div className="bg-slate-50 py-20 min-h-screen flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+  //           <Check className="w-8 h-8" />
+  //         </div>
+  //         <h2 className="text-3xl font-bold text-slate-900 mb-4">이미 구독 중입니다! 🎉</h2>
+  //         <p className="text-slate-600 mb-8">모든 강좌를 무제한으로 이용하실 수 있습니다.</p>
+  //         <Link to="/browse">
+  //           <Button size="lg">강좌 보러 가기</Button>
+  //         </Link>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="bg-slate-50 py-20">

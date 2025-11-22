@@ -14,8 +14,18 @@ export const CreatorApprovalList: React.FC = () => {
 
     async function fetchPendingCreators() {
         try {
-            const data = await getPendingCreators();
-            setCreators(data);
+            const { data } = await getPendingCreators();
+            if (data) {
+                const mappedCreators: Creator[] = data.map((item: any) => ({
+                    id: item.id,
+                    name: item.name,
+                    bio: item.bio,
+                    profileImage: item.profile_image,
+                    subscriberCount: 0, // Default value as it's not in the pending list query
+                    isCreator: false // Pending creators are not yet creators
+                }));
+                setCreators(mappedCreators);
+            }
         } catch (error) {
             console.error('Error fetching pending creators:', error);
         } finally {
