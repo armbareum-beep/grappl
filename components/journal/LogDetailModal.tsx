@@ -75,6 +75,12 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) 
                             <div className="flex items-center gap-2 text-slate-500 text-sm">
                                 <Calendar className="w-4 h-4" />
                                 <span>{log.date}</span>
+                                {log.location && (
+                                    <>
+                                        <span className="mx-1">•</span>
+                                        <span>{log.location}</span>
+                                    </>
+                                )}
                                 {log.user?.name && (
                                     <>
                                         <span className="w-1 h-1 bg-slate-300 rounded-full"></span>

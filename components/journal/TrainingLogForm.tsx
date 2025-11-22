@@ -14,6 +14,7 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     const [duration, setDuration] = useState(90);
     const [sparringRounds, setSparringRounds] = useState(3);
     const [notes, setNotes] = useState('');
+    const [location, setLocation] = useState('');
     const [isPublic, setIsPublic] = useState(false);
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [techniqueInput, setTechniqueInput] = useState('');
@@ -41,6 +42,7 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 durationMinutes: duration,
                 sparringRounds,
                 notes,
+                location,
                 techniques,
                 isPublic,
                 youtubeUrl
@@ -116,6 +118,17 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                         </span>
                     ))}
                 </div>
+            </div>
+
+            <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-1">수련 장소 (선택)</label>
+                <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="예: 그라플 짐, 서울 체육관"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
             </div>
 
             <div className="mb-6">

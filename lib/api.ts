@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest } from '../types';
 
 
 // Revenue split constants
@@ -263,10 +263,9 @@ export async function incrementVideoViews(videoId: string): Promise<void> {
 }
 
 export async function incrementCourseViews(courseId: string): Promise<void> {
-    const { error } = await supabase
-        .from('courses')
-        .update({ views: supabase.raw('views + 1') })
-        .eq('id', courseId);
+    const { error } = await supabase.rpc('increment_course_views', {
+        course_id: courseId,
+    });
 
     if (error) {
         console.error('Error incrementing course views:', error);
@@ -638,7 +637,7 @@ export async function rejectCreator(creatorId: string) {
 /**
  * Update user profile
  */
-export async function updateUserProfile(userId: string, updates: { name?: string }) {
+export async function updateUserProfile(updates: { name?: string }) {
     const { error } = await supabase.auth.updateUser({
         data: { name: updates.name }
     });
@@ -924,6 +923,7 @@ export async function purchaseSubscription(userId: string, plan: 'monthly' | 'ye
     // Update user's subscription status in a 'subscriptions' table
     // For MVP, we'll just return success and save to localStorage
     localStorage.setItem('subscription_' + userId, 'true');
+    localStorage.setItem('subscription_plan_' + userId, plan);
 
     // Force a page reload or event to update context if needed, 
     // but ideally the component calling this handles the UI update or re-checks auth
@@ -954,6 +954,7 @@ export async function getTrainingLogs(userId: string) {
         sparringRounds: log.sparring_rounds,
         notes: log.notes,
         isPublic: log.is_public || false,
+        location: log.location,
         youtubeUrl: log.youtube_url,
         createdAt: log.created_at
     }));
@@ -961,82 +962,8 @@ export async function getTrainingLogs(userId: string) {
     return { data: logs, error: null };
 }
 
-/**
- * Create a new training log
- */
-export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
-    const { error } = await supabase
-        .from('training_logs')
-        .insert({
-            user_id: log.userId,
-            date: log.date,
-            duration_minutes: log.durationMinutes,
-            techniques: log.techniques,
-            sparring_rounds: log.sparringRounds,
-            notes: log.notes,
-            is_public: log.isPublic,
-            youtube_url: log.youtubeUrl
-        });
-
-    return { error };
-}
-
-/**
- * Delete a training log
- */
-export async function deleteTrainingLog(logId: string) {
-    const { error } = await supabase
-        .from('training_logs')
-        .delete()
-        .eq('id', logId);
-
-    return { error };
-}
-
-/**
- * Get public training logs (Community Feed)
- */
-export async function getPublicTrainingLogs() {
-    // In a real app, we would join with auth.users to get names, 
-    // but Supabase doesn't allow joining auth.users directly easily.
-    // For MVP, we might need a 'profiles' table or just use email from metadata if available in a public view.
-    // For now, we'll assume there's a way to get user info or just show 'User'.
-    // A better approach for MVP is to create a 'public_profiles' view or table.
-    // Let's assume we have a 'profiles' table or similar, OR we just fetch logs and display without names for now if complex.
-    // Wait, we can use the 'creators' table if they are creators, but for normal users it's harder.
-    // Let's just fetch the logs for now.
-
-    const { data, error } = await supabase
-        .from('training_logs')
-        .select('*')
-        .eq('is_public', true)
-        .order('date', { ascending: false })
-        .limit(50);
-
-    if (error) return { data: null, error };
-
-    const logs: TrainingLog[] = data.map((log: any) => ({
-        id: log.id,
-        userId: log.user_id,
-        date: log.date,
-        durationMinutes: log.duration_minutes,
-        techniques: log.techniques || [],
-        sparringRounds: log.sparring_rounds,
-        notes: log.notes,
-        isPublic: log.is_public,
-        youtubeUrl: log.youtube_url,
-        createdAt: log.created_at,
-        // We'll need to fetch user names separately or use a view in the future
-        user: { name: 'Unknown User', email: '' }
-    }));
-
-    return { data: logs, error: null };
-}
-
-/**
- * Get feedback for a log
- */
 export async function getLogFeedback(logId: string) {
+    // 1. Fetch feedback without join
     const { data, error } = await supabase
         .from('log_feedback')
         .select('*')
@@ -1045,12 +972,43 @@ export async function getLogFeedback(logId: string) {
 
     if (error) return { data: null, error };
 
-    // Mocking user name for now as we can't join auth.users easily
+    if (!data || data.length === 0) {
+        return { data: [], error: null };
+    }
+
+    // 2. Extract user IDs
+    const userIds = Array.from(new Set(data.map((item: any) => item.user_id)));
+
+    // 3. Fetch user names
+    const { data: users } = await supabase
+        .from('users')
+        .select('id, name')
+        .in('id', userIds);
+
+    const userMap: Record<string, string> = {};
+    if (users) {
+        users.forEach((u: any) => {
+            userMap[u.id] = u.name;
+        });
+    }
+
+    // 4. Fetch creator names
+    const { data: creators } = await supabase
+        .from('creators')
+        .select('id, name')
+        .in('id', userIds);
+
+    if (creators) {
+        creators.forEach((c: any) => {
+            userMap[c.id] = c.name;
+        });
+    }
+
     const feedback = data.map((item: any) => ({
         id: item.id,
         logId: item.log_id,
         userId: item.user_id,
-        userName: 'User', // Placeholder
+        userName: userMap[item.user_id] || 'User',
         content: item.content,
         createdAt: item.created_at
     }));
@@ -1133,6 +1091,100 @@ export async function deleteUserSkill(skillId: string) {
         .from('user_skills')
         .delete()
         .eq('id', skillId);
+
+    return { error };
+}
+
+// ==================== SKILL SUBCATEGORIES ====================
+
+/**
+ * Get skill subcategories
+ */
+export async function getSkillSubcategories(userId: string) {
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('display_order', { ascending: true });
+
+    if (error) return { data: null, error };
+
+    const subcategories: SkillSubcategory[] = data.map((item: any) => ({
+        id: item.id,
+        userId: item.user_id,
+        category: item.category,
+        name: item.name,
+        displayOrder: item.display_order,
+        createdAt: item.created_at
+    }));
+
+    return { data: subcategories, error: null };
+}
+
+/**
+ * Create skill subcategory
+ */
+export async function createSkillSubcategory(userId: string, category: SkillCategory, name: string) {
+    // Get max display order
+    const { data: maxOrderData } = await supabase
+        .from('skill_subcategories')
+        .select('display_order')
+        .eq('user_id', userId)
+        .eq('category', category)
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .single();
+
+    const nextOrder = (maxOrderData?.display_order || 0) + 1;
+
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .insert({
+            user_id: userId,
+            category,
+            name,
+            display_order: nextOrder
+        })
+        .select()
+        .single();
+
+    if (error) return { data: null, error };
+
+    const subcategory: SkillSubcategory = {
+        id: data.id,
+        userId: data.user_id,
+        category: data.category,
+        name: data.name,
+        displayOrder: data.display_order,
+        createdAt: data.created_at
+    };
+
+    return { data: subcategory, error: null };
+}
+
+/**
+ * Update skill subcategory
+ */
+export async function updateSkillSubcategory(subcategoryId: string, updates: Partial<SkillSubcategory>) {
+    const { error } = await supabase
+        .from('skill_subcategories')
+        .update({
+            name: updates.name,
+            display_order: updates.displayOrder
+        })
+        .eq('id', subcategoryId);
+
+    return { error };
+}
+
+/**
+ * Delete skill subcategory
+ */
+export async function deleteSkillSubcategory(subcategoryId: string) {
+    const { error } = await supabase
+        .from('skill_subcategories')
+        .delete()
+        .eq('id', subcategoryId);
 
     return { error };
 }
@@ -1307,6 +1359,193 @@ export async function createCoupon(coupon: {
             max_uses: coupon.maxUses,
             expires_at: coupon.expiresAt
         });
+
+    return { error };
+}
+
+// ==================== 1:1 FEEDBACK ====================
+
+/**
+ * Get feedback settings for an instructor
+ */
+export async function getFeedbackSettings(instructorId: string) {
+    const { data, error } = await supabase
+        .from('feedback_settings')
+        .select('*')
+        .eq('instructor_id', instructorId)
+        .single();
+
+    if (error && error.code !== 'PGRST116') return { data: null, error };
+
+    // Default settings if not found
+    const settings: FeedbackSettings = data ? {
+        id: data.id,
+        instructorId: data.instructor_id,
+        enabled: data.enabled,
+        price: data.price,
+        turnaroundDays: data.turnaround_days,
+        maxActiveRequests: data.max_active_requests,
+        updatedAt: data.updated_at
+    } : {
+        id: '',
+        instructorId,
+        enabled: false,
+        price: 50000,
+        turnaroundDays: 3,
+        maxActiveRequests: 5,
+        updatedAt: new Date().toISOString()
+    };
+
+    return { data: settings, error: null };
+}
+
+/**
+ * Update feedback settings
+ */
+export async function updateFeedbackSettings(instructorId: string, settings: Partial<FeedbackSettings>) {
+    const { error } = await supabase
+        .from('feedback_settings')
+        .upsert({
+            instructor_id: instructorId,
+            enabled: settings.enabled,
+            price: settings.price,
+            turnaround_days: settings.turnaroundDays,
+            max_active_requests: settings.maxActiveRequests,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'instructor_id'
+        });
+
+    return { error };
+}
+
+/**
+ * Create a feedback request
+ */
+export async function createFeedbackRequest(request: {
+    studentId: string;
+    instructorId: string;
+    videoUrl: string;
+    description: string;
+    price: number;
+}) {
+    const { data, error } = await supabase
+        .from('feedback_requests')
+        .insert({
+            student_id: request.studentId,
+            instructor_id: request.instructorId,
+            video_url: request.videoUrl,
+            description: request.description,
+            price: request.price,
+            status: 'pending'
+        })
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+/**
+ * Get feedback requests (for student or instructor)
+ */
+export async function getFeedbackRequests(userId: string, role: 'student' | 'instructor') {
+    const column = role === 'student' ? 'student_id' : 'instructor_id';
+
+    const { data, error } = await supabase
+        .from('feedback_requests')
+        .select(`
+            *,
+            student:users!student_id(name),
+            instructor:creators!instructor_id(name)
+        `)
+        .eq(column, userId)
+        .order('created_at', { ascending: false });
+
+    if (error) return { data: null, error };
+
+    const requests: FeedbackRequest[] = data.map((req: any) => ({
+        id: req.id,
+        studentId: req.student_id,
+        studentName: req.student?.name || 'Unknown Student',
+        instructorId: req.instructor_id,
+        instructorName: req.instructor?.name || 'Unknown Instructor',
+        videoUrl: req.video_url,
+        description: req.description,
+        status: req.status,
+        price: req.price,
+        feedbackContent: req.feedback_content,
+        createdAt: req.created_at,
+        updatedAt: req.updated_at,
+        completedAt: req.completed_at
+    }));
+
+    return { data: requests, error: null };
+}
+
+/**
+ * Get a single feedback request
+ */
+export async function getFeedbackRequest(requestId: string) {
+    const { data, error } = await supabase
+        .from('feedback_requests')
+        .select(`
+            *,
+            student:users!student_id(name),
+            instructor:creators!instructor_id(name)
+        `)
+        .eq('id', requestId)
+        .single();
+
+    if (error) return { data: null, error };
+
+    const request: FeedbackRequest = {
+        id: data.id,
+        studentId: data.student_id,
+        studentName: data.student?.name,
+        instructorId: data.instructor_id,
+        instructorName: data.instructor?.name,
+        videoUrl: data.video_url,
+        description: data.description,
+        status: data.status,
+        price: data.price,
+        feedbackContent: data.feedback_content,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        completedAt: data.completed_at
+    };
+
+    return { data: request, error: null };
+}
+
+/**
+ * Update feedback request status
+ */
+export async function updateFeedbackStatus(requestId: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled') {
+    const { error } = await supabase
+        .from('feedback_requests')
+        .update({
+            status,
+            updated_at: new Date().toISOString(),
+            ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {})
+        })
+        .eq('id', requestId);
+
+    return { error };
+}
+
+/**
+ * Submit feedback response
+ */
+export async function submitFeedbackResponse(requestId: string, content: string) {
+    const { error } = await supabase
+        .from('feedback_requests')
+        .update({
+            feedback_content: content,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
 
     return { error };
 }

@@ -27,6 +27,12 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
                         <div className="flex items-center gap-2 text-slate-500 text-sm">
                             <Calendar className="w-4 h-4" />
                             <span>{log.date}</span>
+                            {log.location && (
+                                <>
+                                    <span className="mx-1">•</span>
+                                    <span>{log.location}</span>
+                                </>
+                            )}
                         </div>
                         <Button
                             variant="ghost"
