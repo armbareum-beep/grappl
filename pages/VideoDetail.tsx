@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getVideoById, getVideos, getCreatorById } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
-import { VideoCard } from '../components/VideoCard';
+import { Videocard } from '../components/Videocard';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Play, Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
 
@@ -163,7 +163,7 @@ export const VideoDetail: React.FC = () => {
                 <h2 className="text-2xl font-bold text-slate-900 mb-6">관련 영상</h2>
                 <div className="grid md:grid-cols-3 gap-6">
                   {relatedVideos.map((relatedVideo) => (
-                    <VideoCard key={relatedVideo.id} video={relatedVideo} />
+                    <Videocard key={relatedVideo.id} video={relatedVideo} />
                   ))}
                 </div>
               </div>
