@@ -638,11 +638,42 @@ export async function rejectCreator(creatorId: string) {
  * Update user profile
  */
 export async function updateUserProfile(updates: { name?: string }) {
-    const { error } = await supabase.auth.updateUser({
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) return { error: userError };
+    if (!user) return { error: new Error('No user logged in') };
+
+    // 1. Update auth.users metadata
+    const { error: authError } = await supabase.auth.updateUser({
         data: { name: updates.name }
     });
+    if (authError) return { error: authError };
 
-    return { error };
+    // 2. Update public.users table
+    const { error: dbError } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', user.id);
+
+    if (dbError) return { error: dbError };
+
+    // 3. If user is a creator, update creators table as well
+    // Check if user is a creator first
+    const { data: creator } = await supabase
+        .from('creators')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+    if (creator) {
+        const { error: creatorError } = await supabase
+            .from('creators')
+            .update({ name: updates.name })
+            .eq('id', user.id);
+
+        if (creatorError) console.error('Error updating creator name:', creatorError);
+    }
+
+    return { error: null };
 }
 
 // ==================== PROFILE IMAGE UPLOAD ====================
