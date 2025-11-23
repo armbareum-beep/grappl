@@ -12,7 +12,7 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
 
-  const { signIn, signUp, signInWithGoogle, signInWithNaver, signInWithKakao } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,19 +40,12 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'naver' | 'kakao') => {
+  const handleSocialLogin = async (provider: 'google') => {
     setError('');
     setSocialLoading(provider);
 
     try {
-      let result;
-      if (provider === 'google') {
-        result = await signInWithGoogle();
-      } else if (provider === 'naver') {
-        result = await signInWithNaver();
-      } else {
-        result = await signInWithKakao();
-      }
+      const result = await signInWithGoogle();
 
       if (result.error) {
         setError(result.error.message);
@@ -178,27 +171,6 @@ export const Login: React.FC = () => {
                 {socialLoading === 'google' ? '로그인 중...' : 'Google 로그인'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('naver')}
-                disabled={socialLoading !== null}
-                className="w-full flex items-center justify-center px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="w-5 h-5 mr-2 font-bold text-green-600">N</span>
-                {socialLoading === 'naver' ? '로그인 중...' : '네이버 로그인'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('kakao')}
-                disabled={socialLoading !== null}
-                className="w-full flex items-center justify-center px-4 py-3 bg-yellow-400 rounded-lg hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="#3C1E1E">
-                  <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.8 6.7-.2.7-.6 2.1-.7 2.5 0 .3.1.5.3.6.2.1.4 0 .6-.1.3-.2 3.1-2.1 3.6-2.5.5.1 1 .1 1.5.1 5.5 0 10-3.6 10-8S17.5 3 12 3z" />
-                </svg>
-                {socialLoading === 'kakao' ? '로그인 중...' : '카카오 로그인'}
-              </button>
             </div>
           </div>
         </div>
