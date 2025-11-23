@@ -262,7 +262,7 @@ export const TournamentTab: React.FC = () => {
                             <p className="text-slate-500 font-medium">상대방과 기술을 겨루어 승리하세요!</p>
                         </div>
 
-                        <div className="flex-1 bg-slate-50 rounded-3xl border border-slate-200 p-8 mb-8 overflow-y-auto shadow-inner custom-scrollbar relative">
+                        <div className="flex-1 bg-slate-50 rounded-3xl border border-slate-200 p-8 mb-8 overflow-y-auto shadow-inner custom-scrollbar relative min-h-[500px]">
                             {matchLog.length === 0 ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
                                     <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100">
