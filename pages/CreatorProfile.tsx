@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest } from '../lib/api';
+import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
 import { Creator, Course, FeedbackSettings } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { Button } from '../components/Button';
@@ -18,6 +18,8 @@ export const CreatorProfile: React.FC = () => {
     const [videoUrl, setVideoUrl] = useState('');
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [subscribeLoading, setSubscribeLoading] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -33,6 +35,11 @@ export const CreatorProfile: React.FC = () => {
                 setCourses(coursesData);
                 if (feedbackData.data) {
                     setFeedbackSettings(feedbackData.data);
+                }
+
+                if (user && id) {
+                    const subscribed = await checkSubscriptionStatus(user.id, id);
+                    setIsSubscribed(subscribed);
                 }
             } catch (error) {
                 console.error('Error fetching creator data:', error);
@@ -72,6 +79,43 @@ export const CreatorProfile: React.FC = () => {
             alert('요청 중 오류가 발생했습니다.');
         }
         setSubmitting(false);
+    };
+
+    const handleSubscribe = async () => {
+        if (!user) {
+            alert('로그인이 필요한 서비스입니다.');
+            return;
+        }
+        if (!creator) return;
+
+        setSubscribeLoading(true);
+
+        // Optimistic update
+        const newStatus = !isSubscribed;
+        setIsSubscribed(newStatus);
+        setCreator(prev => prev ? {
+            ...prev,
+            subscriberCount: prev.subscriberCount + (newStatus ? 1 : -1)
+        } : null);
+
+        try {
+            if (newStatus) {
+                await subscribeToCreator(user.id, creator.id);
+            } else {
+                await unsubscribeFromCreator(user.id, creator.id);
+            }
+        } catch (error) {
+            // Revert on error
+            setIsSubscribed(!newStatus);
+            setCreator(prev => prev ? {
+                ...prev,
+                subscriberCount: prev.subscriberCount + (newStatus ? -1 : 1)
+            } : null);
+            console.error('Subscription error:', error);
+            alert('오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            setSubscribeLoading(false);
+        }
     };
 
     if (loading) {
@@ -167,8 +211,13 @@ export const CreatorProfile: React.FC = () => {
                                 </div>
                             </div>
 
-                            <Button size="lg" className="shadow-lg">
-                                구독하기
+                            <Button
+                                size="lg"
+                                className={`shadow-lg transition-all ${isSubscribed ? 'bg-slate-200 text-slate-800 hover:bg-slate-300' : ''}`}
+                                onClick={handleSubscribe}
+                                disabled={subscribeLoading}
+                            >
+                                {isSubscribed ? '구독중' : '구독하기'}
                             </Button>
                         </div>
                     </div>

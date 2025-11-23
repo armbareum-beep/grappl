@@ -26,7 +26,9 @@ export const Home: React.FC = () => {
           setFeaturedCourses(featured);
         } else {
           const allCourses = await getCourses();
-          setFeaturedCourses(allCourses.slice(0, 3));
+          // Sort by views descending
+          const sortedByViews = [...allCourses].sort((a, b) => (b.views || 0) - (a.views || 0));
+          setFeaturedCourses(sortedByViews.slice(0, 3));
         }
 
         // Creators
@@ -37,7 +39,9 @@ export const Home: React.FC = () => {
         } else {
           const allCreators = await getCreators();
           if (allCreators && allCreators.length > 0) {
-            setFeaturedCreators(allCreators.slice(0, 2));
+            // Randomize creators
+            const shuffled = [...allCreators].sort(() => 0.5 - Math.random());
+            setFeaturedCreators(shuffled.slice(0, 2));
           } else {
             setFeaturedCreators(MOCK_CREATORS.slice(0, 2));
           }

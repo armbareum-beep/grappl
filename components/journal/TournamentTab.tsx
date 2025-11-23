@@ -129,154 +129,190 @@ export const TournamentTab: React.FC = () => {
     if (loading) return <div className="p-8 text-center">로딩 중...</div>;
 
     return (
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="mb-12 text-center">
-                <h2 className="text-4xl font-bold text-slate-900 mb-4 flex items-center justify-center gap-3">
-                    <Trophy className="w-10 h-10 text-yellow-500" />
-                    시합장 (Competition Arena)
+                <h2 className="text-5xl font-black text-slate-900 mb-4 flex items-center justify-center gap-4 tracking-tight">
+                    <Trophy className="w-12 h-12 text-yellow-500" />
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
+                        시합장
+                    </span>
+                    <span className="text-2xl text-slate-400 font-medium self-end mb-2">Competition Arena</span>
                 </h2>
-                <p className="text-lg text-slate-600">
+                <p className="text-xl text-slate-600 max-w-2xl mx-auto">
                     수련일지와 스킬 트리로 강해지세요! 실제 상황과 같은 치열한 승부!
                 </p>
             </div>
 
             <div className="grid lg:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Stats (3 cols) */}
-                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-blue-500" />
-                        나의 전투력
-                    </h3>
-
-                    <div className="space-y-5">
-                        {stats && Object.entries(stats).map(([key, value]) => {
-                            if (key === 'total' || key === 'logCount') return null;
-                            const max = 50;
-                            const percentage = Math.min((value / max) * 100, 100);
-
-                            return (
-                                <div key={key}>
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span className="font-medium text-slate-700">{key}</span>
-                                        <span className="font-bold text-slate-900">{value}</span>
-                                    </div>
-                                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${percentage}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        <div className="pt-6 border-t border-slate-100">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-medium text-slate-700 flex items-center gap-2">
-                                    <BookOpen className="w-4 h-4" /> 수련 일지 점수
-                                </span>
-                                <span className="font-bold text-slate-900">+{Math.floor((stats?.logCount || 0) * 0.5)}</span>
+                {/* Left Column: Stats & Leaderboard (5 cols) */}
+                <div className="lg:col-span-5 space-y-8">
+                    {/* Stats Card */}
+                    <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50">
+                        <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-slate-900">
+                            <div className="p-2 bg-blue-50 rounded-xl">
+                                <Zap className="w-6 h-6 text-blue-600" />
                             </div>
-                            <p className="text-xs text-slate-400 text-right">일지당 0.5점</p>
-                        </div>
-                    </div>
+                            나의 전투력
+                        </h3>
 
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 font-medium">총 전투력</span>
-                            <span className="text-4xl font-bold text-blue-600">{stats?.total}</span>
-                        </div>
-                        {userRank && (
-                            <div className="mt-4 text-center bg-yellow-50 text-yellow-700 py-3 rounded-xl font-bold border border-yellow-100">
-                                현재 랭킹: {userRank}위
-                            </div>
-                        )}
-                    </div>
-                </div>
+                        <div className="space-y-6">
+                            {stats && Object.entries(stats).map(([key, value]) => {
+                                if (key === 'total' || key === 'logCount') return null;
+                                const max = 50;
+                                const percentage = Math.min((value / max) * 100, 100);
 
-                {/* Middle Column: Arena (6 cols) */}
-                <div className={`lg:col-span-6 bg-white rounded-2xl border p-8 shadow-lg flex flex-col transition-all duration-500 min-h-[600px] ${tournamentResult === 'win' ? 'border-yellow-400 bg-gradient-to-b from-yellow-50 to-white' :
-                        tournamentResult === 'loss' ? 'border-red-400 bg-gradient-to-b from-red-50 to-white' :
-                            'border-slate-200'
-                    }`}>
-                    <h3 className="text-2xl font-bold mb-8 flex items-center justify-center gap-3">
-                        <Swords className="w-8 h-8 text-red-500" />
-                        토너먼트 매치
-                    </h3>
+                                return (
+                                    <div key={key}>
+                                        <div className="flex justify-between text-base mb-2">
+                                            <span className="font-semibold text-slate-700">{key}</span>
+                                            <span className="font-bold text-slate-900">{value}</span>
+                                        </div>
+                                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
+                                                style={{ width: `${percentage}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
 
-                    <div className="flex-1 bg-white rounded-xl border border-slate-100 p-6 mb-8 overflow-y-auto shadow-inner">
-                        {matchLog.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12">
-                                <Crown className="w-20 h-20 mb-6 opacity-20" />
-                                <p className="text-center text-lg font-medium">
-                                    참가 버튼을 눌러 시합을 시작하세요.<br />
-                                    <span className="text-sm font-normal mt-2 block opacity-75">
-                                        가드 vs 패스, 스탠딩 vs 스탠딩 등<br />
-                                        실전과 같은 상황이 펼쳐집니다!
+                            <div className="pt-8 border-t border-slate-100">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-semibold text-slate-700 flex items-center gap-2">
+                                        <BookOpen className="w-5 h-5 text-slate-400" /> 수련 일지 보너스
                                     </span>
-                                </p>
+                                    <span className="font-bold text-blue-600 text-lg">+{((stats?.logCount || 0) * 0.5).toFixed(1)}</span>
+                                </div>
+                                <p className="text-sm text-slate-400 text-right">일지당 0.5점</p>
                             </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {matchLog.map((log, index) => (
-                                    <div key={index} className={`p-4 rounded-xl border text-sm animate-fade-in shadow-sm ${log.includes('승리') ? 'bg-blue-50 border-blue-100 text-blue-800' :
-                                            log.includes('패배') ? 'bg-red-50 border-red-100 text-red-800' :
-                                                'bg-white border-slate-100 text-slate-700'
-                                        }`}>
-                                        {log}
-                                    </div>
-                                ))}
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-slate-100 bg-slate-50 -mx-8 -mb-8 p-8 rounded-b-3xl">
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-bold text-lg">총 전투력</span>
+                                <span className="text-5xl font-black text-slate-900 tracking-tight">{stats?.total}</span>
                             </div>
-                        )}
+                            {userRank && (
+                                <div className="mt-4 text-center bg-white text-yellow-600 py-3 rounded-xl font-bold border border-yellow-100 shadow-sm">
+                                    🏆 현재 랭킹: <span className="text-xl">{userRank}위</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <button
-                        onClick={simulateMatch}
-                        disabled={isPlaying}
-                        className={`w-full py-5 rounded-xl font-bold text-xl transition-all transform active:scale-[0.98] shadow-lg ${isPlaying
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:shadow-xl hover:from-yellow-600 hover:to-orange-600'
-                            }`}
-                    >
-                        {isPlaying ? '시합 진행 중...' : '토너먼트 참가하기'}
-                    </button>
-                </div>
+                    {/* Leaderboard Card */}
+                    <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50">
+                        <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-900">
+                            <div className="p-2 bg-yellow-50 rounded-xl">
+                                <Medal className="w-6 h-6 text-yellow-500" />
+                            </div>
+                            랭킹 (TOP 10)
+                        </h3>
 
-                {/* Right Column: Leaderboard (3 cols) */}
-                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                        <Medal className="w-5 h-5 text-yellow-500" />
-                        랭킹 (TOP 10)
-                    </h3>
-
-                    <div className="space-y-3">
-                        {leaderboard.map((entry, index) => (
-                            <div
-                                key={entry.userId}
-                                className={`flex items-center justify-between p-3 rounded-xl transition-colors ${entry.userId === user?.id ? 'bg-blue-50 border border-blue-200 shadow-sm' : 'bg-slate-50 hover:bg-slate-100'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        <div className="space-y-3">
+                            {leaderboard.map((entry, index) => (
+                                <div
+                                    key={entry.userId}
+                                    className={`flex items-center justify-between p-4 rounded-2xl transition-all ${entry.userId === user?.id
+                                        ? 'bg-blue-50 border-2 border-blue-200 shadow-md transform scale-[1.02]'
+                                        : 'bg-white border border-slate-100 hover:border-slate-300 hover:shadow-md'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full font-black text-lg ${index === 0 ? 'bg-yellow-100 text-yellow-700 ring-4 ring-yellow-50' :
                                             index === 1 ? 'bg-slate-200 text-slate-700' :
                                                 index === 2 ? 'bg-orange-100 text-orange-700' :
-                                                    'bg-white text-slate-500 border border-slate-200'
-                                        }`}>
-                                        {index + 1}
+                                                    'bg-slate-50 text-slate-400'
+                                            }`}>
+                                            {index + 1}
+                                        </div>
+                                        <span className={`font-bold truncate text-lg ${entry.userId === user?.id ? 'text-blue-700' : 'text-slate-700'}`}>
+                                            {entry.userName}
+                                        </span>
                                     </div>
-                                    <span className={`font-medium truncate ${entry.userId === user?.id ? 'text-blue-700' : 'text-slate-700'}`}>
-                                        {entry.userName}
-                                    </span>
+                                    <span className="font-black text-slate-900 text-lg">{entry.score}</span>
                                 </div>
-                                <span className="font-bold text-slate-900">{entry.score}</span>
-                            </div>
-                        ))}
+                            ))}
 
-                        {leaderboard.length === 0 && (
-                            <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl">
-                                <p>랭킹 데이터가 없습니다.</p>
-                            </div>
-                        )}
+                            {leaderboard.length === 0 && (
+                                <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <p>랭킹 데이터가 없습니다.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Column: Arena (7 cols) */}
+                <div className={`lg:col-span-7 bg-white rounded-3xl border p-10 shadow-2xl transition-all duration-500 min-h-[800px] flex flex-col relative overflow-hidden ${tournamentResult === 'win' ? 'border-yellow-400 ring-8 ring-yellow-100' :
+                    tournamentResult === 'loss' ? 'border-red-400 ring-8 ring-red-100' :
+                        'border-slate-200 shadow-slate-200/50'
+                    }`}>
+
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="text-center mb-10">
+                            <h3 className="text-4xl font-black mb-2 flex items-center justify-center gap-4 text-slate-900">
+                                <Swords className="w-12 h-12 text-red-500" />
+                                토너먼트 매치
+                            </h3>
+                            <p className="text-slate-500 font-medium">상대방과 기술을 겨루어 승리하세요!</p>
+                        </div>
+
+                        <div className="flex-1 bg-slate-50 rounded-3xl border border-slate-200 p-8 mb-8 overflow-y-auto shadow-inner custom-scrollbar relative">
+                            {matchLog.length === 0 ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                                    <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100">
+                                        <Crown className="w-16 h-16 text-slate-300" />
+                                    </div>
+                                    <p className="text-center text-2xl font-bold text-slate-500 mb-2">
+                                        도전할 준비가 되셨나요?
+                                    </p>
+                                    <p className="text-center text-slate-400 max-w-md">
+                                        참가 버튼을 누르면 당신의 능력치를 기반으로<br />
+                                        가상의 상대와 3라운드 대결을 펼칩니다.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {matchLog.map((log, index) => (
+                                        <div key={index} className={`p-6 rounded-2xl border text-lg font-bold animate-fade-in shadow-sm flex items-center gap-4 ${log.includes('승리') ? 'bg-blue-50 border-blue-200 text-blue-900' :
+                                            log.includes('패배') ? 'bg-red-50 border-red-200 text-red-900' :
+                                                log.includes('Round') ? 'bg-slate-800 text-white border-transparent justify-center py-3' :
+                                                    'bg-white border-slate-200 text-slate-800'
+                                            }`}>
+                                            {log}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={simulateMatch}
+                            disabled={isPlaying}
+                            className={`w-full py-8 rounded-3xl font-black text-3xl transition-all transform active:scale-[0.98] shadow-xl relative overflow-hidden group ${isPlaying
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:shadow-2xl hover:shadow-orange-500/30 hover:-translate-y-1'
+                                }`}
+                        >
+                            <span className="relative z-10 flex items-center justify-center gap-3">
+                                {isPlaying ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-4 border-white"></div>
+                                        시합 진행 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        토너먼트 참가하기
+                                        <Swords className="w-8 h-8 group-hover:rotate-12 transition-transform" />
+                                    </>
+                                )}
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getTrainingLogs, createTrainingLog, deleteTrainingLog } from '../lib/api';
+import { getTrainingLogs, createTrainingLog, deleteTrainingLog, updateTrainingLog } from '../lib/api';
 import { TrainingLog } from '../types';
 import { TrainingLogList } from '../components/journal/TrainingLogList';
 import { TrainingLogForm } from '../components/journal/TrainingLogForm';
@@ -17,18 +17,16 @@ export const Journal: React.FC = () => {
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
-    // Default to 'my' if user is logged in, otherwise default to 'community'
     const [activeTab, setActiveTab] = useState<'my' | 'community' | 'skills' | 'tournament'>(user ? 'my' : 'community');
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
 
-    // Fetch logs when user is logged in and "my" tab is active
     useEffect(() => {
         const fetchMyLogs = async () => {
             if (!user || activeTab !== 'my') {
                 setLoading(false);
-                setLogs([]); // Clear logs if not on 'my' tab or not logged in
+                setLogs([]);
                 return;
             }
             setLoading(true);
@@ -54,7 +52,6 @@ export const Journal: React.FC = () => {
         try {
             const { error } = await createTrainingLog(logData);
             if (error) throw error;
-            // Refresh logs after creation
             const { data, error: fetchErr } = await getTrainingLogs(user.id);
             if (!fetchErr && data) setLogs(data);
             setIsCreating(false);
@@ -73,9 +70,23 @@ export const Journal: React.FC = () => {
             const { error } = await deleteTrainingLog(id);
             if (error) throw error;
             setLogs(prev => prev.filter(log => log.id !== id));
+            if (selectedLog?.id === id) setSelectedLog(null);
         } catch (e) {
             console.error('Error deleting log:', e);
             alert('수련 일지 삭제에 실패했습니다.');
+        }
+    };
+
+    const handleUpdate = async (updatedLog: TrainingLog) => {
+        if (!user) return;
+        try {
+            const { error } = await updateTrainingLog(updatedLog.id, updatedLog);
+            if (error) throw error;
+            setLogs(prev => prev.map(log => log.id === updatedLog.id ? updatedLog : log));
+            setSelectedLog(updatedLog);
+        } catch (e) {
+            console.error('Error updating log:', e);
+            alert('수련 일지 수정에 실패했습니다.');
         }
     };
 
@@ -101,18 +112,17 @@ export const Journal: React.FC = () => {
                                 <p className="text-slate-600 text-sm">나만의 주짓수 여정을 기록하고 공유하세요</p>
                             </div>
                         </div>
-                        {activeTab === 'my' && !isCreating && user && ( // Only show create button if logged in and on 'my' tab
+                        {activeTab === 'my' && !isCreating && user && (
                             <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
                                 <Plus className="w-4 h-4" />
                                 <span>새 기록 작성</span>
                             </Button>
                         )}
-                        {activeTab === 'my' && !user && ( // Show login prompt if not logged in and on 'my' tab
+                        {activeTab === 'my' && !user && (
                             <a href="/login" className="text-blue-600 underline text-sm">로그인 후 기록 작성</a>
                         )}
                     </div>
 
-                    {/* Tab navigation */}
                     <div className="flex space-x-6 border-b border-slate-200 -mb-6">
                         <button
                             onClick={() => setActiveTab('my')}
@@ -148,7 +158,7 @@ export const Journal: React.FC = () => {
 
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {activeTab === 'my' ? (
-                    user ? ( // Render 'my' tab content only if user is logged in
+                    user ? (
                         <>
                             {isCreating && (
                                 <div className="mb-8">
@@ -178,7 +188,11 @@ export const Journal: React.FC = () => {
                                 </div>
                             </div>
                             {viewMode === 'list' ? (
-                                <TrainingLogList logs={logs} onDelete={handleDelete} />
+                                <TrainingLogList
+                                    logs={logs}
+                                    onDelete={handleDelete}
+                                    onLogClick={(log) => setSelectedLog(log)}
+                                />
                             ) : (
                                 <div className="space-y-6">
                                     <TrainingCalendar
@@ -200,13 +214,14 @@ export const Journal: React.FC = () => {
                                             <TrainingLogList
                                                 logs={logs.filter(log => log.date === selectedDate)}
                                                 onDelete={handleDelete}
+                                                onLogClick={(log) => setSelectedLog(log)}
                                             />
                                         </div>
                                     )}
                                 </div>
                             )}
                         </>
-                    ) : ( // Prompt to log in if 'my' tab is active but no user
+                    ) : (
                         <div className="flex items-center justify-center min-h-[300px] bg-white rounded-lg shadow-sm p-8">
                             <div className="text-center">
                                 <p className="text-slate-600 mb-4">로그인 후 나만의 수련 일지를 관리하세요.</p>
@@ -224,7 +239,11 @@ export const Journal: React.FC = () => {
             </div>
 
             {selectedLog && (
-                <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+                <LogDetailModal
+                    log={selectedLog}
+                    onClose={() => setSelectedLog(null)}
+                    onEdit={handleUpdate}
+                />
             )}
         </div>
     );

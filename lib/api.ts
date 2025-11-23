@@ -805,6 +805,51 @@ export async function deleteCourse(courseId: string) {
     return { error };
 }
 
+// ==================== SUBSCRIPTIONS API ====================
+
+/**
+ * Subscribe to a creator
+ */
+export async function subscribeToCreator(userId: string, creatorId: string) {
+    const { error } = await supabase
+        .from('creator_subscriptions')
+        .insert({
+            user_id: userId,
+            creator_id: creatorId
+        });
+
+    return { error };
+}
+
+/**
+ * Unsubscribe from a creator
+ */
+export async function unsubscribeFromCreator(userId: string, creatorId: string) {
+    const { error } = await supabase
+        .from('creator_subscriptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('creator_id', creatorId);
+
+    return { error };
+}
+
+/**
+ * Check if user is subscribed to a creator
+ */
+export async function checkSubscriptionStatus(userId: string, creatorId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('creator_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('creator_id', creatorId)
+        .single();
+
+    if (error) return false;
+    return !!data;
+}
+
+
 /**
  * Delete a lesson (admin only)
  */
@@ -1060,6 +1105,29 @@ export async function deleteTrainingLog(logId: string) {
 }
 
 /**
+ * Update a training log
+ */
+export async function updateTrainingLog(id: string, logData: Partial<TrainingLog>) {
+    const dbData: any = {};
+    if (logData.date) dbData.date = logData.date;
+    if (logData.durationMinutes) dbData.duration_minutes = logData.durationMinutes;
+    if (logData.sparringRounds) dbData.sparring_rounds = logData.sparringRounds;
+    if (logData.notes) dbData.notes = logData.notes;
+    if (logData.location) dbData.location = logData.location;
+    if (logData.techniques) dbData.techniques = logData.techniques;
+    if (logData.isPublic !== undefined) dbData.is_public = logData.isPublic;
+    if (logData.youtubeUrl) dbData.youtube_url = logData.youtubeUrl;
+
+    const { error } = await supabase
+        .from('training_logs')
+        .update(dbData)
+        .eq('id', id);
+
+    return { error };
+}
+
+
+/**
  * Get public training logs (Community Feed) with pagination
  */
 export async function getPublicTrainingLogs(page: number = 1, limit: number = 10) {
@@ -1282,7 +1350,7 @@ export async function getUserStats(userId: string) {
     });
 
     // Add log points (0.5 per log)
-    stats.total += Math.floor(logCount * 0.5);
+    stats.total += (logCount * 0.5);
 
     return { data: stats, error: null };
 }
