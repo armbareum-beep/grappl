@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty } from '../types';
 
 
 // Revenue split constants
@@ -2021,4 +2021,86 @@ export async function promoteToCreator(userId: string) {
     }
 
     return { error: null };
+}
+
+/**
+ * Record watch time for a video or lesson
+ * Adds the delta seconds to the daily log
+ */
+export async function recordWatchTime(userId: string, seconds: number, videoId?: string, lessonId?: string) {
+    if (!videoId && !lessonId) return { error: new Error('VideoId or LessonId required') };
+    if (seconds <= 0) return { error: null };
+
+    const today = new Date().toISOString().split('T')[0];
+    const matchQuery: any = { user_id: userId, date: today };
+    if (videoId) matchQuery.video_id = videoId;
+    if (lessonId) matchQuery.lesson_id = lessonId;
+
+    // 1. Get current log
+    const { data: currentLog, error: fetchError } = await supabase
+        .from('video_watch_logs')
+        .select('id, watch_seconds')
+        .match(matchQuery)
+        .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "Row not found"
+        console.error('Error fetching watch log:', fetchError);
+        return { error: fetchError };
+    }
+
+    // 2. Upsert
+    const newSeconds = (currentLog?.watch_seconds || 0) + seconds;
+
+    const { error } = await supabase
+        .from('video_watch_logs')
+        .upsert({
+            ...matchQuery,
+            watch_seconds: newSeconds,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: videoId ? 'user_id,video_id,date' : 'user_id,lesson_id,date'
+        });
+
+    return { error };
+}
+
+/**
+ * Get all public courses for Skill Tree (available to everyone)
+ */
+export async function getPublicCourses() {
+    const { data, error } = await supabase
+        .from('courses')
+        .select(`
+            id,
+            title,
+            category,
+            creator_id,
+            creators (name)
+        `)
+        .eq('is_published', true)
+        .order('title');
+
+    if (error) {
+        console.error('Error fetching public courses:', error);
+        return { data: null, error };
+    }
+
+    const courses = data.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        creatorId: c.creator_id,
+        creatorName: c.creators?.name,
+        // Add dummy values for required Course fields that aren't needed for the list
+        description: '',
+        price: 0,
+        thumbnailUrl: '',
+        difficulty: Difficulty.Beginner,
+        isPublished: true,
+        createdAt: '',
+        updatedAt: '',
+        views: 0
+    }));
+
+    return { data: courses, error: null };
 }
