@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime } from '../lib/api';
 import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -187,6 +187,32 @@ export const CourseDetail: React.FC = () => {
     const totalHours = Math.floor(totalDuration / 3600);
     const totalMins = Math.floor((totalDuration % 3600) / 60);
 
+    const lastTickRef = React.useRef<number>(0);
+    const accumulatedTimeRef = React.useRef<number>(0);
+
+    const handleProgress = async (seconds: number) => {
+        if (!user || !selectedLesson) return;
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+
+            // Record watch time for lesson, ONLY if course is not free
+            if (course && course.price > 0) {
+                recordWatchTime(user.id, timeToSend, undefined, selectedLesson.id);
+            }
+        }
+    };
+
     return (
         <div className="bg-white min-h-screen pb-20">
             <div className="bg-white border-b border-slate-200">
@@ -205,6 +231,7 @@ export const CourseDetail: React.FC = () => {
                             vimeoId={selectedLesson.vimeoUrl}
                             title={selectedLesson.title}
                             onEnded={handleVideoEnded}
+                            onProgress={handleProgress}
                         />
                     ) : (
                         <div className="w-full bg-slate-900 aspect-video flex items-center justify-center relative">
@@ -404,6 +431,6 @@ export const CourseDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
