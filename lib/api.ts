@@ -1690,6 +1690,23 @@ export async function updateFeedbackStatus(requestId: string, status: 'pending' 
     return { error };
 }
 
+/**
+ * Submit feedback response
+ */
+export async function submitFeedbackResponse(requestId: string, content: string) {
+    const { error } = await supabase
+        .from('feedback_requests')
+        .update({
+            feedback_content: content,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+
+    return { error };
+}
+
 
 // ==================== NOTIFICATIONS ====================
 

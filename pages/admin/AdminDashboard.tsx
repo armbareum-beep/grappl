@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, BookOpen, Users, Home, Package } from 'lucide-react';
+import { Star, BookOpen, Users, Home, Package, DollarSign } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
     return (
@@ -60,6 +60,19 @@ export const AdminDashboard: React.FC = () => {
                             <h2 className="text-xl font-bold text-slate-900 mb-2">마케팅 관리</h2>
                             <p className="text-slate-600 text-sm">
                                 플랫폼 번들과 쿠폰을 생성하고 관리하세요
+                            </p>
+                        </div>
+                    </Link>
+
+                    {/* Payout Monitoring */}
+                    <Link to="/admin/payouts">
+                        <div className="bg-white rounded-xl border border-slate-200 p-8 hover:shadow-lg transition-shadow cursor-pointer">
+                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                                <DollarSign className="w-6 h-6" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-900 mb-2">자동 정산 모니터링</h2>
+                            <p className="text-slate-600 text-sm">
+                                매월 15일 자동 정산 내역을 확인하세요
                             </p>
                         </div>
                     </Link>
