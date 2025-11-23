@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PlayCircle, CheckCircle, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { MOCK_CREATORS } from '../constants';
-import { getFeaturedContent, getCourseById, getCreatorById, getCourses, getCreators } from '../lib/api';
+import { getFeaturedContent, getCourses, getCreators } from '../lib/api';
 import { Creator, Course } from '../types';
 import { CourseCard } from '../components/CourseCard';
 
@@ -14,42 +14,43 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchFeatured() {
+    const fetchFeatured = async () => {
       try {
         const { data } = await getFeaturedContent();
         setFeaturedContent(data);
 
-        // Fetch featured courses
+        // Courses
         if (data?.featuredCourseIds && data.featuredCourseIds.length > 0) {
           const allCourses = await getCourses();
           const featured = allCourses.filter(c => data.featuredCourseIds.includes(c.id));
           setFeaturedCourses(featured);
         } else {
-          // Fallback: show latest courses
           const allCourses = await getCourses();
           setFeaturedCourses(allCourses.slice(0, 3));
         }
 
-        // Fetch featured creators
+        // Creators
         if (data?.featuredCreatorIds && data.featuredCreatorIds.length > 0) {
           const allCreators = await getCreators();
           const featured = allCreators.filter(c => data.featuredCreatorIds.includes(c.id));
           setFeaturedCreators(featured);
         } else {
-          // Fallback: show random creators
           const allCreators = await getCreators();
-          setFeaturedCreators(allCreators.slice(0, 2));
+          if (allCreators && allCreators.length > 0) {
+            setFeaturedCreators(allCreators.slice(0, 2));
+          } else {
+            setFeaturedCreators(MOCK_CREATORS.slice(0, 2));
+          }
         }
       } catch (error) {
         console.error('Error fetching featured content:', error);
-        // Fallback on error
         const allCourses = await getCourses();
         setFeaturedCourses(allCourses.slice(0, 3));
         setFeaturedCreators(MOCK_CREATORS.slice(0, 2));
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchFeatured();
   }, []);
 
@@ -139,9 +140,8 @@ export const Home: React.FC = () => {
               전체 보기 &rarr;
             </Link>
           </div>
-
           <div className="grid md:grid-cols-3 gap-6">
-            {featuredCourses.map((course) => (
+            {featuredCourses.map(course => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
@@ -155,15 +155,10 @@ export const Home: React.FC = () => {
             <h2 className="text-3xl font-bold text-slate-900">대표 인스트럭터</h2>
             <p className="text-slate-600 mt-2">세계적인 수준의 인스트럭터들과 함께하세요.</p>
           </div>
-
           <div className="grid md:grid-cols-2 gap-8">
-            {featuredCreators.map((creator) => (
+            {featuredCreators.map(creator => (
               <div key={creator.id} className="flex items-center gap-6 p-6 rounded-2xl border border-slate-100 hover:shadow-lg transition-shadow">
-                <img
-                  src={creator.profileImage}
-                  alt={creator.name}
-                  className="w-24 h-24 rounded-full object-cover"
-                />
+                <img src={creator.profileImage} alt={creator.name} className="w-24 h-24 rounded-full object-cover" />
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 mb-1">{creator.name}</h3>
                   <p className="text-slate-600 mb-3 line-clamp-2">{creator.bio}</p>
@@ -180,9 +175,7 @@ export const Home: React.FC = () => {
       {/* CTA Section */}
       <div className="bg-blue-600 py-20">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            지금 바로 시작하세요
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">지금 바로 시작하세요</h2>
           <p className="text-blue-100 text-lg mb-8">
             첫 달 무료 체험으로 모든 프리미엄 강좌를 무제한으로 시청하세요.
             언제든지 해지할 수 있습니다.
