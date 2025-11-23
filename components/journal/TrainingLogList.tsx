@@ -1,14 +1,15 @@
 import React from 'react';
 import { TrainingLog } from '../../types';
-import { Calendar, Clock, Activity, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Activity, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '../Button';
 
 interface TrainingLogListProps {
     logs: TrainingLog[];
     onDelete: (id: string) => void;
+    onLogClick: (log: TrainingLog) => void;
 }
 
-export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete }) => {
+export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete, onLogClick }) => {
     if (logs.length === 0) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
@@ -34,18 +35,28 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
                                 </>
                             )}
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (window.confirm('정말 삭제하시겠습니까?')) {
-                                    onDelete(log.id);
-                                }
-                            }}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onLogClick(log)}
+                                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    if (window.confirm('정말 삭제하시겠습니까?')) {
+                                        onDelete(log.id);
+                                    }
+                                }}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap gap-4 mb-4">

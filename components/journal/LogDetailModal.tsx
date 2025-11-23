@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { TrainingLog, LogFeedback } from '../../types';
-import { X, Calendar, Clock, Activity, MessageSquare, Send, User } from 'lucide-react';
+import { X, Calendar, Clock, Activity, MessageSquare, Send, User, Edit2 } from 'lucide-react';
 import { Button } from '../Button';
 import { getLogFeedback, createLogFeedback } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { TrainingLogForm } from './TrainingLogForm';
 
 interface LogDetailModalProps {
     log: TrainingLog;
     onClose: () => void;
+    onEdit?: (log: TrainingLog) => void;
 }
 
-export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) => {
+export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, onEdit }) => {
     const { user } = useAuth();
     const [feedback, setFeedback] = useState<LogFeedback[]>([]);
     const [newFeedback, setNewFeedback] = useState('');
     const [loadingFeedback, setLoadingFeedback] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         loadFeedback();
@@ -64,6 +67,30 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) 
 
     const embedUrl = log.youtubeUrl ? getYoutubeEmbedUrl(log.youtubeUrl) : null;
 
+    if (isEditing && onEdit && user) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-slate-900">수련 일지 수정</h2>
+                        <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+                    <TrainingLogForm
+                        userId={user.id}
+                        initialData={log}
+                        onSubmit={async (data) => {
+                            await onEdit({ ...log, ...data });
+                            setIsEditing(false);
+                        }}
+                        onCancel={() => setIsEditing(false)}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col md:flex-row">
@@ -90,9 +117,20 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) 
                                 )}
                             </div>
                         </div>
-                        <button onClick={onClose} className="md:hidden text-slate-400 hover:text-slate-600">
-                            <X className="w-6 h-6" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {onEdit && user?.id === log.userId && (
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                    title="수정하기"
+                                >
+                                    <Edit2 className="w-5 h-5" />
+                                </button>
+                            )}
+                            <button onClick={onClose} className="md:hidden text-slate-400 hover:text-slate-600">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
 
                     {embedUrl && (

@@ -7,18 +7,19 @@ interface TrainingLogFormProps {
     onSubmit: (log: Omit<TrainingLog, 'id' | 'createdAt'>) => Promise<void>;
     onCancel: () => void;
     userId: string;
+    initialData?: TrainingLog;
 }
 
-export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCancel, userId }) => {
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [duration, setDuration] = useState(90);
-    const [sparringRounds, setSparringRounds] = useState(3);
-    const [notes, setNotes] = useState('');
-    const [location, setLocation] = useState('');
-    const [isPublic, setIsPublic] = useState(false);
-    const [youtubeUrl, setYoutubeUrl] = useState('');
+export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCancel, userId, initialData }) => {
+    const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
+    const [duration, setDuration] = useState(initialData?.durationMinutes || 90);
+    const [sparringRounds, setSparringRounds] = useState(initialData?.sparringRounds || 3);
+    const [notes, setNotes] = useState(initialData?.notes || '');
+    const [location, setLocation] = useState(initialData?.location || '');
+    const [isPublic, setIsPublic] = useState(initialData?.isPublic || false);
+    const [youtubeUrl, setYoutubeUrl] = useState(initialData?.youtubeUrl || '');
     const [techniqueInput, setTechniqueInput] = useState('');
-    const [techniques, setTechniques] = useState<string[]>([]);
+    const [techniques, setTechniques] = useState<string[]>(initialData?.techniques || []);
     const [submitting, setSubmitting] = useState(false);
 
     const handleAddTechnique = () => {
