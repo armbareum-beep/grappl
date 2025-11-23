@@ -14,6 +14,9 @@ interface AuthContextType {
     isAdmin: boolean;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signUp: (email: string, password: string) => Promise<{ error: any }>;
+    signInWithGoogle: () => Promise<{ error: any }>;
+    signInWithNaver: () => Promise<{ error: any }>;
+    signInWithKakao: () => Promise<{ error: any }>;
     signOut: () => Promise<void>;
     becomeCreator: (name: string, bio: string) => Promise<{ error: any }>;
     isSubscribed: boolean;
@@ -114,6 +117,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     };
 
+    const signInWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/`
+            }
+        });
+        return { error };
+    };
+
+    const signInWithNaver = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'naver' as any,
+            options: {
+                redirectTo: `${window.location.origin}/`
+            }
+        });
+        return { error };
+    };
+
+    const signInWithKakao = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'kakao' as any,
+            options: {
+                redirectTo: `${window.location.origin}/`
+            }
+        });
+        return { error };
+    };
+
     const signOut = async () => {
         await supabase.auth.signOut();
     };
@@ -143,6 +176,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         signIn,
         signUp,
+        signInWithGoogle,
+        signInWithNaver,
+        signInWithKakao,
         signOut,
         becomeCreator,
         isSubscribed,
