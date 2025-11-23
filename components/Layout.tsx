@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -57,6 +58,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Right side buttons */}
             <div className="hidden md:flex items-center space-x-3">
+              {user && <NotificationDropdown />}
               {user && isAdmin && (
                 <>
                   <Link to="/admin/dashboard">

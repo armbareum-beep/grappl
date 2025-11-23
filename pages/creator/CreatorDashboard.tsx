@@ -10,13 +10,14 @@ import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTa
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
+import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests' | 'payout' | 'analytics'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests' | 'payout' | 'analytics' | 'performance'>('overview');
 
     useEffect(() => {
         async function fetchData() {
@@ -170,6 +171,16 @@ export const CreatorDashboard: React.FC = () => {
                         수익 분석
                     </button>
                     <button
+                        onClick={() => setActiveTab('performance')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'performance'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Eye className="w-4 h-4" />
+                        강좌별 성과
+                    </button>
+                    <button
                         onClick={() => setActiveTab('payout')}
                         className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'payout'
                             ? 'text-blue-600 border-b-2 border-blue-600'
@@ -232,6 +243,8 @@ export const CreatorDashboard: React.FC = () => {
                     <FeedbackRequestsTab />
                 ) : activeTab === 'analytics' ? (
                     <RevenueAnalyticsTab />
+                ) : activeTab === 'performance' ? (
+                    <CoursePerformanceTab />
                 ) : (
                     <PayoutSettingsTab />
                 )}
