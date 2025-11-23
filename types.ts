@@ -166,10 +166,13 @@ export type BeltLevel = 'White' | 'Blue' | 'Purple' | 'Brown' | 'Black';
 
 // Feedback System Types
 export interface FeedbackSettings {
+  id: string;
+  instructorId: string;
   enabled: boolean;
   price: number;
   turnaroundDays: number;
   maxActiveRequests: number;
+  updatedAt: string;
 }
 
 export type FeedbackStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -184,7 +187,9 @@ export interface FeedbackRequest {
   description: string;
   status: FeedbackStatus;
   price: number;
+  feedbackContent?: string;
   createdAt: string;
+  updatedAt: string;
   completedAt?: string;
 }
 
@@ -204,4 +209,15 @@ export interface FeedbackPayment {
   platformFee: number;
   instructorRevenue: number;
   paidAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
 }

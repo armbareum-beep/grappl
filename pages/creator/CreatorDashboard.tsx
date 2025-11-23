@@ -8,15 +8,15 @@ import { Button } from '../../components/Button';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
-
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
+import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests' | 'payout'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'marketing' | 'feedback' | 'requests' | 'payout' | 'analytics'>('overview');
 
     useEffect(() => {
         async function fetchData() {
@@ -29,7 +29,9 @@ export const CreatorDashboard: React.FC = () => {
                 ]);
 
                 setCourses(coursesData);
-                setEarnings(earningsData.data);
+                if ('data' in earningsData) {
+                    setEarnings(earningsData.data);
+                }
             } catch (error) {
                 console.error('Error fetching creator data:', error);
             } finally {
@@ -158,6 +160,16 @@ export const CreatorDashboard: React.FC = () => {
                         피드백 요청
                     </button>
                     <button
+                        onClick={() => setActiveTab('analytics')}
+                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'analytics'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <TrendingUp className="w-4 h-4" />
+                        수익 분석
+                    </button>
+                    <button
                         onClick={() => setActiveTab('payout')}
                         className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'payout'
                             ? 'text-blue-600 border-b-2 border-blue-600'
@@ -218,6 +230,8 @@ export const CreatorDashboard: React.FC = () => {
                     <FeedbackSettingsTab />
                 ) : activeTab === 'requests' ? (
                     <FeedbackRequestsTab />
+                ) : activeTab === 'analytics' ? (
+                    <RevenueAnalyticsTab />
                 ) : (
                     <PayoutSettingsTab />
                 )}
