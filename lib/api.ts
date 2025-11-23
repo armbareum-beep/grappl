@@ -1018,6 +1018,18 @@ export async function getTrainingLogs(userId: string) {
  * Create a new training log
  */
 export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
+    // Check if log already exists for this date
+    const { data: existingLogs, error: checkError } = await supabase
+        .from('training_logs')
+        .select('id')
+        .eq('user_id', log.userId)
+        .eq('date', log.date);
+
+    if (checkError) return { error: checkError };
+    if (existingLogs && existingLogs.length > 0) {
+        return { error: new Error('하루에 하나의 수련 일지만 작성할 수 있습니다.') };
+    }
+
     const { error } = await supabase
         .from('training_logs')
         .insert({
@@ -1207,18 +1219,123 @@ export async function getUserSkills(userId: string) {
 
     if (error) return { data: null, error };
 
-    id: skill.id,
+    const skills: UserSkill[] = data.map((skill: any) => ({
+        id: skill.id,
         userId: skill.user_id,
-            category: skill.category,
-                subcategoryId: skill.subcategory_id,
-                    courseId: skill.course_id,
-                        courseTitle: skill.courses?.title,
-                            status: skill.status,
-                                createdAt: skill.created_at,
-                                    updatedAt: skill.updated_at
-}));
+        category: skill.category,
+        subcategoryId: skill.subcategory_id,
+        courseId: skill.course_id,
+        courseTitle: skill.courses?.title,
+        status: skill.status,
+        createdAt: skill.created_at,
+        updatedAt: skill.updated_at
+    }));
 
-return { data: skills, error: null };
+    return { data: skills, error: null };
+}
+
+/**
+ * Get user stats for tournament
+ */
+export async function getUserStats(userId: string) {
+    const [skillsRes, logsRes] = await Promise.all([
+        getUserSkills(userId),
+        supabase.from('training_logs').select('id', { count: 'exact' }).eq('user_id', userId)
+    ]);
+
+    const skills = skillsRes.data;
+    const logCount = logsRes.count || 0;
+
+    if (!skills) {
+        return {
+            data: {
+                Standing: 0,
+                Guard: 0,
+                'Guard Pass': 0,
+                Side: 0,
+                Mount: 0,
+                Back: 0,
+                logCount: 0,
+                total: 0
+            },
+            error: skillsRes.error
+        };
+    }
+
+    const stats = {
+        Standing: 0,
+        Guard: 0,
+        'Guard Pass': 0,
+        Side: 0,
+        Mount: 0,
+        Back: 0,
+        logCount: logCount,
+        total: 0
+    };
+
+    skills.forEach(skill => {
+        const points = skill.status === 'mastered' ? 5 : 1;
+        if (stats[skill.category] !== undefined) {
+            stats[skill.category] += points;
+            stats.total += points;
+        }
+    });
+
+    // Add log points (0.5 per log)
+    stats.total += Math.floor(logCount * 0.5);
+
+    return { data: stats, error: null };
+}
+
+/**
+ * Get global leaderboard
+ */
+export async function getLeaderboard() {
+    // 1. Get all users
+    const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, name, email');
+
+    if (usersError || !users) return { data: [], error: usersError };
+
+    // 2. Calculate scores for each user (This is heavy, but okay for MVP)
+    // In production, we would have a 'user_stats' table updated via triggers
+    const leaderboard = await Promise.all(users.map(async (user) => {
+        const { data: stats } = await getUserStats(user.id);
+
+        let displayName = user.name;
+        if (!displayName && user.email) {
+            displayName = user.email.split('@')[0];
+        }
+
+        return {
+            userId: user.id,
+            userName: displayName || 'Unknown User',
+            score: stats?.total || 0,
+            stats: stats
+        };
+    }));
+
+    // 3. Sort by score descending
+    leaderboard.sort((a, b) => b.score - a.score);
+
+    // 4. Return top 10 and full list (for finding own rank)
+    return {
+        data: leaderboard,
+        error: null
+    };
+}
+
+/**
+ * Update user name
+ */
+export async function updateUserName(userId: string, name: string) {
+    const { error } = await supabase
+        .from('users')
+        .update({ name })
+        .eq('id', userId);
+
+    return { error };
 }
 
 /**
