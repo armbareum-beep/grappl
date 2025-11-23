@@ -99,6 +99,7 @@ export interface TrainingLog {
   user?: {
     name: string;
     email: string;
+    belt?: string;
   };
 }
 
