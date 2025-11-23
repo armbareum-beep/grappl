@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getVideoById, getVideos, getCreatorById } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
-import { VideoCard } from '../components/Videocard';
+import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Play, Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
 
