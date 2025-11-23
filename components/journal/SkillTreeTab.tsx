@@ -7,11 +7,11 @@ import {
     deleteUserSkill,
     getSkillSubcategories,
     createSkillSubcategory,
-    updateSkillSubcategory,
-    deleteSkillSubcategory
+    deleteSkillSubcategory,
+    getCourseProgress
 } from '../../lib/api';
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
-import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, Edit2, FolderPlus } from 'lucide-react';
+import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
@@ -88,7 +88,18 @@ export const SkillTreeTab: React.FC = () => {
 
     const handleToggleStatus = async (skill: UserSkill) => {
         if (!user) return;
+
         const newStatus: SkillStatus = skill.status === 'learning' ? 'mastered' : 'learning';
+
+        // If trying to master, check completion
+        if (newStatus === 'mastered') {
+            const progress = await getCourseProgress(user.id, skill.courseId);
+            if (progress.percentage < 100) {
+                alert('강좌를 100% 수강해야 마스터할 수 있습니다.');
+                return;
+            }
+        }
+
         await upsertUserSkill(user.id, skill.category, skill.courseId, newStatus, skill.subcategoryId);
         await loadData();
     };
@@ -157,8 +168,8 @@ export const SkillTreeTab: React.FC = () => {
                                 setSearchTerm('');
                             }}
                             className={`p-4 rounded-xl border-2 transition-all ${isSelected
-                                    ? `${cat.color} border-transparent text-white shadow-lg`
-                                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                                ? `${cat.color} border-transparent text-white shadow-lg`
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                         >
                             <Icon className="w-8 h-8 mx-auto mb-2" />
@@ -361,8 +372,8 @@ const SkillCard: React.FC<{
     return (
         <div
             className={`p-4 rounded-lg border-2 transition-all ${skill.status === 'mastered'
-                    ? 'bg-green-50 border-green-500'
-                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                ? 'bg-green-50 border-green-500'
+                : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                 }`}
         >
             <div className="flex items-center justify-between gap-3">
@@ -382,8 +393,8 @@ const SkillCard: React.FC<{
                     <button
                         onClick={() => onToggleStatus(skill)}
                         className={`text-xs px-3 py-1 rounded-full font-semibold whitespace-nowrap ${skill.status === 'mastered'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-yellow-100 text-yellow-800'
                             }`}
                     >
                         {skill.status === 'mastered' ? '✓ 마스터' : '수련 중'}
