@@ -1,4 +1,4 @@
-import { uploadToVimeo } from '../vimeo/upload';
+import { uploadToVimeo } from './vimeo/upload';
 import { supabase } from './supabase';
 
 export interface VideoUploadData {
@@ -83,7 +83,7 @@ export async function deleteVideo(videoId: string, vimeoId: string) {
 
         // 2. Vimeo에서 삭제 (선택적 - 실패해도 계속 진행)
         try {
-            const { deleteVimeoVideo } = await import('../vimeo/client');
+            const { deleteVimeoVideo } = await import('./vimeo/client');
             await deleteVimeoVideo(vimeoId);
         } catch (vimeoError) {
             console.warn('Vimeo delete failed:', vimeoError);
