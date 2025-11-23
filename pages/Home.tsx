@@ -86,7 +86,7 @@ export const Home: React.FC = () => {
           </h1>
           <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
             세계적인 챔피언들의 노하우가 담긴 체계적인 커리큘럼.
-            Grappolio와 함께 당신의 주짓수를 한 단계 업그레이드하세요.
+            Grapplay와 함께 당신의 주짓수를 한 단계 업그레이드하세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/browse">

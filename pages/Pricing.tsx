@@ -64,26 +64,30 @@ export const Pricing: React.FC = () => {
         </p>
 
         <div className="mt-16 grid gap-8 lg:grid-cols-3 max-w-5xl mx-auto">
-          {/* Single Plan */}
+          {/* Free Trial Plan */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col">
-            <h3 className="text-xl font-semibold text-slate-900">단품 구매</h3>
-            <p className="mt-4 text-slate-500 text-sm">특정 기술이나 세미나가 필요할 때.</p>
+            <h3 className="text-xl font-semibold text-slate-900">1달 무료 체험</h3>
+            <p className="mt-4 text-slate-500 text-sm">모든 기능을 1달 동안 무료로 체험해보세요.</p>
             <div className="mt-6">
-              <span className="text-4xl font-bold text-slate-900">₩15,000~</span>
+              <span className="text-4xl font-bold text-slate-900">₩0</span>
             </div>
             <ul className="mt-6 space-y-4 flex-1">
               <li className="flex items-start">
                 <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">해당 영상 평생 소장</span>
+                <span className="ml-3 text-slate-600 text-sm text-left">모든 강좌 무제한 시청</span>
               </li>
               <li className="flex items-start">
                 <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">고화질 시청</span>
+                <span className="ml-3 text-slate-600 text-sm text-left">1달 후 자동 결제</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
+                <span className="ml-3 text-slate-600 text-sm text-left">언제든지 해지 가능</span>
               </li>
             </ul>
             <div className="mt-8">
               <Link to="/browse">
-                <Button variant="outline" className="w-full">영상 둘러보기</Button>
+                <Button variant="outline" className="w-full">무료 체험 시작하기</Button>
               </Link>
             </div>
           </div>
@@ -161,6 +165,12 @@ export const Pricing: React.FC = () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="mt-12 max-w-3xl mx-auto text-center">
+          <p className="text-sm text-slate-500 bg-slate-100 py-3 px-4 rounded-lg inline-block">
+            ⚠️ 크리에이터 번들 및 쿠폰을 통한 구매는 구독 수익 정산에 포함되지 않습니다.
+          </p>
         </div>
       </div>
     </div>

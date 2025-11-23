@@ -20,6 +20,9 @@ export const CourseDetail: React.FC = () => {
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
 
+    const lastTickRef = React.useRef<number>(0);
+    const accumulatedTimeRef = React.useRef<number>(0);
+
     useEffect(() => {
         async function fetchData() {
             if (!id) return;
@@ -186,9 +189,6 @@ export const CourseDetail: React.FC = () => {
     }, 0);
     const totalHours = Math.floor(totalDuration / 3600);
     const totalMins = Math.floor((totalDuration % 3600) / 60);
-
-    const lastTickRef = React.useRef<number>(0);
-    const accumulatedTimeRef = React.useRef<number>(0);
 
     const handleProgress = async (seconds: number) => {
         if (!user || !selectedLesson) return;

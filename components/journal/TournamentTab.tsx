@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserStats, getLeaderboard, getUserPurchasedCourses } from '../../lib/api';
+import { getUserStats, getLeaderboard, getUserSkillCourses } from '../../lib/api';
 import { Trophy, Swords, Zap, Crown, Medal, BookOpen } from 'lucide-react';
 
 interface Stats {
@@ -21,10 +21,15 @@ interface LeaderboardEntry {
     stats: Stats;
 }
 
-interface PurchasedCourse {
+interface SkillCourse {
     id: string;
-    title: string;
-    category: string;
+    course_id: string;
+    slot_type: string;
+    courses: {
+        id: string;
+        title: string;
+        category: string;
+    };
 }
 
 export const TournamentTab: React.FC = () => {
@@ -37,7 +42,8 @@ export const TournamentTab: React.FC = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [tournamentResult, setTournamentResult] = useState<'win' | 'loss' | null>(null);
     const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
-    const [purchasedCourses, setPurchasedCourses] = useState<PurchasedCourse[]>([]);
+    const [skillCourses, setSkillCourses] = useState<SkillCourse[]>([]);
+    const [mySkills, setMySkills] = useState<SkillCourse[]>([]);
 
     useEffect(() => {
         if (user) {
@@ -64,30 +70,34 @@ export const TournamentTab: React.FC = () => {
         setLoading(false);
     };
 
-    // Fetch purchased courses when a user is selected
+    // Fetch skill courses when a user is selected
     useEffect(() => {
-        const fetchPurchasedCourses = async () => {
+        const fetchSkills = async () => {
             if (!selectedUser) {
-                setPurchasedCourses([]);
+                setSkillCourses([]);
                 return;
             }
 
-            const { data } = await getUserPurchasedCourses(selectedUser.userId);
+            const { data } = await getUserSkillCourses(selectedUser.userId);
             if (data) {
-                const courses = data
-                    .map((purchase: any) => purchase.courses)
-                    .filter((course: any) => course)
-                    .map((course: any) => ({
-                        id: course.id,
-                        title: course.title,
-                        category: course.category
-                    }));
-                setPurchasedCourses(courses);
+                setSkillCourses(data as any);
             }
         };
 
-        fetchPurchasedCourses();
+        fetchSkills();
     }, [selectedUser]);
+
+    // Fetch my skills for match simulation
+    useEffect(() => {
+        const fetchMySkills = async () => {
+            if (!user) return;
+            const { data } = await getUserSkillCourses(user.id);
+            if (data) {
+                setMySkills(data as any);
+            }
+        };
+        fetchMySkills();
+    }, [user]);
 
     const simulateMatch = async () => {
         if (!stats) return;
@@ -111,15 +121,15 @@ export const TournamentTab: React.FC = () => {
         // Strict Match Scenarios
         const scenarios = [
             { name: '스탠딩 대결', player: 'Standing', opponent: 'Standing' },
-            { name: '가드 vs 패스', player: 'Guard', opponent: 'Guard Pass' }, // Player is Guard
-            { name: '패스 vs 가드', player: 'Guard Pass', opponent: 'Guard' }, // Player is Passer
-            { name: '사이드 탈출', player: 'Side', opponent: 'Side' }, // Both fighting for position
+            { name: '가드 vs 패스', player: 'Guard', opponent: 'Guard Pass' },
+            { name: '패스 vs 가드', player: 'Guard Pass', opponent: 'Guard' },
+            { name: '사이드 탈출', player: 'Side', opponent: 'Side' },
             { name: '마운트 탈출', player: 'Mount', opponent: 'Mount' },
             { name: '백 탈출/공격', player: 'Back', opponent: 'Back' }
         ];
 
-        // Simulate 3 rounds
-        for (let i = 1; i <= 3; i++) {
+        // Simulate 5 rounds
+        for (let i = 1; i <= 5; i++) {
             await new Promise(resolve => setTimeout(resolve, 800));
 
             // Randomly select a scenario
@@ -131,11 +141,15 @@ export const TournamentTab: React.FC = () => {
             const playerRoll = (Math.random() * playerVal);
             const opponentRoll = (Math.random() * opponentVal);
 
+            // Find if user has a skill for this scenario
+            const relatedSkill = mySkills.find(s => s.slot_type === scenario.player);
+            const skillName = relatedSkill ? `[${relatedSkill.courses.title}]` : '';
+
             logs.push(`Round ${i}: ${scenario.name} (${scenario.player} vs ${scenario.opponent})`);
 
             if (playerRoll > opponentRoll) {
                 playerScore++;
-                logs.push(`✅ 승리! 당신의 기술이 더 정교했습니다!`);
+                logs.push(`✅ 승리! ${skillName} 기술이 적중했습니다!`);
             } else {
                 opponentScore++;
                 logs.push(`❌ 패배... 상대방이 우세했습니다.`);
@@ -325,27 +339,33 @@ export const TournamentTab: React.FC = () => {
                                         <span className="text-4xl font-black text-slate-900">{selectedUser.score}</span>
                                     </div>
 
-                                    {/* Purchased Courses */}
-                                    {purchasedCourses.length > 0 && (
+                                    {/* Skill Tree */}
+                                    {skillCourses.length > 0 ? (
                                         <div className="pt-6 border-t border-slate-200">
                                             <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                                <BookOpen className="w-4 h-4" />
-                                                구매한 강좌 ({purchasedCourses.length})
+                                                <Zap className="w-4 h-4" />
+                                                장착된 스킬 ({skillCourses.length})
                                             </h4>
                                             <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                {purchasedCourses.map((course) => (
+                                                {skillCourses.map((skill) => (
                                                     <div
-                                                        key={course.id}
-                                                        className="flex items-start gap-2 text-sm bg-white p-3 rounded-lg border border-slate-100"
+                                                        key={skill.id}
+                                                        className="flex items-center gap-3 bg-white p-3 rounded-lg border border-slate-100"
                                                     >
-                                                        <span className="text-green-600 flex-shrink-0 mt-0.5">✓</span>
+                                                        <div className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded uppercase w-20 text-center">
+                                                            {skill.slot_type}
+                                                        </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-slate-900 truncate">{course.title}</div>
-                                                            <div className="text-xs text-slate-500">{course.category}</div>
+                                                            <div className="font-medium text-slate-900 truncate">{skill.courses.title}</div>
+                                                            <div className="text-xs text-slate-500">{skill.courses.category}</div>
                                                         </div>
                                                     </div>
                                                 ))}
                                             </div>
+                                        </div>
+                                    ) : (
+                                        <div className="pt-6 border-t border-slate-200 text-center text-slate-400 text-sm">
+                                            장착된 스킬이 없습니다.
                                         </div>
                                     )}
                                 </div>

@@ -100,6 +100,13 @@ export const MarketingTab: React.FC = () => {
     return (
         <div className="space-y-8">
             {/* Bundles Section */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800 flex items-center gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <strong>주의:</strong> 번들 및 쿠폰을 통해 판매된 강좌는 구독 수익 정산에 포함되지 않습니다.
+                </p>
+            </div>
+
             <div>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
