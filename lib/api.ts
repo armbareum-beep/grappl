@@ -1388,6 +1388,21 @@ export async function getUserStats(userId: string) {
 }
 
 /**
+ * Check if user owns a specific video
+ */
+export async function checkVideoOwnership(userId: string, videoId: string) {
+    const { data, error } = await supabase
+        .from('user_videos')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .single();
+
+    if (error) return false;
+    return !!data;
+}
+
+/**
  * Get global leaderboard
  */
 export async function getLeaderboard() {

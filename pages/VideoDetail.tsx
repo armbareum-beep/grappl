@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getVideoById, getVideos, getCreatorById, recordWatchTime } from '../lib/api';
+import { getVideoById, getVideos, getCreatorById, recordWatchTime, checkVideoOwnership } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { Play, Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
+import { Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const VideoDetail: React.FC = () => {
@@ -15,22 +15,28 @@ export const VideoDetail: React.FC = () => {
   const [creator, setCreator] = useState<Creator | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ownsVideo, setOwnsVideo] = useState(false);
+
+  const lastTickRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0);
 
   useEffect(() => {
     async function fetchData() {
       if (!id) return;
 
       try {
-        // Fetch video details
         const videoData = await getVideoById(id);
         setVideo(videoData);
 
         if (videoData) {
-          // Fetch creator info
           const creatorData = await getCreatorById(videoData.creatorId);
           setCreator(creatorData);
 
-          // Fetch related videos (same category or same creator)
+          if (user) {
+            const owns = await checkVideoOwnership(user.id, id);
+            setOwnsVideo(owns);
+          }
+
           const allVideos = await getVideos();
           const related = allVideos
             .filter(v =>
@@ -46,9 +52,35 @@ export const VideoDetail: React.FC = () => {
         setLoading(false);
       }
     }
-
     fetchData();
-  }, [id]);
+  }, [id, user]);
+
+  const handleProgress = async (seconds: number) => {
+    if (!user || !video) return;
+
+    const now = Date.now();
+    if (lastTickRef.current === 0) {
+      lastTickRef.current = now;
+      return;
+    }
+
+    const elapsed = (now - lastTickRef.current) / 1000;
+    lastTickRef.current = now;
+
+    if (elapsed > 0 && elapsed < 5) {
+      accumulatedTimeRef.current += elapsed;
+    }
+
+    if (accumulatedTimeRef.current >= 10) {
+      const timeToSend = Math.floor(accumulatedTimeRef.current);
+      accumulatedTimeRef.current -= timeToSend;
+
+      // Record watch time if user is a subscriber
+      if (user.isSubscriber) {
+        recordWatchTime(user.id, timeToSend, video.id, undefined);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -78,41 +110,6 @@ export const VideoDetail: React.FC = () => {
     style: 'currency',
     currency: 'KRW',
   }).format(video.price);
-
-  const lastTickRef = useRef<number>(0);
-  const accumulatedTimeRef = useRef<number>(0);
-
-  const handleProgress = async (seconds: number) => {
-    if (!user || !video) return;
-
-    const now = Date.now();
-    if (lastTickRef.current === 0) {
-      lastTickRef.current = now;
-      return;
-    }
-
-    const elapsed = (now - lastTickRef.current) / 1000;
-    lastTickRef.current = now;
-
-    // Only count if elapsed time is reasonable (e.g., playing at 1x speed)
-    // Ignore jumps/seeks (elapsed would be very small if just timeupdate fired, but we use wall clock)
-    // Actually, timeupdate fires periodically. We just need to ensure we are playing.
-    // If elapsed is > 2 seconds, it might be a resume after pause, so we cap it or ignore.
-    if (elapsed > 0 && elapsed < 5) {
-      accumulatedTimeRef.current += elapsed;
-    }
-
-    // Send update every 10 seconds
-    if (accumulatedTimeRef.current >= 10) {
-      const timeToSend = Math.floor(accumulatedTimeRef.current);
-      accumulatedTimeRef.current -= timeToSend;
-
-      // Fire and forget, ONLY if video is not free
-      if (video.price > 0) {
-        recordWatchTime(user.id, timeToSend, video.id, undefined);
-      }
-    }
-  };
 
   return (
     <div className="bg-white min-h-screen pb-20">
