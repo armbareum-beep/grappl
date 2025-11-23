@@ -21,22 +21,27 @@ export const Journal: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
 
-    const fetchLogs = async () => {
-        if (!user) return;
-        try {
-            const { data, error } = await getTrainingLogs(user.id);
-            if (error) throw error;
-            if (data) setLogs(data);
-        } catch (error) {
-            console.error('Error fetching logs:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Fetch logs when user is logged in and "my" tab is active
     useEffect(() => {
+        const fetchLogs = async () => {
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const { data, error } = await getTrainingLogs(user.id);
+                if (error) throw error;
+                if (data) setLogs(data);
+            } catch (e) {
+                console.error('Error fetching logs:', e);
+            } finally {
+                setLoading(false);
+            }
+        };
         if (activeTab === 'my') {
             fetchLogs();
+        } else {
+            setLoading(false);
         }
     }, [user, activeTab]);
 
@@ -44,10 +49,14 @@ export const Journal: React.FC = () => {
         try {
             const { error } = await createTrainingLog(logData);
             if (error) throw error;
-            await fetchLogs();
+            // Refresh logs after creation
+            if (user) {
+                const { data, error: fetchErr } = await getTrainingLogs(user.id);
+                if (!fetchErr && data) setLogs(data);
+            }
             setIsCreating(false);
-        } catch (error) {
-            console.error('Error creating log:', error);
+        } catch (e) {
+            console.error('Error creating log:', e);
             alert('수련 일지 저장에 실패했습니다.');
         }
     };
@@ -56,17 +65,29 @@ export const Journal: React.FC = () => {
         try {
             const { error } = await deleteTrainingLog(id);
             if (error) throw error;
-            setLogs(logs.filter(log => log.id !== id));
-        } catch (error) {
-            console.error('Error deleting log:', error);
+            setLogs(prev => prev.filter(log => log.id !== id));
+        } catch (e) {
+            console.error('Error deleting log:', e);
             alert('수련 일지 삭제에 실패했습니다.');
         }
     };
 
+    // If not logged in, show a prompt to log in
+    if (!user) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+                <div className="text-center">
+                    <p className="text-slate-600 mb-4">로그인 후 수련 일지를 이용하세요.</p>
+                    <a href="/login" className="text-blue-600 underline">로그인</a>
+                </div>
+            </div>
+        );
+    }
+
     if (loading && activeTab === 'my') {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
             </div>
         );
     }
@@ -85,7 +106,7 @@ export const Journal: React.FC = () => {
                                 <p className="text-slate-600 text-sm">나만의 주짓수 여정을 기록하고 공유하세요</p>
                             </div>
                         </div>
-                        {!isCreating && activeTab === 'my' && (
+                        {activeTab === 'my' && !isCreating && (
                             <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
                                 <Plus className="w-4 h-4" />
                                 <span>새 기록 작성</span>
@@ -93,34 +114,25 @@ export const Journal: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Tabs */}
+                    {/* Tab navigation */}
                     <div className="flex space-x-6 border-b border-slate-200 -mb-6">
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'my'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <User className="w-4 h-4" />
                             내 수련 기록
                         </button>
                         <button
                             onClick={() => setActiveTab('skills')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'skills'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'skills' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Target className="w-4 h-4" />
                             스킬 로드맵
                         </button>
                         <button
                             onClick={() => setActiveTab('community')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'community'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Globe className="w-4 h-4" />
                             커뮤니티 피드
@@ -132,17 +144,16 @@ export const Journal: React.FC = () => {
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {activeTab === 'my' ? (
                     <>
-                        {isCreating ? (
+                        {isCreating && (
                             <div className="mb-8">
                                 <h2 className="text-lg font-semibold text-slate-900 mb-4">새 수련 기록</h2>
                                 <TrainingLogForm
-                                    userId={user?.id || ''}
+                                    userId={user.id}
                                     onSubmit={handleCreate}
                                     onCancel={() => setIsCreating(false)}
                                 />
                             </div>
-                        ) : null}
-
+                        )}
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-slate-900">최근 기록</h2>
                             <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
@@ -160,7 +171,6 @@ export const Journal: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-
                         {viewMode === 'list' ? (
                             <TrainingLogList logs={logs} onDelete={handleDelete} />
                         ) : (
@@ -170,13 +180,10 @@ export const Journal: React.FC = () => {
                                     onDateSelect={setSelectedDate}
                                     selectedDate={selectedDate}
                                 />
-
                                 {selectedDate && (
                                     <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h3 className="font-semibold text-slate-900">
-                                                {selectedDate}의 기록
-                                            </h3>
+                                            <h3 className="font-semibold text-slate-900">{selectedDate}의 기록</h3>
                                             <button
                                                 onClick={() => setSelectedDate(null)}
                                                 className="text-sm text-slate-500 hover:text-slate-700"
@@ -201,10 +208,7 @@ export const Journal: React.FC = () => {
             </div>
 
             {selectedLog && (
-                <LogDetailModal
-                    log={selectedLog}
-                    onClose={() => setSelectedLog(null)}
-                />
+                <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
             )}
         </div>
     );
