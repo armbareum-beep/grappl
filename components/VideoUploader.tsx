@@ -342,7 +342,6 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
                     <h4 className="font-semibold text-blue-900 mb-3">📝 업로드 안내</h4>
                     <ul className="space-y-2 text-sm text-blue-800">
-                        <li>• Basic 계정은 주당 500MB, 총 5GB까지 업로드 가능합니다.</li>
                         <li>• 업로드된 영상은 자동으로 Vimeo에 저장됩니다.</li>
                         <li>• 영상은 비공개(unlisted)로 설정되며, 링크를 통해서만 접근 가능합니다.</li>
                         <li>• 업로드 후 Vimeo에서 자동으로 트랜스코딩이 진행됩니다.</li>

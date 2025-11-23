@@ -57,7 +57,7 @@ export const Journal: React.FC = () => {
             setIsCreating(false);
         } catch (e) {
             console.error('Error creating log:', e);
-            alert('수련 일지 저장에 실패했습니다.');
+            alert('수련일지는 하루에 1개밖에 못올린다고');
         }
     };
 
