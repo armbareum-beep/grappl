@@ -1207,24 +1207,24 @@ export async function getUserSkills(userId: string) {
 
     if (error) return { data: null, error };
 
-    const skills: UserSkill[] = data.map((skill: any) => ({
-        id: skill.id,
+    id: skill.id,
         userId: skill.user_id,
-        category: skill.category,
-        courseId: skill.course_id,
-        courseTitle: skill.courses?.title,
-        status: skill.status,
-        createdAt: skill.created_at,
-        updatedAt: skill.updated_at
-    }));
+            category: skill.category,
+                subcategoryId: skill.subcategory_id,
+                    courseId: skill.course_id,
+                        courseTitle: skill.courses?.title,
+                            status: skill.status,
+                                createdAt: skill.created_at,
+                                    updatedAt: skill.updated_at
+}));
 
-    return { data: skills, error: null };
+return { data: skills, error: null };
 }
 
 /**
  * Add or update a user skill
  */
-export async function upsertUserSkill(userId: string, category: SkillCategory, courseId: string, status: SkillStatus) {
+export async function upsertUserSkill(userId: string, category: SkillCategory, courseId: string, status: SkillStatus, subcategoryId?: string) {
     const { error } = await supabase
         .from('user_skills')
         .upsert({
@@ -1232,6 +1232,7 @@ export async function upsertUserSkill(userId: string, category: SkillCategory, c
             category,
             course_id: courseId,
             status,
+            subcategory_id: subcategoryId,
             updated_at: new Date().toISOString()
         }, {
             onConflict: 'user_id,category,course_id'
