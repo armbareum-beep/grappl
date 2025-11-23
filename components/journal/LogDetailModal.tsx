@@ -5,6 +5,7 @@ import { Button } from '../Button';
 import { getLogFeedback, createLogFeedback } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { TrainingLogForm } from './TrainingLogForm';
+import { UserCourseProfile } from '../UserCourseProfile';
 
 interface LogDetailModalProps {
     log: TrainingLog;
@@ -19,6 +20,7 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
     const [loadingFeedback, setLoadingFeedback] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [selectedFeedbackUserId, setSelectedFeedbackUserId] = useState<string | null>(null);
 
     useEffect(() => {
         loadFeedback();
@@ -173,6 +175,16 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                             {log.notes}
                         </div>
                     )}
+
+                    {log.user && (
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                            <UserCourseProfile
+                                userId={log.userId}
+                                userName={log.user.name}
+                                userBelt={log.user.belt}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Side: Feedback */}
@@ -198,12 +210,26 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                             feedback.map((item) => (
                                 <div key={item.id} className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="font-semibold text-xs text-slate-900">{item.userName}</span>
+                                        <button
+                                            onClick={() => setSelectedFeedbackUserId(selectedFeedbackUserId === item.userId ? null : item.userId)}
+                                            className="font-semibold text-xs text-slate-900 hover:text-blue-600 transition-colors"
+                                        >
+                                            {item.userName}
+                                        </button>
                                         <span className="text-xs text-slate-400">
                                             {new Date(item.createdAt).toLocaleDateString()}
                                         </span>
                                     </div>
                                     <p className="text-sm text-slate-700">{item.content}</p>
+
+                                    {selectedFeedbackUserId === item.userId && (
+                                        <div className="mt-3 pt-3 border-t border-slate-100">
+                                            <UserCourseProfile
+                                                userId={item.userId}
+                                                userName={item.userName}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}

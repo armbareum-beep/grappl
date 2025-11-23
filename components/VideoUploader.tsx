@@ -14,7 +14,17 @@ interface VideoMetadata {
     length: string;
 }
 
-export const VideoUploader: React.FC = () => {
+interface VideoUploaderProps {
+    compact?: boolean;
+    onUploadComplete?: (vimeoId: string, duration: string) => void;
+    initialMetadata?: Partial<VideoMetadata>;
+}
+
+export const VideoUploader: React.FC<VideoUploaderProps> = ({
+    compact = false,
+    onUploadComplete,
+    initialMetadata
+}) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
@@ -24,12 +34,12 @@ export const VideoUploader: React.FC = () => {
     const [success, setSuccess] = useState(false);
 
     const [metadata, setMetadata] = useState<VideoMetadata>({
-        title: '',
-        description: '',
-        category: '',
-        difficulty: 'Beginner',
-        price: 0,
-        length: '0:00'
+        title: initialMetadata?.title || '',
+        description: initialMetadata?.description || '',
+        category: initialMetadata?.category || '',
+        difficulty: initialMetadata?.difficulty || 'Beginner',
+        price: initialMetadata?.price || 0,
+        length: initialMetadata?.length || '0:00'
     });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +85,7 @@ export const VideoUploader: React.FC = () => {
         setProgress(0);
 
         try {
-            await uploadVideo(
+            const { vimeoResult } = await uploadVideo(
                 file,
                 {
                     ...metadata,
@@ -87,9 +97,15 @@ export const VideoUploader: React.FC = () => {
             );
 
             setSuccess(true);
-            setTimeout(() => {
-                navigate('/creator/videos');
-            }, 2000);
+
+            if (onUploadComplete) {
+                // Return Vimeo ID and Duration
+                onUploadComplete(vimeoResult.videoId, metadata.length);
+            } else {
+                setTimeout(() => {
+                    navigate('/creator/videos');
+                }, 2000);
+            }
         } catch (err: any) {
             console.error('Upload error:', err);
             setError(err.message || '업로드 중 오류가 발생했습니다.');
@@ -105,12 +121,16 @@ export const VideoUploader: React.FC = () => {
     };
 
     return (
-        <div className="max-w-3xl mx-auto p-6">
-            <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">새 영상 업로드</h2>
-                <p className="text-slate-600 mb-8">
-                    영상을 업로드하면 자동으로 Vimeo에 저장됩니다.
-                </p>
+        <div className={compact ? "w-full" : "max-w-3xl mx-auto p-6"}>
+            <div className={compact ? "bg-slate-50 rounded-xl border border-slate-200 p-6" : "bg-white rounded-xl shadow-lg p-8"}>
+                {!compact && (
+                    <>
+                        <h2 className="text-3xl font-bold text-slate-900 mb-2">새 영상 업로드</h2>
+                        <p className="text-slate-600 mb-8">
+                            영상을 업로드하면 자동으로 Vimeo에 저장됩니다.
+                        </p>
+                    </>
+                )}
 
                 {/* 파일 선택 영역 */}
                 <div className="mb-8">
@@ -166,7 +186,7 @@ export const VideoUploader: React.FC = () => {
 
                 {/* 메타데이터 입력 */}
                 {file && !success && (
-                    <div className="space-y-6">
+                    <div className={compact ? "hidden" : "space-y-6"}>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                 제목 *
@@ -263,40 +283,40 @@ export const VideoUploader: React.FC = () => {
                                 />
                             </div>
                         </div>
+                    </div>
+                )}
 
-                        {/* 에러 메시지 */}
-                        {error && (
-                            <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                <p className="text-sm text-red-800">{error}</p>
-                            </div>
-                        )}
+                {/* 에러 메시지 */}
+                {error && (
+                    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-800">{error}</p>
+                    </div>
+                )}
 
-                        {/* 업로드 버튼 */}
-                        <Button
-                            onClick={handleUpload}
-                            disabled={uploading || !metadata.title || !metadata.category}
-                            className="w-full py-4 text-lg"
-                        >
-                            {uploading ? `업로드 중... ${progress}%` : '업로드 시작'}
-                        </Button>
+                {/* 업로드 버튼 */}
+                <Button
+                    onClick={handleUpload}
+                    disabled={uploading || !metadata.title || !metadata.category}
+                    className="w-full py-4 text-lg"
+                >
+                    {uploading ? `업로드 중... ${progress}%` : '업로드 시작'}
+                </Button>
 
-                        {/* 진행률 바 */}
-                        {uploading && (
-                            <div className="space-y-2">
-                                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                                    <div
-                                        className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
-                                        style={{ width: `${progress}%` }}
-                                    />
-                                </div>
-                                <p className="text-sm text-slate-600 text-center">
-                                    {progress < 80 ? 'Vimeo에 업로드 중...' :
-                                        progress < 90 ? '데이터베이스에 저장 중...' :
-                                            '거의 완료...'}
-                                </p>
-                            </div>
-                        )}
+                {/* 진행률 바 */}
+                {uploading && (
+                    <div className="space-y-2">
+                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                            <div
+                                className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                        <p className="text-sm text-slate-600 text-center">
+                            {progress < 80 ? 'Vimeo에 업로드 중...' :
+                                progress < 90 ? '데이터베이스에 저장 중...' :
+                                    '거의 완료...'}
+                        </p>
                     </div>
                 )}
 
@@ -318,7 +338,7 @@ export const VideoUploader: React.FC = () => {
             </div>
 
             {/* 안내 사항 */}
-            {!file && (
+            {!file && !compact && (
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
                     <h4 className="font-semibold text-blue-900 mb-3">📝 업로드 안내</h4>
                     <ul className="space-y-2 text-sm text-blue-800">

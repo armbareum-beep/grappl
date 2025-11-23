@@ -5,6 +5,7 @@ import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLe
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
+import { VideoUploader } from '../../components/VideoUploader';
 
 export const CourseEditor: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -29,6 +30,7 @@ export const CourseEditor: React.FC = () => {
     // Lessons State
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [editingLesson, setEditingLesson] = useState<Partial<Lesson> | null>(null);
+    const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
 
     useEffect(() => {
         if (!isNew && id) {
@@ -361,73 +363,124 @@ export const CourseEditor: React.FC = () => {
 
                             {editingLesson && (
                                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+                                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
                                         <h3 className="text-xl font-bold mb-4">{editingLesson.id ? '레슨 수정' : '새 레슨 추가'}</h3>
-                                        <form onSubmit={handleSaveLesson} className="space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">제목</label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    value={editingLesson.title}
-                                                    onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">설명</label>
-                                                <textarea
-                                                    value={editingLesson.description}
-                                                    onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg"
-                                                    rows={3}
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Vimeo URL/ID</label>
-                                                    <input
-                                                        type="text"
-                                                        value={editingLesson.vimeoUrl}
-                                                        onChange={e => setEditingLesson({ ...editingLesson, vimeoUrl: e.target.value })}
-                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
-                                                        placeholder="123456789"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">재생 시간</label>
-                                                    <input
-                                                        type="text"
-                                                        value={editingLesson.length}
-                                                        onChange={e => setEditingLesson({ ...editingLesson, length: e.target.value })}
-                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
-                                                        placeholder="10:00"
-                                                    />
-                                                </div>
-                                            </div>
+
+                                        {/* Tabs */}
+                                        <div className="flex border-b border-slate-200 mb-6">
                                             <button
                                                 type="button"
-                                                onClick={fetchLessonMetadata}
-                                                className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                                onClick={() => setUploadMode('upload')}
+                                                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${uploadMode === 'upload' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                                             >
-                                                📹 Vimeo 정보 가져오기 (제목, 재생시간)
+                                                직접 업로드
                                             </button>
-                                            <div className="flex justify-end gap-3 mt-6">
+                                            <button
+                                                type="button"
+                                                onClick={() => setUploadMode('url')}
+                                                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${uploadMode === 'url' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                URL 입력
+                                            </button>
+                                        </div>
+
+                                        {uploadMode === 'upload' ? (
+                                            <div className="space-y-4">
+                                                <VideoUploader
+                                                    compact
+                                                    initialMetadata={{
+                                                        title: editingLesson.title,
+                                                        description: editingLesson.description,
+                                                        category: courseData.category,
+                                                        difficulty: courseData.difficulty,
+                                                    }}
+                                                    onUploadComplete={(vimeoId, duration) => {
+                                                        setEditingLesson({
+                                                            ...editingLesson,
+                                                            vimeoUrl: vimeoId,
+                                                            length: duration
+                                                        });
+                                                        setUploadMode('url');
+                                                        alert('업로드가 완료되었습니다! 내용을 확인하고 저장 버튼을 눌러주세요.');
+                                                    }}
+                                                />
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingLesson(null)}
+                                                        className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                    >
+                                                        취소
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <form onSubmit={handleSaveLesson} className="space-y-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">제목</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={editingLesson.title}
+                                                        onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">설명</label>
+                                                    <textarea
+                                                        value={editingLesson.description}
+                                                        onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                        rows={3}
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-1">Vimeo URL/ID</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editingLesson.vimeoUrl}
+                                                            onChange={e => setEditingLesson({ ...editingLesson, vimeoUrl: e.target.value })}
+                                                            className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                            placeholder="123456789"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-1">재생 시간</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editingLesson.length}
+                                                            onChange={e => setEditingLesson({ ...editingLesson, length: e.target.value })}
+                                                            className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                            placeholder="10:00"
+                                                        />
+                                                    </div>
+                                                </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setEditingLesson(null)}
-                                                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                    onClick={fetchLessonMetadata}
+                                                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                                                 >
-                                                    취소
+                                                    📹 Vimeo 정보 가져오기 (제목, 재생시간)
                                                 </button>
-                                                <button
-                                                    type="submit"
-                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                                >
-                                                    저장
-                                                </button>
-                                            </div>
-                                        </form>
+                                                <div className="flex justify-end gap-3 mt-6">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingLesson(null)}
+                                                        className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                    >
+                                                        취소
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                                    >
+                                                        저장
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        )}
                                     </div>
                                 </div>
                             )}

@@ -320,10 +320,34 @@ export const TournamentTab: React.FC = () => {
                                 })}
 
                                 <div className="pt-6 border-t border-slate-100 bg-slate-50 -mx-8 -mb-8 p-8 rounded-b-3xl">
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-center mb-6">
                                         <span className="text-slate-500 font-bold">총 전투력</span>
                                         <span className="text-4xl font-black text-slate-900">{selectedUser.score}</span>
                                     </div>
+
+                                    {/* Purchased Courses */}
+                                    {purchasedCourses.length > 0 && (
+                                        <div className="pt-6 border-t border-slate-200">
+                                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                                <BookOpen className="w-4 h-4" />
+                                                구매한 강좌 ({purchasedCourses.length})
+                                            </h4>
+                                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                {purchasedCourses.map((course) => (
+                                                    <div
+                                                        key={course.id}
+                                                        className="flex items-start gap-2 text-sm bg-white p-3 rounded-lg border border-slate-100"
+                                                    >
+                                                        <span className="text-green-600 flex-shrink-0 mt-0.5">✓</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-medium text-slate-900 truncate">{course.title}</div>
+                                                            <div className="text-xs text-slate-500">{course.category}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
