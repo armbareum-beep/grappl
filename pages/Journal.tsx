@@ -8,8 +8,9 @@ import { PublicJournalFeed } from '../components/journal/PublicJournalFeed';
 import { LogDetailModal } from '../components/journal/LogDetailModal';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { TrainingCalendar } from '../components/journal/TrainingCalendar';
+import { TournamentTab } from '../components/journal/TournamentTab';
 import { Button } from '../components/Button';
-import { Plus, BookOpen, Globe, User, Target, Calendar as CalendarIcon, List } from 'lucide-react';
+import { Plus, BookOpen, Globe, User, Target, Calendar as CalendarIcon, List, Trophy } from 'lucide-react';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
@@ -17,7 +18,7 @@ export const Journal: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     // Default to 'my' if user is logged in, otherwise default to 'community'
-    const [activeTab, setActiveTab] = useState<'my' | 'community' | 'skills'>(user ? 'my' : 'community');
+    const [activeTab, setActiveTab] = useState<'my' | 'community' | 'skills' | 'tournament'>(user ? 'my' : 'community');
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
@@ -128,6 +129,13 @@ export const Journal: React.FC = () => {
                             스킬 로드맵
                         </button>
                         <button
+                            onClick={() => setActiveTab('tournament')}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'tournament' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Trophy className="w-4 h-4" />
+                            시합장
+                        </button>
+                        <button
                             onClick={() => setActiveTab('community')}
                             className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
@@ -208,6 +216,8 @@ export const Journal: React.FC = () => {
                     )
                 ) : activeTab === 'skills' ? (
                     <SkillTreeTab />
+                ) : activeTab === 'tournament' ? (
+                    <TournamentTab />
                 ) : (
                     <PublicJournalFeed onLogClick={setSelectedLog} />
                 )}
