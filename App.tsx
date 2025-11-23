@@ -19,6 +19,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { FeaturedContent } from './pages/admin/FeaturedContent';
 import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminPayouts } from './pages/admin/AdminPayouts';
+import { AdminUserList } from './pages/admin/AdminUserList';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -74,6 +75,11 @@ const App: React.FC = () => {
             <Route path="/admin/payouts" element={
               <AdminRoute>
                 <AdminPayouts />
+              </AdminRoute>
+            } />
+            <Route path="/admin/users" element={
+              <AdminRoute>
+                <AdminUserList />
               </AdminRoute>
             } />
             <Route path="/login" element={<Login />} />

@@ -38,6 +38,19 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     </Link>
 
+                    {/* User Management */}
+                    <Link to="/admin/users">
+                        <div className="bg-white rounded-xl border border-slate-200 p-8 hover:shadow-lg transition-shadow cursor-pointer">
+                            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                                <Users className="w-6 h-6" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-900 mb-2">사용자 관리</h2>
+                            <p className="text-slate-600 text-sm">
+                                전체 사용자를 조회하고 인스트럭터로 승격시킬 수 있습니다
+                            </p>
+                        </div>
+                    </Link>
+
                     {/* Creator Approval */}
                     <Link to="/admin/creators">
                         <div className="bg-white rounded-xl border border-slate-200 p-8 hover:shadow-lg transition-shadow cursor-pointer">

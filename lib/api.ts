@@ -75,6 +75,7 @@ export async function getCreators(): Promise<Creator[]> {
     const { data, error } = await supabase
         .from('creators')
         .select('*')
+        .eq('approved', true)
         .order('subscriber_count', { ascending: false });
 
     if (error) {
@@ -1990,4 +1991,34 @@ export async function markAllNotificationsAsRead(userId: string) {
         .eq('is_read', false);
 
     return { error };
+}
+
+/**
+ * Get all users for admin dashboard
+ */
+export async function getAllUsersAdmin() {
+    const { data, error } = await supabase
+        .rpc('get_all_users_admin');
+
+    if (error) {
+        console.error('Error fetching users:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Promote a user to creator
+ */
+export async function promoteToCreator(userId: string) {
+    const { error } = await supabase
+        .rpc('promote_to_creator', { target_user_id: userId });
+
+    if (error) {
+        console.error('Error promoting user:', error);
+        return { error };
+    }
+
+    return { error: null };
 }
