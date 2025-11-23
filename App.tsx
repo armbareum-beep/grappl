@@ -24,6 +24,7 @@ import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
 import { BecomeCreator } from './pages/BecomeCreator';
+import { UploadVideo } from './pages/UploadVideo';
 import { NotFound } from './pages/NotFound';
 
 const App: React.FC = () => {
@@ -42,6 +43,7 @@ const App: React.FC = () => {
             <Route path="/creator/courses" element={<CreatorCourses />} />
             <Route path="/creator/courses/new" element={<CourseEditor />} />
             <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
+            <Route path="/creator/upload" element={<UploadVideo />} />
             <Route path="/become-creator" element={<BecomeCreator />} />
             <Route path="/creator/:id" element={<CreatorProfile />} />
             <Route path="/library" element={<MyLibrary />} />
