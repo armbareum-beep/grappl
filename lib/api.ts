@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification } from '../types';
 
 
 // Revenue split constants
@@ -897,30 +897,48 @@ export async function calculateCreatorEarnings(creatorId: string) {
         const lessonCreatorId = p.lessons?.courses?.creator_id;
 
         totalWatchTime += length;
+
         if (lessonCreatorId === creatorId) {
             creatorWatchTime += length;
         }
     });
 
-    const watchTimeShare = totalWatchTime > 0 ? (creatorWatchTime / totalWatchTime) : 0;
-    const subscriptionRevenue = Math.floor(MOCK_TOTAL_SUBSCRIPTION_REVENUE * watchTimeShare * subShare);
+    const share = totalWatchTime > 0 ? creatorWatchTime / totalWatchTime : 0;
+    const creatorSubRevenue = Math.floor(MOCK_TOTAL_SUBSCRIPTION_REVENUE * subShare * share);
 
     return {
         data: {
             directRevenue,
-            subscriptionRevenue,
-            totalRevenue: directRevenue + subscriptionRevenue,
-            watchTimeShare,
+            subscriptionRevenue: creatorSubRevenue,
+            totalRevenue: directRevenue + creatorSubRevenue,
             creatorWatchTime,
             totalWatchTime,
-            currency: 'KRW'
+            watchTimeShare: share
         },
         error: null
     };
 }
 
 /**
- * Enroll in a free course (add to library)
+ * Get creator revenue stats (monthly breakdown)
+ * Mock data for now
+ */
+export async function getCreatorRevenueStats(creatorId: string) {
+    // Mock data
+    const stats = [
+        { period: '2023-10', amount: 1250000, status: 'pending' },
+        { period: '2023-09', amount: 1100000, status: 'paid' },
+        { period: '2023-08', amount: 950000, status: 'paid' },
+        { period: '2023-07', amount: 880000, status: 'paid' },
+        { period: '2023-06', amount: 1050000, status: 'paid' },
+        { period: '2023-05', amount: 920000, status: 'paid' },
+    ];
+
+    return { data: stats, error: null };
+}
+
+/**
+ * Enroll in a free course(add to library)
  */
 export async function enrollInCourse(userId: string, courseId: string) {
     // Check if already enrolled
@@ -1672,20 +1690,70 @@ export async function updateFeedbackStatus(requestId: string, status: 'pending' 
     return { error };
 }
 
+
+// ==================== NOTIFICATIONS ====================
+
 /**
- * Submit feedback response
+ * Get user notifications
  */
-export async function submitFeedbackResponse(requestId: string, content: string) {
+export async function getNotifications(userId: string) {
+    const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+    if (error) return { data: null, error };
+
+    const notifications: AppNotification[] = data.map((n: any) => ({
+        id: n.id,
+        userId: n.user_id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        link: n.link,
+        isRead: n.is_read,
+        createdAt: n.created_at
+    }));
+
+    return { data: notifications, error: null };
+}
+
+/**
+ * Get unread notification count
+ */
+export async function getUnreadNotificationCount(userId: string) {
+    const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+    return { count: count || 0, error };
+}
+
+/**
+ * Mark notification as read
+ */
+export async function markNotificationAsRead(notificationId: string) {
     const { error } = await supabase
-        .from('feedback_requests')
-        .update({
-            feedback_content: content,
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
 
     return { error };
 }
 
+/**
+ * Mark all notifications as read
+ */
+export async function markAllNotificationsAsRead(userId: string) {
+    const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+    return { error };
+}
