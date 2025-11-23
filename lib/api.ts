@@ -2119,3 +2119,58 @@ export async function getPublicCourses() {
 
     return { data: courses, error: null };
 }
+
+// ==================== USER COURSES ====================
+
+/**
+ * Get user's purchased courses with details
+ */
+export async function getUserPurchasedCourses(userId: string) {
+    const { data, error } = await supabase
+        .from('user_courses')
+        .select(`
+            *,
+            courses (
+                id,
+                title,
+                category,
+                difficulty,
+                thumbnailUrl:thumbnail_url
+            )
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching purchased courses:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Get user's skill tree courses (equipped courses)
+ */
+export async function getUserSkillCourses(userId: string) {
+    const { data, error } = await supabase
+        .from('user_skills')
+        .select(`
+            *,
+            courses (
+                id,
+                title,
+                category,
+                difficulty,
+                thumbnailUrl:thumbnail_url
+            )
+        `)
+        .eq('user_id', userId)
+        .not('course_id', 'is', null);
+
+    if (error) {
+        console.error('Error fetching skill courses:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}

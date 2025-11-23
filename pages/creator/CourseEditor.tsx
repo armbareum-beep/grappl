@@ -20,7 +20,7 @@ export const CourseEditor: React.FC = () => {
     const [courseData, setCourseData] = useState<Partial<Course>>({
         title: '',
         description: '',
-        category: VideoCategory.Technique,
+        category: VideoCategory.Standing, // Default to Standing
         difficulty: Difficulty.Beginner,
         price: 0,
         thumbnailUrl: '',

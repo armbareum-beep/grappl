@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserStats, getLeaderboard } from '../../lib/api';
+import { getUserStats, getLeaderboard, getUserPurchasedCourses } from '../../lib/api';
 import { Trophy, Swords, Zap, Crown, Medal, BookOpen } from 'lucide-react';
 
 interface Stats {
@@ -21,6 +21,12 @@ interface LeaderboardEntry {
     stats: Stats;
 }
 
+interface PurchasedCourse {
+    id: string;
+    title: string;
+    category: string;
+}
+
 export const TournamentTab: React.FC = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState<Stats | null>(null);
@@ -30,6 +36,8 @@ export const TournamentTab: React.FC = () => {
     const [matchLog, setMatchLog] = useState<string[]>([]);
     const [isPlaying, setIsPlaying] = useState(false);
     const [tournamentResult, setTournamentResult] = useState<'win' | 'loss' | null>(null);
+    const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
+    const [purchasedCourses, setPurchasedCourses] = useState<PurchasedCourse[]>([]);
 
     useEffect(() => {
         if (user) {
@@ -55,6 +63,31 @@ export const TournamentTab: React.FC = () => {
 
         setLoading(false);
     };
+
+    // Fetch purchased courses when a user is selected
+    useEffect(() => {
+        const fetchPurchasedCourses = async () => {
+            if (!selectedUser) {
+                setPurchasedCourses([]);
+                return;
+            }
+
+            const { data } = await getUserPurchasedCourses(selectedUser.userId);
+            if (data) {
+                const courses = data
+                    .map((purchase: any) => purchase.courses)
+                    .filter((course: any) => course)
+                    .map((course: any) => ({
+                        id: course.id,
+                        title: course.title,
+                        category: course.category
+                    }));
+                setPurchasedCourses(courses);
+            }
+        };
+
+        fetchPurchasedCourses();
+    }, [selectedUser]);
 
     const simulateMatch = async () => {
         if (!stats) return;
@@ -214,9 +247,12 @@ export const TournamentTab: React.FC = () => {
                             {leaderboard.map((entry, index) => (
                                 <div
                                     key={entry.userId}
-                                    className={`flex items-center justify-between p-4 rounded-2xl transition-all ${entry.userId === user?.id
+                                    onClick={() => setSelectedUser(entry)}
+                                    className={`flex items-center justify-between p-4 rounded-2xl transition-all cursor-pointer ${entry.userId === user?.id
                                         ? 'bg-blue-50 border-2 border-blue-200 shadow-md transform scale-[1.02]'
-                                        : 'bg-white border border-slate-100 hover:border-slate-300 hover:shadow-md'
+                                        : selectedUser?.userId === entry.userId
+                                            ? 'bg-purple-50 border-2 border-purple-200 shadow-md'
+                                            : 'bg-white border border-slate-100 hover:border-slate-300 hover:shadow-md'
                                         }`}
                                 >
                                     <div className="flex items-center gap-4 overflow-hidden">
@@ -242,6 +278,56 @@ export const TournamentTab: React.FC = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Selected User Skill Tree */}
+                    {selectedUser && (
+                        <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-2xl font-bold flex items-center gap-3 text-slate-900">
+                                    <div className="p-2 bg-purple-50 rounded-xl">
+                                        <Zap className="w-6 h-6 text-purple-600" />
+                                    </div>
+                                    {selectedUser.userName}의 스킬
+                                </h3>
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="text-slate-400 hover:text-slate-600 text-sm"
+                                >
+                                    닫기
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {Object.entries(selectedUser.stats).map(([key, value]) => {
+                                    if (key === 'total' || key === 'logCount') return null;
+                                    const max = 50;
+                                    const percentage = Math.min((value / max) * 100, 100);
+
+                                    return (
+                                        <div key={key}>
+                                            <div className="flex justify-between text-sm mb-2">
+                                                <span className="font-semibold text-slate-700">{key}</span>
+                                                <span className="font-bold text-slate-900">{value}</span>
+                                            </div>
+                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-purple-500 to-pink-600 rounded-full transition-all duration-1000 ease-out"
+                                                    style={{ width: `${percentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                <div className="pt-6 border-t border-slate-100 bg-slate-50 -mx-8 -mb-8 p-8 rounded-b-3xl">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-500 font-bold">총 전투력</span>
+                                        <span className="text-4xl font-black text-slate-900">{selectedUser.score}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column: Arena (7 cols) */}
