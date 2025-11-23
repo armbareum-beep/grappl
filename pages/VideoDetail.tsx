@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getVideoById, getVideos, getCreatorById } from '../lib/api';
+import { getVideoById, getVideos, getCreatorById, recordWatchTime } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Play, Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const VideoDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [creator, setCreator] = useState<Creator | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
@@ -77,12 +79,51 @@ export const VideoDetail: React.FC = () => {
     currency: 'KRW',
   }).format(video.price);
 
+  const lastTickRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0);
+
+  const handleProgress = async (seconds: number) => {
+    if (!user || !video) return;
+
+    const now = Date.now();
+    if (lastTickRef.current === 0) {
+      lastTickRef.current = now;
+      return;
+    }
+
+    const elapsed = (now - lastTickRef.current) / 1000;
+    lastTickRef.current = now;
+
+    // Only count if elapsed time is reasonable (e.g., playing at 1x speed)
+    // Ignore jumps/seeks (elapsed would be very small if just timeupdate fired, but we use wall clock)
+    // Actually, timeupdate fires periodically. We just need to ensure we are playing.
+    // If elapsed is > 2 seconds, it might be a resume after pause, so we cap it or ignore.
+    if (elapsed > 0 && elapsed < 5) {
+      accumulatedTimeRef.current += elapsed;
+    }
+
+    // Send update every 10 seconds
+    if (accumulatedTimeRef.current >= 10) {
+      const timeToSend = Math.floor(accumulatedTimeRef.current);
+      accumulatedTimeRef.current -= timeToSend;
+
+      // Fire and forget, ONLY if video is not free
+      if (video.price > 0) {
+        recordWatchTime(user.id, timeToSend, video.id, undefined);
+      }
+    }
+  };
+
   return (
     <div className="bg-white min-h-screen pb-20">
       {/* Video Player */}
       {video.vimeoUrl ? (
         <div className="w-full bg-black">
-          <VideoPlayer vimeoId={video.vimeoUrl} title={video.title} />
+          <VideoPlayer
+            vimeoId={video.vimeoUrl}
+            title={video.title}
+            onProgress={handleProgress}
+          />
         </div>
       ) : (
         <div className="w-full bg-black aspect-video flex items-center justify-center relative group">
