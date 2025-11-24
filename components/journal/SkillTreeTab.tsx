@@ -4,7 +4,6 @@ import {
     getUserSkills,
     upsertUserSkill,
     getUserCourses,
-    getPublicCourses,
     deleteUserSkill,
     getSkillSubcategories,
     createSkillSubcategory,
@@ -46,15 +45,15 @@ export const SkillTreeTab: React.FC = () => {
             setLoading(false);
             return;
         }
-        const [skillsRes, coursesRes, subcatsRes] = await Promise.all([
+        const [skills, courses, subcats] = await Promise.all([
             getUserSkills(user.id),
-            getPublicCourses(),
+            getUserCourses(user.id),
             getSkillSubcategories(user.id)
         ]);
 
-        if (skillsRes.data) setSkills(skillsRes.data);
-        if (coursesRes.data) setMyCourses(coursesRes.data);
-        if (subcatsRes.data) setSubcategories(subcatsRes.data);
+        setSkills(skills);
+        setMyCourses(courses);
+        setSubcategories(subcats);
         setLoading(false);
     };
 
