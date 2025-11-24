@@ -10,6 +10,7 @@ import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { TrainingCalendar } from '../components/journal/TrainingCalendar';
 import { TournamentTab } from '../components/journal/TournamentTab';
 import { Button } from '../components/Button';
+import { MobileTabSelector } from '../components/MobileTabSelector';
 import { Plus, BookOpen, Globe, User, Target, Calendar as CalendarIcon, List, Trophy } from 'lucide-react';
 
 export const Journal: React.FC = () => {
@@ -98,6 +99,13 @@ export const Journal: React.FC = () => {
         );
     }
 
+    const JOURNAL_TABS = [
+        { id: 'my', label: '내 수련 기록', icon: User },
+        { id: 'skills', label: '스킬 로드맵', icon: Target },
+        { id: 'tournament', label: '시합장', icon: Trophy },
+        { id: 'community', label: '커뮤니티 피드', icon: Globe },
+    ];
+
     return (
         <div className="min-h-screen bg-slate-50">
             <div className="bg-white border-b border-slate-200">
@@ -123,7 +131,8 @@ export const Journal: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="flex space-x-6 border-b border-slate-200 -mb-6 overflow-x-auto scrollbar-hide">
+                    {/* Tab Navigation - Desktop */}
+                    <div className="hidden md:flex space-x-6 border-b border-slate-200 -mb-6 overflow-x-auto scrollbar-hide">
                         <button
                             onClick={() => setActiveTab('my')}
                             className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -153,6 +162,13 @@ export const Journal: React.FC = () => {
                             커뮤니티 피드
                         </button>
                     </div>
+
+                    {/* Tab Navigation - Mobile Dropdown */}
+                    <MobileTabSelector
+                        tabs={JOURNAL_TABS}
+                        activeTab={activeTab}
+                        onTabChange={(id) => setActiveTab(id as any)}
+                    />
                 </div>
             </div>
 
