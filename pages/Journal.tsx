@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getTrainingLogs, createTrainingLog, deleteTrainingLog, updateTrainingLog } from '../lib/api';
+import { getTrainingLogs, createTrainingLog, deleteTrainingLog, updateTrainingLog, addXP, updateQuestProgress } from '../lib/api';
 import { TrainingLog } from '../types';
 import { TrainingLogList } from '../components/journal/TrainingLogList';
 import { TrainingLogForm } from '../components/journal/TrainingLogForm';
@@ -11,6 +11,9 @@ import { TrainingCalendar } from '../components/journal/TrainingCalendar';
 import { TournamentTab } from '../components/journal/TournamentTab';
 import { Button } from '../components/Button';
 import { MobileTabSelector } from '../components/MobileTabSelector';
+import { DailyQuestsPanel } from '../components/DailyQuestsPanel';
+import { BeltProgressBar } from '../components/BeltProgressBar';
+import { BeltUpModal } from '../components/BeltUpModal';
 import { Plus, BookOpen, Globe, User, Target, Calendar as CalendarIcon, List, Trophy } from 'lucide-react';
 
 export const Journal: React.FC = () => {
@@ -22,6 +25,8 @@ export const Journal: React.FC = () => {
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedLog, setSelectedLog] = useState<TrainingLog | null>(null);
+    const [showBeltUp, setShowBeltUp] = useState(false);
+    const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
 
     useEffect(() => {
         const fetchMyLogs = async () => {
@@ -53,6 +58,17 @@ export const Journal: React.FC = () => {
         try {
             const { error } = await createTrainingLog(logData);
             if (error) throw error;
+
+            // Gamification: Award XP (15 XP for log)
+            const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 15, 'write_log');
+            if (leveledUp && newLevel) {
+                setBeltUpData({ old: newLevel - 1, new: newLevel });
+                setShowBeltUp(true);
+            }
+
+            // Gamification: Update Quest
+            await updateQuestProgress(user.id, 'write_log');
+
             const { data, error: fetchErr } = await getTrainingLogs(user.id);
             if (!fetchErr && data) setLogs(data);
             setIsCreating(false);
@@ -112,131 +128,135 @@ export const Journal: React.FC = () => {
                 <div className={`${activeTab === 'tournament' ? 'max-w-full' : 'max-w-7xl'} mx-auto px-4 sm:px-6 lg:px-8 py-6`}>
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-4">
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                                <BookOpen className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-slate-900">수련 일지</h1>
-                                <p className="text-slate-600 text-sm">나만의 주짓수 여정을 기록하고 공유하세요</p>
-                            </div>
+                            {!user && <a href="/login" className="text-blue-600 underline text-sm">로그인 후 기록 작성</a>}
                         </div>
-                        {activeTab === 'my' && !isCreating && user && (
-                            <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
-                                <Plus className="w-4 h-4" />
-                                <span>새 기록 작성</span>
-                            </Button>
-                        )}
-                        {activeTab === 'my' && !user && (
-                            <a href="/login" className="text-blue-600 underline text-sm">로그인 후 기록 작성</a>
-                        )}
-                    </div>
 
-                    {/* Tab Navigation - Desktop */}
-                    <div className="hidden md:flex space-x-6 border-b border-slate-200 -mb-6 overflow-x-auto scrollbar-hide">
-                        <button
-                            onClick={() => setActiveTab('my')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <User className="w-4 h-4" />
-                            내 수련 기록
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('skills')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'skills' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Target className="w-4 h-4" />
-                            스킬 로드맵
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('tournament')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'tournament' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Trophy className="w-4 h-4" />
-                            시합장
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('community')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Globe className="w-4 h-4" />
-                            커뮤니티 피드
-                        </button>
-                    </div>
+                        {/* Tab Navigation - Desktop */}
+                        <div className="hidden md:flex space-x-6 border-b border-slate-200 -mb-6 overflow-x-auto scrollbar-hide">
+                            <button
+                                onClick={() => setActiveTab('my')}
+                                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <User className="w-4 h-4" />
+                                내 수련 기록
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('skills')}
+                                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'skills' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Target className="w-4 h-4" />
+                                스킬 로드맵
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('tournament')}
+                                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'tournament' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Trophy className="w-4 h-4" />
+                                시합장
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('community')}
+                                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Globe className="w-4 h-4" />
+                                커뮤니티 피드
+                            </button>
+                        </div>
 
-                    {/* Tab Navigation - Mobile Dropdown */}
-                    <MobileTabSelector
-                        tabs={JOURNAL_TABS}
-                        activeTab={activeTab}
-                        onTabChange={(id) => setActiveTab(id as any)}
-                    />
+                        {/* Tab Navigation - Mobile Dropdown */}
+                        <MobileTabSelector
+                            tabs={JOURNAL_TABS}
+                            activeTab={activeTab}
+                            onTabChange={(id) => setActiveTab(id as any)}
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className={`${activeTab === 'tournament' ? 'w-full px-4 sm:px-6 lg:px-8' : 'max-w-3xl mx-auto px-4 sm:px-6 lg:px-8'} py-8`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {activeTab === 'my' ? (
                     user ? (
-                        <>
-                            {isCreating && (
-                                <div className="mb-8">
-                                    <h2 className="text-lg font-semibold text-slate-900 mb-4">새 수련 기록</h2>
+                        <div className="flex gap-8">
+                            {/* Main Content */}
+                            <div className="flex-1">
+                                {isCreating ? (
                                     <TrainingLogForm
                                         userId={user.id}
                                         onSubmit={handleCreate}
                                         onCancel={() => setIsCreating(false)}
                                     />
-                                </div>
-                            )}
-                            <div className="mb-6 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-slate-900">최근 기록</h2>
-                                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <List className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('calendar')}
-                                        className={`p-1.5 rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <CalendarIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                            {viewMode === 'list' ? (
-                                <TrainingLogList
-                                    logs={logs}
-                                    onDelete={handleDelete}
-                                    onLogClick={(log) => setSelectedLog(log)}
-                                />
-                            ) : (
-                                <div className="space-y-6">
-                                    <TrainingCalendar
-                                        logs={logs}
-                                        onDateSelect={setSelectedDate}
-                                        selectedDate={selectedDate}
-                                    />
-                                    {selectedDate && (
-                                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="font-semibold text-slate-900">{selectedDate}의 기록</h3>
-                                                <button
-                                                    onClick={() => setSelectedDate(null)}
-                                                    className="text-sm text-slate-500 hover:text-slate-700"
-                                                >
-                                                    닫기
-                                                </button>
+                                ) : (
+                                    <>
+                                        <div className="mb-6 flex items-center justify-between">
+                                            <h2 className="text-lg font-semibold text-slate-900">최근 기록</h2>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                                                    <button
+                                                        onClick={() => setViewMode('list')}
+                                                        className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        <List className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setViewMode('calendar')}
+                                                        className={`p-1.5 rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        <CalendarIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <Button onClick={() => setIsCreating(true)}>
+                                                    <Plus className="w-4 h-4 mr-2" />
+                                                    기록 작성
+                                                </Button>
                                             </div>
-                                            <TrainingLogList
-                                                logs={logs.filter(log => log.date === selectedDate)}
-                                                onDelete={handleDelete}
-                                                onLogClick={(log) => setSelectedLog(log)}
-                                            />
                                         </div>
-                                    )}
+                                        {
+                                            viewMode === 'list' ? (
+                                                <TrainingLogList
+                                                    logs={logs}
+                                                    onDelete={handleDelete}
+                                                    onLogClick={(log) => setSelectedLog(log)}
+                                                />
+                                            ) : (
+                                                <div className="space-y-6">
+                                                    <TrainingCalendar
+                                                        logs={logs}
+                                                        onDateSelect={setSelectedDate}
+                                                        selectedDate={selectedDate}
+                                                    />
+                                                    {selectedDate && (
+                                                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                                                            <div className="flex items-center justify-between mb-4">
+                                                                <h3 className="font-semibold text-slate-900">{selectedDate}의 기록</h3>
+                                                                <button
+                                                                    onClick={() => setSelectedDate(null)}
+                                                                    className="text-sm text-slate-500 hover:text-slate-700"
+                                                                >
+                                                                    닫기
+                                                                </button>
+                                                            </div>
+                                                            <TrainingLogList
+                                                                logs={logs.filter(log => log.date === selectedDate)}
+                                                                onDelete={handleDelete}
+                                                                onLogClick={(log) => setSelectedLog(log)}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        }
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Sidebar with Gamification */}
+                            {!isCreating && (
+                                <div className="w-80 space-y-6">
+                                    <BeltProgressBar userId={user.id} />
+                                    <DailyQuestsPanel userId={user.id} />
                                 </div>
                             )}
-                        </>
+                        </div>
                     ) : (
                         <div className="flex items-center justify-center min-h-[300px] bg-white rounded-lg shadow-sm p-8">
                             <div className="text-center">
@@ -254,11 +274,11 @@ export const Journal: React.FC = () => {
                 )}
             </div>
 
-            {selectedLog && (
-                <LogDetailModal
-                    log={selectedLog}
-                    onClose={() => setSelectedLog(null)}
-                    onEdit={handleUpdate}
+            {showBeltUp && beltUpData && (
+                <BeltUpModal
+                    oldLevel={beltUpData.old}
+                    newLevel={beltUpData.new}
+                    onClose={() => setShowBeltUp(false)}
                 />
             )}
         </div>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getVideoById, getVideos, getCreatorById, recordWatchTime, checkVideoOwnership } from '../lib/api';
+import { getVideoById, getVideos, getCreatorById, recordWatchTime, checkVideoOwnership, addXP, updateQuestProgress } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
+import { BeltUpModal } from '../components/BeltUpModal';
 import { Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,6 +17,8 @@ export const VideoDetail: React.FC = () => {
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [ownsVideo, setOwnsVideo] = useState(false);
+  const [showBeltUp, setShowBeltUp] = useState(false);
+  const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
 
   const lastTickRef = useRef<number>(0);
   const accumulatedTimeRef = useRef<number>(0);
@@ -82,6 +85,20 @@ export const VideoDetail: React.FC = () => {
     }
   };
 
+  const handleVideoComplete = async () => {
+    if (!user || !video) return;
+
+    // Gamification: Award XP (20 XP for completing video)
+    const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 20, 'watch_video');
+    if (leveledUp && newLevel) {
+      setBeltUpData({ old: newLevel - 1, new: newLevel });
+      setShowBeltUp(true);
+    }
+
+    // Gamification: Update Quest
+    await updateQuestProgress(user.id, 'watch_video');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -120,6 +137,7 @@ export const VideoDetail: React.FC = () => {
             vimeoId={video.vimeoUrl}
             title={video.title}
             onProgress={handleProgress}
+            onEnded={handleVideoComplete}
           />
         </div>
       ) : (
@@ -236,6 +254,14 @@ export const VideoDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showBeltUp && beltUpData && (
+        <BeltUpModal
+          oldLevel={beltUpData.old}
+          newLevel={beltUpData.new}
+          onClose={() => setShowBeltUp(false)}
+        />
+      )}
     </div>
   );
 };

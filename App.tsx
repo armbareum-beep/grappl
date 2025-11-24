@@ -27,6 +27,9 @@ import { BecomeCreator } from './pages/BecomeCreator';
 import { UploadVideo } from './pages/UploadVideo';
 import { NotFound } from './pages/NotFound';
 import { PaymentComplete } from './pages/PaymentComplete';
+import { Drills } from './pages/Drills';
+import { DrillDetail } from './pages/DrillDetail';
+import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
 
 const App: React.FC = () => {
   return (
@@ -49,6 +52,9 @@ const App: React.FC = () => {
             <Route path="/creator/:id" element={<CreatorProfile />} />
             <Route path="/library" element={<MyLibrary />} />
             <Route path="/journal" element={<Journal />} />
+            <Route path="/drills" element={<Drills />} />
+            <Route path="/drills/:id" element={<DrillDetail />} />
+            <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin/courses" element={
               <AdminRoute>
