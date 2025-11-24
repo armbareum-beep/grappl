@@ -46,13 +46,14 @@ export const TournamentTab: React.FC = () => {
     const [mySkills, setMySkills] = useState<SkillCourse[]>([]);
 
     useEffect(() => {
-        if (user) {
-            loadData();
-        }
+        loadData();
     }, [user]);
 
     const loadData = async () => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
 
         const [statsRes, leaderboardRes] = await Promise.all([

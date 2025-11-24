@@ -38,13 +38,14 @@ export const SkillTreeTab: React.FC = () => {
     const [newSubcategoryName, setNewSubcategoryName] = useState('');
 
     useEffect(() => {
-        if (user) {
-            loadData();
-        }
+        loadData();
     }, [user]);
 
     const loadData = async () => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         const [skillsRes, coursesRes, subcatsRes] = await Promise.all([
             getUserSkills(user.id),
             getPublicCourses(),
