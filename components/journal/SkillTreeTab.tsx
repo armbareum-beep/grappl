@@ -9,11 +9,14 @@ import {
     getSkillSubcategories,
     createSkillSubcategory,
     deleteSkillSubcategory,
-    getCourseProgress
+    getCourseProgress,
+    addXP,
+    updateQuestProgress
 } from '../../lib/api';
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { BeltUpModal } from '../BeltUpModal';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
@@ -37,31 +40,39 @@ export const SkillTreeTab: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showSubcategoryForm, setShowSubcategoryForm] = useState(false);
     const [newSubcategoryName, setNewSubcategoryName] = useState('');
+    const [showBeltUp, setShowBeltUp] = useState(false);
+    const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
+
 
     useEffect(() => {
         loadData();
     }, [user]);
 
     const loadData = async () => {
-        if (!user) {
-            // Load all courses even for non-logged-in users
-            const courses = await getCourses();
-            setAllCourses(courses);
-            setLoading(false);
-            return;
-        }
-        const [skills, purchasedCourses, allCourses, subcats] = await Promise.all([
-            getUserSkills(user.id),
-            getUserCourses(user.id),
-            getCourses(),
-            getSkillSubcategories(user.id)
-        ]);
+        try {
+            if (!user) {
+                // Load all courses even for non-logged-in users
+                const courses = await getCourses();
+                setAllCourses(courses);
+                setLoading(false);
+                return;
+            }
+            const [skills, purchasedCourses, allCourses, subcats] = await Promise.all([
+                getUserSkills(user.id),
+                getUserCourses(user.id),
+                getCourses(),
+                getSkillSubcategories(user.id)
+            ]);
 
-        setSkills(skills);
-        setPurchasedCourseIds(purchasedCourses.map(c => c.id));
-        setAllCourses(allCourses);
-        setSubcategories(subcats);
-        setLoading(false);
+            setSkills(skills);
+            setPurchasedCourseIds(purchasedCourses.map(c => c.id));
+            setAllCourses(allCourses);
+            setSubcategories(subcats);
+            setLoading(false);
+        } catch (error) {
+            console.error('Error loading skill tree data:', error);
+            setLoading(false);
+        }
     };
 
     const handleCreateSubcategory = async () => {
@@ -88,9 +99,9 @@ export const SkillTreeTab: React.FC = () => {
         if (!user) return;
 
         await upsertUserSkill(user.id, selectedCategory, courseId, 'learning', selectedSubcategoryId || undefined);
-        setShowCourseSelector(false);
-        setSearchTerm('');
-        setSelectedSubcategoryId(null);
+
+        // Gamification: Award XP (20 XP for adding a skill)
+        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 20, 'add_skill', courseId);
         await loadData();
     };
 

@@ -223,3 +223,80 @@ export interface AppNotification {
   isRead: boolean;
   createdAt: string;
 }
+
+// ==================== Gamification Types ====================
+
+export interface UserProgress {
+  userId: string;
+  beltLevel: number;
+  currentXp: number;
+  totalXp: number;
+  lastQuestReset: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill';
+
+export interface DailyQuest {
+  id: string;
+  userId: string;
+  questType: QuestType;
+  targetCount: number;
+  currentCount: number;
+  xpReward: number;
+  completed: boolean;
+  questDate: string;
+  createdAt: string;
+}
+
+export interface XPTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  source: string;
+  sourceId?: string;
+  createdAt: string;
+}
+
+// ==================== Drill & Routine Types ====================
+
+export interface Drill {
+  id: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName?: string;
+  category: VideoCategory;
+  difficulty: Difficulty;
+  thumbnailUrl: string;
+  vimeoUrl?: string;
+  aspectRatio: '9:16'; // 세로 영상
+  duration: string; // 예: "2:30"
+  price: number;
+  views: number;
+  createdAt: string;
+}
+
+export interface DrillRoutine {
+  id: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName?: string;
+  thumbnailUrl: string;
+  price: number;
+  views: number;
+  drillCount?: number;
+  drills?: Drill[];
+  createdAt: string;
+}
+
+export interface DrillRoutineItem {
+  id: string;
+  routineId: string;
+  drillId: string;
+  displayOrder: number;
+  createdAt: string;
+}
+

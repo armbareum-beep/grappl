@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem } from '../types';
 
 
 // Revenue split constants
@@ -2189,3 +2189,796 @@ export async function getUserSkillCourses(userId: string) {
 
     return { data, error: null };
 }
+
+// ==================== GAMIFICATION API ====================
+
+import { getBeltLevelFromXP, getBeltInfo } from './belt-system';
+import type { UserProgress, DailyQuest, XPTransaction, QuestType } from '../types';
+
+/**
+ * Get or create user progress
+ */
+export async function getUserProgress(userId: string): Promise<UserProgress | null> {
+    let { data, error } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+    // If no progress exists, create it
+    if (error && error.code === 'PGRST116') {
+        const { data: newProgress, error: insertError } = await supabase
+            .from('user_progress')
+            .insert({
+                user_id: userId,
+                belt_level: 1,
+                current_xp: 0,
+                total_xp: 0
+            })
+            .select()
+            .single();
+
+        if (insertError) {
+            console.error('Error creating user progress:', insertError);
+            return null;
+        }
+        data = newProgress;
+    } else if (error) {
+        console.error('Error fetching user progress:', error);
+        return null;
+    }
+
+    return {
+        userId: data.user_id,
+        beltLevel: data.belt_level,
+        currentXp: data.current_xp,
+        totalXp: data.total_xp,
+        lastQuestReset: data.last_quest_reset,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+    };
+}
+
+/**
+ * Add XP and handle level up
+ */
+export async function addXP(
+    userId: string,
+    amount: number,
+    source: string,
+    sourceId?: string
+): Promise<{ leveledUp: boolean; newLevel?: number; xpEarned: number }> {
+    // Get current progress
+    const progress = await getUserProgress(userId);
+    if (!progress) {
+        return { leveledUp: false, xpEarned: 0 };
+    }
+
+    const newTotalXP = progress.totalXp + amount;
+    const newLevel = getBeltLevelFromXP(newTotalXP);
+    const leveledUp = newLevel > progress.beltLevel;
+
+    // Update progress
+    const { error: updateError } = await supabase
+        .from('user_progress')
+        .update({
+            belt_level: newLevel,
+            current_xp: newTotalXP - getBeltInfo(newLevel).xpRequired,
+            total_xp: newTotalXP
+        })
+        .eq('user_id', userId);
+
+    if (updateError) {
+        console.error('Error updating user progress:', updateError);
+        return { leveledUp: false, xpEarned: 0 };
+    }
+
+    // Record transaction
+    await supabase
+        .from('xp_transactions')
+        .insert({
+            user_id: userId,
+            amount,
+            source,
+            source_id: sourceId
+        });
+
+    return {
+        leveledUp,
+        newLevel: leveledUp ? newLevel : undefined,
+        xpEarned: amount
+    };
+}
+
+/**
+ * Get or create today's daily quests
+ */
+export async function getDailyQuests(userId: string): Promise<DailyQuest[]> {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check if quests exist for today
+    let { data, error } = await supabase
+        .from('daily_quests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('quest_date', today);
+
+    if (error) {
+        console.error('Error fetching daily quests:', error);
+        return [];
+    }
+
+    // If no quests for today, create them
+    if (!data || data.length === 0) {
+        const questTemplates = [
+            { type: 'watch_lesson', target: 1, reward: 10 },
+            { type: 'write_log', target: 1, reward: 20 },
+            { type: 'tournament', target: 3, reward: 30 },
+            { type: 'add_skill', target: 1, reward: 15 }
+        ];
+
+        const newQuests = questTemplates.map(q => ({
+            user_id: userId,
+            quest_type: q.type,
+            target_count: q.target,
+            current_count: 0,
+            xp_reward: q.reward,
+            completed: false,
+            quest_date: today
+        }));
+
+        const { data: created, error: createError } = await supabase
+            .from('daily_quests')
+            .insert(newQuests)
+            .select();
+
+        if (createError) {
+            console.error('Error creating daily quests:', createError);
+            return [];
+        }
+        data = created;
+    }
+
+    return (data || []).map((q: any) => ({
+        id: q.id,
+        userId: q.user_id,
+        questType: q.quest_type,
+        targetCount: q.target_count,
+        currentCount: q.current_count,
+        xpReward: q.xp_reward,
+        completed: q.completed,
+        questDate: q.quest_date,
+        createdAt: q.created_at
+    }));
+}
+
+/**
+ * Update quest progress
+ */
+export async function updateQuestProgress(
+    userId: string,
+    questType: QuestType
+): Promise<{ completed: boolean; xpEarned: number }> {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get quest
+    const { data: quest, error: fetchError } = await supabase
+        .from('daily_quests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('quest_type', questType)
+        .eq('quest_date', today)
+        .single();
+
+    if (fetchError || !quest) {
+        console.error('Error fetching quest:', fetchError);
+        return { completed: false, xpEarned: 0 };
+    }
+
+    // Already completed
+    if (quest.completed) {
+        return { completed: true, xpEarned: 0 };
+    }
+
+    const newCount = quest.current_count + 1;
+    const isCompleted = newCount >= quest.target_count;
+
+    // Update quest
+    const { error: updateError } = await supabase
+        .from('daily_quests')
+        .update({
+            current_count: newCount,
+            completed: isCompleted
+        })
+        .eq('id', quest.id);
+
+    if (updateError) {
+        console.error('Error updating quest:', updateError);
+        return { completed: false, xpEarned: 0 };
+    }
+
+    // If completed, award XP
+    if (isCompleted) {
+        await addXP(userId, quest.xp_reward, `quest_${questType}`, quest.id);
+        return { completed: true, xpEarned: quest.xp_reward };
+    }
+
+    return { completed: false, xpEarned: 0 };
+}
+
+/**
+ * Get XP transaction history
+ */
+export async function getXPHistory(
+    userId: string,
+    limit: number = 50
+): Promise<XPTransaction[]> {
+    const { data, error } = await supabase
+        .from('xp_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching XP history:', error);
+        return [];
+    }
+
+    return (data || []).map((t: any) => ({
+        id: t.id,
+        userId: t.user_id,
+        amount: t.amount,
+        source: t.source,
+        sourceId: t.source_id,
+        createdAt: t.created_at
+    }));
+}
+
+// ==================== DRILLS & ROUTINES API ====================
+
+/**
+ * Transform drill data from database to TypeScript interface
+ */
+function transformDrill(data: any): Drill {
+    return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator?.name || 'Unknown',
+        category: data.category,
+        difficulty: data.difficulty,
+        thumbnailUrl: data.thumbnail_url,
+        vimeoUrl: data.vimeo_url,
+        aspectRatio: '9:16',
+        duration: data.duration,
+        price: data.price,
+        views: data.views,
+        createdAt: data.created_at,
+    };
+}
+
+/**
+ * Transform drill routine data from database to TypeScript interface
+ */
+function transformDrillRoutine(data: any): DrillRoutine {
+    return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator?.name || 'Unknown',
+        thumbnailUrl: data.thumbnail_url,
+        price: data.price,
+        views: data.views,
+        drillCount: data.drill_count,
+        createdAt: data.created_at,
+    };
+}
+
+/**
+ * Get all drills
+ */
+export async function getDrills(): Promise<Drill[]> {
+    const { data, error } = await supabase
+        .from('drills')
+        .select(`
+            *,
+            creator:creators(name)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching drills:', error);
+        throw error;
+    }
+
+    return (data || []).map(transformDrill);
+}
+
+/**
+ * Get drill by ID
+ */
+export async function getDrillById(id: string): Promise<Drill | null> {
+    const { data, error } = await supabase
+        .from('drills')
+        .select(`
+            *,
+            creator:creators(name)
+        `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching drill:', error);
+        return null;
+    }
+
+    return data ? transformDrill(data) : null;
+}
+
+/**
+ * Get drills by creator
+ */
+export async function getDrillsByCreator(creatorId: string): Promise<Drill[]> {
+    const { data, error } = await supabase
+        .from('drills')
+        .select(`
+            *,
+            creator:creators(name)
+        `)
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching drills by creator:', error);
+        throw error;
+    }
+
+    return (data || []).map(transformDrill);
+}
+
+/**
+ * Get all drill routines
+ */
+export async function getDrillRoutines(): Promise<DrillRoutine[]> {
+    const { data, error } = await supabase
+        .from('drill_routines')
+        .select(`
+            *,
+            creator:creators(name),
+            drill_routine_items(count)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching drill routines:', error);
+        throw error;
+    }
+
+    return (data || []).map(routine => ({
+        ...transformDrillRoutine(routine),
+        drillCount: routine.drill_routine_items?.[0]?.count || 0,
+    }));
+}
+
+/**
+ * Get drill routine by ID with drills
+ */
+export async function getDrillRoutineById(id: string): Promise<DrillRoutine | null> {
+    const { data, error } = await supabase
+        .from('drill_routines')
+        .select(`
+            *,
+            creator:creators(name),
+            drill_routine_items(
+                drill_id,
+                display_order,
+                drills(*)
+            )
+        `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching drill routine:', error);
+        return null;
+    }
+
+    if (!data) return null;
+
+    // Extract drills from routine items and sort by display order
+    const drills = (data.drill_routine_items || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((item: any) => transformDrill(item.drills));
+
+    return {
+        ...transformDrillRoutine(data),
+        drillCount: drills.length,
+        drills,
+    };
+}
+
+/**
+ * Get drill routines by creator
+ */
+export async function getDrillRoutinesByCreator(creatorId: string): Promise<DrillRoutine[]> {
+    const { data, error } = await supabase
+        .from('drill_routines')
+        .select(`
+            *,
+            creator:creators(name),
+            drill_routine_items(count)
+        `)
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching drill routines by creator:', error);
+        throw error;
+    }
+
+    return (data || []).map(routine => ({
+        ...transformDrillRoutine(routine),
+        drillCount: routine.drill_routine_items?.[0]?.count || 0,
+    }));
+}
+
+/**
+ * Create a new drill (creator only)
+ */
+export async function createDrill(drillData: Partial<Drill>) {
+    const dbData = {
+        title: drillData.title,
+        description: drillData.description,
+        creator_id: drillData.creatorId,
+        category: drillData.category,
+        difficulty: drillData.difficulty,
+        thumbnail_url: drillData.thumbnailUrl,
+        vimeo_url: drillData.vimeoUrl,
+        duration: drillData.duration,
+        price: drillData.price,
+    };
+
+    const { data, error } = await supabase
+        .from('drills')
+        .insert(dbData)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating drill:', error);
+        return { error };
+    }
+
+    return { data: transformDrill(data), error: null };
+}
+
+/**
+ * Update a drill
+ */
+export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
+    const dbData: any = {};
+    if (drillData.title) dbData.title = drillData.title;
+    if (drillData.description) dbData.description = drillData.description;
+    if (drillData.category) dbData.category = drillData.category;
+    if (drillData.difficulty) dbData.difficulty = drillData.difficulty;
+    if (drillData.thumbnailUrl) dbData.thumbnail_url = drillData.thumbnailUrl;
+    if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
+    if (drillData.duration) dbData.duration = drillData.duration;
+    if (drillData.price !== undefined) dbData.price = drillData.price;
+
+    const { data, error } = await supabase
+        .from('drills')
+        .update(dbData)
+        .eq('id', drillId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating drill:', error);
+        return { error };
+    }
+
+    return { data: transformDrill(data), error: null };
+}
+
+/**
+ * Delete a drill
+ */
+export async function deleteDrill(drillId: string) {
+    const { error } = await supabase
+        .from('drills')
+        .delete()
+        .eq('id', drillId);
+
+    if (error) {
+        console.error('Error deleting drill:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+/**
+ * Create a drill routine
+ */
+export async function createDrillRoutine(routineData: Partial<DrillRoutine>, drillIds: string[]) {
+    const dbData = {
+        title: routineData.title,
+        description: routineData.description,
+        creator_id: routineData.creatorId,
+        thumbnail_url: routineData.thumbnailUrl,
+        price: routineData.price,
+    };
+
+    const { data: routine, error: routineError } = await supabase
+        .from('drill_routines')
+        .insert(dbData)
+        .select()
+        .single();
+
+    if (routineError) {
+        console.error('Error creating drill routine:', routineError);
+        return { error: routineError };
+    }
+
+    // Add drills to routine
+    const items = drillIds.map((drillId, index) => ({
+        routine_id: routine.id,
+        drill_id: drillId,
+        display_order: index + 1,
+    }));
+
+    const { error: itemsError } = await supabase
+        .from('drill_routine_items')
+        .insert(items);
+
+    if (itemsError) {
+        console.error('Error adding drills to routine:', itemsError);
+        // Rollback: delete the routine
+        await supabase.from('drill_routines').delete().eq('id', routine.id);
+        return { error: itemsError };
+    }
+
+    return { data: transformDrillRoutine(routine), error: null };
+}
+
+/**
+ * Update a drill routine
+ */
+export async function updateDrillRoutine(routineId: string, routineData: Partial<DrillRoutine>, drillIds?: string[]) {
+    const dbData: any = {};
+    if (routineData.title) dbData.title = routineData.title;
+    if (routineData.description) dbData.description = routineData.description;
+    if (routineData.thumbnailUrl) dbData.thumbnail_url = routineData.thumbnailUrl;
+    if (routineData.price !== undefined) dbData.price = routineData.price;
+
+    const { data, error } = await supabase
+        .from('drill_routines')
+        .update(dbData)
+        .eq('id', routineId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating drill routine:', error);
+        return { error };
+    }
+
+    // Update drill items if provided
+    if (drillIds) {
+        // Delete existing items
+        await supabase
+            .from('drill_routine_items')
+            .delete()
+            .eq('routine_id', routineId);
+
+        // Add new items
+        const items = drillIds.map((drillId, index) => ({
+            routine_id: routineId,
+            drill_id: drillId,
+            display_order: index + 1,
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('drill_routine_items')
+            .insert(items);
+
+        if (itemsError) {
+            console.error('Error updating routine items:', itemsError);
+            return { error: itemsError };
+        }
+    }
+
+    return { data: transformDrillRoutine(data), error: null };
+}
+
+/**
+ * Delete a drill routine
+ */
+export async function deleteDrillRoutine(routineId: string) {
+    const { error } = await supabase
+        .from('drill_routines')
+        .delete()
+        .eq('id', routineId);
+
+    if (error) {
+        console.error('Error deleting drill routine:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+/**
+ * Increment drill views
+ */
+export async function incrementDrillViews(drillId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_drill_views', {
+        drill_id: drillId,
+    });
+
+    if (error) {
+        console.error('Error incrementing drill views:', error);
+    }
+}
+
+/**
+ * Increment drill routine views
+ */
+export async function incrementDrillRoutineViews(routineId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_drill_routine_views', {
+        routine_id: routineId,
+    });
+
+    if (error) {
+        console.error('Error incrementing drill routine views:', error);
+    }
+}
+
+/**
+ * Purchase a drill
+ */
+export async function purchaseDrill(userId: string, drillId: string, pricePaid: number): Promise<{ error: any }> {
+    const { error } = await supabase
+        .from('user_drills')
+        .insert({
+            user_id: userId,
+            drill_id: drillId,
+            price_paid: pricePaid,
+        });
+
+    if (error) {
+        console.error('Error purchasing drill:', error);
+    }
+
+    return { error };
+}
+
+/**
+ * Purchase a drill routine
+ */
+export async function purchaseDrillRoutine(userId: string, routineId: string, pricePaid: number): Promise<{ error: any }> {
+    const { error } = await supabase
+        .from('user_drill_routines')
+        .insert({
+            user_id: userId,
+            routine_id: routineId,
+            price_paid: pricePaid,
+        });
+
+    if (error) {
+        console.error('Error purchasing drill routine:', error);
+    }
+
+    return { error };
+}
+
+/**
+ * Check if user owns a drill
+ */
+export async function checkDrillOwnership(userId: string, drillId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('user_drills')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('drill_id', drillId)
+        .single();
+
+    if (error) {
+        return false;
+    }
+
+    return !!data;
+}
+
+/**
+ * Check if user owns a drill routine
+ */
+export async function checkDrillRoutineOwnership(userId: string, routineId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('user_drill_routines')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('routine_id', routineId)
+        .single();
+
+    if (error) {
+        return false;
+    }
+
+    return !!data;
+}
+
+/**
+ * Get user's purchased drills
+ */
+export async function getUserDrills(userId: string): Promise<Drill[]> {
+    const { data, error } = await supabase
+        .from('user_drills')
+        .select(`
+            drill_id,
+            drills (
+                *,
+                creator:creators(name)
+            )
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user drills:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => transformDrill(item.drills));
+}
+
+/**
+ * Get user's purchased drill routines
+ */
+export async function getUserDrillRoutines(userId: string): Promise<DrillRoutine[]> {
+    const { data, error } = await supabase
+        .from('user_drill_routines')
+        .select(`
+            routine_id,
+            drill_routines (
+                *,
+                creator:creators(name),
+                drill_routine_items(count)
+            )
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user drill routines:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        ...transformDrillRoutine(item.drill_routines),
+        drillCount: item.drill_routines.drill_routine_items?.[0]?.count || 0,
+    }));
+}
+
+/**
+ * Calculate drill price with subscriber discount
+ */
+export function calculateDrillPrice(basePrice: number, isSubscriber: boolean): number {
+    if (isSubscriber) {
+        return Math.round(basePrice * 0.7); // 30% discount for subscribers
+    }
+    return basePrice;
+}
+
+/**
+ * Calculate routine price with subscriber discount
+ */
+export function calculateRoutinePrice(basePrice: number, isSubscriber: boolean): number {
+    if (isSubscriber) {
+        return Math.round(basePrice * 0.7); // 30% discount for subscribers
+    }
+    return basePrice;
+}
+

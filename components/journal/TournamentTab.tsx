@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserStats, getLeaderboard, getUserSkillCourses } from '../../lib/api';
+import { getUserStats, getLeaderboard, getUserSkillCourses, addXP, updateQuestProgress } from '../../lib/api';
 import { Trophy, Swords, Zap, Crown, Medal, BookOpen } from 'lucide-react';
+import { BeltUpModal } from '../BeltUpModal';
 
 interface Stats {
     Standing: number;
@@ -44,6 +45,8 @@ export const TournamentTab: React.FC = () => {
     const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
     const [skillCourses, setSkillCourses] = useState<SkillCourse[]>([]);
     const [mySkills, setMySkills] = useState<SkillCourse[]>([]);
+    const [showBeltUp, setShowBeltUp] = useState(false);
+    const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
 
     useEffect(() => {
         loadData();
@@ -172,6 +175,24 @@ export const TournamentTab: React.FC = () => {
         }
         setMatchLog([...logs]);
         setIsPlaying(false);
+        // Gamification: Award XP
+        const xpAmount = playerScore > opponentScore ? 30 : 5;
+        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, xpAmount, 'tournament');
+        if (xpEarned > 0) {
+            // Ideally show a toast
+            console.log(`Earned ${xpEarned} XP!`);
+        }
+
+        if (leveledUp && newLevel) {
+            setBeltUpData({ old: newLevel - 1, new: newLevel });
+            setShowBeltUp(true);
+        }
+
+        // Gamification: Update Quest
+        const { completed, xpEarned: questXp } = await updateQuestProgress(user.id, 'tournament');
+        if (completed) {
+            console.log(`Quest completed! +${questXp} XP`);
+        }
     };
 
     if (loading) return <div className="p-8 text-center">로딩 중...</div>;
@@ -447,6 +468,14 @@ export const TournamentTab: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {showBeltUp && beltUpData && (
+                <BeltUpModal
+                    oldLevel={beltUpData.old}
+                    newLevel={beltUpData.new}
+                    onClose={() => setShowBeltUp(false)}
+                />
+            )}
         </div>
     );
 };
