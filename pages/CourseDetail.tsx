@@ -7,6 +7,8 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+import { PaymentModal } from '../components/payment/PaymentModal';
+
 export const CourseDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -19,6 +21,7 @@ export const CourseDetail: React.FC = () => {
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);
@@ -77,9 +80,9 @@ export const CourseDetail: React.FC = () => {
 
         if (!course) return;
 
-        setPurchasing(true);
-        try {
-            if (course.price === 0) {
+        if (course.price === 0) {
+            setPurchasing(true);
+            try {
                 // Free course enrollment
                 const { error } = await enrollInCourse(user.id, course.id);
                 if (error) {
@@ -88,22 +91,25 @@ export const CourseDetail: React.FC = () => {
                     alert('라이브러리에 추가되었습니다! 📚');
                     setOwnsCourse(true);
                 }
-            } else {
-                // Paid course purchase
-                const { error } = await purchaseCourse(user.id, course.id, course.price);
-
-                if (error) {
-                    alert('구매 중 오류가 발생했습니다: ' + error.message);
-                } else {
-                    alert('구매가 완료되었습니다! 🎉\n이제 모든 레슨을 시청할 수 있습니다.');
-                    setOwnsCourse(true);
-                }
+            } catch (err) {
+                console.error('Enroll error:', err);
+                alert('처리 중 오류가 발생했습니다.');
+            } finally {
+                setPurchasing(false);
             }
-        } catch (err) {
-            alert('처리 중 오류가 발생했습니다.');
-            console.error('Purchase/Enroll error:', err);
-        } finally {
-            setPurchasing(false);
+        } else {
+            // Paid course - Open Payment Modal
+            setShowPaymentModal(true);
+        }
+    };
+
+    const handlePaymentSuccess = async () => {
+        setShowPaymentModal(false);
+        setOwnsCourse(true);
+        // You might want to refresh course ownership status here just in case
+        if (user && id) {
+            const owns = await checkCourseOwnership(user.id, id);
+            setOwnsCourse(owns);
         }
     };
 
@@ -474,6 +480,18 @@ export const CourseDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            {course && (
+                <PaymentModal
+                    isOpen={showPaymentModal}
+                    onClose={() => setShowPaymentModal(false)}
+                    onSuccess={handlePaymentSuccess}
+                    courseId={course.id}
+                    courseTitle={course.title}
+                    price={course.price}
+                />
+            )}
         </div >
     );
 };

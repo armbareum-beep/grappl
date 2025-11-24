@@ -26,6 +26,7 @@ import { CreatorProfile } from './pages/CreatorProfile';
 import { BecomeCreator } from './pages/BecomeCreator';
 import { UploadVideo } from './pages/UploadVideo';
 import { NotFound } from './pages/NotFound';
+import { PaymentComplete } from './pages/PaymentComplete';
 
 const App: React.FC = () => {
   return (
@@ -84,6 +85,7 @@ const App: React.FC = () => {
                 <AdminUserList />
               </AdminRoute>
             } />
+            <Route path="/payment/complete" element={<PaymentComplete />} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
