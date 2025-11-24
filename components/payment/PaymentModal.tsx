@@ -11,7 +11,8 @@ import { supabase } from '../../lib/supabase';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 interface PaymentModalProps {
-    courseId: string;
+    mode: 'course' | 'subscription';
+    courseId?: string;
     courseTitle: string;
     price: number;
     isOpen: boolean;
@@ -20,6 +21,7 @@ interface PaymentModalProps {
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
+    mode,
     courseId,
     courseTitle,
     price,
@@ -32,14 +34,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            // Create PaymentIntent as soon as the page loads
+            // Create PaymentIntent or Subscription based on mode
+            const requestBody = mode === 'course'
+                ? { mode: 'course', courseId }
+                : { mode: 'subscription' };
+
             fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                 },
-                body: JSON.stringify({ courseId }),
+                body: JSON.stringify(requestBody),
             })
                 .then((res) => {
                     if (!res.ok) throw new Error('Network response was not ok');
@@ -54,7 +60,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     setError("결제 시스템을 불러오는데 실패했습니다.");
                 });
         }
-    }, [isOpen, courseId]);
+    }, [isOpen, mode, courseId]);
 
     if (!isOpen) return null;
 
@@ -79,7 +85,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                강좌 결제
+                                {mode === 'course' ? '강좌 결제' : '구독 결제'}
                             </h3>
                             <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
                                 <X className="w-6 h-6" />

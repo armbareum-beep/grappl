@@ -3,36 +3,29 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { purchaseSubscription } from '../lib/api';
+import { PaymentModal } from '../components/payment/PaymentModal';
 
 export const Pricing: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
+  const [showPaymentModal, setShowPaymentModal] = React.useState(false);
 
-  const handleSubscription = async (plan: 'monthly' | 'yearly') => {
+  const handleSubscription = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    setLoading(true);
-    try {
-      const { error } = await purchaseSubscription(user.id, plan);
-      if (error) {
-        alert('구독 처리 중 오류가 발생했습니다.');
-      } else {
-        alert('구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.');
-        // Force reload to update context state since we're using localStorage
-        window.location.href = '/#/browse';
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error(err);
-      alert('오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    // Open Stripe Payment Modal
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    alert('구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.');
+    window.location.href = '/#/browse';
+    window.location.reload();
   };
 
   // if (isSubscribed) {
@@ -98,7 +91,7 @@ export const Pricing: React.FC = () => {
             <div className="mt-8">
               <Button
                 className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
-                onClick={() => handleSubscription('monthly')}
+                onClick={handleSubscription}
                 disabled={loading}
               >
                 {loading ? '처리 중...' : '1개월 무료로 시작하기'}
@@ -142,7 +135,7 @@ export const Pricing: React.FC = () => {
               <Button
                 variant="outline"
                 className="w-full h-14 text-lg border-slate-700 text-white hover:bg-slate-800 hover:text-white"
-                onClick={() => handleSubscription('yearly')}
+                onClick={handleSubscription}
                 disabled={loading}
               >
                 {loading ? '처리 중...' : '연간 멤버십 가입하기'}
@@ -159,6 +152,16 @@ export const Pricing: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        mode="subscription"
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        courseTitle="Grappl Pro 월간 구독"
+        price={39000}
+      />
     </div>
   );
 };
