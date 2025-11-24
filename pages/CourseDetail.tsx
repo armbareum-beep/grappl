@@ -484,6 +484,7 @@ export const CourseDetail: React.FC = () => {
             {/* Payment Modal */}
             {course && (
                 <PaymentModal
+                    mode="course"
                     isOpen={showPaymentModal}
                     onClose={() => setShowPaymentModal(false)}
                     onSuccess={handlePaymentSuccess}
