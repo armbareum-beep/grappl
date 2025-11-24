@@ -120,7 +120,7 @@ export const CreatorDashboard: React.FC = () => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex space-x-4 border-b border-slate-200 mb-8 overflow-x-auto">
+                <div className="flex space-x-4 border-b border-slate-200 mb-8 overflow-x-auto scrollbar-hide">
                     <button
                         onClick={() => setActiveTab('overview')}
                         className={`pb-4 px-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview'
