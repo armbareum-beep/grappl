@@ -3,14 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses, calculateCreatorEarnings } from '../../lib/api';
 import { Course } from '../../types';
-import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package, MessageSquare } from 'lucide-react';
+import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { MarketingTab } from '../../components/creator/MarketingTab';
-import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
-import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
-import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
-import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
-import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
+import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package, MessageSquare, LayoutDashboard } from 'lucide-react';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -56,141 +51,52 @@ export const CreatorDashboard: React.FC = () => {
 
     const totalViews = courses.reduce((sum, course) => sum + course.views, 0);
 
+    const TABS = [
+        { id: 'overview', label: '대시보드', icon: LayoutDashboard },
+        { id: 'marketing', label: '마케팅 (번들 & 쿠폰)', icon: Package },
+        { id: 'feedback', label: '1:1 피드백 설정', icon: MessageSquare },
+        { id: 'requests', label: '피드백 요청', icon: MessageSquare },
+        { id: 'analytics', label: '수익 분석', icon: TrendingUp },
+        { id: 'performance', label: '강좌별 성과', icon: Eye },
+        { id: 'payout', label: '정산 설정', icon: DollarSign },
+    ];
+
     return (
         <div className="min-h-screen bg-slate-50">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-12">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-3xl font-bold text-white">안녕하세요, {user?.user_metadata?.name || '인스트럭터'}님! 👋</h1>
-                    <p className="text-blue-100 mt-2">오늘도 멋진 콘텐츠를 기획해보세요.</p>
-                </div>
-            </div>
+            {/* ... header ... */}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Stats Cards */}
-                <div className="grid md:grid-cols-5 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-500 text-sm">총 강좌</span>
-                            <BookOpen className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">{courses.length}</p>
-                    </div>
+                {/* ... stats cards ... */}
 
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-500 text-sm">총 조회수</span>
-                            <Eye className="w-5 h-5 text-green-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">{totalViews.toLocaleString()}</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-500 text-sm">시청 시간 (점유율)</span>
-                            <Clock className="w-5 h-5 text-indigo-600" />
-                        </div>
-                        <p className="text-2xl font-bold text-slate-900">
-                            {earnings?.creatorWatchTime || 0}분
-                            <span className="text-sm text-slate-500 font-normal ml-2">
-                                ({(earnings?.watchTimeShare * 100 || 0).toFixed(1)}%)
-                            </span>
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">전체 {earnings?.totalWatchTime || 0}분 중</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-500 text-sm">직접 판매 수익</span>
-                            <DollarSign className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                            ₩{earnings?.directRevenue?.toLocaleString() || 0}
-                        </p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-500 text-sm">구독 수익</span>
-                            <TrendingUp className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                            ₩{earnings?.subscriptionRevenue?.toLocaleString() || 0}
-                        </p>
-                    </div>
+                {/* Tab Navigation - Desktop */}
+                {/* Tab Navigation - Desktop */}
+                <div className="hidden md:flex space-x-4 border-b border-slate-200 mb-8 overflow-x-auto scrollbar-hide">
+                    {TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                                    ? 'text-blue-600 border-b-2 border-blue-600'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <Icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex space-x-4 border-b border-slate-200 mb-8 overflow-x-auto scrollbar-hide">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`pb-4 px-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        대시보드
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('marketing')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'marketing'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <Package className="w-4 h-4" />
-                        마케팅 (번들 & 쿠폰)
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('feedback')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'feedback'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                        1:1 피드백 설정
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('requests')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'requests'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                        피드백 요청
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('analytics')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'analytics'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <TrendingUp className="w-4 h-4" />
-                        수익 분석
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('performance')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'performance'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <Eye className="w-4 h-4" />
-                        강좌별 성과
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('payout')}
-                        className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'payout'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <DollarSign className="w-4 h-4" />
-                        정산 설정
-                    </button>
-                </div>
+                {/* Tab Navigation - Mobile Dropdown */}
+                <MobileTabSelector
+                    tabs={TABS}
+                    activeTab={activeTab}
+                    onTabChange={(id) => setActiveTab(id as any)}
+                />
+
+                {/* Tab Content */}
 
                 {/* Tab Content */}
                 {activeTab === 'overview' ? (
