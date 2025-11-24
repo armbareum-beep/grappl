@@ -6,6 +6,12 @@ import { Course } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
 import { BookOpen, DollarSign, Eye, TrendingUp, Clock, Package, MessageSquare, LayoutDashboard } from 'lucide-react';
+import { MarketingTab } from '../../components/creator/MarketingTab';
+import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
+import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
+import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
+import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
+import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
