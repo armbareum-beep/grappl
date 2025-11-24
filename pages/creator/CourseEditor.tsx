@@ -25,6 +25,7 @@ export const CourseEditor: React.FC = () => {
         difficulty: Difficulty.Beginner,
         price: 0,
         thumbnailUrl: '',
+        isSubscriptionExcluded: false,
     });
 
     // Lessons State
@@ -284,6 +285,21 @@ export const CourseEditor: React.FC = () => {
                                         onChange={e => setCourseData({ ...courseData, price: Number(e.target.value) })}
                                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     />
+                                    <div className="mt-3 flex items-start">
+                                        <div className="flex items-center h-5">
+                                            <input
+                                                type="checkbox"
+                                                id="subscriptionExcluded"
+                                                checked={courseData.isSubscriptionExcluded || false}
+                                                onChange={e => setCourseData({ ...courseData, isSubscriptionExcluded: e.target.checked })}
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            />
+                                        </div>
+                                        <div className="ml-2 text-sm">
+                                            <label htmlFor="subscriptionExcluded" className="font-medium text-slate-900">구독 제외 상품 (단품 구매 전용)</label>
+                                            <p className="text-slate-500">체크하면 구독자도 무료로 볼 수 없으며, 반드시 따로 구매해야 합니다.</p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">썸네일 URL</label>

@@ -38,6 +38,7 @@ export interface Course {
   views: number;
   lessonCount?: number;
   createdAt: string;
+  isSubscriptionExcluded?: boolean; // If true, subscribers cannot access for free
 }
 
 export interface Lesson {
