@@ -373,77 +373,6 @@ export async function getUserSkills(userId: string): Promise<UserSkill[]> {
     }));
 }
 
-export async function getSkillSubcategories(userId: string): Promise<SkillSubcategory[]> {
-    const { data, error } = await supabase
-        .from('skill_subcategories')
-        .select('*')
-        .eq('user_id', userId)
-        .order('display_order', { ascending: true });
-
-    if (error) {
-        if (error.code === '42P01') return [];
-        console.error('Error fetching skill subcategories:', error);
-        return [];
-    }
-
-    return (data || []).map((item: any) => ({
-        id: item.id,
-        userId: item.user_id,
-        category: item.category,
-        name: item.name,
-        displayOrder: item.display_order,
-        createdAt: item.created_at
-    }));
-}
-
-export async function addUserSkill(skillData: Partial<UserSkill>) {
-    const { data, error } = await supabase
-        .from('user_skills')
-        .insert({
-            user_id: skillData.userId,
-            category: skillData.category,
-            subcategory_id: skillData.subcategoryId,
-            course_id: skillData.courseId,
-            status: skillData.status || 'learning'
-        })
-        .select()
-        .single();
-
-    return { data, error };
-}
-
-export async function updateUserSkillStatus(skillId: string, status: SkillStatus) {
-    const { error } = await supabase
-        .from('user_skills')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', skillId);
-
-    return { error };
-}
-
-export async function deleteUserSkill(skillId: string) {
-    const { error } = await supabase
-        .from('user_skills')
-        .delete()
-        .eq('id', skillId);
-
-    return { error };
-}
-
-export async function createSkillSubcategory(userId: string, category: string, name: string) {
-    const { data, error } = await supabase
-        .from('skill_subcategories')
-        .insert({
-            user_id: userId,
-            category,
-            name
-        })
-        .select()
-        .single();
-
-    return { data, error };
-}
-
 // Learning Progress API
 export async function markLessonComplete(userId: string, lessonId: string, completed: boolean = true) {
     const { data, error } = await supabase
@@ -1459,67 +1388,18 @@ export async function createLogFeedback(logId: string, userId: string, content: 
     return { error };
 }
 
-// ==================== SKILL TREE ====================
 
-/**
- * Get user's skills
- */
-export async function getUserSkills(userId: string) {
-    const { data, error } = await supabase
-        .from('user_skills')
-        .select(`
-            *,
-            courses (
-                id,
-                title
-            )
-        `)
-        .eq('user_id', userId);
-
-    if (error) return { data: null, error };
-
-    const skills: UserSkill[] = data.map((skill: any) => ({
-        id: skill.id,
-        userId: skill.user_id,
-        category: skill.category,
-        subcategoryId: skill.subcategory_id,
-        courseId: skill.course_id,
-        courseTitle: skill.courses?.title,
-        status: skill.status,
-        createdAt: skill.created_at,
-        updatedAt: skill.updated_at
-    }));
-
-    return { data: skills, error: null };
-}
 
 /**
  * Get user stats for tournament
  */
 export async function getUserStats(userId: string) {
-    const [skillsRes, logsRes] = await Promise.all([
+    const [skills, logsRes] = await Promise.all([
         getUserSkills(userId),
         supabase.from('training_logs').select('id', { count: 'exact' }).eq('user_id', userId)
     ]);
 
-    const skills = skillsRes.data;
     const logCount = logsRes.count || 0;
-
-    if (!skills) {
-        return {
-            data: {
-                Standing: 0,
-                Guard: 0,
-                'Guard Pass': 0,
-                Side: 0,
-                Mount: 0,
-                Back: 0,
-                logCount: 0,
-                total: 0
-            },
-            error: skillsRes.error
-        };
-    }
 
     const stats = {
         Standing: 0,
@@ -1532,10 +1412,10 @@ export async function getUserStats(userId: string) {
         total: 0
     };
 
-    skills.forEach(skill => {
+    skills.forEach((skill: UserSkill) => {
         const points = skill.status === 'mastered' ? 5 : 1;
-        if (stats[skill.category] !== undefined) {
-            stats[skill.category] += points;
+        if (stats[skill.category as keyof typeof stats] !== undefined) {
+            stats[skill.category as keyof typeof stats] += points;
             stats.total += points;
         }
     });
@@ -1644,99 +1524,7 @@ export async function deleteUserSkill(skillId: string) {
     return { error };
 }
 
-// ==================== SKILL SUBCATEGORIES ====================
 
-/**
- * Get skill subcategories
- */
-export async function getSkillSubcategories(userId: string) {
-    const { data, error } = await supabase
-        .from('skill_subcategories')
-        .select('*')
-        .eq('user_id', userId)
-        .order('display_order', { ascending: true });
-
-    if (error) return { data: null, error };
-
-    const subcategories: SkillSubcategory[] = data.map((item: any) => ({
-        id: item.id,
-        userId: item.user_id,
-        category: item.category,
-        name: item.name,
-        displayOrder: item.display_order,
-        createdAt: item.created_at
-    }));
-
-    return { data: subcategories, error: null };
-}
-
-/**
- * Create skill subcategory
- */
-export async function createSkillSubcategory(userId: string, category: SkillCategory, name: string) {
-    // Get max display order
-    const { data: maxOrderData } = await supabase
-        .from('skill_subcategories')
-        .select('display_order')
-        .eq('user_id', userId)
-        .eq('category', category)
-        .order('display_order', { ascending: false })
-        .limit(1)
-        .single();
-
-    const nextOrder = (maxOrderData?.display_order || 0) + 1;
-
-    const { data, error } = await supabase
-        .from('skill_subcategories')
-        .insert({
-            user_id: userId,
-            category,
-            name,
-            display_order: nextOrder
-        })
-        .select()
-        .single();
-
-    if (error) return { data: null, error };
-
-    const subcategory: SkillSubcategory = {
-        id: data.id,
-        userId: data.user_id,
-        category: data.category,
-        name: data.name,
-        displayOrder: data.display_order,
-        createdAt: data.created_at
-    };
-
-    return { data: subcategory, error: null };
-}
-
-/**
- * Update skill subcategory
- */
-export async function updateSkillSubcategory(subcategoryId: string, updates: Partial<SkillSubcategory>) {
-    const { error } = await supabase
-        .from('skill_subcategories')
-        .update({
-            name: updates.name,
-            display_order: updates.displayOrder
-        })
-        .eq('id', subcategoryId);
-
-    return { error };
-}
-
-/**
- * Delete skill subcategory
- */
-export async function deleteSkillSubcategory(subcategoryId: string) {
-    const { error } = await supabase
-        .from('skill_subcategories')
-        .delete()
-        .eq('id', subcategoryId);
-
-    return { error };
-}
 
 // ==================== BELT SYSTEM ====================
 
@@ -2286,33 +2074,7 @@ export async function getPublicCourses() {
     return { data: courses, error: null };
 }
 
-// ==================== USER COURSES ====================
 
-/**
- * Get user's purchased courses with details
- */
-export async function getUserPurchasedCourses(userId: string) {
-    const { data, error } = await supabase
-        .from('user_courses')
-        .select(`
-            *,
-            courses (
-                id,
-                title,
-                category,
-                difficulty,
-                thumbnailUrl:thumbnail_url
-            )
-        `)
-        .eq('user_id', userId);
-
-    if (error) {
-        console.error('Error fetching purchased courses:', error);
-        return { data: null, error };
-    }
-
-    return { data, error: null };
-}
 
 /**
  * Get user's skill tree courses (equipped courses)
