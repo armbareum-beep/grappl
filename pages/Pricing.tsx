@@ -63,115 +63,101 @@ export const Pricing: React.FC = () => {
           단품 구매로 필요한 기술만 배우거나, 구독을 통해 모든 콘텐츠를 누리세요.
         </p>
 
-        <div className="mt-16 grid gap-8 lg:grid-cols-3 max-w-5xl mx-auto">
-          {/* Free Trial Plan */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col">
-            <h3 className="text-xl font-semibold text-slate-900">1달 무료 체험</h3>
-            <p className="mt-4 text-slate-500 text-sm">모든 기능을 1달 동안 무료로 체험해보세요.</p>
-            <div className="mt-6">
-              <span className="text-4xl font-bold text-slate-900">₩0</span>
-            </div>
-            <ul className="mt-6 space-y-4 flex-1">
-              <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">모든 강좌 무제한 시청</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">1달 후 자동 결제</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">언제든지 해지 가능</span>
-              </li>
-            </ul>
-            <div className="mt-8">
-              <Link to="/browse">
-                <Button variant="outline" className="w-full">무료 체험 시작하기</Button>
-              </Link>
-            </div>
-          </div>
-
+        <div className="mt-16 grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
           {/* Monthly Subscription */}
-          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8 flex flex-col transform md:-translate-y-4 relative">
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-bold">
-              BEST VALUE
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-100 p-8 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-blue-600 text-white px-4 py-1 rounded-bl-xl text-sm font-bold">
+              첫 달 무료 체험
             </div>
-            <h3 className="text-xl font-semibold text-white">월간 구독</h3>
-            <p className="mt-4 text-slate-400 text-sm">지속적인 성장을 위한 최고의 선택.</p>
+            <h3 className="text-2xl font-bold text-slate-900">월간 멤버십</h3>
+            <p className="mt-4 text-slate-500">부담 없이 시작하는 주짓수 라이프.</p>
             <div className="mt-6">
-              <span className="text-4xl font-bold text-white">₩55,000</span>
-              <span className="text-base font-medium text-slate-400">/월</span>
+              <span className="text-5xl font-black text-slate-900">₩39,000</span>
+              <span className="text-lg font-medium text-slate-500">/월</span>
             </div>
-            <ul className="mt-6 space-y-4 flex-1">
+            <p className="text-sm text-blue-600 font-medium mt-2">✨ 첫 달 0원, 언제든 해지 가능</p>
+
+            <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-blue-400" />
-                <span className="ml-3 text-slate-300 text-sm text-left">모든 강좌 무제한 시청</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
+                <span className="ml-3 text-slate-700 text-lg">모든 강좌 무제한 시청</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-blue-400" />
-                <span className="ml-3 text-slate-300 text-sm text-left">매주 업데이트되는 신규 기술</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
+                <span className="ml-3 text-slate-700 text-lg">매주 업데이트되는 신규 기술</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-blue-400" />
-                <span className="ml-3 text-slate-300 text-sm text-left">스파링 분석 영상 접근 권한</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
+                <span className="ml-3 text-slate-700 text-lg">스파링 분석 영상 접근 권한</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-blue-400" />
-                <span className="ml-3 text-slate-300 text-sm text-left">언제든지 해지 가능</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
+                <span className="ml-3 text-slate-700 text-lg">단품 구매 시 추가 할인</span>
               </li>
             </ul>
             <div className="mt-8">
               <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 border-none"
+                className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
                 onClick={() => handleSubscription('monthly')}
                 disabled={loading}
               >
-                {loading ? '처리 중...' : '지금 구독하기'}
+                {loading ? '처리 중...' : '1개월 무료로 시작하기'}
               </Button>
+              <p className="text-xs text-center text-slate-400 mt-3">체험 기간 종료 후 자동 결제됩니다.</p>
             </div>
           </div>
 
           {/* Yearly Plan */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col">
-            <h3 className="text-xl font-semibold text-slate-900">연간 구독</h3>
-            <p className="mt-4 text-slate-500 text-sm">1년 결제하고 2개월 무료 혜택.</p>
-            <div className="mt-6">
-              <span className="text-4xl font-bold text-slate-900">₩550,000</span>
-              <span className="text-base font-medium text-slate-500">/년</span>
+          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8 flex flex-col relative">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg">
+              BEST CHOICE (2개월 무료)
             </div>
-            <ul className="mt-6 space-y-4 flex-1">
+            <h3 className="text-2xl font-bold text-white">연간 멤버십</h3>
+            <p className="mt-4 text-slate-400">진지하게 수련하는 분들을 위한 선택.</p>
+            <div className="mt-6">
+              <span className="text-5xl font-black text-white">₩390,000</span>
+              <span className="text-lg font-medium text-slate-400">/년</span>
+            </div>
+            <p className="text-sm text-amber-400 font-medium mt-2">🔥 월 32,500원 꼴 (17% 할인)</p>
+
+            <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">월간 구독의 모든 혜택</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
+                <span className="ml-3 text-slate-300 text-lg">월간 멤버십의 모든 혜택</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">오프라인 세미나 우선권</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
+                <span className="ml-3 text-slate-300 text-lg">오프라인 세미나 우선권</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-5 h-5 text-green-500" />
-                <span className="ml-3 text-slate-600 text-sm text-left">한정판 굿즈 증정</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
+                <span className="ml-3 text-slate-300 text-lg">한정판 굿즈 증정</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
+                <span className="ml-3 text-slate-300 text-lg">인스트럭터 Q&A 우선 답변</span>
               </li>
             </ul>
             <div className="mt-8">
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-14 text-lg border-slate-700 text-white hover:bg-slate-800 hover:text-white"
                 onClick={() => handleSubscription('yearly')}
                 disabled={loading}
               >
-                {loading ? '처리 중...' : '연간 결제하기'}
+                {loading ? '처리 중...' : '연간 멤버십 가입하기'}
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 max-w-3xl mx-auto text-center">
-          <p className="text-sm text-slate-500 bg-slate-100 py-3 px-4 rounded-lg inline-block">
-            ⚠️ 크리에이터 번들 및 쿠폰을 통한 구매는 구독 수익 정산에 포함되지 않습니다.
-          </p>
+        <div className="mt-16 text-center">
+          <p className="text-slate-500 mb-4">구독이 부담스러우신가요?</p>
+          <Link to="/browse" className="text-blue-600 font-semibold hover:underline">
+            단품 강좌 둘러보기 &rarr;
+          </Link>
         </div>
+
       </div>
     </div>
   );

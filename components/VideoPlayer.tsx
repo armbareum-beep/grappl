@@ -15,28 +15,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Initialize player
-        const player = new Player(containerRef.current, {
-            id: Number(vimeoId),
-            autoplay: false,
-            loop: false,
-            autopause: true,
-            title: true,
-        });
+        let player: Player | null = null;
 
-        playerRef.current = player;
+        try {
+            // Initialize player
+            const options: any = {
+                autoplay: false,
+                loop: false,
+                autopause: true,
+                title: true,
+            };
 
-        // Add event listeners
-        player.on('ended', () => {
-            if (onEnded) onEnded();
-        });
+            // Ensure vimeoId is a string for checking
+            const vimeoIdStr = String(vimeoId);
 
-        player.on('timeupdate', (data) => {
-            if (onProgress) onProgress(data.seconds);
-        });
+            // Check if vimeoId is a URL or an ID
+            if (vimeoIdStr.startsWith('http')) {
+                options.url = vimeoIdStr;
+            } else {
+                options.id = Number(vimeoIdStr);
+            }
+
+            player = new Player(containerRef.current, options);
+            playerRef.current = player;
+
+            // Add event listeners
+            player.on('ended', () => {
+                if (onEnded) onEnded();
+            });
+
+            player.on('timeupdate', (data) => {
+                if (onProgress) onProgress(data.seconds);
+            });
+        } catch (err) {
+            console.error('Failed to initialize Vimeo player:', err);
+        }
 
         return () => {
-            player.destroy();
+            if (player) {
+                player.destroy();
+            }
         };
     }, [vimeoId, onEnded, onProgress]);
 

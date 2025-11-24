@@ -53,6 +53,7 @@ function transformCourse(data: any): Course {
         views: data.views,
         lessonCount: data.lesson_count,
         createdAt: data.created_at,
+        isSubscriptionExcluded: data.is_subscription_excluded,
     };
 }
 
@@ -91,9 +92,13 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         .from('creators')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
+        // 406/PGRST106: Table missing or RLS issue
+        if (error.code === 'PGRST106' || error.code === '406') {
+            return null;
+        }
         console.error('Error fetching creator:', error);
         return null;
     }
@@ -351,9 +356,14 @@ export async function getLessonProgress(userId: string, lessonId: string) {
         .select('*')
         .eq('user_id', userId)
         .eq('lesson_id', lessonId)
-        .single();
+        .maybeSingle();
 
     if (error) {
+        // 406/PGRST106: Table missing or RLS issue
+        if (error.code === 'PGRST106' || error.code === '406') {
+            return null;
+        }
+        console.error('Error fetching lesson progress:', error);
         return null;
     }
 
@@ -437,6 +447,7 @@ export async function createCourse(courseData: Partial<Course>) {
         difficulty: courseData.difficulty,
         thumbnail_url: courseData.thumbnailUrl,
         price: courseData.price,
+        is_subscription_excluded: courseData.isSubscriptionExcluded,
     };
 
     const { data, error } = await supabase
@@ -457,6 +468,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.difficulty) dbData.difficulty = courseData.difficulty;
     if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
+    if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
 
     const { data, error } = await supabase
         .from('courses')
@@ -1954,9 +1966,16 @@ export async function getNotifications(userId: string) {
         .order('created_at', { ascending: false })
         .limit(20);
 
-    if (error) return { data: null, error };
+    if (error) {
+        // Ignore 404/PGRST106 (Table missing) to keep console clean
+        if (error.code === 'PGRST106' || error.code === '404') {
+            return { data: [], error: null };
+        }
+        console.error('Error fetching notifications:', error);
+        return { data: [], error };
+    }
 
-    const notifications: AppNotification[] = data.map((n: any) => ({
+    const notifications: AppNotification[] = (data || []).map((n: any) => ({
         id: n.id,
         userId: n.user_id,
         type: n.type,
