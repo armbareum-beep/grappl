@@ -36,46 +36,54 @@ ALTER TABLE skill_subcategories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
 
 -- Skill Subcategories Policies
+DROP POLICY IF EXISTS "Users can view their own subcategories" ON skill_subcategories;
 CREATE POLICY "Users can view their own subcategories"
   ON skill_subcategories FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own subcategories" ON skill_subcategories;
 CREATE POLICY "Users can insert their own subcategories"
   ON skill_subcategories FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own subcategories" ON skill_subcategories;
 CREATE POLICY "Users can update their own subcategories"
   ON skill_subcategories FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own subcategories" ON skill_subcategories;
 CREATE POLICY "Users can delete their own subcategories"
   ON skill_subcategories FOR DELETE
   USING (auth.uid() = user_id);
 
 -- User Skills Policies
+DROP POLICY IF EXISTS "Users can view their own skills" ON user_skills;
 CREATE POLICY "Users can view their own skills"
   ON user_skills FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own skills" ON user_skills;
 CREATE POLICY "Users can insert their own skills"
   ON user_skills FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own skills" ON user_skills;
 CREATE POLICY "Users can update their own skills"
   ON user_skills FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own skills" ON user_skills;
 CREATE POLICY "Users can delete their own skills"
   ON user_skills FOR DELETE
   USING (auth.uid() = user_id);
 
 -- Public read access for Tournament/Profile views
-DROP POLICY IF EXISTS "Users can view their own skills" ON user_skills;
+DROP POLICY IF EXISTS "Public can view user skills" ON user_skills;
 CREATE POLICY "Public can view user skills"
   ON user_skills FOR SELECT
   USING (true);
 
-DROP POLICY IF EXISTS "Users can view their own subcategories" ON skill_subcategories;
+DROP POLICY IF EXISTS "Public can view skill subcategories" ON skill_subcategories;
 CREATE POLICY "Public can view skill subcategories"
   ON skill_subcategories FOR SELECT
   USING (true);
