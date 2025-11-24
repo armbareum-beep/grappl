@@ -174,7 +174,7 @@ export const SkillTreeTab: React.FC = () => {
                                 }`}
                         >
                             <Icon className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2" />
-                            <div className="text-xs md:text-sm font-semibold">{cat.name}</div>
+                            <div className="text-xs md:text-sm font-semibold whitespace-nowrap">{cat.name}</div>
                             <div className="text-[10px] md:text-xs mt-1 opacity-80">
                                 {masteredCount}/{categoryCount}
                             </div>
@@ -184,13 +184,13 @@ export const SkillTreeTab: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <button
                     onClick={() => {
                         setShowSubcategoryForm(!showSubcategoryForm);
                         setShowCourseSelector(false);
                     }}
-                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                     <FolderPlus className="w-5 h-5" />
                     서브카테고리 추가
@@ -201,7 +201,7 @@ export const SkillTreeTab: React.FC = () => {
                             setShowCourseSelector(!showCourseSelector);
                             setShowSubcategoryForm(false);
                         }}
-                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         <Plus className="w-5 h-5" />
                         강좌 추가 ({availableCourses.length})
