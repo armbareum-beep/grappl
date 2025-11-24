@@ -7,8 +7,8 @@ import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, 
 // Revenue split constants
 export const DIRECT_PRODUCT_CREATOR_SHARE = 0.8; // 80% to creator for individual product sales
 export const DIRECT_PRODUCT_PLATFORM_SHARE = 0.2;
-export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscription revenue
-export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
+export const SUBSCRIPTION_CREATOR_SHARE = 0.7; // 70% to creator for subscription revenue
+export const SUBSCRIPTION_PLATFORM_SHARE = 0.3;
 
 // Helper functions to transform snake_case to camelCase
 function transformCreator(data: any): Creator {
@@ -927,7 +927,7 @@ export async function getAllCoursesForAdmin() {
 // ==================== REVENUE CALCULATION ====================
 
 /**
- * Calculate creator earnings from direct sales and subscription revenue
+ * Calculate creator earnings from direct sales, feedback, and subscription revenue
  */
 export async function calculateCreatorEarnings(creatorId: string) {
     const { data: creator, error: creatorError } = await supabase
@@ -944,7 +944,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
     const directShare = creator.direct_share ?? DIRECT_PRODUCT_CREATOR_SHARE;
     const subShare = creator.subscription_share ?? SUBSCRIPTION_CREATOR_SHARE;
 
-    // 2. Calculate Direct Sales Revenue
+    // 1. Calculate Direct Sales Revenue (Courses)
     const { data: courses } = await supabase.from('courses').select('id').eq('creator_id', creatorId);
     const courseIds = courses?.map((c: { id: string }) => c.id) || [];
 
@@ -959,47 +959,84 @@ export async function calculateCreatorEarnings(creatorId: string) {
         directRevenue = totalSales * directShare;
     }
 
-    // 3. Calculate Subscription Revenue (Watch Time Based)
-    // Mock Pool for MVP until subscription payments are real
-    const MOCK_TOTAL_SUBSCRIPTION_REVENUE = 10000000; // 10,000,000 KRW
+    // 2. Calculate Feedback Revenue
+    // Feedback also uses the direct_share (80%)
+    const { data: feedbackSales } = await supabase
+        .from('feedback_requests')
+        .select('price_paid')
+        .eq('instructor_id', creatorId)
+        .eq('status', 'completed');
 
-    // Get all completed lessons with their length
-    // Note: In a real app, this query would be too heavy. We would use aggregated stats tables.
-    const { data: allProgress } = await supabase
-        .from('lesson_progress')
+    const totalFeedbackSales = feedbackSales?.reduce((sum: number, req: { price_paid: number }) => sum + (req.price_paid || 0), 0) || 0;
+    const feedbackRevenue = totalFeedbackSales * directShare;
+
+    // 3. Calculate Subscription Revenue (Watch Time Based)
+    // Get actual subscription revenue from revenue_ledger (recognized only)
+    // For now, we'll sum ALL recognized revenue. In a real system, this would be filtered by month.
+    const { data: recognizedRevenue } = await supabase
+        .from('revenue_ledger')
+        .select('amount')
+        .eq('status', 'recognized');
+
+    // Fallback to mock if no ledger data exists yet (for dev/testing)
+    const totalSubRevenuePool = (recognizedRevenue && recognizedRevenue.length > 0)
+        ? recognizedRevenue.reduce((sum, r) => sum + r.amount, 0)
+        : 10000000; // 10,000,000 KRW fallback
+
+    // Get courses owned by users to exclude them from subscription revenue
+    const { data: ownedCourses } = await supabase
+        .from('user_courses')
+        .select('user_id, course_id');
+
+    const ownershipMap = new Map<string, boolean>();
+    ownedCourses?.forEach(uc => {
+        ownershipMap.set(`${uc.user_id}_${uc.course_id}`, true);
+    });
+
+    // Get actual watch seconds from video_watch_logs
+    const { data: watchLogs } = await supabase
+        .from('video_watch_logs')
         .select(`
+            user_id,
+            watch_seconds,
             lesson_id,
             lessons (
                 id,
-                length,
                 course_id,
                 courses ( creator_id )
             )
-        `)
-        .eq('completed', true);
+        `);
 
     let totalWatchTime = 0;
     let creatorWatchTime = 0;
 
-    allProgress?.forEach((p: any) => {
-        const length = p.lessons?.length || 0;
-        const lessonCreatorId = p.lessons?.courses?.creator_id;
+    watchLogs?.forEach((log: any) => {
+        const seconds = log.watch_seconds || 0;
+        const lessonCreatorId = log.lessons?.courses?.creator_id;
+        const courseId = log.lessons?.course_id;
+        const userId = log.user_id;
 
-        totalWatchTime += length;
+        // Skip if user owns this course (should not count towards subscription pool)
+        if (ownershipMap.has(`${userId}_${courseId}`)) {
+            return;
+        }
+
+        totalWatchTime += seconds;
 
         if (lessonCreatorId === creatorId) {
-            creatorWatchTime += length;
+            creatorWatchTime += seconds;
         }
     });
 
     const share = totalWatchTime > 0 ? creatorWatchTime / totalWatchTime : 0;
-    const creatorSubRevenue = Math.floor(MOCK_TOTAL_SUBSCRIPTION_REVENUE * subShare * share);
+    const creatorSubRevenue = Math.floor(totalSubRevenuePool * subShare * share);
 
     return {
         data: {
             directRevenue,
+            feedbackRevenue,
             subscriptionRevenue: creatorSubRevenue,
-            totalRevenue: directRevenue + creatorSubRevenue,
+            totalRevenue: directRevenue + feedbackRevenue + creatorSubRevenue,
             creatorWatchTime,
             totalWatchTime,
             watchTimeShare: share
