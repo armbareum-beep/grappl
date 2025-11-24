@@ -334,6 +334,116 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
     }));
 }
 
+export const getUserPurchasedCourses = getUserCourses;
+
+// ==================== SKILLS API ====================
+
+export async function getUserSkills(userId: string): Promise<UserSkill[]> {
+    const { data, error } = await supabase
+        .from('user_skills')
+        .select(`
+            *,
+            course:courses (
+                title,
+                creator:creators (name)
+            ),
+            subcategory:skill_subcategories (name)
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        // If table doesn't exist yet, return empty
+        if (error.code === '42P01') return [];
+        console.error('Error fetching user skills:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        id: item.id,
+        userId: item.user_id,
+        category: item.category,
+        subcategoryId: item.subcategory_id,
+        subcategoryName: item.subcategory?.name,
+        courseId: item.course_id,
+        courseTitle: item.course?.title,
+        creatorName: item.course?.creator?.name,
+        status: item.status,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
+    }));
+}
+
+export async function getSkillSubcategories(userId: string): Promise<SkillSubcategory[]> {
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('display_order', { ascending: true });
+
+    if (error) {
+        if (error.code === '42P01') return [];
+        console.error('Error fetching skill subcategories:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        id: item.id,
+        userId: item.user_id,
+        category: item.category,
+        name: item.name,
+        displayOrder: item.display_order,
+        createdAt: item.created_at
+    }));
+}
+
+export async function addUserSkill(skillData: Partial<UserSkill>) {
+    const { data, error } = await supabase
+        .from('user_skills')
+        .insert({
+            user_id: skillData.userId,
+            category: skillData.category,
+            subcategory_id: skillData.subcategoryId,
+            course_id: skillData.courseId,
+            status: skillData.status || 'learning'
+        })
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+export async function updateUserSkillStatus(skillId: string, status: SkillStatus) {
+    const { error } = await supabase
+        .from('user_skills')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', skillId);
+
+    return { error };
+}
+
+export async function deleteUserSkill(skillId: string) {
+    const { error } = await supabase
+        .from('user_skills')
+        .delete()
+        .eq('id', skillId);
+
+    return { error };
+}
+
+export async function createSkillSubcategory(userId: string, category: string, name: string) {
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .insert({
+            user_id: userId,
+            category,
+            name
+        })
+        .select()
+        .single();
+
+    return { data, error };
+}
+
 // Learning Progress API
 export async function markLessonComplete(userId: string, lessonId: string, completed: boolean = true) {
     const { data, error } = await supabase
