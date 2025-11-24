@@ -152,7 +152,7 @@ export const SkillTreeTab: React.FC = () => {
             </div>
 
             {/* Category Selector */}
-            <div className="grid grid-cols-6 gap-3 mb-8">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
                 {CATEGORIES.map((cat) => {
                     const Icon = cat.icon;
                     const isSelected = selectedCategory === cat.name;
@@ -168,14 +168,14 @@ export const SkillTreeTab: React.FC = () => {
                                 setShowSubcategoryForm(false);
                                 setSearchTerm('');
                             }}
-                            className={`p-4 rounded-xl border-2 transition-all ${isSelected
+                            className={`p-3 md:p-4 rounded-xl border-2 transition-all ${isSelected
                                 ? `${cat.color} border-transparent text-white shadow-lg`
                                 : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                         >
-                            <Icon className="w-8 h-8 mx-auto mb-2" />
-                            <div className="text-sm font-semibold">{cat.name}</div>
-                            <div className="text-xs mt-1 opacity-80">
+                            <Icon className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2" />
+                            <div className="text-xs md:text-sm font-semibold">{cat.name}</div>
+                            <div className="text-[10px] md:text-xs mt-1 opacity-80">
                                 {masteredCount}/{categoryCount}
                             </div>
                         </button>
@@ -190,7 +190,7 @@ export const SkillTreeTab: React.FC = () => {
                         setShowSubcategoryForm(!showSubcategoryForm);
                         setShowCourseSelector(false);
                     }}
-                    className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                     <FolderPlus className="w-5 h-5" />
                     서브카테고리 추가
