@@ -231,9 +231,9 @@ export const CourseDetail: React.FC = () => {
                     </Link>
                 </div>
             </div>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-0 md:px-4 sm:px-6 lg:px-8 py-4 md:py-8">
                 {/* Video Player Section */}
-                <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl bg-black">
+                <div className="mb-6 md:mb-8 md:rounded-2xl overflow-hidden shadow-2xl bg-black">
                     {selectedLesson && canWatchLesson(selectedLesson) && selectedLesson.vimeoUrl ? (
                         <VideoPlayer
                             vimeoId={selectedLesson.vimeoUrl}
@@ -261,7 +261,7 @@ export const CourseDetail: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-8">
+                <div className="flex flex-col lg:flex-row gap-8 px-4 md:px-0">
                     <div className="lg:w-2/3">
                         <div className="mb-8">
                             <div className="flex justify-between items-start mb-4">
@@ -443,6 +443,34 @@ export const CourseDetail: React.FC = () => {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 md:hidden z-50 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                        <p className="text-xs text-slate-500 mb-0.5">
+                            {isFree ? '무료 강좌' : course.isSubscriptionExcluded ? '단품 전용' : '월간 구독 포함'}
+                        </p>
+                        <p className="text-xl font-bold text-slate-900">
+                            {formattedPrice}
+                        </p>
+                    </div>
+                    <div className="flex-1">
+                        {ownsCourse ? (
+                            <Button className="w-full" disabled>
+                                {isFree ? '추가됨' : '구매 완료'}
+                            </Button>
+                        ) : (
+                            <Button
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                                onClick={handlePurchase}
+                                disabled={purchasing}
+                            >
+                                {purchasing ? '처리 중...' : isFree ? '담기' : '구매하기'}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

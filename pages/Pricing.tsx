@@ -53,26 +53,26 @@ export const Pricing: React.FC = () => {
   // }
 
   return (
-    <div className="bg-slate-50 py-20">
+    <div className="bg-slate-50 py-12 md:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-base font-semibold text-blue-600 tracking-wide uppercase">요금제</h2>
-        <p className="mt-1 text-4xl font-black text-slate-900 sm:text-5xl lg:text-6xl">
+        <p className="mt-1 text-3xl font-black text-slate-900 sm:text-5xl lg:text-6xl">
           당신에게 맞는 플랜을 선택하세요
         </p>
-        <p className="max-w-2xl mt-5 mx-auto text-xl text-slate-500">
+        <p className="max-w-2xl mt-5 mx-auto text-lg md:text-xl text-slate-500">
           단품 구매로 필요한 기술만 배우거나, 구독을 통해 모든 콘텐츠를 누리세요.
         </p>
 
         <div className="mt-16 grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
           {/* Monthly Subscription */}
-          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-100 p-8 flex flex-col relative overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-100 p-6 md:p-8 flex flex-col relative overflow-hidden">
             <div className="absolute top-0 right-0 bg-blue-600 text-white px-4 py-1 rounded-bl-xl text-sm font-bold">
               첫 달 무료 체험
             </div>
             <h3 className="text-2xl font-bold text-slate-900">월간 멤버십</h3>
             <p className="mt-4 text-slate-500">부담 없이 시작하는 주짓수 라이프.</p>
             <div className="mt-6">
-              <span className="text-5xl font-black text-slate-900">₩39,000</span>
+              <span className="text-4xl md:text-5xl font-black text-slate-900">₩39,000</span>
               <span className="text-lg font-medium text-slate-500">/월</span>
             </div>
             <p className="text-sm text-blue-600 font-medium mt-2">✨ 첫 달 0원, 언제든 해지 가능</p>
@@ -108,14 +108,14 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* Yearly Plan */}
-          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8 flex flex-col relative">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg">
+          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-6 md:p-8 flex flex-col relative">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg w-max max-w-[90%] text-center whitespace-nowrap">
               BEST CHOICE (2개월 무료)
             </div>
-            <h3 className="text-2xl font-bold text-white">연간 멤버십</h3>
+            <h3 className="text-2xl font-bold text-white mt-2 md:mt-0">연간 멤버십</h3>
             <p className="mt-4 text-slate-400">진지하게 수련하는 분들을 위한 선택.</p>
             <div className="mt-6">
-              <span className="text-5xl font-black text-white">₩390,000</span>
+              <span className="text-4xl md:text-5xl font-black text-white">₩390,000</span>
               <span className="text-lg font-medium text-slate-400">/년</span>
             </div>
             <p className="text-sm text-amber-400 font-medium mt-2">🔥 월 32,500원 꼴 (17% 할인)</p>
