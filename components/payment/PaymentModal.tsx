@@ -34,31 +34,44 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            // Create PaymentIntent or Subscription based on mode
-            const requestBody = mode === 'course'
-                ? { mode: 'course', courseId }
-                : { mode: 'subscription' };
+            const createPaymentIntent = async () => {
+                try {
+                    // Get user session token
+                    const { data: { session } } = await supabase.auth.getSession();
 
-            fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-                },
-                body: JSON.stringify(requestBody),
-            })
-                .then((res) => {
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    return res.json();
-                })
-                .then((data) => {
+                    if (!session) {
+                        throw new Error('Not authenticated');
+                    }
+
+                    // Create PaymentIntent or Subscription based on mode
+                    const requestBody = mode === 'course'
+                        ? { mode: 'course', courseId }
+                        : { mode: 'subscription' };
+
+                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${session.access_token}`
+                        },
+                        body: JSON.stringify(requestBody),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Network response was not ok');
+                    }
+
+                    const data = await response.json();
                     if (data.error) throw new Error(data.error);
                     setClientSecret(data.clientSecret);
-                })
-                .catch((err) => {
+                } catch (err: any) {
                     console.error("Error creating payment intent:", err);
                     setError("결제 시스템을 불러오는데 실패했습니다.");
-                });
+                }
+            };
+
+            createPaymentIntent();
         }
     }, [isOpen, mode, courseId]);
 
