@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserStats, getLeaderboard, getUserSkillCourses, addXP, updateQuestProgress } from '../../lib/api';
+import { getUserStats, getLeaderboard, getUserSkillCourses, addXP, updateQuestProgress, recordMatch, checkAndAwardTitles, getMatchHistory, getUserTitles } from '../../lib/api';
 import { Trophy, Swords, Zap, Crown, Medal, BookOpen } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
+import { MatchHistoryPanel } from './MatchHistoryPanel';
 
 interface Stats {
     Standing: number;
@@ -103,96 +104,172 @@ export const TournamentTab: React.FC = () => {
         fetchMySkills();
     }, [user]);
 
+    // BJJ-style match commentary
+    const BJJ_ACTIONS = {
+        offensive: [
+            "가드를 잡았다!",
+            "패스를 시도한다!",
+            "스윕에 성공했다!",
+            "백을 잡았다!",
+            "마운트 포지션!",
+            "사이드 컨트롤!",
+            "암바를 걸었다!",
+            "초크를 조른다!",
+            "기로틴 찬스!",
+            "트라이앵글 세팅!",
+        ],
+        defensive: [
+            "가드를 유지한다",
+            "탈출 시도...",
+            "포지션을 방어한다",
+            "프레임을 만든다",
+            "거리를 확보한다",
+        ],
+        submissions: [
+            "암바", "RNC", "기로틴", "트라이앵글", "힐훅", "키무라", "오모플라타"
+        ]
+    };
+
+    const getRandomAction = (isOffensive: boolean) => {
+        const actions = isOffensive ? BJJ_ACTIONS.offensive : BJJ_ACTIONS.defensive;
+        return actions[Math.floor(Math.random() * actions.length)];
+    };
+
+    const getRandomSubmission = () => {
+        const subs = BJJ_ACTIONS.submissions;
+        return subs[Math.floor(Math.random() * subs.length)];
+    };
+
+    const calculateWinRate = (myLevel: number, opponentLevel: number): number => {
+        const baseRate = 50;
+        const levelDiff = myLevel - opponentLevel;
+        const beltBonus = levelDiff * 2; // 2% per level difference
+
+        const winRate = baseRate + beltBonus;
+
+        // Clamp between 20% and 80%
+        return Math.max(20, Math.min(80, winRate));
+    };
+
     const simulateMatch = async () => {
-        if (!stats) return;
+        if (!stats || !user) return;
         setIsPlaying(true);
         setMatchLog([]);
         setTournamentResult(null);
 
-        const opponentStats = {
-            Standing: Math.floor(Math.random() * 20) + 5,
-            Guard: Math.floor(Math.random() * 20) + 5,
-            'Guard Pass': Math.floor(Math.random() * 20) + 5,
-            Side: Math.floor(Math.random() * 20) + 5,
-            Mount: Math.floor(Math.random() * 20) + 5,
-            Back: Math.floor(Math.random() * 20) + 5,
-        };
+        // Get user's current level
+        const { data: userStatsData } = await getUserStats(user.id);
+        const myLevel = userStatsData?.level || 1;
+
+        // Generate random opponent
+        const opponentLevel = Math.max(1, myLevel + Math.floor(Math.random() * 11) - 5); // ±5 levels
+        const opponentName = `상대 ${Math.floor(Math.random() * 1000)}`;
+
+        const winRate = calculateWinRate(myLevel, opponentLevel);
 
         const logs: string[] = [];
-        let playerScore = 0;
-        let opponentScore = 0;
+        logs.push(`🥋 ${opponentName} (레벨 ${opponentLevel})와 대결!`);
+        logs.push(`승률: ${winRate.toFixed(0)}%`);
+        setMatchLog([...logs]);
 
-        // Strict Match Scenarios
-        const scenarios = [
-            { name: '스탠딩 대결', player: 'Standing', opponent: 'Standing' },
-            { name: '가드 vs 패스', player: 'Guard', opponent: 'Guard Pass' },
-            { name: '패스 vs 가드', player: 'Guard Pass', opponent: 'Guard' },
-            { name: '사이드 탈출', player: 'Side', opponent: 'Side' },
-            { name: '마운트 탈출', player: 'Mount', opponent: 'Mount' },
-            { name: '백 탈출/공격', player: 'Back', opponent: 'Back' }
-        ];
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Simulate 5 rounds
+        let playerPoints = 0;
+        let opponentPoints = 0;
+
         for (let i = 1; i <= 5; i++) {
             await new Promise(resolve => setTimeout(resolve, 800));
 
-            // Randomly select a scenario
-            const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+            const roundWin = Math.random() * 100 < winRate;
 
-            const playerVal = stats[scenario.player as keyof Stats];
-            const opponentVal = (opponentStats as any)[scenario.opponent];
-
-            const playerRoll = (Math.random() * playerVal);
-            const opponentRoll = (Math.random() * opponentVal);
-
-            // Find if user has a skill for this scenario
-            const relatedSkill = mySkills.find(s => s.slot_type === scenario.player);
-            const skillName = relatedSkill ? `[${relatedSkill.courses.title}]` : '';
-
-            logs.push(`Round ${i}: ${scenario.name} (${scenario.player} vs ${scenario.opponent})`);
-
-            if (playerRoll > opponentRoll) {
-                playerScore++;
-                logs.push(`✅ 승리! ${skillName} 기술이 적중했습니다!`);
+            if (roundWin) {
+                const action = getRandomAction(true);
+                logs.push(`Round ${i}: ${action}`);
+                playerPoints += 2;
             } else {
-                opponentScore++;
-                logs.push(`❌ 패배... 상대방이 우세했습니다.`);
+                const action = getRandomAction(false);
+                logs.push(`Round ${i}: ${action}`);
+                opponentPoints += 2;
             }
             setMatchLog([...logs]);
         }
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        if (playerScore > opponentScore) {
+        // Determine result
+        let result: 'win' | 'loss';
+        let winType: 'submission' | 'points' | undefined;
+        let submissionType: string | undefined;
+
+        if (playerPoints > opponentPoints) {
+            result = 'win';
+            // 30% chance of submission win
+            if (Math.random() < 0.3) {
+                winType = 'submission';
+                submissionType = getRandomSubmission();
+                logs.push(`🏆 서브미션 승리! (${submissionType})`);
+            } else {
+                winType = 'points';
+                logs.push(`🏆 포인트 승리! (${playerPoints}-${opponentPoints})`);
+            }
             setTournamentResult('win');
-            logs.push('🏆 경기 종료: 승리! 토너먼트 우승!');
-        } else if (playerScore < opponentScore) {
+        } else if (playerPoints < opponentPoints) {
+            result = 'loss';
+            logs.push(`❌ 포인트 패배... (${playerPoints}-${opponentPoints})`);
             setTournamentResult('loss');
-            logs.push('❌ 경기 종료: 패배... 더 수련하고 오세요.');
         } else {
-            setTournamentResult('loss'); // Draw counts as loss
-            logs.push('⚖️ 무승부 (판정패)');
+            // Draw - decide by submission attempt
+            if (Math.random() < winRate / 100) {
+                result = 'win';
+                winType = 'submission';
+                submissionType = getRandomSubmission();
+                logs.push(`🏆 서브미션 승리! (${submissionType})`);
+                setTournamentResult('win');
+            } else {
+                result = 'loss';
+                logs.push(`❌ 탭아웃...`);
+                setTournamentResult('loss');
+            }
         }
+
         setMatchLog([...logs]);
         setIsPlaying(false);
-        // Gamification: Award XP
-        const xpAmount = playerScore > opponentScore ? 30 : 5;
+
+        // Award XP based on result
+        const xpAmount = result === 'win' ? 10 : 5;
         const { xpEarned, leveledUp, newLevel } = await addXP(user.id, xpAmount, 'tournament');
-        if (xpEarned > 0) {
-            // Ideally show a toast
-            console.log(`Earned ${xpEarned} XP!`);
-        }
 
         if (leveledUp && newLevel) {
             setBeltUpData({ old: newLevel - 1, new: newLevel });
             setShowBeltUp(true);
         }
 
-        // Gamification: Update Quest
-        const { completed, xpEarned: questXp } = await updateQuestProgress(user.id, 'tournament');
-        if (completed) {
-            console.log(`Quest completed! +${questXp} XP`);
+        // Record match history
+        await recordMatch({
+            userId: user.id,
+            opponentName,
+            opponentLevel,
+            userLevel: myLevel,
+            result,
+            winType,
+            submissionType,
+            pointsUser: playerPoints,
+            pointsOpponent: opponentPoints,
+            xpEarned
+        });
+
+        // Check for new titles
+        const { data: newTitles } = await checkAndAwardTitles(user.id);
+        if (newTitles && newTitles.length > 0) {
+            newTitles.forEach(title => {
+                logs.push(`🎖️ 새로운 칭호 획득: ${title.name}`);
+            });
+            setMatchLog([...logs]);
         }
+
+        // Update quest progress
+        await updateQuestProgress(user.id, 'tournament_match');
     };
 
     if (loading) return <div className="p-8 text-center">로딩 중...</div>;
@@ -314,6 +391,9 @@ export const TournamentTab: React.FC = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Match History */}
+                    {user && <MatchHistoryPanel userId={user.id} />}
 
                     {/* Selected User Skill Tree */}
                     {selectedUser && (

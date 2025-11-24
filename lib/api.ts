@@ -2982,3 +2982,170 @@ export function calculateRoutinePrice(basePrice: number, isSubscriber: boolean):
     return basePrice;
 }
 
+// ============================================================================
+// Tournament & Match History
+// ============================================================================
+
+export interface MatchHistory {
+    id: string;
+    userId: string;
+    opponentName: string;
+    opponentLevel: number;
+    userLevel: number;
+    result: 'win' | 'loss';
+    winType?: 'submission' | 'points';
+    submissionType?: string;
+    pointsUser: number;
+    pointsOpponent: number;
+    xpEarned: number;
+    createdAt: string;
+}
+
+export async function getMatchHistory(userId: string, limit: number = 10) {
+    const { data, error } = await supabase
+        .from('match_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching match history:', error);
+        return { data: null, error };
+    }
+
+    return { data: data as MatchHistory[], error: null };
+}
+
+export async function recordMatch(matchData: {
+    userId: string;
+    opponentName: string;
+    opponentLevel: number;
+    userLevel: number;
+    result: 'win' | 'loss';
+    winType?: 'submission' | 'points';
+    submissionType?: string;
+    pointsUser?: number;
+    pointsOpponent?: number;
+    xpEarned: number;
+}) {
+    const { error } = await supabase
+        .from('match_history')
+        .insert({
+            user_id: matchData.userId,
+            opponent_name: matchData.opponentName,
+            opponent_level: matchData.opponentLevel,
+            user_level: matchData.userLevel,
+            result: matchData.result,
+            win_type: matchData.winType,
+            submission_type: matchData.submissionType,
+            points_user: matchData.pointsUser || 0,
+            points_opponent: matchData.pointsOpponent || 0,
+            xp_earned: matchData.xpEarned
+        });
+
+    if (error) {
+        console.error('Error recording match:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+// ============================================================================
+// Titles & Badges
+// ============================================================================
+
+export interface Title {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    criteriaType: string;
+    criteriaValue: number;
+}
+
+export interface UserTitle {
+    id: string;
+    userId: string;
+    titleId: string;
+    earnedAt: string;
+    title?: Title;
+}
+
+export async function getUserTitles(userId: string) {
+    const { data, error } = await supabase
+        .from('user_titles')
+        .select(`
+            *,
+            title:titles(*)
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user titles:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+export async function checkAndAwardTitles(userId: string) {
+    const { data, error } = await supabase
+        .rpc('check_and_award_titles', { p_user_id: userId });
+
+    if (error) {
+        console.error('Error checking titles:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+// ============================================================================
+// Enhanced XP System
+// ============================================================================
+
+export async function awardDailyLoginXP(userId: string) {
+    const { data, error } = await supabase
+        .rpc('award_daily_login_xp', { p_user_id: userId });
+
+    if (error) {
+        console.error('Error awarding daily login XP:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+export async function awardSocialXP(userId: string, activityType: 'comment' | 'like_received' | 'share', xpAmount: number) {
+    const { data, error } = await supabase
+        .rpc('award_social_xp', {
+            p_user_id: userId,
+            p_activity_type: activityType,
+            p_xp_amount: xpAmount
+        });
+
+    if (error) {
+        console.error('Error awarding social XP:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+export async function getLoginStreak(userId: string) {
+    const { data, error } = await supabase
+        .from('user_login_streak')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+        console.error('Error fetching login streak:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
