@@ -3149,3 +3149,252 @@ export async function getLoginStreak(userId: string) {
     return { data, error: null };
 }
 
+// ============================================================================
+// Drill & Routine System
+// ============================================================================
+
+export async function getDrills(creatorId?: string) {
+    let query = supabase
+        .from('drills')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (creatorId) {
+        query = query.eq('creator_id', creatorId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error('Error fetching drills:', error);
+        return { data: null, error };
+    }
+
+    return { data: data as Drill[], error: null };
+}
+
+export async function createDrill(drillData: Partial<Drill>) {
+    const { data, error } = await supabase
+        .from('drills')
+        .insert(drillData)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating drill:', error);
+        return { data: null, error };
+    }
+
+    return { data: data as Drill, error: null };
+}
+
+export async function updateDrill(id: string, updates: Partial<Drill>) {
+    const { data, error } = await supabase
+        .from('drills')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating drill:', error);
+        return { data: null, error };
+    }
+
+    return { data: data as Drill, error: null };
+}
+
+export async function deleteDrill(id: string) {
+    const { error } = await supabase
+        .from('drills')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting drill:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+export async function getRoutines(creatorId?: string) {
+    let query = supabase
+        .from('routines')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (creatorId) {
+        query = query.eq('creator_id', creatorId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error('Error fetching routines:', error);
+        return { data: null, error };
+    }
+
+    return { data: data as DrillRoutine[], error: null };
+}
+
+export async function getRoutineById(id: string) {
+    const { data, error } = await supabase
+        .from('routines')
+        .select(`
+            *,
+            creator:creator_id(name, profile_image),
+            items:routine_drills(
+                order_index,
+                drill:drills(*)
+            )
+        `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching routine:', error);
+        return { data: null, error };
+    }
+
+    // Transform to match DrillRoutine interface with items
+    const routine = {
+        ...data,
+        items: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
+            ...item.drill,
+            orderIndex: item.order_index
+        }))
+    };
+
+    return { data: routine as DrillRoutine, error: null };
+}
+
+export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds: string[]) {
+    // 1. Create routine
+    const { data: routine, error: routineError } = await supabase
+        .from('routines')
+        .insert(routineData)
+        .select()
+        .single();
+
+    if (routineError) {
+        console.error('Error creating routine:', routineError);
+        return { data: null, error: routineError };
+    }
+
+    // 2. Add drills
+    if (drillIds.length > 0) {
+        const routineDrills = drillIds.map((drillId, index) => ({
+            routine_id: routine.id,
+            drill_id: drillId,
+            order_index: index
+        }));
+
+        const { error: drillsError } = await supabase
+            .from('routine_drills')
+            .insert(routineDrills);
+
+        if (drillsError) {
+            console.error('Error adding drills to routine:', drillsError);
+            // Should probably rollback routine creation here in a real transaction
+            return { data: null, error: drillsError };
+        }
+    }
+
+    return { data: routine as DrillRoutine, error: null };
+}
+
+export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, drillIds?: string[]) {
+    // 1. Update routine details
+    const { data: routine, error: routineError } = await supabase
+        .from('routines')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (routineError) {
+        console.error('Error updating routine:', routineError);
+        return { data: null, error: routineError };
+    }
+
+    // 2. Update drills if provided
+    if (drillIds) {
+        // Delete existing
+        await supabase.from('routine_drills').delete().eq('routine_id', id);
+
+        // Insert new
+        if (drillIds.length > 0) {
+            const routineDrills = drillIds.map((drillId, index) => ({
+                routine_id: id,
+                drill_id: drillId,
+                order_index: index
+            }));
+
+            const { error: drillsError } = await supabase
+                .from('routine_drills')
+                .insert(routineDrills);
+
+            if (drillsError) {
+                console.error('Error updating routine drills:', drillsError);
+                return { data: null, error: drillsError };
+            }
+        }
+    }
+
+    return { data: routine as DrillRoutine, error: null };
+}
+
+export async function deleteRoutine(id: string) {
+    const { error } = await supabase
+        .from('routines')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting routine:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+export async function purchaseRoutine(userId: string, routineId: string) {
+    const { error } = await supabase
+        .from('user_routine_purchases')
+        .insert({
+            user_id: userId,
+            routine_id: routineId,
+            source: 'direct'
+        });
+
+    if (error) {
+        console.error('Error purchasing routine:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+export async function getUserRoutines(userId: string) {
+    const { data, error } = await supabase
+        .from('user_routine_purchases')
+        .select(`
+            routine:routines(*)
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user routines:', error);
+        return { data: null, error };
+    }
+
+    // Flatten structure
+    const routines = data.map((item: any) => ({
+        ...item.routine,
+        purchasedAt: item.purchased_at
+    }));
+
+    return { data: routines as DrillRoutine[], error: null };
+}
+
