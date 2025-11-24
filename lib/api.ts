@@ -373,6 +373,76 @@ export async function getUserSkills(userId: string): Promise<UserSkill[]> {
     }));
 }
 
+export async function getSkillSubcategories(userId: string): Promise<SkillSubcategory[]> {
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('display_order', { ascending: true });
+
+    if (error) {
+        if (error.code === '42P01') return [];
+        console.error('Error fetching skill subcategories:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        id: item.id,
+        userId: item.user_id,
+        category: item.category,
+        name: item.name,
+        displayOrder: item.display_order,
+        createdAt: item.created_at
+    }));
+}
+
+export async function createSkillSubcategory(userId: string, category: string, name: string) {
+    // Get max display order
+    const { data: maxOrderData } = await supabase
+        .from('skill_subcategories')
+        .select('display_order')
+        .eq('user_id', userId)
+        .eq('category', category)
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    const nextOrder = (maxOrderData?.display_order || 0) + 1;
+
+    const { data, error } = await supabase
+        .from('skill_subcategories')
+        .insert({
+            user_id: userId,
+            category,
+            name,
+            display_order: nextOrder
+        })
+        .select()
+        .single();
+
+    if (error) return { data: null, error };
+
+    const subcategory: SkillSubcategory = {
+        id: data.id,
+        userId: data.user_id,
+        category: data.category,
+        name: data.name,
+        displayOrder: data.display_order,
+        createdAt: data.created_at
+    };
+
+    return { data: subcategory, error: null };
+}
+
+export async function deleteSkillSubcategory(subcategoryId: string) {
+    const { error } = await supabase
+        .from('skill_subcategories')
+        .delete()
+        .eq('id', subcategoryId);
+
+    return { error };
+}
+
 // Learning Progress API
 export async function markLessonComplete(userId: string, lessonId: string, completed: boolean = true) {
     const { data, error } = await supabase
