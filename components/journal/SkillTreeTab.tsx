@@ -4,6 +4,7 @@ import {
     getUserSkills,
     upsertUserSkill,
     getUserCourses,
+    getCourses,
     deleteUserSkill,
     getSkillSubcategories,
     createSkillSubcategory,
@@ -27,7 +28,8 @@ export const SkillTreeTab: React.FC = () => {
     const { user } = useAuth();
     const [skills, setSkills] = useState<UserSkill[]>([]);
     const [subcategories, setSubcategories] = useState<SkillSubcategory[]>([]);
-    const [myCourses, setMyCourses] = useState<Course[]>([]);
+    const [allCourses, setAllCourses] = useState<Course[]>([]);
+    const [purchasedCourseIds, setPurchasedCourseIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<SkillCategory>('Standing');
     const [showCourseSelector, setShowCourseSelector] = useState(false);
@@ -42,17 +44,22 @@ export const SkillTreeTab: React.FC = () => {
 
     const loadData = async () => {
         if (!user) {
+            // Load all courses even for non-logged-in users
+            const courses = await getCourses();
+            setAllCourses(courses);
             setLoading(false);
             return;
         }
-        const [skills, courses, subcats] = await Promise.all([
+        const [skills, purchasedCourses, allCourses, subcats] = await Promise.all([
             getUserSkills(user.id),
             getUserCourses(user.id),
+            getCourses(),
             getSkillSubcategories(user.id)
         ]);
 
         setSkills(skills);
-        setMyCourses(courses);
+        setPurchasedCourseIds(purchasedCourses.map(c => c.id));
+        setAllCourses(allCourses);
         setSubcategories(subcats);
         setLoading(false);
     };
@@ -92,8 +99,16 @@ export const SkillTreeTab: React.FC = () => {
 
         const newStatus: SkillStatus = skill.status === 'learning' ? 'mastered' : 'learning';
 
-        // If trying to master, check completion
+        // If trying to master, check ownership and completion
         if (newStatus === 'mastered') {
+            // Check if course is purchased
+            const isPurchased = purchasedCourseIds.includes(skill.courseId);
+            if (!isPurchased) {
+                alert('강좌를 구매해야 마스터할 수 있습니다.');
+                return;
+            }
+
+            // Check completion
             const progress = await getCourseProgress(user.id, skill.courseId);
             if (progress.percentage < 100) {
                 alert('강좌를 100% 수강해야 마스터할 수 있습니다.');
@@ -118,7 +133,7 @@ export const SkillTreeTab: React.FC = () => {
     const skillCourseIds = skills.map(s => s.courseId);
 
     // Filter courses by category and exclude already added ones
-    const availableCourses = myCourses.filter(c =>
+    const availableCourses = allCourses.filter(c =>
         !skillCourseIds.includes(c.id) &&
         c.category === selectedCategory
     );
@@ -195,18 +210,17 @@ export const SkillTreeTab: React.FC = () => {
                     <FolderPlus className="w-5 h-5" />
                     서브카테고리 추가
                 </button>
-                {availableCourses.length > 0 && (
-                    <button
-                        onClick={() => {
-                            setShowCourseSelector(!showCourseSelector);
-                            setShowSubcategoryForm(false);
-                        }}
-                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
-                    >
-                        <Plus className="w-5 h-5" />
-                        강좌 추가 ({availableCourses.length})
-                    </button>
-                )}
+                <button
+                    onClick={() => {
+                        setShowCourseSelector(!showCourseSelector);
+                        setShowSubcategoryForm(false);
+                    }}
+                    disabled={availableCourses.length === 0}
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Plus className="w-5 h-5" />
+                    강좌 추가 ({availableCourses.length})
+                </button>
             </div>
 
             {/* Subcategory Form */}
@@ -278,16 +292,28 @@ export const SkillTreeTab: React.FC = () => {
                                 {searchTerm ? '검색 결과가 없습니다.' : `${selectedCategory} 카테고리에 추가할 수 있는 강좌가 없습니다.`}
                             </p>
                         ) : (
-                            filteredCourses.map((course) => (
-                                <button
-                                    key={course.id}
-                                    onClick={() => handleAddCourse(course.id)}
-                                    className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                                >
-                                    <div className="font-medium text-slate-900">{course.title}</div>
-                                    <div className="text-xs text-slate-500 mt-1">{course.creatorName}</div>
-                                </button>
-                            ))
+                            filteredCourses.map((course) => {
+                                const isPurchased = purchasedCourseIds.includes(course.id);
+                                return (
+                                    <button
+                                        key={course.id}
+                                        onClick={() => handleAddCourse(course.id)}
+                                        className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <div className="font-medium text-slate-900">{course.title}</div>
+                                                <div className="text-xs text-slate-500 mt-1">{course.creatorName}</div>
+                                            </div>
+                                            {!isPurchased && (
+                                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
+                                                    미구매
+                                                </span>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })
                         )}
                     </div>
                 </div>
