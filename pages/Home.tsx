@@ -72,13 +72,14 @@ export const Home: React.FC = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <div className="relative bg-slate-900 text-white py-24 overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
+      <div className="relative bg-slate-900 text-white py-16 md:py-24 overflow-hidden min-h-[500px] flex items-center">
+        <div className="absolute inset-0 opacity-30">
           <img
             src={featuredContent?.heroImageUrl || "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80"}
             alt="Jiu Jitsu Background"
             className="w-full h-full object-cover"
           />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-slate-900/80"></div>
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
