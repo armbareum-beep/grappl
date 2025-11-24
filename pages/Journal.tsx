@@ -123,31 +123,31 @@ export const Journal: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="flex space-x-6 border-b border-slate-200 -mb-6">
+                    <div className="flex space-x-6 border-b border-slate-200 -mb-6 overflow-x-auto scrollbar-hide">
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'my' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <User className="w-4 h-4" />
                             내 수련 기록
                         </button>
                         <button
                             onClick={() => setActiveTab('skills')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'skills' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'skills' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Target className="w-4 h-4" />
                             스킬 로드맵
                         </button>
                         <button
                             onClick={() => setActiveTab('tournament')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'tournament' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'tournament' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Trophy className="w-4 h-4" />
                             시합장
                         </button>
                         <button
                             onClick={() => setActiveTab('community')}
-                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === 'community' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Globe className="w-4 h-4" />
                             커뮤니티 피드
