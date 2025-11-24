@@ -1462,14 +1462,21 @@ export async function createLogFeedback(logId: string, userId: string, content: 
 
 /**
  * Get user stats for tournament
+ * Points system:
+ * - Purchased course (learning): 1 point
+ * - Purchased course (mastered): 5 points
+ * - Unpurchased course (learning): 0.3 points
+ * - Unpurchased course (mastered): Not allowed (requires completion)
  */
 export async function getUserStats(userId: string) {
-    const [skills, logsRes] = await Promise.all([
+    const [skills, purchasedCourses, logsRes] = await Promise.all([
         getUserSkills(userId),
+        getUserCourses(userId),
         supabase.from('training_logs').select('id', { count: 'exact' }).eq('user_id', userId)
     ]);
 
     const logCount = logsRes.count || 0;
+    const purchasedCourseIds = new Set(purchasedCourses.map(c => c.id));
 
     const stats = {
         Standing: 0,
@@ -1483,7 +1490,17 @@ export async function getUserStats(userId: string) {
     };
 
     skills.forEach((skill: UserSkill) => {
-        const points = skill.status === 'mastered' ? 5 : 1;
+        const isPurchased = purchasedCourseIds.has(skill.courseId);
+
+        // Calculate points based on ownership and status
+        let points = 0;
+        if (isPurchased) {
+            points = skill.status === 'mastered' ? 5 : 1;
+        } else {
+            // Unpurchased courses give reduced points
+            points = skill.status === 'mastered' ? 0 : 0.3; // Mastered should not be possible for unpurchased
+        }
+
         if (stats[skill.category as keyof typeof stats] !== undefined) {
             stats[skill.category as keyof typeof stats] += points;
             stats.total += points;
