@@ -3002,4 +3002,32 @@ export function calculateRoutinePrice(price: number, isSubscriber: boolean) {
 
 
 
+// ==================== FEED POSTS ====================
 
+/**
+ * Create a feed post (for sharing achievements)
+ */
+export async function createFeedPost(post: {
+    userId: string;
+    content: string;
+    type: 'sparring' | 'routine' | 'mastery' | 'general';
+    metadata?: any;
+}) {
+    const { data, error } = await supabase
+        .from('feed_posts')
+        .insert({
+            user_id: post.userId,
+            content: post.content,
+            post_type: post.type,
+            metadata: post.metadata
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating feed post:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}

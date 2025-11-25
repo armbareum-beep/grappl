@@ -50,30 +50,75 @@ export const SparringReviewTab: React.FC = () => {
         e.preventDefault();
         if (!user) return;
 
-        // In production, save to database
-        const newReview: SparringReview = {
-            id: Math.random().toString(36).substr(2, 9),
-            userId: user.id,
-            ...formData,
-            createdAt: new Date().toISOString()
-        };
+        try {
+            // 1. Create sparring review
+            const newReview: SparringReview = {
+                id: Math.random().toString(36).substr(2, 9),
+                userId: user.id,
+                ...formData,
+                createdAt: new Date().toISOString()
+            };
 
-        setReviews([newReview, ...reviews]);
-        setIsCreating(false);
-        setFormData({
-            date: new Date().toISOString().split('T')[0],
-            opponentName: '',
-            opponentBelt: 'white',
-            rounds: 1,
-            result: 'draw',
-            notes: '',
-            techniques: [],
-            whatWorked: '',
-            whatToImprove: '',
-            videoUrl: ''
-        });
+            setReviews([newReview, ...reviews]);
 
-        alert('스파링 복기가 저장되었습니다!');
+            // 2. Automatically create training log
+            const { createTrainingLog, addXP } = await import('../../lib/api');
+
+            const logContent = `스파링 복기\n\n상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)\n라운드: ${formData.rounds}\n결과: ${formData.result === 'win' ? '승리' : formData.result === 'loss' ? '패배' : '무승부'}\n\n잘된 점:\n${formData.whatWorked}\n\n개선할 점:\n${formData.whatToImprove}\n\n메모:\n${formData.notes}`;
+
+            await createTrainingLog({
+                userId: user.id,
+                date: formData.date,
+                notes: logContent,
+                durationMinutes: formData.rounds * 5,
+                sparringRounds: formData.rounds,
+                techniques: formData.techniques,
+                isPublic: false
+            });
+
+            // 3. Award XP
+            await addXP(user.id, 30, 'sparring_review', newReview.id);
+
+            // Reset form
+            setIsCreating(false);
+            setFormData({
+                date: new Date().toISOString().split('T')[0],
+                opponentName: '',
+                opponentBelt: 'white',
+                rounds: 1,
+                result: 'draw',
+                notes: '',
+                techniques: [],
+                whatWorked: '',
+                whatToImprove: '',
+                videoUrl: ''
+            });
+
+            // Ask if user wants to share to feed
+            const shareToFeed = confirm('스파링 복기가 저장되었습니다! (+30 XP)\n\n피드에 공유하시겠습니까?');
+
+            if (shareToFeed) {
+                const { createFeedPost } = await import('../../lib/api');
+                const feedContent = `🥋 스파링 복기\n\n상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)\n결과: ${formData.result === 'win' ? '승리 🏆' : formData.result === 'loss' ? '패배' : '무승부'}\n라운드: ${formData.rounds}\n\n${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
+
+                await createFeedPost({
+                    userId: user.id,
+                    content: feedContent,
+                    type: 'sparring',
+                    metadata: {
+                        opponentName: formData.opponentName,
+                        opponentBelt: formData.opponentBelt,
+                        result: formData.result,
+                        rounds: formData.rounds
+                    }
+                });
+
+                alert('피드에 공유되었습니다!');
+            }
+        } catch (error) {
+            console.error('Error saving sparring review:', error);
+            alert('저장 중 오류가 발생했습니다.');
+        }
     };
 
     if (!user) {
@@ -143,7 +188,7 @@ export const SparringReviewTab: React.FC = () => {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${review.result === 'win' ? 'bg-green-500' :
-                                            review.result === 'loss' ? 'bg-red-500' : 'bg-blue-500'
+                                        review.result === 'loss' ? 'bg-red-500' : 'bg-blue-500'
                                         }`}>
                                         {review.result === 'win' ? 'W' : review.result === 'loss' ? 'L' : 'D'}
                                     </div>
