@@ -36,15 +36,15 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     };
 
     return (
-        <div className="py-4 px-4 hover:bg-slate-900/50 transition-colors cursor-pointer border-b border-slate-800">
-            <div className="flex gap-3">
+        <div className="py-6 px-4 sm:px-6 hover:bg-slate-900/30 transition-colors cursor-pointer border-b border-slate-800/50">
+            <div className="flex gap-4">
                 {/* Avatar */}
-                <div className="flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden">
+                <div className="flex-shrink-0 pt-1">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 overflow-hidden ring-2 ring-slate-800">
                         {post.user?.profileImage ? (
                             <img src={post.user.profileImage} alt={post.user.name} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold">
+                            <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">
                                 {post.user?.name?.[0] || '?'}
                             </div>
                         )}
@@ -54,27 +54,34 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-sm">{post.user?.name || 'Unknown User'}</span>
-                            <span className="text-slate-500 text-xs">
+                    <div className="flex items-start justify-between mb-2">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-white text-base">{post.user?.name || 'Unknown User'}</span>
+                                {post.user?.belt && (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 font-medium uppercase tracking-wide">
+                                        {post.user.belt}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-slate-500 text-sm">
                                 {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: ko })}
                             </span>
                         </div>
-                        <button className="text-slate-500 hover:text-white">
-                            <MoreHorizontal className="w-4 h-4" />
+                        <button className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors">
+                            <MoreHorizontal className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Text Body */}
-                    <div className="mb-3">
-                        <p className={`text-slate-200 text-sm whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                    <div className="mb-4">
+                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
                             {post.notes}
                         </p>
-                        {post.notes.length > 100 && !isExpanded && (
+                        {post.notes.length > 150 && !isExpanded && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                                className="text-slate-500 text-xs mt-1 hover:text-slate-300"
+                                className="text-slate-500 text-sm mt-1 hover:text-slate-300 font-medium"
                             >
                                 더 보기
                             </button>
@@ -83,11 +90,11 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
                     {/* Technique Tags */}
                     {post.techniques && post.techniques.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
+                        <div className="flex flex-wrap gap-2 mb-4">
                             {post.techniques.map((tech, idx) => (
                                 <span
                                     key={idx}
-                                    className="px-2 py-1 rounded-full bg-blue-900/30 text-blue-400 text-xs font-medium border border-blue-800/50"
+                                    className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors"
                                 >
                                     #{tech}
                                 </span>
@@ -97,12 +104,12 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
                     {/* Media */}
                     {(post.mediaUrl || post.youtubeUrl) && (
-                        <div className="mb-3 rounded-xl overflow-hidden border border-slate-800 bg-black relative max-h-[500px]">
+                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg max-h-[600px]">
                             {post.mediaType === 'video' || post.youtubeUrl ? (
-                                <div className="relative w-full h-full">
+                                <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
                                     <video
-                                        src={post.mediaUrl || post.youtubeUrl} // Note: youtubeUrl needs parsing if it's a real YT link, assuming direct link for now or placeholder
-                                        className="w-full h-full object-cover max-h-[500px]"
+                                        src={post.mediaUrl || post.youtubeUrl}
+                                        className="w-full h-full object-cover"
                                         loop
                                         muted={isMuted}
                                         onClick={togglePlay}
@@ -110,14 +117,14 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     />
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                                        className="absolute bottom-3 right-3 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                                        className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-colors"
                                     >
-                                        {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                                        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                                     </button>
                                     {!isPlaying && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
-                                                <Play className="w-5 h-5 text-white ml-1" />
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
+                                            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30">
+                                                <Play className="w-8 h-8 text-white ml-1 fill-white" />
                                             </div>
                                         </div>
                                     )}
@@ -126,35 +133,41 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 <img
                                     src={post.mediaUrl}
                                     alt="Post content"
-                                    className="w-full h-auto object-cover"
+                                    className="w-full h-auto object-cover max-h-[600px]"
                                 />
                             )}
                         </div>
                     )}
 
                     {/* Action Bar */}
-                    <div className="flex items-center gap-6 mt-2">
+                    <div className="flex items-center gap-8 mt-2">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className="flex items-center gap-1.5 group"
+                            className="flex items-center gap-2 group"
                         >
-                            <Heart className={`w-5 h-5 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover:text-red-500'}`} />
+                            <div className={`p-2 rounded-full transition-colors ${liked ? 'bg-red-500/10' : 'group-hover:bg-slate-800'}`}>
+                                <Heart className={`w-6 h-6 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover:text-red-500'}`} />
+                            </div>
                             {likeCount > 0 && (
-                                <span className={`text-xs ${liked ? 'text-red-500' : 'text-slate-500'}`}>
+                                <span className={`text-sm font-medium ${liked ? 'text-red-500' : 'text-slate-500'}`}>
                                     {likeCount}
                                 </span>
                             )}
                         </button>
 
-                        <button className="flex items-center gap-1.5 group">
-                            <MessageCircle className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                        <button className="flex items-center gap-2 group">
+                            <div className="p-2 rounded-full group-hover:bg-slate-800 transition-colors">
+                                <MessageCircle className="w-6 h-6 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                            </div>
                             {post.comments && post.comments > 0 && (
-                                <span className="text-xs text-slate-500">{post.comments}</span>
+                                <span className="text-sm font-medium text-slate-500">{post.comments}</span>
                             )}
                         </button>
 
-                        <button className="flex items-center gap-1.5 group">
-                            <Share2 className="w-5 h-5 text-slate-400 group-hover:text-green-500 transition-colors" />
+                        <button className="flex items-center gap-2 group">
+                            <div className="p-2 rounded-full group-hover:bg-slate-800 transition-colors">
+                                <Share2 className="w-6 h-6 text-slate-400 group-hover:text-green-500 transition-colors" />
+                            </div>
                         </button>
                     </div>
                 </div>
