@@ -4,10 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getTrainingLogs, createTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
 import { TrainingLog } from '../../types';
 import { TrainingLogForm } from '../journal/TrainingLogForm';
-import { TrainingCalendar } from '../journal/TrainingCalendar';
 import { Button } from '../Button';
-import { Plus, User, Lock, Globe } from 'lucide-react';
+import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2 } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
+import { format, subDays, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
@@ -16,7 +17,7 @@ export const JournalTab: React.FC = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [showBeltUp, setShowBeltUp] = useState(false);
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
-    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -80,8 +81,28 @@ export const JournalTab: React.FC = () => {
         setLogs(logs.filter(log => log.id !== logId));
     };
 
+    // Stats Calculation
+    const thisMonthLogs = logs.filter(log => new Date(log.date).getMonth() === new Date().getMonth());
+    const totalDuration = thisMonthLogs.reduce((acc, log) => acc + (log.durationMinutes || 0), 0);
+    const totalRounds = thisMonthLogs.reduce((acc, log) => acc + (log.sparringRounds || 0), 0);
+
+    // Heatmap Data Generation (Last 365 days)
+    const today = new Date();
+    const startDate = subDays(today, 364); // Show last year
+    const dates = eachDayOfInterval({ start: startDate, end: today });
+
+    const getIntensity = (date: Date) => {
+        const dayLogs = logs.filter(log => isSameDay(new Date(log.date), date));
+        const count = dayLogs.length;
+        if (count === 0) return 0;
+        if (count === 1) return 1;
+        if (count === 2) return 2;
+        if (count === 3) return 3;
+        return 4; // 4 or more
+    };
+
     const displayedLogs = selectedDate
-        ? logs.filter(log => log.date === selectedDate)
+        ? logs.filter(log => isSameDay(new Date(log.date), selectedDate))
         : logs;
 
     if (!user) {
@@ -100,113 +121,176 @@ export const JournalTab: React.FC = () => {
     }
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6">
-            {/* Header */}
+        <div className="max-w-3xl mx-auto space-y-8">
+            {/* Header & Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <Flame className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-bold text-white">{thisMonthLogs.length}회</div>
+                        <div className="text-xs text-slate-400">이번 달 수련</div>
+                    </div>
+                </div>
+                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-purple-500" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-bold text-white">{Math.round(totalDuration / 60)}시간</div>
+                        <div className="text-xs text-slate-400">총 수련 시간</div>
+                    </div>
+                </div>
+                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                        <Swords className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-bold text-white">{totalRounds}R</div>
+                        <div className="text-xs text-slate-400">스파링 라운드</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Contribution Graph (Heatmap) */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 overflow-x-auto">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-slate-400" />
+                        수련 잔디
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Less</span>
+                        <div className="w-3 h-3 bg-slate-800 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-blue-900 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-blue-300 rounded-sm"></div>
+                        <span>More</span>
+                    </div>
+                </div>
+
+                <div className="min-w-[700px]">
+                    <div className="flex gap-1">
+                        {/* Render weeks */}
+                        {Array.from({ length: 53 }).map((_, weekIndex) => (
+                            <div key={weekIndex} className="flex flex-col gap-1">
+                                {Array.from({ length: 7 }).map((_, dayIndex) => {
+                                    const dateIndex = weekIndex * 7 + dayIndex;
+                                    if (dateIndex >= dates.length) return null;
+                                    const date = dates[dateIndex];
+                                    const intensity = getIntensity(date);
+                                    const isSelected = selectedDate && isSameDay(selectedDate, date);
+
+                                    let bgClass = 'bg-slate-800';
+                                    if (intensity === 1) bgClass = 'bg-blue-900';
+                                    if (intensity === 2) bgClass = 'bg-blue-700';
+                                    if (intensity === 3) bgClass = 'bg-blue-500';
+                                    if (intensity >= 4) bgClass = 'bg-blue-300';
+
+                                    return (
+                                        <div
+                                            key={dayIndex}
+                                            onClick={() => setSelectedDate(isSelected ? null : date)}
+                                            className={`w-3 h-3 rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-white ${bgClass} ${isSelected ? 'ring-2 ring-white z-10' : ''}`}
+                                            title={`${format(date, 'yyyy-MM-dd')}: ${intensity > 0 ? '수련함' : '기록 없음'}`}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Logs List Header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">내 수련 일지</h2>
+                <h3 className="text-lg font-bold text-white">
+                    {selectedDate
+                        ? `${format(selectedDate, 'M월 d일', { locale: ko })}의 기록`
+                        : '최근 기록'}
+                </h3>
                 <Button onClick={() => setIsCreating(true)} size="sm" className="rounded-full px-4">
                     <Plus className="w-4 h-4 mr-1.5" />
                     기록하기
                 </Button>
             </div>
 
-            {/* Calendar View */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-lg">
-                <TrainingCalendar
-                    logs={logs}
-                    selectedDate={selectedDate}
-                    onDateSelect={setSelectedDate}
-                />
-            </div>
-
-            {/* Logs List */}
-            {loading ? (
-                <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                </div>
-            ) : displayedLogs.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl">
-                    <p className="text-slate-400 mb-4">
-                        {selectedDate ? '선택한 날짜에 작성된 일지가 없습니다.' : '아직 작성된 수련 일지가 없습니다.'}
-                    </p>
-                    {!selectedDate && (
-                        <Button onClick={() => setIsCreating(true)} variant="outline">
-                            첫 일지 작성하기
+            {/* Logs Timeline */}
+            <div className="space-y-4">
+                {displayedLogs.length === 0 ? (
+                    <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
+                        <p className="text-slate-400 mb-4">기록이 없습니다.</p>
+                        <Button onClick={() => setIsCreating(true)} variant="outline" size="sm">
+                            첫 기록 남기기
                         </Button>
-                    )}
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {displayedLogs.map((log) => (
-                        <div key={log.id} className="bg-slate-900 rounded-xl border border-slate-800 shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 transition-all overflow-hidden">
-                            <div className="p-5">
-                                {/* Header */}
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0 border border-slate-700">
-                                            <User className="w-5 h-5 text-slate-400" />
+                    </div>
+                ) : (
+                    displayedLogs.map((log) => (
+                        <div key={log.id} className="bg-slate-900 rounded-2xl border border-slate-800 p-6 hover:border-slate-700 transition-colors">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-slate-500">
+                                        {format(new Date(log.date), 'd')}
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-white">
+                                            {format(new Date(log.date), 'M월 d일 EEEE', { locale: ko })}
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="font-bold text-white text-sm">{user?.user_metadata?.name || '나'}</div>
-                                                {!log.isPublic && <Lock className="w-3 h-3 text-slate-500" />}
-                                            </div>
-                                            <div className="text-xs text-slate-500">{log.date} • {log.location}</div>
+                                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                                            {log.location}
+                                            {!log.isPublic && <Lock className="w-3 h-3" />}
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleDeleteLog(log.id)}
-                                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                                    >
-                                        <span className="sr-only">삭제</span>
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
                                 </div>
-
-                                {/* Content */}
-                                <div className="mb-4">
-                                    <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{log.notes}</p>
-                                </div>
-
-                                {/* Stats Row */}
-                                <div className="flex items-center gap-4 mb-4 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg">
-                                    <div className="flex items-center gap-1.5">
-                                        <Globe className="w-4 h-4 text-blue-400" />
-                                        <span className="font-medium">{log.durationMinutes}분</span>
-                                    </div>
-                                    <div className="w-px h-3 bg-slate-700"></div>
-                                    <div className="flex items-center gap-1.5">
-                                        <User className="w-4 h-4 text-red-400" />
-                                        <span className="font-medium">{log.sparringRounds}라운드</span>
-                                    </div>
-                                </div>
-
-                                {/* Techniques */}
-                                {log.techniques && log.techniques.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {log.techniques.map((tech, idx) => (
-                                            <span key={idx} className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-md border border-slate-700">
-                                                #{tech}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
+                                <button
+                                    onClick={() => handleDeleteLog(log.id)}
+                                    className="text-slate-500 hover:text-red-500 transition-colors p-2"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             </div>
+
+                            <p className="text-slate-300 whitespace-pre-wrap mb-4 leading-relaxed">
+                                {log.notes}
+                            </p>
+
+                            {/* Stats Chips */}
+                            <div className="flex flex-wrap gap-3 mb-4">
+                                <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                                    {log.durationMinutes}분
+                                </div>
+                                <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
+                                    <Swords className="w-3.5 h-3.5 text-red-400" />
+                                    {log.sparringRounds}라운드
+                                </div>
+                            </div>
+
+                            {/* Tags */}
+                            {log.techniques && log.techniques.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {log.techniques.map((tech, idx) => (
+                                        <span key={idx} className="px-2.5 py-1 rounded-full bg-blue-900/30 text-blue-400 text-xs font-medium border border-blue-800/30">
+                                            #{tech}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    ))}
-                </div>
-            )}
+                    ))
+                )}
+            </div>
 
             {/* Create Modal */}
             {isCreating && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-800">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-800 shadow-2xl">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-white">수련 일지 작성</h2>
-                                <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-slate-300">
+                                <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white">
                                     <span className="sr-only">Close</span>
                                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
