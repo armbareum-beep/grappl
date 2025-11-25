@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTrainingLogs, createTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
@@ -19,6 +19,9 @@ export const JournalTab: React.FC = () => {
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+    // Heatmap Scroll Ref
+    const scrollRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         if (user) {
             loadLogs();
@@ -26,6 +29,13 @@ export const JournalTab: React.FC = () => {
             setLoading(false);
         }
     }, [user]);
+
+    // Auto-scroll to end of heatmap when logs are loaded
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+        }
+    }, [logs, loading]);
 
     const loadLogs = async () => {
         if (!user) return;
@@ -171,7 +181,16 @@ export const JournalTab: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                <div
+                    ref={scrollRef}
+                    className="overflow-x-auto pb-2"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    <style>{`
+                        .overflow-x-auto::-webkit-scrollbar {
+                            display: none;
+                        }
+                    `}</style>
                     <div className="min-w-max flex gap-1">
                         {/* Render weeks */}
                         {Array.from({ length: 53 }).map((_, weekIndex) => (
