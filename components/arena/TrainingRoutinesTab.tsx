@@ -62,14 +62,23 @@ export const TrainingRoutinesTab: React.FC = () => {
             return;
         }
 
-        // 2. Award XP (1 XP per 5 mins)
+        // 2. Award Arena XP (1 XP per 5 mins)
         const xpAmount = Math.max(1, Math.floor(durationMinutes / 5));
         const { xpEarned } = await addXP(user.id, xpAmount, 'training_log', log?.id);
 
-        // 3. Update Quests
+        // 3. Award Technique XP for linked techniques
+        // TODO: Get technique IDs from routine metadata and award XP
+        // const { awardTechniqueXp } = await import('../../lib/api-technique-mastery');
+        // if (activeRoutine.linkedTechniqueIds) {
+        //     for (const techniqueId of activeRoutine.linkedTechniqueIds) {
+        //         await awardTechniqueXp(user.id, techniqueId, 'routine_completion', activeRoutine.id);
+        //     }
+        // }
+
+        // 4. Update Quests
         await updateQuestProgress(user.id, 'write_log');
 
-        // 4. Show Success State
+        // 5. Show Success State
         setCompletedRoutineData({ duration: durationMinutes, xp: xpEarned });
         setActiveRoutine(null);
     };
@@ -120,9 +129,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                             className="flex-1"
                             onClick={() => {
                                 setCompletedRoutineData(null);
-                                // Navigate to Journal tab (handled by parent or direct link)
-                                // Since we are in a tab, we might need to signal parent to switch tab
-                                // For now, just close modal, user is already in Arena
                             }}
                         >
                             수련일지 확인
