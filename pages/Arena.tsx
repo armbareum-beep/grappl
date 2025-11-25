@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Trophy, Target, BookOpen, Swords } from 'lucide-react';
+import { Trophy, Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
 import { TournamentTab } from '../components/journal/TournamentTab';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
+import { TrainingRoutinesTab } from '../components/arena/TrainingRoutinesTab';
 import { MobileTabSelector } from '../components/MobileTabSelector';
 import { useAuth } from '../contexts/AuthContext';
 
-type ArenaTab = 'journal' | 'skills' | 'sparring' | 'tournament';
+type ArenaTab = 'journal' | 'routines' | 'skills' | 'sparring' | 'tournament';
 
 export const Arena: React.FC = () => {
     const { user } = useAuth();
@@ -15,6 +16,7 @@ export const Arena: React.FC = () => {
 
     const ARENA_TABS = [
         { id: 'journal', label: '수련일지', icon: BookOpen },
+        { id: 'routines', label: '훈련 루틴', icon: Dumbbell },
         { id: 'skills', label: '테크닉 로드맵', icon: Target },
         { id: 'sparring', label: '스파링 복기', icon: Swords },
         { id: 'tournament', label: '시합장', icon: Trophy },
@@ -34,16 +36,16 @@ export const Arena: React.FC = () => {
 
                     <div className="flex items-center justify-between">
                         {/* Tab Navigation - Desktop */}
-                        <div className="hidden md:flex space-x-6 -mb-6">
-                            {ARENA_TABS.map(tab => {
+                        <div className="hidden md:flex space-x-6 -mb-6 overflow-x-auto scrollbar-hide">
+                            {ARENA_TABS.map((tab) => {
                                 const Icon = tab.icon;
                                 return (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as ArenaTab)}
                                         className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === tab.id
-                                            ? 'text-blue-400 border-b-2 border-blue-400'
-                                            : 'text-slate-500 hover:text-slate-300'
+                                                ? 'text-blue-500 border-b-2 border-blue-500'
+                                                : 'text-slate-400 hover:text-slate-200'
                                             }`}
                                     >
                                         <Icon className="w-4 h-4" />
@@ -57,7 +59,7 @@ export const Arena: React.FC = () => {
                         <MobileTabSelector
                             tabs={ARENA_TABS}
                             activeTab={activeTab}
-                            onTabChange={(id) => setActiveTab(id as ArenaTab)}
+                            onTabChange={(id) => setActiveTab(id as any)}
                         />
                     </div>
                 </div>
@@ -66,6 +68,7 @@ export const Arena: React.FC = () => {
             {/* Content */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {activeTab === 'journal' && <JournalTab />}
+                {activeTab === 'routines' && <TrainingRoutinesTab />}
                 {activeTab === 'skills' && <SkillTreeTab />}
                 {activeTab === 'sparring' && <SparringReviewTab />}
                 {activeTab === 'tournament' && <TournamentTab />}
