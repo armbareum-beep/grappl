@@ -154,25 +154,25 @@ export const JournalTab: React.FC = () => {
             </div>
 
             {/* Contribution Graph (Heatmap) */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 overflow-x-auto">
-                <div className="flex items-center justify-between mb-4">
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-slate-400" />
                         수련 잔디
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                         <span>Less</span>
-                        <div className="w-3 h-3 bg-slate-800 rounded-sm"></div>
-                        <div className="w-3 h-3 bg-blue-900 rounded-sm"></div>
-                        <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
-                        <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                        <div className="w-3 h-3 bg-blue-300 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-slate-800 rounded-sm border border-slate-700"></div>
+                        <div className="w-3 h-3 bg-blue-900 rounded-sm border border-blue-800"></div>
+                        <div className="w-3 h-3 bg-blue-700 rounded-sm border border-blue-600"></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-sm border border-blue-400"></div>
+                        <div className="w-3 h-3 bg-blue-300 rounded-sm border border-blue-200"></div>
                         <span>More</span>
                     </div>
                 </div>
 
-                <div className="min-w-[700px]">
-                    <div className="flex gap-1">
+                <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                    <div className="min-w-max flex gap-1">
                         {/* Render weeks */}
                         {Array.from({ length: 53 }).map((_, weekIndex) => (
                             <div key={weekIndex} className="flex flex-col gap-1">
@@ -183,17 +183,17 @@ export const JournalTab: React.FC = () => {
                                     const intensity = getIntensity(date);
                                     const isSelected = selectedDate && isSameDay(selectedDate, date);
 
-                                    let bgClass = 'bg-slate-800';
-                                    if (intensity === 1) bgClass = 'bg-blue-900';
-                                    if (intensity === 2) bgClass = 'bg-blue-700';
-                                    if (intensity === 3) bgClass = 'bg-blue-500';
-                                    if (intensity >= 4) bgClass = 'bg-blue-300';
+                                    let bgClass = 'bg-slate-800 border-slate-700';
+                                    if (intensity === 1) bgClass = 'bg-blue-900 border-blue-800';
+                                    if (intensity === 2) bgClass = 'bg-blue-700 border-blue-600';
+                                    if (intensity === 3) bgClass = 'bg-blue-500 border-blue-400';
+                                    if (intensity >= 4) bgClass = 'bg-blue-300 border-blue-200';
 
                                     return (
                                         <div
                                             key={dayIndex}
                                             onClick={() => setSelectedDate(isSelected ? null : date)}
-                                            className={`w-3 h-3 rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-white ${bgClass} ${isSelected ? 'ring-2 ring-white z-10' : ''}`}
+                                            className={`w-3 h-3 rounded-sm border cursor-pointer transition-all hover:ring-1 hover:ring-white ${bgClass} ${isSelected ? 'ring-2 ring-white z-10' : ''}`}
                                             title={`${format(date, 'yyyy-MM-dd')}: ${intensity > 0 ? '수련함' : '기록 없음'}`}
                                         />
                                     );
