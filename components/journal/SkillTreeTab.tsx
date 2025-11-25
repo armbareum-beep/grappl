@@ -1,180 +1,219 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
-    getUserSkills,
-    upsertUserSkill,
-    getUserCourses,
-    getCourses,
-    deleteUserSkill,
-    getSkillSubcategories,
-    createSkillSubcategory,
-    deleteSkillSubcategory,
-    getCourseProgress,
-    addXP,
-    updateQuestProgress
-} from '../../lib/api';
-import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
-import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { BeltUpModal } from '../BeltUpModal';
+    getUserTechniqueMastery,
+    getUserTechniqueSummary,
+    getTechniques
+} from '../../lib/api-technique-mastery';
+import {
+    UserTechniqueMastery,
+    TechniqueSummary,
+    TechniqueCategory,
+    Technique
+} from '../../types';
+import { TechniqueGrid } from '../technique/TechniqueCard';
+import { Shield, Swords, Users, Mountain, Target, User2, TrendingUp, TrendingDown, Trophy, Lock, Sparkles } from 'lucide-react';
 
-const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
-    { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
-    { name: 'Guard', icon: Shield, color: 'bg-blue-500' },
-    { name: 'Guard Pass', icon: Swords, color: 'bg-purple-500' },
-    { name: 'Side', icon: Users, color: 'bg-green-500' },
-    { name: 'Mount', icon: Mountain, color: 'bg-orange-500' },
-    { name: 'Back', icon: Target, color: 'bg-red-500' }
+const CATEGORIES: { name: TechniqueCategory; icon: any; color: string; bgColor: string }[] = [
+    { name: 'Standing', icon: User2, color: 'text-indigo-400', bgColor: 'bg-indigo-500/10' },
+    { name: 'Guard', icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+    { name: 'Guard Pass', icon: Swords, color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
+    { name: 'Side', icon: Users, color: 'text-green-400', bgColor: 'bg-green-500/10' },
+    { name: 'Mount', icon: Mountain, color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
+    { name: 'Back', icon: Target, color: 'text-red-400', bgColor: 'bg-red-500/10' }
 ];
 
 export const SkillTreeTab: React.FC = () => {
     const { user } = useAuth();
-    const [skills, setSkills] = useState<UserSkill[]>([]);
-    const [subcategories, setSubcategories] = useState<SkillSubcategory[]>([]);
-    const [allCourses, setAllCourses] = useState<Course[]>([]);
-    const [purchasedCourseIds, setPurchasedCourseIds] = useState<string[]>([]);
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [selectedCategory, setSelectedCategory] = useState<SkillCategory>('Standing');
-    const [showCourseSelector, setShowCourseSelector] = useState(false);
-    const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showSubcategoryForm, setShowSubcategoryForm] = useState(false);
-    const [newSubcategoryName, setNewSubcategoryName] = useState('');
-    const [showBeltUp, setShowBeltUp] = useState(false);
-    const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
-
+    const [selectedCategory, setSelectedCategory] = useState<TechniqueCategory>('Standing');
+    const [masteries, setMasteries] = useState<UserTechniqueMastery[]>([]);
+    const [summary, setSummary] = useState<TechniqueSummary[]>([]);
+    const [allTechniques, setAllTechniques] = useState<Technique[]>([]);
 
     useEffect(() => {
-        loadData();
+        if (user) {
+            loadData();
+        } else {
+            setLoading(false);
+        }
     }, [user]);
 
     const loadData = async () => {
-        try {
-            if (!user) {
-                // Load all courses even for non-logged-in users
-                const courses = await getCourses();
-                setAllCourses(courses);
-                setLoading(false);
-                return;
-            }
-            const [skills, purchasedCourses, allCourses, subcats] = await Promise.all([
-                getUserSkills(user.id),
-                getUserCourses(user.id),
-                getCourses(),
-                getSkillSubcategories(user.id)
-            ]);
-
-            setSkills(skills);
-            setPurchasedCourseIds(purchasedCourses.map(c => c.id));
-            setAllCourses(allCourses);
-            setSubcategories(subcats);
-            setLoading(false);
-        } catch (error) {
-            console.error('Error loading skill tree data:', error);
-            setLoading(false);
-        }
-    };
-
-    const handleCreateSubcategory = async () => {
-        if (!user || !newSubcategoryName.trim()) return;
-
-        const { data, error } = await createSkillSubcategory(user.id, selectedCategory, newSubcategoryName.trim());
-        if (!error && data) {
-            setSubcategories([...subcategories, data]);
-            setNewSubcategoryName('');
-            setShowSubcategoryForm(false);
-        }
-    };
-
-    const handleDeleteSubcategory = async (subcategoryId: string) => {
-        if (!confirm('이 서브카테고리와 포함된 모든 강좌를 삭제하시겠습니까?')) return;
-
-        const { error } = await deleteSkillSubcategory(subcategoryId);
-        if (!error) {
-            await loadData();
-        }
-    };
-
-    const handleAddCourse = async (courseId: string) => {
         if (!user) return;
+        setLoading(true);
 
-        await upsertUserSkill(user.id, selectedCategory, courseId, 'learning', selectedSubcategoryId || undefined);
+        const [masteriesRes, summaryRes, techniquesRes] = await Promise.all([
+            getUserTechniqueMastery(user.id),
+            getUserTechniqueSummary(user.id),
+            getTechniques()
+        ]);
 
-        // Gamification: Award XP (20 XP for adding a skill)
-        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 20, 'add_skill', courseId);
-        await loadData();
+        if (masteriesRes.data) setMasteries(masteriesRes.data);
+        if (summaryRes.data) setSummary(summaryRes.data);
+        if (techniquesRes.data) setAllTechniques(techniquesRes.data);
+
+        setLoading(false);
     };
 
-    const handleToggleStatus = async (skill: UserSkill) => {
-        if (!user) return;
+    const handleTechniqueClick = (mastery: UserTechniqueMastery) => {
+        navigate(`/technique/${mastery.techniqueId}`);
+    };
 
-        const newStatus: SkillStatus = skill.status === 'learning' ? 'mastered' : 'learning';
+    const categoryMasteries = masteries.filter(m => m.technique?.category === selectedCategory);
+    const categorySummary = summary.find(s => s.category === selectedCategory);
 
-        // If trying to master, check ownership and completion
-        if (newStatus === 'mastered') {
-            // Check if course is purchased
-            const isPurchased = purchasedCourseIds.includes(skill.courseId);
-            if (!isPurchased) {
-                alert('강좌를 구매해야 마스터할 수 있습니다.');
-                return;
-            }
-
-            // Check completion
-            const progress = await getCourseProgress(user.id, skill.courseId);
-            if (progress.percentage < 100) {
-                alert('강좌를 100% 수강해야 마스터할 수 있습니다.');
-                return;
-            }
+    // Get strongest and weakest techniques
+    const sortedByLevel = [...masteries].sort((a, b) => {
+        if (b.masteryLevel !== a.masteryLevel) {
+            return b.masteryLevel - a.masteryLevel;
         }
+        return b.masteryXp - a.masteryXp;
+    });
+    const strongestTechniques = sortedByLevel.slice(0, 3);
+    const weakestTechniques = sortedByLevel.slice(-3).reverse();
 
-        await upsertUserSkill(user.id, skill.category, skill.courseId, newStatus, skill.subcategoryId);
-        await loadData();
-    };
+    // Calculate overall progress
+    const totalXp = summary.reduce((acc, s) => acc + s.totalXp, 0);
+    const totalMastered = summary.reduce((acc, s) => acc + s.masteredTechniques, 0);
+    const totalTechniques = summary.reduce((acc, s) => acc + s.totalTechniques, 0);
 
-    const handleRemoveCourse = async (skillId: string) => {
-        if (!user || !confirm('이 강좌를 스킬 트리에서 제거하시겠습니까?')) return;
-        const { error } = await deleteUserSkill(skillId);
-        if (!error) {
-            await loadData();
-        }
-    };
-
-    const categorySkills = skills.filter(s => s.category === selectedCategory);
-    const categorySubcategories = subcategories.filter(s => s.category === selectedCategory);
-    const skillCourseIds = skills.map(s => s.courseId);
-
-    // Filter courses by category and exclude already added ones
-    const availableCourses = allCourses.filter(c =>
-        !skillCourseIds.includes(c.id) &&
-        c.category === selectedCategory
-    );
-
-    // Filter by search term
-    const filteredCourses = availableCourses.filter(c =>
-        c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.creatorName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    // Group skills by subcategory
-    const skillsWithoutSubcategory = categorySkills.filter(s => !s.subcategoryId);
-    const skillsBySubcategory = categorySubcategories.map(subcat => ({
-        subcategory: subcat,
-        skills: categorySkills.filter(s => s.subcategoryId === subcat.id)
-    }));
+    if (!user) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <div className="text-center max-w-md">
+                    <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-10 h-10 text-slate-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-900 mb-3">로그인이 필요합니다</h2>
+                    <p className="text-slate-600 mb-6">기술 로드맵을 확인하려면 로그인하세요.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
-            <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full"></div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
+            {/* Header */}
             <div className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">스킬 로드맵</h2>
-                <p className="text-slate-600 mb-6">구매한 강좌를 챕터별로 정리하고 학습 진행 상황을 추적하세요</p>
+                <div className="flex items-center gap-3 mb-2">
+                    <Sparkles className="w-8 h-8 text-yellow-500" />
+                    <h1 className="text-3xl font-black text-slate-900">기술 로드맵</h1>
+                </div>
+                <p className="text-slate-600">나만의 주짓수 기술 마스터리를 추적하고 성장하세요</p>
+            </div>
+
+            {/* Dashboard Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Total XP */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                            <Trophy className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-blue-900">{totalXp.toLocaleString()}</div>
+                            <div className="text-xs text-blue-600">Total XP</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Mastered Techniques */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl border border-green-200 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                            <TrendingUp className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-green-900">{totalMastered}</div>
+                            <div className="text-xs text-green-600">마스터한 기술</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Total Techniques */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl border border-purple-200 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center">
+                            <Target className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-purple-900">{totalTechniques}</div>
+                            <div className="text-xs text-purple-600">등록된 기술</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Strongest & Weakest */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Strongest */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-green-500" />
+                        최강 기술 Top 3
+                    </h3>
+                    <div className="space-y-3">
+                        {strongestTechniques.length === 0 ? (
+                            <p className="text-slate-500 text-sm">아직 기술이 없습니다.</p>
+                        ) : (
+                            strongestTechniques.map((mastery, idx) => (
+                                <button
+                                    key={mastery.id}
+                                    onClick={() => handleTechniqueClick(mastery)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-sm">
+                                        #{idx + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-slate-900 font-medium">{mastery.technique?.name}</div>
+                                        <div className="text-xs text-slate-500">Lv.{mastery.masteryLevel} • {mastery.masteryXp} XP</div>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Weakest */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <TrendingDown className="w-5 h-5 text-orange-500" />
+                        집중 훈련 필요 Top 3
+                    </h3>
+                    <div className="space-y-3">
+                        {weakestTechniques.length === 0 ? (
+                            <p className="text-slate-500 text-sm">아직 기술이 없습니다.</p>
+                        ) : (
+                            weakestTechniques.map((mastery, idx) => (
+                                <button
+                                    key={mastery.id}
+                                    onClick={() => handleTechniqueClick(mastery)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
+                                        #{idx + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-slate-900 font-medium">{mastery.technique?.name}</div>
+                                        <div className="text-xs text-slate-500">Lv.{mastery.masteryLevel} • {mastery.masteryXp} XP</div>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Category Selector */}
@@ -182,270 +221,59 @@ export const SkillTreeTab: React.FC = () => {
                 {CATEGORIES.map((cat) => {
                     const Icon = cat.icon;
                     const isSelected = selectedCategory === cat.name;
-                    const categoryCount = skills.filter(s => s.category === cat.name).length;
-                    const masteredCount = skills.filter(s => s.category === cat.name && s.status === 'mastered').length;
+                    const catSummary = summary.find(s => s.category === cat.name);
 
                     return (
                         <button
                             key={cat.name}
-                            onClick={() => {
-                                setSelectedCategory(cat.name);
-                                setShowCourseSelector(false);
-                                setShowSubcategoryForm(false);
-                                setSearchTerm('');
-                            }}
-                            className={`p-3 md:p-4 rounded-xl border-2 transition-all ${isSelected
-                                ? `${cat.color} border-transparent text-white shadow-lg`
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                            onClick={() => setSelectedCategory(cat.name)}
+                            className={`p-4 rounded-xl border-2 transition-all ${isSelected
+                                    ? `${cat.bgColor} border-transparent shadow-lg`
+                                    : 'bg-white border-slate-200 hover:border-slate-300'
                                 }`}
                         >
-                            <Icon className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2" />
-                            <div className="text-xs md:text-sm font-semibold whitespace-nowrap">{cat.name}</div>
-                            <div className="text-[10px] md:text-xs mt-1 opacity-80">
-                                {masteredCount}/{categoryCount}
+                            <Icon className={`w-8 h-8 mx-auto mb-2 ${isSelected ? cat.color : 'text-slate-400'}`} />
+                            <div className={`text-sm font-bold mb-1 ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
+                                {cat.name}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                                {catSummary?.masteredTechniques || 0}/{catSummary?.totalTechniques || 0}
                             </div>
                         </button>
                     );
                 })}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                <button
-                    onClick={() => {
-                        setShowSubcategoryForm(!showSubcategoryForm);
-                        setShowCourseSelector(false);
-                    }}
-                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
-                >
-                    <FolderPlus className="w-5 h-5" />
-                    서브카테고리 추가
-                </button>
-                <button
-                    onClick={() => {
-                        setShowCourseSelector(!showCourseSelector);
-                        setShowSubcategoryForm(false);
-                    }}
-                    disabled={availableCourses.length === 0}
-                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Plus className="w-5 h-5" />
-                    강좌 추가 ({availableCourses.length})
-                </button>
-            </div>
-
-            {/* Subcategory Form */}
-            {showSubcategoryForm && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">새 서브카테고리 추가</h3>
-                    <div className="flex gap-3">
-                        <input
-                            type="text"
-                            value={newSubcategoryName}
-                            onChange={(e) => setNewSubcategoryName(e.target.value)}
-                            placeholder="예: Open Guard, Half Guard, Closed Guard..."
-                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            onKeyPress={(e) => e.key === 'Enter' && handleCreateSubcategory()}
-                        />
-                        <button
-                            onClick={handleCreateSubcategory}
-                            disabled={!newSubcategoryName.trim()}
-                            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            추가
-                        </button>
+            {/* Category Summary */}
+            {categorySummary && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <div className="text-xs text-slate-500 mb-1">등록된 기술</div>
+                            <div className="text-2xl font-bold text-slate-900">{categorySummary.totalTechniques}</div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-slate-500 mb-1">마스터</div>
+                            <div className="text-2xl font-bold text-green-600">{categorySummary.masteredTechniques}</div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-slate-500 mb-1">평균 레벨</div>
+                            <div className="text-2xl font-bold text-blue-600">{categorySummary.avgMasteryLevel.toFixed(1)}</div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-slate-500 mb-1">Total XP</div>
+                            <div className="text-2xl font-bold text-yellow-600">{categorySummary.totalXp.toLocaleString()}</div>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Course Selector with Search */}
-            {showCourseSelector && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">{selectedCategory} 강좌 선택</h3>
-
-                    {/* Subcategory Selector */}
-                    {categorySubcategories.length > 0 && (
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                서브카테고리 (선택사항)
-                            </label>
-                            <select
-                                value={selectedSubcategoryId || ''}
-                                onChange={(e) => setSelectedSubcategoryId(e.target.value || null)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">서브카테고리 없음</option>
-                                {categorySubcategories.map((subcat) => (
-                                    <option key={subcat.id} value={subcat.id}>
-                                        {subcat.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* Search Input */}
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="강좌 검색..."
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    {/* Course List */}
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {filteredCourses.length === 0 ? (
-                            <p className="text-slate-500 text-center py-4">
-                                {searchTerm ? '검색 결과가 없습니다.' : `${selectedCategory} 카테고리에 추가할 수 있는 강좌가 없습니다.`}
-                            </p>
-                        ) : (
-                            filteredCourses.map((course) => {
-                                const isPurchased = purchasedCourseIds.includes(course.id);
-                                return (
-                                    <button
-                                        key={course.id}
-                                        onClick={() => handleAddCourse(course.id)}
-                                        className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                <div className="font-medium text-slate-900">{course.title}</div>
-                                                <div className="text-xs text-slate-500 mt-1">{course.creatorName}</div>
-                                            </div>
-                                            {!isPurchased && (
-                                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
-                                                    미구매
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Skills organized by subcategory */}
-            <div className="space-y-6">
-                {/* Skills without subcategory */}
-                {skillsWithoutSubcategory.length > 0 && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <h3 className="font-semibold text-slate-900 mb-4">
-                            {selectedCategory} 강좌 ({skillsWithoutSubcategory.length})
-                        </h3>
-                        <div className="space-y-2">
-                            {skillsWithoutSubcategory.map((skill) => (
-                                <SkillCard
-                                    key={skill.id}
-                                    skill={skill}
-                                    onToggleStatus={handleToggleStatus}
-                                    onRemove={handleRemoveCourse}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Subcategories with skills */}
-                {skillsBySubcategory.map(({ subcategory, skills: subcatSkills }) => (
-                    <div key={subcategory.id} className="bg-white rounded-xl border border-slate-200 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-slate-900">
-                                📁 {subcategory.name} ({subcatSkills.length})
-                            </h3>
-                            <button
-                                onClick={() => handleDeleteSubcategory(subcategory.id)}
-                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                title="서브카테고리 삭제"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        {subcatSkills.length === 0 ? (
-                            <p className="text-slate-500 text-center py-4 text-sm">
-                                아직 등록된 강좌가 없습니다.
-                            </p>
-                        ) : (
-                            <div className="space-y-2">
-                                {subcatSkills.map((skill) => (
-                                    <SkillCard
-                                        key={skill.id}
-                                        skill={skill}
-                                        onToggleStatus={handleToggleStatus}
-                                        onRemove={handleRemoveCourse}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {/* Empty state */}
-                {categorySkills.length === 0 && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                        <p className="text-slate-500 mb-4">
-                            아직 등록된 강좌가 없습니다.
-                        </p>
-                        <p className="text-sm text-slate-400">
-                            서브카테고리를 만들고 강좌를 추가해보세요!
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-// Skill Card Component
-const SkillCard: React.FC<{
-    skill: UserSkill;
-    onToggleStatus: (skill: UserSkill) => void;
-    onRemove: (skillId: string) => void;
-}> = ({ skill, onToggleStatus, onRemove }) => {
-    return (
-        <div
-            className={`p-4 rounded-lg border-2 transition-all ${skill.status === 'mastered'
-                ? 'bg-green-50 border-green-500'
-                : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                }`}
-        >
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
-                    <Link
-                        to={`/courses/${skill.courseId}`}
-                        className={`font-medium hover:underline block ${skill.status === 'mastered' ? 'text-green-900' : 'text-slate-900'
-                            }`}
-                    >
-                        {skill.courseTitle || '강좌'}
-                    </Link>
-                    {skill.creatorName && (
-                        <p className="text-xs text-slate-500 mt-1">{skill.creatorName}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => onToggleStatus(skill)}
-                        className={`text-xs px-3 py-1 rounded-full font-semibold whitespace-nowrap ${skill.status === 'mastered'
-                            ? 'bg-green-600 text-white'
-                            : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                    >
-                        {skill.status === 'mastered' ? '✓ 마스터' : '수련 중'}
-                    </button>
-                    <button
-                        onClick={() => onRemove(skill.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="제거"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
+            {/* Technique Grid */}
+            <TechniqueGrid
+                masteries={categoryMasteries}
+                onTechniqueClick={handleTechniqueClick}
+                emptyMessage={`${selectedCategory} 카테고리에 등록된 기술이 없습니다.`}
+            />
         </div>
     );
 };
