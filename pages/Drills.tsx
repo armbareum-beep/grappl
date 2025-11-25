@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoutines, getUserRoutines, purchaseRoutine, type DrillRoutine } from '../lib/api';
+import { VideoCategory, Difficulty } from '../types';
 import { DrillRoutineGrid } from '../components/DrillRoutineGrid';
 import { RoutineDetailModal } from '../components/RoutineDetailModal';
 import { Dumbbell, Search, Filter } from 'lucide-react';
@@ -13,7 +14,10 @@ export const Drills: React.FC = () => {
     const [selectedRoutine, setSelectedRoutine] = useState<DrillRoutine | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
-    const [filter, setFilter] = useState('All');
+
+    // Filter states matching Browse.tsx
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
     useEffect(() => {
@@ -58,33 +62,50 @@ export const Drills: React.FC = () => {
     };
 
     const filteredRoutines = routines.filter(routine => {
-        if (filter === 'All') return true;
-        return routine.difficulty === filter || routine.category === filter;
+        const categoryMatch = selectedCategory === 'All' || routine.category === selectedCategory;
+        const difficultyMatch = selectedDifficulty === 'All' || routine.difficulty === selectedDifficulty;
+        return categoryMatch && difficultyMatch;
     });
 
-    const filterOptions = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Guard', 'Pass', 'Submission'];
+    const categories = ['All', ...Object.values(VideoCategory)];
+    const difficulties = ['All', ...Object.values(Difficulty)];
 
     return (
         <div className="flex min-h-screen bg-slate-50">
-            {/* Sidebar */}
+            {/* Sidebar - Exact match to Browse.tsx */}
             <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r border-slate-200 transition-all duration-300 overflow-hidden flex-shrink-0 fixed h-[calc(100vh-64px)] top-16 z-20 hidden md:block`}>
                 <div className="p-4 space-y-6 overflow-y-auto h-full">
                     <div>
-                        <h3 className="font-semibold text-slate-900 mb-3 px-2">필터</h3>
+                        <h3 className="font-semibold text-slate-900 mb-3 px-2">카테고리</h3>
                         <div className="space-y-1">
-                            {filterOptions.map((tag) => (
+                            {categories.map((cat) => (
                                 <button
-                                    key={tag}
-                                    onClick={() => setFilter(tag)}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${filter === tag
-                                            ? 'bg-slate-100 font-medium text-slate-900'
-                                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat
+                                        ? 'bg-slate-100 font-medium text-slate-900'
+                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                         }`}
                                 >
-                                    {tag === 'All' ? '전체' :
-                                        tag === 'Beginner' ? '초급' :
-                                            tag === 'Intermediate' ? '중급' :
-                                                tag === 'Advanced' ? '상급' : tag}
+                                    {cat === 'All' ? '전체' : cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6">
+                        <h3 className="font-semibold text-slate-900 mb-3 px-2">난이도</h3>
+                        <div className="space-y-1">
+                            {difficulties.map((diff) => (
+                                <button
+                                    key={diff}
+                                    onClick={() => setSelectedDifficulty(diff)}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedDifficulty === diff
+                                        ? 'bg-slate-100 font-medium text-slate-900'
+                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                        }`}
+                                >
+                                    {diff === 'All' ? '전체' : diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급'}
                                 </button>
                             ))}
                         </div>
@@ -127,21 +148,18 @@ export const Drills: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Mobile Filter Tags */}
+                    {/* Mobile Filter Tags (Categories only for simplicity on mobile, or match Browse) */}
                     <div className="md:hidden flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-                        {filterOptions.map(tag => (
+                        {categories.map(cat => (
                             <button
-                                key={tag}
-                                onClick={() => setFilter(tag)}
-                                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filter === tag
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${selectedCategory === cat
                                     ? 'bg-slate-900 text-white'
                                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                                     }`}
                             >
-                                {tag === 'All' ? '전체' :
-                                    tag === 'Beginner' ? '초급' :
-                                        tag === 'Intermediate' ? '중급' :
-                                            tag === 'Advanced' ? '상급' : tag}
+                                {cat === 'All' ? '전체' : cat}
                             </button>
                         ))}
                     </div>
@@ -157,6 +175,10 @@ export const Drills: React.FC = () => {
                             <Dumbbell className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                             <h3 className="text-xl font-bold text-slate-900 mb-2">등록된 루틴이 없습니다</h3>
                             <p className="text-slate-500">곧 새로운 루틴이 업데이트될 예정입니다.</p>
+                        </div>
+                    ) : filteredRoutines.length === 0 ? (
+                        <div className="text-center py-20 text-slate-500">
+                            조건에 맞는 루틴이 없습니다.
                         </div>
                     ) : (
                         <DrillRoutineGrid

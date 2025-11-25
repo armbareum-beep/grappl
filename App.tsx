@@ -8,6 +8,7 @@ import { VideoDetail } from './pages/VideoDetail';
 import { Pricing } from './pages/Pricing';
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { UploadDrill } from './pages/creator/UploadDrill';
+import { CreateRoutine } from './pages/creator/CreateRoutine';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
@@ -39,6 +40,22 @@ const App: React.FC = () => {
       <Router>
         <Layout>
           <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/browse" element={<Browse />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/videos/:id" element={<VideoDetail />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/creator" element={<CreatorDashboard />} />
+            <Route path="/creator-dashboard" element={<CreatorDashboard />} />
+            <Route path="/creator/courses" element={<CreatorCourses />} />
+            <Route path="/creator/courses/new" element={<CourseEditor />} />
+            <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
+            <Route path="/creator/upload" element={<UploadVideo />} />
+            <Route path="/creator/upload-drill" element={<UploadDrill />} />
+            <Route path="/creator/create-routine" element={<CreateRoutine />} />
+            <Route path="/become-creator" element={<BecomeCreator />} />
+            <Route path="/creator/:id" element={<CreatorProfile />} />
+            <Route path="/library" element={<MyLibrary />} />
             <Route path="/journal" element={<Journal />} />
             <Route path="/drills" element={<Drills />} />
             <Route path="/drills/:id" element={<DrillDetail />} />

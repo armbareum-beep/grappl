@@ -7,7 +7,7 @@ interface TrainingLogFormProps {
     onSubmit: (log: Omit<TrainingLog, 'id' | 'createdAt'>) => Promise<void>;
     onCancel: () => void;
     userId: string;
-    initialData?: TrainingLog;
+    initialData?: Partial<TrainingLog>;
 }
 
 export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCancel, userId, initialData }) => {
