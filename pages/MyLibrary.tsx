@@ -27,7 +27,6 @@ export const MyLibrary: React.FC = () => {
       try {
         const coursesData = await getUserCourses(user.id);
 
-        // Fetch progress for each course
         const coursesWithProgress = await Promise.all(
           coursesData.map(async (course) => {
             const progressData = await getCourseProgress(user.id, course.id);
@@ -53,10 +52,10 @@ export const MyLibrary: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">로딩 중...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">로딩 중...</p>
         </div>
       </div>
     );
@@ -64,10 +63,10 @@ export const MyLibrary: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">로그인이 필요합니다</h2>
-          <p className="text-slate-600 mb-6">내 강좌를 보려면 로그인하세요.</p>
+          <h2 className="text-2xl font-bold text-white mb-4">로그인이 필요합니다</h2>
+          <p className="text-slate-400 mb-6">내 강좌를 보려면 로그인하세요.</p>
           <Link
             to="/login"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
@@ -80,7 +79,7 @@ export const MyLibrary: React.FC = () => {
   }
 
   return (
-    <div className="bg-slate-50 min-h-screen">
+    <div className="bg-slate-950 min-h-screen">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-4">
@@ -95,34 +94,34 @@ export const MyLibrary: React.FC = () => {
 
       {/* Subscriber Features Info */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-12">
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">🌟 구독자 전용 혜택</h3>
+        <div className="bg-slate-900 rounded-xl shadow-lg p-6 border border-slate-800">
+          <h3 className="text-lg font-bold text-white mb-4">🌟 구독자 전용 혜택</h3>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+              <div className="p-2 bg-blue-900/50 rounded-lg text-blue-400">
                 <PlayCircle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">무제한 수강</h4>
-                <p className="text-sm text-slate-600">모든 강좌를 제한 없이 자유롭게 수강하세요.</p>
+                <h4 className="font-semibold text-white">무제한 수강</h4>
+                <p className="text-sm text-slate-400">모든 강좌를 제한 없이 자유롭게 수강하세요.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+              <div className="p-2 bg-purple-900/50 rounded-lg text-purple-400">
                 <BookOpen className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">오프라인 저장</h4>
-                <p className="text-sm text-slate-600">앱에서 영상을 다운로드하여 데이터 걱정 없이 시청하세요.</p>
+                <h4 className="font-semibold text-white">오프라인 저장</h4>
+                <p className="text-sm text-slate-400">앱에서 영상을 다운로드하여 데이터 걱정 없이 시청하세요.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-green-100 rounded-lg text-green-600">
+              <div className="p-2 bg-green-900/50 rounded-lg text-green-400">
                 <PlayCircle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">4K 초고화질</h4>
-                <p className="text-sm text-slate-600">선명한 화질로 디테일한 기술을 확인하세요.</p>
+                <h4 className="font-semibold text-white">4K 초고화질</h4>
+                <p className="text-sm text-slate-400">선명한 화질로 디테일한 기술을 확인하세요.</p>
               </div>
             </div>
           </div>
@@ -132,11 +131,11 @@ export const MyLibrary: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {courses.length === 0 ? (
           <div className="text-center py-20">
-            <div className="bg-white rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <BookOpen className="w-12 h-12 text-slate-400" />
+            <div className="bg-slate-900 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-lg border border-slate-800">
+              <BookOpen className="w-12 h-12 text-slate-500" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-3">아직 구매한 강좌가 없습니다</h2>
-            <p className="text-slate-600 mb-8">관심 있는 강좌를 찾아보세요!</p>
+            <h2 className="text-2xl font-bold text-white mb-3">아직 구매한 강좌가 없습니다</h2>
+            <p className="text-slate-400 mb-8">관심 있는 강좌를 찾아보세요!</p>
             <Link
               to="/browse"
               className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
@@ -148,10 +147,10 @@ export const MyLibrary: React.FC = () => {
           <>
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">
+                <h2 className="text-2xl font-bold text-white">
                   총 {courses.length}개의 강좌
                 </h2>
-                <p className="text-slate-600 mt-1">언제든지 학습을 이어갈 수 있습니다</p>
+                <p className="text-slate-400 mt-1">언제든지 학습을 이어갈 수 있습니다</p>
               </div>
             </div>
 
@@ -162,12 +161,12 @@ export const MyLibrary: React.FC = () => {
 
                   {/* Progress Overlay */}
                   <div className="absolute bottom-[140px] left-0 right-0 px-4">
-                    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-slate-100">
-                      <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                    <div className="bg-slate-900/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-slate-700">
+                      <div className="flex justify-between text-xs font-semibold text-slate-300 mb-1">
                         <span>진도율</span>
                         <span>{Math.round(course.progress || 0)}%</span>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+                      <div className="w-full bg-slate-800 rounded-full h-2 mb-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${course.progress || 0}%` }}
@@ -191,12 +190,12 @@ export const MyLibrary: React.FC = () => {
           </>
         )}
 
-        <div className="mt-12 border-t border-slate-200 pt-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">구독 상태</h2>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+        <div className="mt-12 border-t border-slate-800 pt-8">
+          <h2 className="text-2xl font-bold text-white mb-4">구독 상태</h2>
+          <div className="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-800 flex justify-between items-center">
             <div>
-              <span className="text-slate-500 text-sm">현재 멤버십</span>
-              <p className="text-xl font-bold text-slate-900">
+              <span className="text-slate-400 text-sm">현재 멤버십</span>
+              <p className="text-xl font-bold text-white">
                 {user.isSubscriber ? '구독 회원' : '무료 회원'}
               </p>
             </div>
