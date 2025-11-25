@@ -2,26 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { getCourses } from '../lib/api';
 import { CourseCard } from '../components/CourseCard';
 import { Course, VideoCategory, Difficulty } from '../types';
-import { Filter } from 'lucide-react';
+import { Filter, Search, Menu } from 'lucide-react';
 
 export const Browse: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
-  const [maxPrice, setMaxPrice] = useState<number>(100000);
-  const [priceFilter, setPriceFilter] = useState<number>(100000);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     async function fetchCourses() {
       try {
         const data = await getCourses();
         setCourses(data);
-        if (data.length > 0) {
-          const max = Math.max(...data.map(c => c.price));
-          setMaxPrice(max);
-          setPriceFilter(max);
-        }
       } catch (error) {
         console.error('Error fetching courses:', error);
       } finally {
@@ -35,95 +29,106 @@ export const Browse: React.FC = () => {
   const filteredCourses = courses.filter((course) => {
     const categoryMatch = selectedCategory === 'All' || course.category === selectedCategory;
     const difficultyMatch = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
-    const priceMatch = course.price <= priceFilter;
-
-    return categoryMatch && difficultyMatch && priceMatch;
+    return categoryMatch && difficultyMatch;
   });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">로딩 중...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
+  const categories = ['All', ...Object.values(VideoCategory)];
+  const difficulties = ['All', ...Object.values(Difficulty)];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">강좌 둘러보기</h1>
-          <p className="text-slate-500 mt-1">원하는 카테고리와 난이도를 선택하세요.</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
-        <div className="flex items-center text-slate-500 mr-2">
-          <Filter className="w-5 h-5 mr-2" />
-          <span className="font-semibold">필터:</span>
-        </div>
-
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="block w-full md:w-auto rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-        >
-          <option value="All">모든 카테고리</option>
-          {Object.values(VideoCategory).map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-
-        <select
-          value={selectedDifficulty}
-          onChange={(e) => setSelectedDifficulty(e.target.value)}
-          className="block w-full md:w-auto rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-        >
-          <option value="All">모든 난이도</option>
-          {Object.values(Difficulty).map((diff) => (
-            <option key={diff} value={diff}>
-              {diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급'}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex flex-col w-full md:w-64">
-          <div className="flex justify-between text-sm text-slate-600 mb-1">
-            <span>최대 가격</span>
-            <span className="font-medium">₩{priceFilter.toLocaleString()}</span>
+    <div className="flex min-h-screen bg-slate-50">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r border-slate-200 transition-all duration-300 overflow-hidden flex-shrink-0 fixed h-[calc(100vh-64px)] top-16 z-20 hidden md:block`}>
+        <div className="p-4 space-y-6 overflow-y-auto h-full">
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3 px-2">카테고리</h3>
+            <div className="space-y-1">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat
+                      ? 'bg-slate-100 font-medium text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                  {cat === 'All' ? '전체' : cat}
+                </button>
+              ))}
+            </div>
           </div>
-          <input
-            type="range"
-            min="0"
-            max={maxPrice}
-            step="1000"
-            value={priceFilter}
-            onChange={(e) => setPriceFilter(Number(e.target.value))}
-            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-          />
-          <div className="flex justify-between text-xs text-slate-400 mt-1">
-            <span>0원</span>
-            <span>₩{maxPrice.toLocaleString()}</span>
+
+          <div className="border-t border-slate-100 pt-6">
+            <h3 className="font-semibold text-slate-900 mb-3 px-2">난이도</h3>
+            <div className="space-y-1">
+              {difficulties.map((diff) => (
+                <button
+                  key={diff}
+                  onClick={() => setSelectedDifficulty(diff)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedDifficulty === diff
+                      ? 'bg-slate-100 font-medium text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                  {diff === 'All' ? '전체' : diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Grid */}
-      {filteredCourses.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : ''}`}>
+        <div className="p-6">
+          {/* Mobile Filter Toggle (Visible only on mobile) */}
+          <div className="md:hidden mb-6 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide flex gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-sm border ${selectedCategory === cat
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-200'
+                  }`}
+              >
+                {cat === 'All' ? '전체' : cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-900">추천 강좌</h1>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="hidden md:flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
+            >
+              <Filter className="w-4 h-4" />
+              {sidebarOpen ? '필터 숨기기' : '필터 보이기'}
+            </button>
+          </div>
+
+          {filteredCourses.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCourses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 text-slate-500">
+              조건에 맞는 강좌가 없습니다.
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="text-center py-20 text-slate-500">
-          조건에 맞는 강좌가 없습니다.
-        </div>
-      )}
+      </div>
     </div>
   );
 };

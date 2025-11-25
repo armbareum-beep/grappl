@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title } from '../types';
 
 
 // Revenue split constants
@@ -2501,8 +2501,6 @@ export async function recordMatch(matchData: {
         console.error('Error recording match:', error);
         return { error };
     }
-    criteriaType: string;
-    criteriaValue: number;
 }
 
 export interface UserTitle {
@@ -2866,6 +2864,8 @@ function transformDrill(data: any): Drill {
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
         vimeoUrl: data.vimeo_url,
+        aspectRatio: '9:16',
+        views: data.views || 0,
         duration: data.duration_minutes || data.duration || 0,
         price: data.price || 0,
         createdAt: data.created_at,
@@ -2889,5 +2889,93 @@ function transformDrillRoutine(data: any): DrillRoutine {
         items: [], // Populated separately if needed
     };
 }
+
+// ============================================================================
+// Missing Drill & Routine Functions (Restored)
+// ============================================================================
+
+export async function getDrillById(id: string) {
+    const { data, error } = await supabase
+        .from('drills')
+        .select(`
+            *,
+            creator:creators(name)
+        `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching drill:', error);
+        return null;
+    }
+
+    return transformDrill(data);
+}
+
+export async function checkDrillOwnership(userId: string, drillId: string) {
+    // Check if user is creator
+    const { data: drill } = await supabase
+        .from('drills')
+        .select('creator_id')
+        .eq('id', drillId)
+        .single();
+
+    if (drill && drill.creator_id === userId) return true;
+
+    return false;
+}
+
+export async function incrementDrillViews(drillId: string) {
+    const { error } = await supabase.rpc('increment_drill_views', { p_drill_id: drillId });
+    if (error) console.error('Error incrementing drill views:', error);
+}
+
+export function calculateDrillPrice(price: number, isSubscriber: boolean) {
+    if (isSubscriber) {
+        return Math.floor(price * 0.8); // 20% discount for subscribers
+    }
+    return price;
+}
+
+export async function getDrillRoutineById(id: string) {
+    return getRoutineById(id);
+}
+
+export async function checkDrillRoutineOwnership(userId: string, routineId: string) {
+    const { data, error } = await supabase
+        .from('user_routine_purchases')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('routine_id', routineId)
+        .single();
+
+    if (data) return true;
+
+    // Check if creator
+    const { data: routine } = await supabase
+        .from('routines')
+        .select('creator_id')
+        .eq('id', routineId)
+        .single();
+
+    if (routine && routine.creator_id === userId) return true;
+
+    return false;
+}
+
+export async function incrementDrillRoutineViews(routineId: string) {
+    const { error } = await supabase.rpc('increment_routine_views', { p_routine_id: routineId });
+    if (error) console.error('Error incrementing routine views:', error);
+}
+
+export function calculateRoutinePrice(price: number, isSubscriber: boolean) {
+    if (isSubscriber) {
+        return Math.floor(price * 0.8); // 20% discount for subscribers
+    }
+    return price;
+}
+
+
+
 
 

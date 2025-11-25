@@ -1,0 +1,29 @@
+
+> grappl@1.0.0 build
+> tsc && vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 1753 modules transformed.
+[31mx[39m Build failed in 3.32s
+[31merror during build:
+[31mpages/DrillDetail.tsx (3:9): "getDrillById" is not exported by "lib/api.ts", imported by "pages/DrillDetail.tsx".[31m
+file: [36mC:/Users/armba/grappl/pages/DrillDetail.tsx:3:9[31m
+[33m
+1: import React, { useEffect, useState } from 'react';
+2: import { useParams, useNavigate, Link } from 'react-router-dom';
+3: import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice } from '../lib/api';
+            ^
+4: import { Drill } from '../types';
+5: import { Button } from '../components/Button';
+[31m
+    at getRollupError (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:16956:16)
+    at Module.traceVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:17412:29)
+    at ModuleScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:15076:39)
+    at ReturnValueScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at FunctionBodyScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at ReturnValueScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at FunctionBodyScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at BlockScope.findVariable (file:///C:/Users/armba/grappl/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)[39m

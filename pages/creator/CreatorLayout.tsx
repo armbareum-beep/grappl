@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, BarChart2, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, BarChart2, Settings, Upload } from 'lucide-react';
 
 export const CreatorLayout: React.FC = () => {
     const location = useLocation();
@@ -33,18 +33,27 @@ export const CreatorLayout: React.FC = () => {
                     <Link
                         to="/creator/courses"
                         className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/courses')
-                                ? 'bg-blue-50 text-blue-600 font-medium'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             } `}
                     >
-                        <BookOpen className="w-5 h-5" />
                         강좌 관리
+                    </Link>
+                    <Link
+                        to="/creator/upload-drill"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/upload-drill')
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                    >
+                        <Upload className="w-5 h-5" />
+                        드릴 업로드
                     </Link>
                     <Link
                         to="/creator/analytics"
                         className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/analytics')
-                                ? 'bg-blue-50 text-blue-600 font-medium'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             } `}
                     >
                         <BarChart2 className="w-5 h-5" />
@@ -53,8 +62,8 @@ export const CreatorLayout: React.FC = () => {
                     <Link
                         to="/creator/settings"
                         className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/settings')
-                                ? 'bg-blue-50 text-blue-600 font-medium'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             } `}
                     >
                         <Settings className="w-5 h-5" />
