@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Bell, Shield, CreditCard, ChevronRight, Plus, Trash2, Check, Upload as UploadIcon } from 'lucide-react';
 import { updateUserProfile, uploadProfileImage, updateCreatorProfileImage, getCreatorById, updateCreatorProfile } from '../lib/api';
+import { BeltProgressBar } from '../components/BeltProgressBar';
+import { DailyQuestsPanel } from '../components/DailyQuestsPanel';
 
 type SettingsSection = 'profile' | 'notifications' | 'security' | 'payment';
 
@@ -122,6 +124,21 @@ export const Settings: React.FC = () => {
                             <h3 className="text-lg font-medium text-white">프로필 설정</h3>
                             <p className="text-sm text-slate-400">계정 정보를 관리하세요.</p>
                         </div>
+
+                        {/* Level and Daily Quests */}
+                        {user && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2">
+                                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                                        <h3 className="font-bold text-lg text-white mb-4">내 레벨</h3>
+                                        <BeltProgressBar userId={user.id} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <DailyQuestsPanel userId={user.id} />
+                                </div>
+                            </div>
+                        )}
 
                         {isCreator && (
                             <div className="max-w-md">

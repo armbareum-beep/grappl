@@ -321,3 +321,175 @@ export interface Title {
   conditionValue: number;
   createdAt: string;
 }
+
+// ==================== Technique Mastery System ====================
+
+export type TechniqueCategory = 'Standing' | 'Guard' | 'Guard Pass' | 'Side' | 'Mount' | 'Back';
+
+export type MasteryLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export const MASTERY_LEVEL_NAMES: Record<MasteryLevel, string> = {
+  1: 'Tried',
+  2: 'Understood',
+  3: 'Can Perform',
+  4: 'Succeeds Occasionally',
+  5: 'High Success',
+  6: 'Competition Ready'
+};
+
+export const MASTERY_LEVEL_NAMES_KO: Record<MasteryLevel, string> = {
+  1: '시도함',
+  2: '이해함',
+  3: '수행 가능',
+  4: '가끔 성공',
+  5: '높은 성공률',
+  6: '대회 준비 완료'
+};
+
+export const MASTERY_XP_THRESHOLDS: Record<MasteryLevel, number> = {
+  1: 0,
+  2: 100,
+  3: 300,
+  4: 600,
+  5: 1000,
+  6: 1500
+};
+
+export interface CombatImpact {
+  standing: number;
+  guard: number;
+  pass: number;
+  submission: number;
+}
+
+export interface Technique {
+  id: string;
+  category: TechniqueCategory;
+  name: string;
+  nameEn?: string;
+  description?: string;
+  difficulty: Difficulty;
+
+  // Combat Impact Weights (0.0 - 1.0)
+  impactStanding: number;
+  impactGuard: number;
+  impactPass: number;
+  impactSubmission: number;
+
+  // Pre-linked recommendations
+  recommendedCourseIds?: string[];
+  recommendedDrillIds?: string[];
+
+  createdAt: string;
+}
+
+export interface UserTechniqueMastery {
+  id: string;
+  userId: string;
+  techniqueId: string;
+
+  // Mastery Progress
+  masteryLevel: MasteryLevel;
+  masteryXp: number;
+  progressPercent: number;
+
+  // Performance Stats
+  totalSuccessCount: number;
+  totalAttemptCount: number;
+  lastSuccessDate?: string;
+  lastPracticeDate?: string;
+
+  // Populated fields
+  technique?: Technique;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TechniqueXpSourceType =
+  | 'course_lesson'
+  | 'routine_completion'
+  | 'drill_practice'
+  | 'sparring_success'
+  | 'sparring_attempt'
+  | 'training_log'
+  | 'feed_post'
+  | 'instructor_endorsement'
+  | 'manual';
+
+export const TECHNIQUE_XP_AMOUNTS: Record<TechniqueXpSourceType, number> = {
+  course_lesson: 30,
+  routine_completion: 20,
+  drill_practice: 15,
+  sparring_success: 10,
+  sparring_attempt: 3,
+  training_log: 5,
+  feed_post: 3,
+  instructor_endorsement: 50,
+  manual: 0
+};
+
+export interface TechniqueXpTransaction {
+  id: string;
+  userId: string;
+  techniqueId: string;
+
+  xpAmount: number;
+  sourceType: TechniqueXpSourceType;
+  sourceId?: string;
+
+  // Snapshot
+  oldLevel: number;
+  newLevel: number;
+  oldXp: number;
+  newXp: number;
+
+  createdAt: string;
+}
+
+export interface TechniqueGoal {
+  id: string;
+  userId: string;
+  techniqueId: string;
+  targetLevel: MasteryLevel;
+  targetMonth: string; // YYYY-MM-DD
+  completed: boolean;
+  completedAt?: string;
+
+  technique?: Technique;
+
+  createdAt: string;
+}
+
+export interface TechniqueSummary {
+  category: TechniqueCategory;
+  totalTechniques: number;
+  masteredTechniques: number;
+  avgMasteryLevel: number;
+  totalXp: number;
+}
+
+export interface TechniqueDetailData {
+  mastery: UserTechniqueMastery;
+  technique: Technique;
+
+  // Related content
+  relatedCourses: Course[];
+  relatedDrills: Drill[];
+  relatedRoutines: DrillRoutine[];
+
+  // History
+  xpHistory: TechniqueXpTransaction[];
+  sparringHistory: any[]; // TODO: Define sparring log type
+  feedPosts: any[]; // TODO: Define feed post type
+
+  // Analytics
+  weeklyXpTrend: { week: string; xp: number }[];
+  successRate: number;
+}
+
+export interface TechniqueRecommendation {
+  technique: Technique;
+  reason: 'weakest' | 'trending' | 'related' | 'goal';
+  priority: number;
+}
