@@ -14,7 +14,7 @@ import {
     updateQuestProgress
 } from '../../lib/api';
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
-import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus } from 'lucide-react';
+import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
@@ -39,6 +39,8 @@ export const SkillTreeTab: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showSubcategoryForm, setShowSubcategoryForm] = useState(false);
     const [newSubcategoryName, setNewSubcategoryName] = useState('');
+    const [showMasteryModal, setShowMasteryModal] = useState(false);
+    const [masteryData, setMasteryData] = useState<{ courseTitle: string; xpEarned: number; leveledUp: boolean; newLevel?: number } | null>(null);
 
     useEffect(() => {
         loadData();
@@ -118,6 +120,18 @@ export const SkillTreeTab: React.FC = () => {
                 alert('강좌를 100% 수강해야 마스터할 수 있습니다.');
                 return;
             }
+
+            // Award XP for mastering!
+            const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 100, 'master_skill', skill.courseId);
+
+            // Show celebration modal
+            setMasteryData({
+                courseTitle: skill.courseTitle || '강좌',
+                xpEarned,
+                leveledUp,
+                newLevel
+            });
+            setShowMasteryModal(true);
         }
 
         await upsertUserSkill(user.id, skill.category, skill.courseId, newStatus, skill.subcategoryId);
@@ -166,9 +180,92 @@ export const SkillTreeTab: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto">
             <div className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">스킬 로드맵</h2>
-                <p className="text-slate-600 mb-6">구매한 강좌를 챕터별로 정리하고 학습 진행 상황을 추적하세요</p>
+                <h2 className="text-2xl font-bold text-white mb-2">스킬 로드맵</h2>
+                <p className="text-slate-400 mb-6">구매한 강좌를 챕터별로 정리하고 학습 진행 상황을 추적하세요</p>
             </div>
+
+            {/* Dashboard Overview */}
+            {user && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {/* Total Skills */}
+                    <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 rounded-2xl border border-blue-800/30 p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                <Shield className="w-6 h-6 text-blue-400" />
+                            </div>
+                            <div>
+                                <div className="text-3xl font-black text-white">{skills.length}</div>
+                                <div className="text-xs text-blue-300">등록된 강좌</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mastered Skills */}
+                    <div className="bg-gradient-to-br from-green-900/30 to-green-800/20 rounded-2xl border border-green-800/30 p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                                <Trophy className="w-6 h-6 text-green-400" />
+                            </div>
+                            <div>
+                                <div className="text-3xl font-black text-white">
+                                    {skills.filter(s => s.status === 'mastered').length}
+                                </div>
+                                <div className="text-xs text-green-300">마스터 완료</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Learning Skills */}
+                    <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 rounded-2xl border border-yellow-800/30 p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                                <Target className="w-6 h-6 text-yellow-400" />
+                            </div>
+                            <div>
+                                <div className="text-3xl font-black text-white">
+                                    {skills.filter(s => s.status === 'learning').length}
+                                </div>
+                                <div className="text-xs text-yellow-300">수련 중</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Progress Tracking - Courses Needing Attention */}
+            {user && (
+                <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-6 mb-8">
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <Target className="w-5 h-5 text-orange-400" />
+                        집중 수련 필요
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {skills
+                            .filter(s => s.status === 'learning')
+                            .slice(0, 6)
+                            .map((skill) => (
+                                <Link
+                                    key={skill.id}
+                                    to={`/courses/${skill.courseId}`}
+                                    className="flex items-center gap-3 p-3 rounded-lg bg-orange-900/20 hover:bg-orange-900/30 border border-orange-800/30 transition-colors"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 font-bold text-sm flex-shrink-0">
+                                        !
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-white font-medium truncate">{skill.courseTitle || '강좌'}</div>
+                                        <div className="text-xs text-slate-400">수련 중</div>
+                                    </div>
+                                </Link>
+                            ))}
+                        {skills.filter(s => s.status === 'learning').length === 0 && (
+                            <p className="text-slate-400 text-sm col-span-2 text-center py-4">
+                                모든 강좌를 마스터했습니다! 🎉
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Category Selector */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
@@ -189,7 +286,7 @@ export const SkillTreeTab: React.FC = () => {
                             }}
                             className={`p-3 md:p-4 rounded-xl border-2 transition-all ${isSelected
                                 ? `${cat.color} border-transparent text-white shadow-lg`
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                                : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:border-slate-600'
                                 }`}
                         >
                             <Icon className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2" />
@@ -209,7 +306,7 @@ export const SkillTreeTab: React.FC = () => {
                         setShowSubcategoryForm(!showSubcategoryForm);
                         setShowCourseSelector(false);
                     }}
-                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
+                    className="flex-1 px-4 py-3 border border-slate-600 text-slate-300 bg-slate-800/50 rounded-lg hover:bg-slate-700/50 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                     <FolderPlus className="w-5 h-5" />
                     서브카테고리 추가
@@ -229,9 +326,9 @@ export const SkillTreeTab: React.FC = () => {
 
             {/* Subcategory Form */}
             {showSubcategoryForm && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">새 서브카테고리 추가</h3>
-                    <p className="text-sm text-slate-600 mb-4">
+                <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6 mb-6">
+                    <h3 className="font-semibold text-white mb-4">새 서브카테고리 추가</h3>
+                    <p className="text-sm text-slate-400 mb-4">
                         예: Guard 카테고리에 "Open Guard", "Half Guard", "Closed Guard" 등의 서브카테고리를 만들 수 있습니다.
                     </p>
                     <div className="flex gap-3">
@@ -240,7 +337,7 @@ export const SkillTreeTab: React.FC = () => {
                             value={newSubcategoryName}
                             onChange={(e) => setNewSubcategoryName(e.target.value)}
                             placeholder="예: Open Guard, Half Guard, Closed Guard..."
-                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                             onKeyPress={(e) => e.key === 'Enter' && handleCreateSubcategory()}
                         />
                         <button
@@ -256,19 +353,19 @@ export const SkillTreeTab: React.FC = () => {
 
             {/* Course Selector with Search */}
             {showCourseSelector && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">{selectedCategory} 강좌 선택</h3>
+                <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6 mb-6">
+                    <h3 className="font-semibold text-white mb-4">{selectedCategory} 강좌 선택</h3>
 
                     {/* Subcategory Selector */}
                     {categorySubcategories.length > 0 && (
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
                                 서브카테고리 (선택사항)
                             </label>
                             <select
                                 value={selectedSubcategoryId || ''}
                                 onChange={(e) => setSelectedSubcategoryId(e.target.value || null)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="">서브카테고리 없음</option>
                                 {categorySubcategories.map((subcat) => (
@@ -288,14 +385,14 @@ export const SkillTreeTab: React.FC = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="강좌 검색..."
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
                     {/* Course List */}
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {filteredCourses.length === 0 ? (
-                            <p className="text-slate-500 text-center py-4">
+                            <p className="text-slate-400 text-center py-4">
                                 {searchTerm ? '검색 결과가 없습니다.' : `${selectedCategory} 카테고리에 추가할 수 있는 강좌가 없습니다.`}
                             </p>
                         ) : (
@@ -305,15 +402,15 @@ export const SkillTreeTab: React.FC = () => {
                                     <button
                                         key={course.id}
                                         onClick={() => handleAddCourse(course.id)}
-                                        className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                        className="w-full text-left p-3 rounded-lg border border-slate-700 hover:border-blue-500 hover:bg-blue-900/20 transition-colors"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex-1">
-                                                <div className="font-medium text-slate-900">{course.title}</div>
-                                                <div className="text-xs text-slate-500 mt-1">{course.creatorName}</div>
+                                                <div className="font-medium text-white">{course.title}</div>
+                                                <div className="text-xs text-slate-400 mt-1">{course.creatorName}</div>
                                             </div>
                                             {!isPurchased && (
-                                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
+                                                <span className="text-xs px-2 py-1 bg-amber-900/30 text-amber-400 rounded-full font-medium border border-amber-800/30">
                                                     미구매
                                                 </span>
                                             )}
@@ -330,8 +427,8 @@ export const SkillTreeTab: React.FC = () => {
             <div className="space-y-6">
                 {/* Skills without subcategory */}
                 {skillsWithoutSubcategory.length > 0 && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <h3 className="font-semibold text-slate-900 mb-4">
+                    <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+                        <h3 className="font-semibold text-white mb-4">
                             {selectedCategory} 강좌 ({skillsWithoutSubcategory.length})
                         </h3>
                         <div className="space-y-2">
@@ -349,9 +446,9 @@ export const SkillTreeTab: React.FC = () => {
 
                 {/* Subcategories with skills */}
                 {skillsBySubcategory.map(({ subcategory, skills: subcatSkills }) => (
-                    <div key={subcategory.id} className="bg-white rounded-xl border border-slate-200 p-6">
+                    <div key={subcategory.id} className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-slate-900">
+                            <h3 className="font-semibold text-white">
                                 📁 {subcategory.name} ({subcatSkills.length})
                             </h3>
                             <button
@@ -363,7 +460,7 @@ export const SkillTreeTab: React.FC = () => {
                             </button>
                         </div>
                         {subcatSkills.length === 0 ? (
-                            <p className="text-slate-500 text-center py-4 text-sm">
+                            <p className="text-slate-400 text-center py-4 text-sm">
                                 아직 등록된 강좌가 없습니다.
                             </p>
                         ) : (
@@ -383,8 +480,8 @@ export const SkillTreeTab: React.FC = () => {
 
                 {/* Empty state */}
                 {categorySkills.length === 0 && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                        <p className="text-slate-500 mb-4">
+                    <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-12 text-center">
+                        <p className="text-slate-300 mb-4">
                             아직 등록된 강좌가 없습니다.
                         </p>
                         <p className="text-sm text-slate-400">
@@ -393,6 +490,107 @@ export const SkillTreeTab: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Mastery Celebration Modal */}
+            {showMasteryModal && masteryData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl border border-slate-200 p-8 max-w-md w-full text-center relative overflow-hidden">
+                        {/* Background effects */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-100 via-transparent to-yellow-100 opacity-50" />
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-green-400/30 blur-[100px] rounded-full" />
+
+                        {/* Confetti effect */}
+                        <div className="absolute inset-0 pointer-events-none">
+                            {[...Array(20)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-confetti"
+                                    style={{
+                                        left: `${Math.random() * 100}%`,
+                                        top: '-10px',
+                                        animationDelay: `${Math.random() * 0.5}s`,
+                                        animationDuration: `${1 + Math.random()}s`
+                                    }}
+                                />
+                            ))}
+                        </div>
+
+                        <div className="relative z-10">
+                            {/* Trophy Icon */}
+                            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow shadow-lg">
+                                <Trophy className="w-12 h-12 text-white" />
+                            </div>
+
+                            {/* Title */}
+                            <h2 className="text-3xl font-black text-slate-900 mb-2">
+                                마스터 완료! 🎉
+                            </h2>
+                            <p className="text-slate-600 mb-6">
+                                {masteryData.courseTitle}
+                            </p>
+
+                            {/* XP Earned */}
+                            <div className="bg-gradient-to-r from-yellow-100 to-yellow-200 rounded-xl p-4 mb-6">
+                                <div className="text-sm text-yellow-800 mb-1">획득 XP</div>
+                                <div className="text-4xl font-black text-yellow-900">
+                                    +{masteryData.xpEarned} XP
+                                </div>
+                            </div>
+
+                            {/* Level Up */}
+                            {masteryData.leveledUp && masteryData.newLevel && (
+                                <div className="bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl p-4 mb-6 animate-pulse">
+                                    <div className="text-sm text-purple-800 mb-1">레벨 업!</div>
+                                    <div className="text-3xl font-black text-purple-900">
+                                        Lv.{masteryData.newLevel}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => {
+                                    setShowMasteryModal(false);
+                                    setMasteryData(null);
+                                }}
+                                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold"
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes confetti {
+                    0% {
+                        transform: translateY(0) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(100vh) rotate(720deg);
+                        opacity: 0;
+                    }
+                }
+                
+                @keyframes bounce-slow {
+                    0%, 100% {
+                        transform: translateY(0);
+                    }
+                    50% {
+                        transform: translateY(-20px);
+                    }
+                }
+                
+                .animate-confetti {
+                    animation: confetti linear forwards;
+                }
+                
+                .animate-bounce-slow {
+                    animation: bounce-slow 2s ease-in-out infinite;
+                }
+            `}</style>
         </div>
     );
 };
@@ -406,21 +604,21 @@ const SkillCard: React.FC<{
     return (
         <div
             className={`p-4 rounded-lg border-2 transition-all ${skill.status === 'mastered'
-                ? 'bg-green-50 border-green-500'
-                : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                ? 'bg-green-900/20 border-green-700'
+                : 'bg-slate-700/30 border-slate-600 hover:border-slate-500'
                 }`}
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1">
                     <Link
                         to={`/courses/${skill.courseId}`}
-                        className={`font-medium hover:underline block ${skill.status === 'mastered' ? 'text-green-900' : 'text-slate-900'
+                        className={`font-medium hover:underline block ${skill.status === 'mastered' ? 'text-green-400' : 'text-white'
                             }`}
                     >
                         {skill.courseTitle || '강좌'}
                     </Link>
                     {skill.creatorName && (
-                        <p className="text-xs text-slate-500 mt-1">{skill.creatorName}</p>
+                        <p className="text-xs text-slate-400 mt-1">{skill.creatorName}</p>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -428,14 +626,14 @@ const SkillCard: React.FC<{
                         onClick={() => onToggleStatus(skill)}
                         className={`text-xs px-3 py-1 rounded-full font-semibold whitespace-nowrap ${skill.status === 'mastered'
                             ? 'bg-green-600 text-white'
-                            : 'bg-yellow-100 text-yellow-800'
+                            : 'bg-yellow-900/30 text-yellow-400 border border-yellow-800/30'
                             }`}
                     >
                         {skill.status === 'mastered' ? '✓ 마스터' : '수련 중'}
                     </button>
                     <button
                         onClick={() => onRemove(skill.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
                         title="제거"
                     >
                         <X className="w-4 h-4" />
