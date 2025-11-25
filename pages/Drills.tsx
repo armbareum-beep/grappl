@@ -14,6 +14,7 @@ export const Drills: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
     const [filter, setFilter] = useState('All');
+    const [sidebarOpen, setSidebarOpen] = useState(true);
 
     useEffect(() => {
         loadData();
@@ -50,7 +51,6 @@ export const Drills: React.FC = () => {
             } else {
                 alert('구매가 완료되었습니다!');
                 setPurchasedRoutineIds([...purchasedRoutineIds, routine.id]);
-                // Refresh data to ensure sync
                 loadData();
             }
             setPurchaseLoading(false);
@@ -62,18 +62,47 @@ export const Drills: React.FC = () => {
         return routine.difficulty === filter || routine.category === filter;
     });
 
+    const filterOptions = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Guard', 'Pass', 'Submission'];
+
     return (
-        <div className="min-h-screen bg-slate-50 pb-20">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex min-h-screen bg-slate-50">
+            {/* Sidebar */}
+            <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r border-slate-200 transition-all duration-300 overflow-hidden flex-shrink-0 fixed h-[calc(100vh-64px)] top-16 z-20 hidden md:block`}>
+                <div className="p-4 space-y-6 overflow-y-auto h-full">
+                    <div>
+                        <h3 className="font-semibold text-slate-900 mb-3 px-2">필터</h3>
+                        <div className="space-y-1">
+                            {filterOptions.map((tag) => (
+                                <button
+                                    key={tag}
+                                    onClick={() => setFilter(tag)}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${filter === tag
+                                            ? 'bg-slate-100 font-medium text-slate-900'
+                                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                        }`}
+                                >
+                                    {tag === 'All' ? '전체' :
+                                        tag === 'Beginner' ? '초급' :
+                                            tag === 'Intermediate' ? '중급' :
+                                                tag === 'Advanced' ? '상급' : tag}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : ''}`}>
+                <div className="p-6">
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                         <div>
-                            <h1 className="text-4xl font-black text-slate-900 mb-2 flex items-center gap-3">
-                                <Dumbbell className="w-10 h-10 text-blue-600" />
+                            <h1 className="text-3xl font-black text-slate-900 mb-2 flex items-center gap-3">
+                                <Dumbbell className="w-8 h-8 text-blue-600" />
                                 드릴 & 루틴
                             </h1>
-                            <p className="text-xl text-slate-600">
+                            <p className="text-slate-600">
                                 체계적인 드릴 루틴으로 실력을 향상시키세요.
                             </p>
                         </div>
@@ -87,22 +116,26 @@ export const Drills: React.FC = () => {
                                     className="pl-10 pr-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                                 />
                             </div>
-                            <Button variant="outline" className="rounded-full">
+                            <Button
+                                variant="outline"
+                                className="rounded-full hidden md:flex"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                            >
                                 <Filter className="w-5 h-5 mr-2" />
-                                필터
+                                {sidebarOpen ? '필터 숨기기' : '필터'}
                             </Button>
                         </div>
                     </div>
 
-                    {/* Filter Tags */}
-                    <div className="flex items-center gap-2 mt-8 overflow-x-auto pb-2 scrollbar-hide">
-                        {['All', 'Beginner', 'Intermediate', 'Advanced', 'Guard', 'Pass', 'Submission'].map(tag => (
+                    {/* Mobile Filter Tags */}
+                    <div className="md:hidden flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                        {filterOptions.map(tag => (
                             <button
                                 key={tag}
                                 onClick={() => setFilter(tag)}
                                 className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filter === tag
-                                        ? 'bg-slate-900 text-white'
-                                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                                     }`}
                             >
                                 {tag === 'All' ? '전체' :
@@ -112,29 +145,27 @@ export const Drills: React.FC = () => {
                             </button>
                         ))}
                     </div>
-                </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {loading ? (
-                    <div className="text-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                        <p className="text-slate-500">루틴을 불러오는 중...</p>
-                    </div>
-                ) : routines.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
-                        <Dumbbell className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">등록된 루틴이 없습니다</h3>
-                        <p className="text-slate-500">곧 새로운 루틴이 업데이트될 예정입니다.</p>
-                    </div>
-                ) : (
-                    <DrillRoutineGrid
-                        routines={filteredRoutines}
-                        onRoutineClick={setSelectedRoutine}
-                        purchasedRoutineIds={purchasedRoutineIds}
-                    />
-                )}
+                    {/* Grid */}
+                    {loading ? (
+                        <div className="text-center py-20">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                            <p className="text-slate-500">루틴을 불러오는 중...</p>
+                        </div>
+                    ) : routines.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
+                            <Dumbbell className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">등록된 루틴이 없습니다</h3>
+                            <p className="text-slate-500">곧 새로운 루틴이 업데이트될 예정입니다.</p>
+                        </div>
+                    ) : (
+                        <DrillRoutineGrid
+                            routines={filteredRoutines}
+                            onRoutineClick={setSelectedRoutine}
+                            purchasedRoutineIds={purchasedRoutineIds}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Detail Modal */}

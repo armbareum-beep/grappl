@@ -290,6 +290,9 @@ export interface DrillRoutine {
   drillCount?: number;
   drills?: Drill[];
   createdAt: string;
+  difficulty?: Difficulty;
+  category?: VideoCategory;
+  totalDurationMinutes?: number;
 }
 
 export interface DrillRoutineItem {
@@ -300,3 +303,12 @@ export interface DrillRoutineItem {
   createdAt: string;
 }
 
+export interface Title {
+  id: string;
+  name: string;
+  description: string;
+  iconUrl: string;
+  conditionType: string;
+  conditionValue: number;
+  createdAt: string;
+}

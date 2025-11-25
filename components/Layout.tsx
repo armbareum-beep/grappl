@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap } from 'lucide-react';
+import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -19,8 +19,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '홈', href: '/', icon: Video },
     { name: '둘러보기', href: '/browse', icon: BookOpen },
     { name: '드릴 & 루틴', href: '/drills', icon: Zap },
-    { name: '요금제', href: '/pricing', icon: DollarSign },
     { name: '수련 일지', href: '/journal', icon: BookOpen },
+    { name: '아레나', href: '/arena', icon: Trophy },
   ];
 
   const isActive = (path: string) => location.pathname === path;
