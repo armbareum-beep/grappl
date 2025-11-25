@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy } from 'lucide-react';
+import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -16,25 +16,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, signOut, isCreator, isAdmin } = useAuth();
 
   const navigation = [
-    { name: '홈', href: '/', icon: Video },
-    { name: '둘러보기', href: '/browse', icon: BookOpen },
+    { name: '클래스', href: '/browse', icon: BookOpen },
     { name: '드릴 & 루틴', href: '/drills', icon: Zap },
-    { name: '수련 일지', href: '/journal', icon: BookOpen },
+    { name: '피드', href: '/journal', icon: Users },
     { name: '아레나', href: '/arena', icon: Trophy },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-950">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200">
+      <nav className="bg-slate-900 shadow-lg sticky top-0 z-50 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
               <img src="/logo.png" alt="Grapplay" className="w-10 h-10 object-contain" />
-              <span className="text-2xl font-black text-slate-900">Grapplay</span>
+              <span className="text-2xl font-black text-white">Grapplay</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -46,8 +45,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     key={item.name}
                     to={item.href}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${isActive(item.href)
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -63,7 +62,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {user && isAdmin && (
                 <>
                   <Link to="/admin/dashboard">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-purple-600 text-purple-600 hover:bg-purple-50">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-purple-500 text-purple-400 hover:bg-purple-900/30">
                       <Settings className="w-4 h-4" />
                       <span>관리자 관리</span>
                     </Button>
@@ -91,14 +90,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                   >
                     <User className="w-4 h-4" />
                     <span className="font-medium">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-1 z-50">
                       <Link
                         to="/library"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -124,7 +123,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           signOut();
                           setUserMenuOpen(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30"
                       >
                         <div className="flex items-center space-x-2">
                           <LogOut className="w-4 h-4" />
@@ -155,7 +154,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white">
+          <div className="md:hidden border-t border-slate-800 bg-slate-900">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
@@ -164,8 +163,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     key={item.name}
                     to={item.href}
                     className={`block px-3 py-2 rounded-md text-base font-medium flex items-center space-x-2 ${isActive(item.href)
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                       }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -244,30 +243,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-auto">
+      <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
                 <img src="/logo.png" alt="Grapplay" className="w-8 h-8 object-contain" />
-                <span className="text-xl font-black text-slate-900">Grapplay</span>
+                <span className="text-xl font-black text-white">Grapplay</span>
               </div>
-              <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
+              <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
                 세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.
                 언제 어디서나 당신의 실력을 향상시키세요.
               </p>
             </div>
             <div>
-              <h4 className="font-bold text-slate-900 mb-4">서비스</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
+              <h4 className="font-bold text-white mb-4">서비스</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
                 <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
                 <li><Link to="/creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold text-slate-900 mb-4">고객지원</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
+              <h4 className="font-bold text-white mb-4">고객지원</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li><a href="#" className="hover:text-blue-600 transition-colors">자주 묻는 질문</a></li>
                 <li><a href="#" className="hover:text-blue-600 transition-colors">문의하기</a></li>
                 <li><a href="#" className="hover:text-blue-600 transition-colors">이용약관</a></li>
@@ -275,8 +274,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-100 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-slate-400">
+          <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-slate-500">
               © 2024 Grapplay. All rights reserved.
             </p>
             <div className="flex space-x-6">
