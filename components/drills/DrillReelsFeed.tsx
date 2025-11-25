@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, MoreVertical, Grid, X, Play, Pause } from 'lucide-react';
+import { Heart, Bookmark, Share2, MoreVertical, Grid, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface DrillReelsFeedProps {
@@ -81,6 +81,33 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [currentIndex]);
 
+    // Mouse wheel navigation
+    useEffect(() => {
+        let wheelTimeout: NodeJS.Timeout;
+
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+
+            // Debounce wheel events to prevent too many triggers
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(() => {
+                if (e.deltaY > 0) {
+                    // Scrolling down → next drill
+                    goToNext();
+                } else if (e.deltaY < 0) {
+                    // Scrolling up → previous drill
+                    goToPrevious();
+                }
+            }, 100);
+        };
+
+        window.addEventListener('wheel', handleWheel, { passive: false });
+        return () => {
+            window.removeEventListener('wheel', handleWheel);
+            clearTimeout(wheelTimeout);
+        };
+    }, [currentIndex]);
+
     const goToNext = () => {
         if (currentIndex < drills.length - 1) {
             setCurrentIndex(currentIndex + 1);
@@ -103,6 +130,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
     const handleTouchStart = (e: React.TouchEvent) => {
         setTouchStart(e.targetTouches[0].clientY);
+        setTouchEnd(e.targetTouches[0].clientY);
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
@@ -113,8 +141,11 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         if (!touchStart || !touchEnd) return;
 
         const distance = touchStart - touchEnd;
-        const isSwipeUp = distance > 50;
-        const isSwipeDown = distance < -50;
+        const minSwipeDistance = 30;
+        const isSwipeUp = distance > minSwipeDistance;
+        const isSwipeDown = distance < -minSwipeDistance;
+
+        console.log('Swipe:', { distance, isSwipeUp, isSwipeDown, currentIndex });
 
         if (isSwipeUp) {
             goToNext();
@@ -152,7 +183,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             newSaved.delete(currentDrill.id);
         } else {
             newSaved.add(currentDrill.id);
-            // TODO: Add to Training Routines in Arena
             alert('드릴이 아레나 > 수련일지에 저장되었습니다!');
         }
         setSaved(newSaved);
@@ -170,7 +200,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 console.log('Share error:', err);
             }
         } else {
-            // Fallback: copy to clipboard
             navigator.clipboard.writeText(window.location.href);
             alert('링크가 복사되었습니다!');
         }
@@ -187,7 +216,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     return (
         <div
             ref={containerRef}
-            className="relative h-screen w-screen bg-black overflow-hidden"
+            className="relative h-screen w-screen bg-black overflow-hidden select-none"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -211,31 +240,33 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </button>
             </div>
 
-            {/* Video */}
-            <div className="absolute inset-0 flex items-center justify-center">
-                <video
-                    ref={videoRef}
-                    className="h-full w-full object-cover"
-                    loop
-                    playsInline
-                    muted={false}
-                    onClick={togglePlayPause}
-                    src={currentDrill.videoUrl || '/placeholder-drill.mp4'}
-                />
+            {/* Video Container - 9:16 aspect ratio */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <div className="relative w-full h-full max-w-[56.25vh]">
+                    <video
+                        ref={videoRef}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loop
+                        playsInline
+                        muted={false}
+                        onClick={togglePlayPause}
+                        src={currentDrill.videoUrl || '/placeholder-drill.mp4'}
+                    />
 
-                {/* Play/Pause Overlay */}
-                {!isPlaying && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
-                            <Play className="w-10 h-10 text-black ml-1" />
+                    {/* Play/Pause Overlay */}
+                    {!isPlaying && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                            <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
+                                <Play className="w-10 h-10 text-black ml-1" />
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Bottom Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30">
-                <div className="flex items-end justify-between">
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                     {/* Left: Info */}
                     <div className="flex-1 pr-4">
                         <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
@@ -248,7 +279,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         {/* Tags */}
                         {currentDrill.tags && currentDrill.tags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-3">
-                                {currentDrill.tags.slice(0, 3).map((tag, idx) => (
+                                {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
                                     <span key={idx} className="text-white/90 text-sm">
                                         #{tag}
                                     </span>
@@ -318,25 +349,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </div>
             </div>
 
-            {/* Swipe Indicators */}
-            {currentIndex > 0 && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                    <div className="text-white/50 text-sm animate-bounce">
-                        ↑ 이전 드릴
-                    </div>
-                </div>
-            )}
-            {currentIndex < drills.length - 1 && (
-                <div className="absolute bottom-32 left-1/2 -translate-x-1/2 pointer-events-none">
-                    <div className="text-white/50 text-sm animate-bounce">
-                        ↓ 다음 드릴
-                    </div>
-                </div>
-            )}
-
             {/* Drill Counter */}
             <div className="absolute top-20 right-4 text-white/60 text-xs z-40">
                 {currentIndex + 1} / {drills.length}
+            </div>
+
+            {/* Debug Info */}
+            <div className="absolute top-24 left-4 text-white/60 text-xs z-40 bg-black/50 p-2 rounded">
+                Swipe, Wheel, or Arrow keys to navigate
             </div>
         </div>
     );

@@ -95,12 +95,17 @@ export interface TrainingLog {
   notes: string;
   isPublic: boolean;
   location?: string;
-  youtubeUrl?: string;
+  youtubeUrl?: string; // Legacy support
+  mediaUrl?: string; // New: Direct video/image upload
+  mediaType?: 'video' | 'image';
+  likes?: number;
+  comments?: number;
   createdAt: string;
   user?: {
     name: string;
     email: string;
     belt?: string;
+    profileImage?: string;
   };
 }
 
