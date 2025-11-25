@@ -17,8 +17,6 @@ import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from 
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BeltUpModal } from '../BeltUpModal';
-import { BeltProgressBar } from '../BeltProgressBar';
-import { DailyQuestsPanel } from '../DailyQuestsPanel';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
@@ -177,20 +175,6 @@ export const SkillTreeTab: React.FC = () => {
             <div className="mb-8">
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">스킬 로드맵</h2>
                 <p className="text-slate-600 mb-6">구매한 강좌를 챕터별로 정리하고 학습 진행 상황을 추적하세요</p>
-
-                {user && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                        <div className="lg:col-span-2">
-                            <div className="bg-white rounded-xl border border-slate-200 p-6">
-                                <h3 className="font-bold text-lg text-slate-900 mb-4">내 레벨</h3>
-                                <BeltProgressBar userId={user.id} />
-                            </div>
-                        </div>
-                        <div>
-                            <DailyQuestsPanel userId={user.id} />
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Category Selector */}
