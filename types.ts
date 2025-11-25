@@ -270,9 +270,13 @@ export interface Drill {
   category: VideoCategory;
   difficulty: Difficulty;
   thumbnailUrl: string;
+  videoUrl?: string; // Direct video URL for Reels
   vimeoUrl?: string;
   aspectRatio: '9:16'; // 세로 영상
   duration: string; // 예: "2:30"
+  length?: string; // Alternative format
+  tags?: string[]; // For hashtags
+  likes?: number;
   price: number;
   views: number;
   createdAt: string;
