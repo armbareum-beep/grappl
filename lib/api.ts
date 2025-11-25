@@ -2596,7 +2596,7 @@ export async function getLoginStreak(userId: string) {
 export async function getDrills(creatorId?: string) {
     let query = supabase
         .from('drills')
-        .select('*')
+        .select('*, creator:creators(name)')
         .order('created_at', { ascending: false });
 
     if (creatorId) {
@@ -2610,7 +2610,7 @@ export async function getDrills(creatorId?: string) {
         return { data: null, error };
     }
 
-    return { data: data as Drill[], error: null };
+    return { data: data?.map(transformDrill) || [], error: null };
 }
 
 export async function createDrill(drillData: Partial<Drill>) {
@@ -2879,13 +2879,18 @@ function transformDrill(data: any): Drill {
         title: data.title,
         description: data.description,
         creatorId: data.creator_id,
+        creatorName: data.creator?.name || data.creator_name,
         category: data.category,
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
+        videoUrl: data.video_url,
         vimeoUrl: data.vimeo_url,
         aspectRatio: '9:16',
         views: data.views || 0,
-        duration: data.duration_minutes || data.duration || 0,
+        duration: data.duration_minutes || data.duration || '0:30',
+        length: data.length || data.duration,
+        tags: data.tags || [],
+        likes: data.likes || 0,
         price: data.price || 0,
         createdAt: data.created_at,
     };
