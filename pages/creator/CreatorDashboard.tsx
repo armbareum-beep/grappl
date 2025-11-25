@@ -111,9 +111,17 @@ export const CreatorDashboard: React.FC = () => {
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold text-slate-900">내 강좌</h2>
-                                <Link to="/creator/courses/new">
-                                    <Button>새 강좌 만들기</Button>
-                                </Link>
+                                <div className="flex gap-3">
+                                    <Link to="/creator/drills/new">
+                                        <Button variant="outline">드릴 만들기</Button>
+                                    </Link>
+                                    <Link to="/creator/create-routine">
+                                        <Button>루틴 만들기</Button>
+                                    </Link>
+                                    <Link to="/creator/courses/new">
+                                        <Button>새 강좌 만들기</Button>
+                                    </Link>
+                                </div>
                             </div>
 
                             {courses.length === 0 ? (

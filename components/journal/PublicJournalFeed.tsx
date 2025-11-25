@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrainingLog } from '../../types';
 import { getPublicTrainingLogs } from '../../lib/api';
-import { Heart, MessageCircle, Repeat, Send, MoreHorizontal, User, PlayCircle } from 'lucide-react';
+import { Heart, MessageCircle, Repeat, Send, MoreHorizontal, User, PlayCircle, Clock, Swords, Share2 } from 'lucide-react';
 
 interface PublicJournalFeedProps {
     onLogClick: (log: TrainingLog) => void;
@@ -22,7 +22,8 @@ export const PublicJournalFeed: React.FC<PublicJournalFeedProps> = ({ onLogClick
         setLoading(true);
         const { data, count } = await getPublicTrainingLogs(page, ITEMS_PER_PAGE);
         if (data) {
-            setLogs(data);
+            // For infinite scroll, append new logs if page > 1, else replace
+            setLogs(prevLogs => page === 1 ? data : [...prevLogs, ...data]);
             if (count) {
                 setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
             }
@@ -39,85 +40,83 @@ export const PublicJournalFeed: React.FC<PublicJournalFeedProps> = ({ onLogClick
     }
 
     return (
-        <div className="max-w-xl mx-auto divide-y divide-slate-100">
+        <div className="space-y-6">
             {logs.map((log) => (
-                <div key={log.id} className="py-4 px-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onLogClick(log)}>
-                    <div className="flex gap-3">
-                        {/* Avatar Column */}
-                        <div className="flex flex-col items-center">
-                            <div className="w-9 h-9 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                <User className="w-5 h-5 text-slate-500" />
+                <div key={log.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer" onClick={() => onLogClick(log)}>
+                    <div className="p-5">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0 border border-slate-200">
+                                    <User className="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-slate-900 text-sm">{log.userName || 'Unknown User'}</div>
+                                    <div className="text-xs text-slate-500">{log.date}</div>
+                                </div>
                             </div>
-                            {/* Thread line connector could go here */}
+                            <button className="text-slate-400 hover:text-slate-600">
+                                <MoreHorizontal className="w-5 h-5" />
+                            </button>
                         </div>
 
-                        {/* Content Column */}
-                        <div className="flex-1 min-w-0">
-                            {/* Header */}
-                            <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-sm text-slate-900">{log.userName || 'Unknown User'}</span>
-                                    <span className="text-slate-400 text-sm">{log.date}</span>
-                                </div>
-                                <button className="text-slate-400 hover:text-slate-900">
-                                    <MoreHorizontal className="w-5 h-5" />
+                        {/* Content */}
+                        <div className="mb-4">
+                            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{log.notes}</p>
+                        </div>
+
+                        {/* Stats Row */}
+                        <div className="flex items-center gap-4 mb-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="w-4 h-4 text-blue-500" />
+                                <span className="font-medium">{log.durationMinutes}분</span>
+                            </div>
+                            <div className="w-px h-3 bg-slate-300"></div>
+                            <div className="flex items-center gap-1.5">
+                                <Swords className="w-4 h-4 text-red-500" />
+                                <span className="font-medium">{log.sparringRounds}라운드</span>
+                            </div>
+                        </div>
+
+                        {/* Techniques */}
+                        {log.techniques && log.techniques.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {log.techniques.map((tech, idx) => (
+                                    <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-md border border-slate-200">
+                                        #{tech}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Footer Actions */}
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                            <div className="flex items-center gap-6">
+                                <button className="flex items-center gap-1.5 text-slate-500 hover:text-red-500 transition-colors group">
+                                    <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-medium">좋아요</span>
+                                </button>
+                                <button className="flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors group">
+                                    <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-medium">댓글</span>
                                 </button>
                             </div>
-
-                            {/* Body */}
-                            <div className="text-[15px] text-slate-900 leading-relaxed mb-2 whitespace-pre-wrap">
-                                {log.notes}
-                            </div>
-
-                            {/* Media / Tags */}
-                            {(log.techniques?.length > 0 || log.youtubeUrl) && (
-                                <div className="mb-3">
-                                    {log.youtubeUrl && (
-                                        <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 mb-2 relative aspect-video flex items-center justify-center">
-                                            <PlayCircle className="w-10 h-10 text-slate-400" />
-                                        </div>
-                                    )}
-
-                                    {log.techniques?.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {log.techniques.map((tech, i) => (
-                                                <span key={i} className="text-blue-600 text-sm">#{tech}</span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Footer / Actions */}
-                            <div className="flex items-center gap-6 mt-2">
-                                <button className="group flex items-center gap-1.5 text-slate-500 hover:text-red-500 transition-colors">
-                                    <Heart className="w-5 h-5" />
-                                    {/* <span className="text-xs">12</span> */}
-                                </button>
-                                <button className="group flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors">
-                                    <MessageCircle className="w-5 h-5" />
-                                    {/* <span className="text-xs">3</span> */}
-                                </button>
-                                <button className="group flex items-center gap-1.5 text-slate-500 hover:text-green-500 transition-colors">
-                                    <Repeat className="w-5 h-5" />
-                                </button>
-                                <button className="group flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors">
-                                    <Send className="w-5 h-5" />
-                                </button>
-                            </div>
+                            <button className="text-slate-400 hover:text-slate-600">
+                                <Share2 className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
                 </div>
             ))}
 
-            {/* Load More Trigger */}
             {currentPage < totalPages && (
-                <div className="py-6 text-center">
+                <div className="text-center pt-4">
                     <button
                         onClick={() => setCurrentPage(p => p + 1)}
-                        className="text-sm text-blue-600 font-medium hover:underline"
+                        disabled={loading}
+                        className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-full text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
                     >
-                        더 보기
+                        {loading ? '로딩 중...' : '더 보기'}
                     </button>
                 </div>
             )}
