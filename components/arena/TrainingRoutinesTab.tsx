@@ -78,7 +78,29 @@ export const TrainingRoutinesTab: React.FC = () => {
         // 4. Update Quests
         await updateQuestProgress(user.id, 'write_log');
 
-        // 5. Show Success State
+        // 5. Ask if user wants to share to feed
+        const shareToFeed = confirm(`루틴 완료! (+${xpEarned} XP)\\n\\n피드에 공유하시겠습니까?`);
+
+        if (shareToFeed) {
+            const { createFeedPost } = await import('../../lib/api');
+            const feedContent = `💪 훈련 루틴 완료!\\n\\n${activeRoutine.title}\\n소요 시간: ${durationMinutes}분\\n획득 XP: +${xpEarned}\\n\\n${activeRoutine.items && activeRoutine.items.length > 0 ? `완료한 드릴: ${activeRoutine.items.slice(0, 3).map(item => item.title).join(', ')}${activeRoutine.items.length > 3 ? ` 외 ${activeRoutine.items.length - 3}개` : ''}` : ''}`;
+
+            await createFeedPost({
+                userId: user.id,
+                content: feedContent,
+                type: 'routine',
+                metadata: {
+                    routineTitle: activeRoutine.title,
+                    durationMinutes,
+                    xpEarned,
+                    drillCount: activeRoutine.items?.length || 0
+                }
+            });
+
+            alert('피드에 공유되었습니다!');
+        }
+
+        // 6. Show Success State
         setCompletedRoutineData({ duration: durationMinutes, xp: xpEarned });
         setActiveRoutine(null);
     };

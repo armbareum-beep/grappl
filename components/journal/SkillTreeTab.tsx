@@ -547,16 +547,43 @@ export const SkillTreeTab: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Close Button */}
-                            <button
-                                onClick={() => {
-                                    setShowMasteryModal(false);
-                                    setMasteryData(null);
-                                }}
-                                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold"
-                            >
-                                확인
-                            </button>
+                            {/* Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={async () => {
+                                        const { createFeedPost } = await import('../../lib/api');
+                                        const feedContent = `🎉 강좌 마스터 완료!\\n\\n${masteryData.courseTitle}\\n\\n획득 XP: +${masteryData.xpEarned}${masteryData.leveledUp ? `\\n레벨 업! Lv.${masteryData.newLevel}` : ''}`;
+
+                                        await createFeedPost({
+                                            userId: user!.id,
+                                            content: feedContent,
+                                            type: 'mastery',
+                                            metadata: {
+                                                courseTitle: masteryData.courseTitle,
+                                                xpEarned: masteryData.xpEarned,
+                                                leveledUp: masteryData.leveledUp,
+                                                newLevel: masteryData.newLevel
+                                            }
+                                        });
+
+                                        setShowMasteryModal(false);
+                                        setMasteryData(null);
+                                        alert('피드에 공유되었습니다!');
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold"
+                                >
+                                    피드에 공유
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowMasteryModal(false);
+                                        setMasteryData(null);
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold"
+                                >
+                                    확인
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
