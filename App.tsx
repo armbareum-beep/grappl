@@ -34,13 +34,34 @@ import { DrillDetail } from './pages/DrillDetail';
 import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
 import { Arena } from './pages/Arena';
 
+import { LandingPage } from './pages/LandingPage';
+import { useAuth } from './contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
+
+const RootRedirect: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+    </div>;
+  }
+
+  if (user) {
+    return <Navigate to="/browse" replace />;
+  }
+
+  return <LandingPage />;
+};
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/videos/:id" element={<VideoDetail />} />

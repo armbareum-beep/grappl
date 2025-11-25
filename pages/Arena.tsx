@@ -3,7 +3,6 @@ import { Trophy, Target } from 'lucide-react';
 import { TournamentTab } from '../components/journal/TournamentTab';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { MobileTabSelector } from '../components/MobileTabSelector';
-import { BeltProgressBar } from '../components/BeltProgressBar';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Arena: React.FC = () => {
@@ -20,20 +19,11 @@ export const Arena: React.FC = () => {
             {/* Header & Tabs */}
             <div className="bg-white border-b border-slate-200 relative z-30">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900 mb-2">아레나</h1>
-                            <p className="text-slate-600">
-                                당신의 실력을 증명하고 성장하세요.
-                            </p>
-                        </div>
-
-                        {/* Level Up System (Belt Progress) - Always Visible */}
-                        {user && (
-                            <div className="w-full md:w-1/3">
-                                <BeltProgressBar userId={user.id} />
-                            </div>
-                        )}
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-bold text-slate-900 mb-2">아레나</h1>
+                        <p className="text-slate-600">
+                            당신의 실력을 증명하고 성장하세요.
+                        </p>
                     </div>
 
                     <div className="flex items-center justify-between">
