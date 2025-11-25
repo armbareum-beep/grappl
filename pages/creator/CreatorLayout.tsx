@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, BarChart2, Settings, Upload } from 'lucide-react';
+import { LayoutDashboard, BookOpen, BarChart2, Settings, Upload, Layers } from 'lucide-react';
 
 export const CreatorLayout: React.FC = () => {
     const location = useLocation();
@@ -48,6 +48,16 @@ export const CreatorLayout: React.FC = () => {
                     >
                         <Upload className="w-5 h-5" />
                         드릴 업로드
+                    </Link>
+                    <Link
+                        to="/creator/create-routine"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/create-routine')
+                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                    >
+                        <Layers className="w-5 h-5" />
+                        루틴 만들기
                     </Link>
                     <Link
                         to="/creator/analytics"

@@ -1265,7 +1265,7 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
         return { error: new Error('하루에 하나의 수련 일지만 작성할 수 있습니다.') };
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('training_logs')
         .insert({
             user_id: log.userId,
@@ -1277,9 +1277,28 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
             is_public: log.isPublic,
             location: log.location,
             youtube_url: log.youtubeUrl
-        });
+        })
+        .select()
+        .single();
 
-    return { error };
+    if (error) return { data: null, error };
+
+    return {
+        data: {
+            id: data.id,
+            userId: data.user_id,
+            date: data.date,
+            durationMinutes: data.duration_minutes,
+            techniques: data.techniques,
+            sparringRounds: data.sparring_rounds,
+            notes: data.notes,
+            isPublic: data.is_public,
+            location: data.location,
+            youtubeUrl: data.youtube_url,
+            createdAt: data.created_at
+        } as TrainingLog,
+        error: null
+    };
 }
 
 /**
