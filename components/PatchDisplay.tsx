@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trophy, Flame, Target, BookOpen, Swords, Star, Award, Zap } from 'lucide-react';
 
-export interface Badge {
+export interface Patch {
     id: string;
     name: string;
     description: string;
@@ -11,33 +11,33 @@ export interface Badge {
     unlockedAt?: string;
 }
 
-interface BadgeDisplayProps {
-    badges: Badge[];
+interface PatchDisplayProps {
+    patches: Patch[];
     compact?: boolean;
 }
 
-export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({ badges, compact = false }) => {
-    const unlockedBadges = badges.filter(b => b.unlocked);
-    const lockedBadges = badges.filter(b => !b.unlocked);
+export const PatchDisplay: React.FC<PatchDisplayProps> = ({ patches, compact = false }) => {
+    const unlockedPatches = patches.filter(p => p.unlocked);
+    const lockedPatches = patches.filter(p => !p.unlocked);
 
     if (compact) {
         return (
             <div className="flex flex-wrap gap-2">
-                {unlockedBadges.slice(0, 5).map((badge) => {
-                    const Icon = badge.icon;
+                {unlockedPatches.slice(0, 5).map((patch) => {
+                    const Icon = patch.icon;
                     return (
                         <div
-                            key={badge.id}
-                            className={`w-10 h-10 rounded-full ${badge.color} flex items-center justify-center shadow-lg border-2 border-white/20`}
-                            title={badge.name}
+                            key={patch.id}
+                            className={`w-10 h-10 rounded-full ${patch.color} flex items-center justify-center shadow-lg border-2 border-white/20`}
+                            title={patch.name}
                         >
                             <Icon className="w-5 h-5 text-white" />
                         </div>
                     );
                 })}
-                {unlockedBadges.length > 5 && (
+                {unlockedPatches.length > 5 && (
                     <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">
-                        +{unlockedBadges.length - 5}
+                        +{unlockedPatches.length - 5}
                     </div>
                 )}
             </div>
@@ -47,28 +47,28 @@ export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({ badges, compact = fa
     return (
         <div className="space-y-6">
             {/* Unlocked Badges */}
-            {unlockedBadges.length > 0 && (
+            {unlockedPatches.length > 0 && (
                 <div>
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                         <Trophy className="w-5 h-5 text-yellow-400" />
-                        획득한 배지 ({unlockedBadges.length})
+                        획득한 패치 ({unlockedPatches.length})
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {unlockedBadges.map((badge) => {
-                            const Icon = badge.icon;
+                        {unlockedPatches.map((patch) => {
+                            const Icon = patch.icon;
                             return (
                                 <div
-                                    key={badge.id}
+                                    key={patch.id}
                                     className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-all group"
                                 >
-                                    <div className={`w-16 h-16 rounded-full ${badge.color} flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
+                                    <div className={`w-16 h-16 rounded-full ${patch.color} flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
                                         <Icon className="w-8 h-8 text-white" />
                                     </div>
-                                    <h4 className="text-sm font-bold text-white text-center mb-1">{badge.name}</h4>
-                                    <p className="text-xs text-slate-400 text-center line-clamp-2">{badge.description}</p>
-                                    {badge.unlockedAt && (
+                                    <h4 className="text-sm font-bold text-white text-center mb-1">{patch.name}</h4>
+                                    <p className="text-xs text-slate-400 text-center line-clamp-2">{patch.description}</p>
+                                    {patch.unlockedAt && (
                                         <p className="text-[10px] text-slate-500 text-center mt-2">
-                                            {new Date(badge.unlockedAt).toLocaleDateString()}
+                                            {new Date(patch.unlockedAt).toLocaleDateString()}
                                         </p>
                                     )}
                                 </div>
@@ -79,22 +79,22 @@ export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({ badges, compact = fa
             )}
 
             {/* Locked Badges */}
-            {lockedBadges.length > 0 && (
+            {lockedPatches.length > 0 && (
                 <div>
-                    <h3 className="text-lg font-bold text-slate-400 mb-4">잠긴 배지 ({lockedBadges.length})</h3>
+                    <h3 className="text-lg font-bold text-slate-400 mb-4">잠긴 패치 ({lockedPatches.length})</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {lockedBadges.map((badge) => {
-                            const Icon = badge.icon;
+                        {lockedPatches.map((patch) => {
+                            const Icon = patch.icon;
                             return (
                                 <div
-                                    key={badge.id}
+                                    key={patch.id}
                                     className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-50"
                                 >
                                     <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center mx-auto mb-3">
                                         <Icon className="w-8 h-8 text-slate-500" />
                                     </div>
-                                    <h4 className="text-sm font-bold text-slate-500 text-center mb-1">{badge.name}</h4>
-                                    <p className="text-xs text-slate-600 text-center line-clamp-2">{badge.description}</p>
+                                    <h4 className="text-sm font-bold text-slate-500 text-center mb-1">{patch.name}</h4>
+                                    <p className="text-xs text-slate-600 text-center line-clamp-2">{patch.description}</p>
                                 </div>
                             );
                         })}
@@ -105,15 +105,15 @@ export const BadgeDisplay: React.FC<BadgeDisplayProps> = ({ badges, compact = fa
     );
 };
 
-// Helper function to check badge unlocks
-export const checkBadgeUnlocks = (userStats: {
+// Helper function to check patch unlocks
+export const checkPatchUnlocks = (userStats: {
     streak: number;
     totalSkills: number;
     masteredSkills: number;
     tournamentWins: number;
     trainingLogs: number;
     level: number;
-}): Badge[] => {
+}): Patch[] => {
     const now = new Date().toISOString();
 
     return [
