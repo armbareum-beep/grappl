@@ -4,18 +4,28 @@ import { getDrills } from '../lib/api';
 import { Drill } from '../types';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { Grid, PlaySquare } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 export const Drills: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
     const [routines, setRoutines] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'drills' | 'routines'>('drills');
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'reels' | 'grid'>('reels');
+    const [viewMode, setViewMode] = useState<'reels' | 'grid'>('grid'); // Default to grid for search
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
 
     useEffect(() => {
+        // If there's a search param, switch to grid view and drills tab
+        const search = searchParams.get('search');
+        if (search) {
+            setSearchQuery(search);
+            setActiveTab('drills');
+            setViewMode('grid');
+        }
         loadContent();
-    }, [activeTab]);
+    }, [activeTab, searchParams]);
 
     const loadContent = async () => {
         setLoading(true);
