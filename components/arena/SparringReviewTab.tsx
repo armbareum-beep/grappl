@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../Button';
 import { Plus, User, Lock, Clock, Target, TrendingUp } from 'lucide-react';
+import { AICoachWidget } from '../journal/AICoachWidget';
+import { TrainingLog } from '../../types';
 
 interface SparringReview {
     id: string;
@@ -45,6 +47,19 @@ export const SparringReviewTab: React.FC = () => {
             setReviews([]);
         }
     }, [user]);
+
+    // Convert SparringReview[] to TrainingLog[] for AI analysis
+    const trainingLogsForAI: TrainingLog[] = reviews.map(review => ({
+        id: review.id,
+        userId: review.userId,
+        date: review.date,
+        durationMinutes: review.rounds * 5,
+        type: 'gi', // Default assumption
+        notes: `${review.notes} ${review.whatWorked} ${review.whatToImprove}`, // Combine notes for better analysis
+        techniques: review.techniques,
+        sparringRounds: review.rounds,
+        createdAt: review.createdAt
+    }));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,6 +164,9 @@ export const SparringReviewTab: React.FC = () => {
                     복기 작성
                 </Button>
             </div>
+
+            {/* AI Coach Widget */}
+            <AICoachWidget logs={trainingLogsForAI} />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-4">

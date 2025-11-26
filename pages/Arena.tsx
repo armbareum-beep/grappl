@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Trophy, Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
-import { TournamentTab } from '../components/journal/TournamentTab';
+import { TournamentHomeTab } from '../components/arena/TournamentHomeTab';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
@@ -12,7 +12,7 @@ type ArenaTab = 'journal' | 'routines' | 'skills' | 'sparring' | 'tournament';
 
 export const Arena: React.FC = () => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<ArenaTab>('journal');
+    const [activeTab, setActiveTab] = useState<ArenaTab>('tournament');
 
     const ARENA_TABS = [
         { id: 'journal', label: '수련일지', icon: BookOpen },
@@ -44,8 +44,8 @@ export const Arena: React.FC = () => {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as ArenaTab)}
                                         className={`pb-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${activeTab === tab.id
-                                                ? 'text-blue-500 border-b-2 border-blue-500'
-                                                : 'text-slate-400 hover:text-slate-200'
+                                            ? 'text-blue-500 border-b-2 border-blue-500'
+                                            : 'text-slate-400 hover:text-slate-200'
                                             }`}
                                     >
                                         <Icon className="w-4 h-4" />
@@ -71,7 +71,7 @@ export const Arena: React.FC = () => {
                 {activeTab === 'routines' && <TrainingRoutinesTab />}
                 {activeTab === 'skills' && <SkillTreeTab />}
                 {activeTab === 'sparring' && <SparringReviewTab />}
-                {activeTab === 'tournament' && <TournamentTab />}
+                {activeTab === 'tournament' && <TournamentHomeTab />}
             </div>
         </div>
     );
