@@ -4,7 +4,8 @@ import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillP
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ArrowLeft, ThumbsUp, MessageSquare, Share2, MoreHorizontal } from 'lucide-react';
+import { PlayCircle, Clock, Eye, ArrowLeft, ThumbsUp, MessageSquare, Share2, MoreHorizontal, CheckCircle } from 'lucide-react';
+import { QuestCompleteModal } from '../components/QuestCompleteModal';
 
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -15,6 +16,7 @@ export const DrillDetail: React.FC = () => {
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [showQuestComplete, setShowQuestComplete] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -72,6 +74,11 @@ export const DrillDetail: React.FC = () => {
         navigate(`/payment/drill/${drill.id}?price=${finalPrice}`);
     };
 
+    const handleComplete = () => {
+        setShowQuestComplete(true);
+        // TODO: Save completion to database and award XP
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -121,6 +128,20 @@ export const DrillDetail: React.FC = () => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Completion Button */}
+                        {owns && (
+                            <div className="bg-slate-100 rounded-xl p-4">
+                                <Button
+                                    onClick={handleComplete}
+                                    className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500"
+                                    size="lg"
+                                >
+                                    <CheckCircle className="w-5 h-5 mr-2" />
+                                    드릴 완료하기
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Video Info */}
                         <div>
@@ -238,6 +259,15 @@ export const DrillDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Quest Complete Modal */}
+            <QuestCompleteModal
+                isOpen={showQuestComplete}
+                onClose={() => setShowQuestComplete(false)}
+                questName={drill?.title || '드릴'}
+                xpEarned={10}
+                streak={3}
+            />
         </div>
     );
 };

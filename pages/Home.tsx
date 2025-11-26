@@ -12,6 +12,7 @@ import {
   getCourses, getDrills, getPublicTrainingLogs
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
+import { checkBadgeUnlocks } from '../components/BadgeDisplay';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   watch_lesson: { icon: '📺', name: '레슨 시청' },
@@ -38,8 +39,23 @@ export const Home: React.FC = () => {
   // Mock User Stats
   const userStats = {
     streak: 12,
-    weeklyActivity: [true, true, false, true, true, false, true]
+    weeklyActivity: [true, true, false, true, true, false, true],
+    totalSkills: 8,
+    masteredSkills: 3,
+    tournamentWins: 2,
+    trainingLogs: 15
   };
+
+  // Calculate badges
+  const badges = checkBadgeUnlocks({
+    streak: userStats.streak,
+    totalSkills: userStats.totalSkills,
+    masteredSkills: userStats.masteredSkills,
+    tournamentWins: userStats.tournamentWins,
+    trainingLogs: userStats.trainingLogs,
+    level: progress?.beltLevel || 0
+  });
+  const unlockedBadges = badges.filter(b => b.unlocked);
 
   // Mock Recent Activity
   const recentActivity = [
@@ -210,6 +226,35 @@ export const Home: React.FC = () => {
                   );
                 })}
               </div>
+
+              {/* Badges */}
+              {unlockedBadges.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-400">🏆 획득 배지</span>
+                    <span className="text-xs text-slate-500">{unlockedBadges.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {unlockedBadges.slice(0, 6).map((badge) => {
+                      const Icon = badge.icon;
+                      return (
+                        <div
+                          key={badge.id}
+                          className={`w-8 h-8 rounded-full ${badge.color} flex items-center justify-center shadow-md border border-white/20`}
+                          title={badge.name}
+                        >
+                          <Icon className="w-4 h-4 text-white" />
+                        </div>
+                      );
+                    })}
+                    {unlockedBadges.length > 6 && (
+                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
+                        +{unlockedBadges.length - 6}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -328,8 +373,8 @@ export const Home: React.FC = () => {
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${item.type === 'lesson'
-                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           }`}>
                           {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
                         </span>
@@ -363,7 +408,7 @@ export const Home: React.FC = () => {
                     </div>
                     <div className="p-4">
                       <h4 className="font-bold text-white text-sm mb-1 line-clamp-1 group-hover:text-indigo-400 transition-colors">{course.title}</h4>
-                      <p className="text-xs text-slate-400 mb-3 line-clamp-1">{course.instructorName || 'Grappl Instructor'}</p>
+                      <p className="text-xs text-slate-400 mb-3 line-clamp-1">{course.creatorName || 'Grappl Instructor'}</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-slate-500">{course.category}</span>
                         <Play className="w-3 h-3 text-indigo-500 fill-indigo-500" />

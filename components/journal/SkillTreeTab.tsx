@@ -16,6 +16,7 @@ import {
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CombatPowerRadar } from '../CombatPowerRadar';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
@@ -183,6 +184,11 @@ export const SkillTreeTab: React.FC = () => {
                 <h2 className="text-2xl font-bold text-white mb-2">스킬 로드맵</h2>
                 <p className="text-slate-400 mb-6">구매한 강좌를 챕터별로 정리하고 학습 진행 상황을 추적하세요</p>
             </div>
+
+            {/* Combat Power Radar Chart */}
+            {user && skills.length > 0 && (
+                <CombatPowerRadar skills={skills} />
+            )}
 
             {/* Dashboard Overview */}
             {user && (
