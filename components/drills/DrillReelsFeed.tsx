@@ -230,14 +230,19 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             </div>
 
             {/* Top Bar */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-40 bg-gradient-to-b from-black/60 to-transparent">
-                <div className="text-white font-bold text-lg">드릴</div>
-                <button
-                    onClick={onChangeView}
-                    className="p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors"
-                >
-                    <Grid className="w-5 h-5 text-white" />
-                </button>
+            <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                <div className="w-full p-6">
+                    <div className="max-w-7xl mx-auto flex justify-between items-center">
+                        <div className="text-white font-bold text-xl pointer-events-auto">드릴</div>
+                        <button
+                            onClick={onChangeView}
+                            className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-white/20 transition-all group"
+                        >
+                            <Grid className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-sm font-medium">그리드 뷰</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Video Container - 9:16 aspect ratio */}

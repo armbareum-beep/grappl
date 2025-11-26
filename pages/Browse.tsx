@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getCourses } from '../lib/api';
 import { CourseCard } from '../components/CourseCard';
 import { Course, VideoCategory, Difficulty } from '../types';
-import { Filter, Search, Menu } from 'lucide-react';
+import { Filter, Search, Menu, Activity } from 'lucide-react';
 
 export const Browse: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -46,18 +46,24 @@ export const Browse: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-slate-950">
       {/* Sidebar - Dark Theme */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-slate-900 border-r border-slate-800 transition-all duration-300 overflow-hidden flex-shrink-0 fixed h-[calc(100vh-64px)] top-16 z-20 hidden md:block`}>
-        <div className="p-4 space-y-6 overflow-y-auto h-full">
+      <aside
+        className={`${sidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
+          } bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0 fixed md:sticky top-16 h-[calc(100vh-64px)] z-20 hidden md:block`}
+      >
+        <div className="w-64 p-4 space-y-6 overflow-y-auto h-full">
           <div>
-            <h3 className="font-semibold text-white mb-3 px-2">카테고리</h3>
+            <h3 className="font-semibold text-white mb-3 px-2 flex items-center gap-2">
+              <Filter className="w-4 h-4 text-blue-500" />
+              카테고리
+            </h3>
             <div className="space-y-1">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat
-                      ? 'bg-blue-600 font-medium text-white'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${selectedCategory === cat
+                    ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30 font-medium'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent'
                     }`}
                 >
                   {cat === 'All' ? '전체' : cat}
@@ -67,15 +73,18 @@ export const Browse: React.FC = () => {
           </div>
 
           <div className="border-t border-slate-800 pt-6">
-            <h3 className="font-semibold text-white mb-3 px-2">난이도</h3>
+            <h3 className="font-semibold text-white mb-3 px-2 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" />
+              난이도
+            </h3>
             <div className="space-y-1">
               {difficulties.map((diff) => (
                 <button
                   key={diff}
                   onClick={() => setSelectedDifficulty(diff)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedDifficulty === diff
-                      ? 'bg-blue-600 font-medium text-white'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${selectedDifficulty === diff
+                    ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 font-medium'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent'
                     }`}
                 >
                   {diff === 'All' ? '전체' : diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급'}
@@ -84,10 +93,10 @@ export const Browse: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content - Dark Theme */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : ''}`}>
+      <div className="flex-1 transition-all duration-300">
         <div className="p-6">
           {/* Mobile Filter Toggle */}
           <div className="md:hidden mb-6 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide flex gap-2">
@@ -96,8 +105,8 @@ export const Browse: React.FC = () => {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-1.5 rounded-full text-sm border transition-all ${selectedCategory === cat
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                   }`}
               >
                 {cat === 'All' ? '전체' : cat}
