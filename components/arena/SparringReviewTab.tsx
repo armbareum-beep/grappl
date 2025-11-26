@@ -26,6 +26,52 @@ interface SparringReviewTabProps {
     autoRunAI?: boolean;
 }
 
+// Mock 데이터 (AI 분석 테스트용)
+const MOCK_REVIEWS: SparringReview[] = [
+    {
+        id: 'mock-1',
+        userId: 'test-user',
+        date: '2025-01-20',
+        opponentName: '김철수',
+        opponentBelt: 'blue',
+        rounds: 3,
+        result: 'loss',
+        notes: '오늘 스파링에서 가드를 잘 유지하지 못했습니다. 상대방이 계속 패스를 시도했고 결국 뚫렸습니다.',
+        techniques: ['가드', '패스'],
+        whatWorked: '초반 그립 컨트롤은 괜찮았습니다.',
+        whatToImprove: '가드 리텐션 능력을 키워야 합니다. 힙 이스케이프 연습이 필요합니다.',
+        createdAt: '2025-01-20T10:00:00Z'
+    },
+    {
+        id: 'mock-2',
+        userId: 'test-user',
+        date: '2025-01-18',
+        opponentName: '이영희',
+        opponentBelt: 'white',
+        rounds: 2,
+        result: 'draw',
+        notes: '화이트벨트와의 스파링. 탑 포지션에서 압박은 잘했지만 서브미션까지 이어가지 못했습니다.',
+        techniques: ['마운트', '사이드컨트롤'],
+        whatWorked: '포지셔닝은 좋았습니다.',
+        whatToImprove: '서브미션 셋업을 더 연습해야 합니다.',
+        createdAt: '2025-01-18T10:00:00Z'
+    },
+    {
+        id: 'mock-3',
+        userId: 'test-user',
+        date: '2025-01-15',
+        opponentName: '박민수',
+        opponentBelt: 'purple',
+        rounds: 4,
+        result: 'loss',
+        notes: '퍼플벨트와의 스파링. 계속 탭을 당했습니다. 이스케이프가 부족합니다.',
+        techniques: ['탭패', '이스케이프'],
+        whatWorked: '방어 자세는 유지했습니다.',
+        whatToImprove: '위기 상황에서의 탈출 기술이 필요합니다.',
+        createdAt: '2025-01-15T10:00:00Z'
+    }
+];
+
 export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
     const [reviews, setReviews] = useState<SparringReview[]>([]);
@@ -44,11 +90,11 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         videoUrl: ''
     });
 
-    // Mock data for demonstration
+    // Load mock data for testing
     useEffect(() => {
         if (user) {
-            // In production, fetch from API
-            setReviews([]);
+            // Mock 데이터 로드 (실제 환경에서는 API 호출)
+            setReviews(MOCK_REVIEWS);
         }
     }, [user]);
 
