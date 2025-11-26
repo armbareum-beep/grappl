@@ -216,6 +216,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         if (newSaved.has(currentDrill.id)) {
             newSaved.delete(currentDrill.id);
             savedDrills = savedDrills.filter((d: Drill) => d.id !== currentDrill.id);
+            alert('저장된 드릴에서 제거되었습니다.');
         } else {
             newSaved.add(currentDrill.id);
             // Save full drill object to localStorage for display
@@ -223,7 +224,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 savedDrills.push(currentDrill);
             }
 
-            alert('드릴이 아레나 > 훈련 루틴에 저장되었습니다!');
+            alert('드릴이 개별 드릴로 저장되었습니다!\n아레나 > 훈련 루틴에서 나만의 맞춤형 루틴을 만들 수 있습니다.');
             navigate('/arena?tab=routines');
         }
 
