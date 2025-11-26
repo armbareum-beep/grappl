@@ -64,28 +64,28 @@ export const PayoutSettingsTab: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="p-8 text-center">로딩 중...</div>;
+        return <div className="p-8 text-center text-slate-400">로딩 중...</div>;
     }
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div>
-                <h2 className="text-2xl font-bold text-slate-900">정산 설정</h2>
-                <p className="text-slate-500 mt-1">수익금을 정산받을 계좌와 세금 정보를 관리하세요.</p>
+                <h2 className="text-2xl font-bold text-white">정산 설정</h2>
+                <p className="text-slate-400 mt-1">수익금을 정산받을 계좌와 세금 정보를 관리하세요.</p>
             </div>
 
             {/* Status Card */}
-            <div className={`p-6 rounded-xl border ${stripeAccountId ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+            <div className={`p-6 rounded-xl border ${stripeAccountId ? 'bg-green-900/20 border-green-500/30' : 'bg-slate-900 border-slate-800'}`}>
                 <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className={`p-3 rounded-full ${stripeAccountId ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                        <div className={`p-3 rounded-full ${stripeAccountId ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
                             <CreditCard className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-slate-900">
+                            <h3 className="text-lg font-semibold text-white">
                                 {stripeAccountId ? '정산 계좌가 연결되었습니다' : '정산 계좌를 연결해주세요'}
                             </h3>
-                            <p className="text-slate-500 text-sm mt-1">
+                            <p className="text-slate-400 text-sm mt-1">
                                 {stripeAccountId
                                     ? 'Stripe Connect를 통해 안전하게 정산받고 있습니다.'
                                     : '수익금을 정산받으려면 Stripe 계정을 연결해야 합니다.'}
@@ -101,22 +101,22 @@ export const PayoutSettingsTab: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-800">정산 유형 선택</h3>
+                <h3 className="text-lg font-semibold text-white">정산 유형 선택</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
                         onClick={() => setPayoutType('individual')}
                         className={`p-4 rounded-lg border-2 text-left transition-all ${payoutType === 'individual'
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'border-blue-500 bg-blue-900/20'
+                            : 'border-slate-700 bg-slate-900 hover:border-slate-600'
                             }`}
                     >
                         <div className="flex items-center space-x-3 mb-2">
-                            <User className={`w-5 h-5 ${payoutType === 'individual' ? 'text-blue-600' : 'text-slate-400'}`} />
-                            <span className={`font-semibold ${payoutType === 'individual' ? 'text-blue-900' : 'text-slate-900'}`}>
+                            <User className={`w-5 h-5 ${payoutType === 'individual' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <span className={`font-semibold ${payoutType === 'individual' ? 'text-blue-400' : 'text-white'}`}>
                                 개인 (프리랜서)
                             </span>
                         </div>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-slate-400">
                             3.3% 사업소득세를 원천징수하고 정산받습니다.
                         </p>
                     </button>
@@ -126,14 +126,14 @@ export const PayoutSettingsTab: React.FC = () => {
             </div>
 
             {error && (
-                <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-center">
+                <div className="mb-4 p-4 bg-red-900/20 text-red-400 border border-red-500/30 rounded-lg flex items-center">
                     <AlertCircle className="w-5 h-5 mr-2" />
                     {error}
                 </div>
             )}
 
             {success && (
-                <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+                <div className="mb-4 p-4 bg-green-900/20 text-green-400 border border-green-500/30 rounded-lg flex items-center">
                     <CheckCircle className="w-5 h-5 mr-2" />
                     {success}
                 </div>

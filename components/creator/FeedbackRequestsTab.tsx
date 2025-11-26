@@ -68,17 +68,17 @@ export const FeedbackRequestsTab: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto">
             <div className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">피드백 요청 관리</h2>
-                <p className="text-slate-600">학생들의 피드백 요청을 확인하고 응답하세요</p>
+                <h2 className="text-2xl font-bold text-white mb-2">피드백 요청 관리</h2>
+                <p className="text-slate-400">학생들의 피드백 요청을 확인하고 응답하세요</p>
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex gap-2 mb-6 border-b border-slate-200">
+            <div className="flex gap-2 mb-6 border-b border-slate-800">
                 <button
                     onClick={() => setFilter('pending')}
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${filter === 'pending'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-slate-200'
                         }`}
                 >
                     대기 중 ({pendingCount})
@@ -86,8 +86,8 @@ export const FeedbackRequestsTab: React.FC = () => {
                 <button
                     onClick={() => setFilter('in_progress')}
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${filter === 'in_progress'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-slate-200'
                         }`}
                 >
                     진행 중 ({inProgressCount})
@@ -95,8 +95,8 @@ export const FeedbackRequestsTab: React.FC = () => {
                 <button
                     onClick={() => setFilter('completed')}
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${filter === 'completed'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-slate-200'
                         }`}
                 >
                     완료 ({completedCount})
@@ -104,8 +104,8 @@ export const FeedbackRequestsTab: React.FC = () => {
                 <button
                     onClick={() => setFilter('all')}
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${filter === 'all'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-slate-200'
                         }`}
                 >
                     전체 ({requests.length})
@@ -114,8 +114,8 @@ export const FeedbackRequestsTab: React.FC = () => {
 
             {/* Requests List */}
             {filteredRequests.length === 0 ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <div className="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
+                    <MessageSquare className="w-16 h-16 text-slate-700 mx-auto mb-4" />
                     <p className="text-slate-500">
                         {filter === 'pending' ? '대기 중인 요청이 없습니다.' : '요청이 없습니다.'}
                     </p>
@@ -125,18 +125,18 @@ export const FeedbackRequestsTab: React.FC = () => {
                     {filteredRequests.map((request) => (
                         <div
                             key={request.id}
-                            className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-md transition-shadow"
+                            className="bg-slate-900 rounded-xl border border-slate-800 p-6 hover:border-slate-700 transition-colors"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="font-semibold text-slate-900">
+                                        <h3 className="font-semibold text-white">
                                             {request.studentName || '학생'}
                                         </h3>
                                         <StatusBadge status={request.status} />
                                     </div>
 
-                                    <p className="text-sm text-slate-600 mb-3">
+                                    <p className="text-sm text-slate-400 mb-3">
                                         {request.description || '설명 없음'}
                                     </p>
 
@@ -145,7 +145,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                                             <Clock className="w-4 h-4" />
                                             <span>{new Date(request.createdAt).toLocaleDateString('ko-KR')}</span>
                                         </div>
-                                        <div className="font-semibold text-purple-600">
+                                        <div className="font-semibold text-purple-400">
                                             ₩{request.price.toLocaleString()}
                                         </div>
                                     </div>
@@ -156,7 +156,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                                         href={request.videoUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2"
+                                        className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
                                     >
                                         <ExternalLink className="w-4 h-4" />
                                         영상 보기
@@ -178,23 +178,23 @@ export const FeedbackRequestsTab: React.FC = () => {
 
             {/* Feedback Modal */}
             {selectedRequest && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-6">피드백 작성</h2>
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-900 rounded-xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto border border-slate-800">
+                        <h2 className="text-2xl font-bold text-white mb-6">피드백 작성</h2>
 
                         <div className="mb-6">
-                            <h3 className="font-semibold text-slate-900 mb-2">학생 정보</h3>
-                            <p className="text-slate-600">{selectedRequest.studentName || '학생'}</p>
+                            <h3 className="font-semibold text-white mb-2">학생 정보</h3>
+                            <p className="text-slate-400">{selectedRequest.studentName || '학생'}</p>
                             <p className="text-sm text-slate-500 mt-1">{selectedRequest.description}</p>
                         </div>
 
                         <div className="mb-6">
-                            <h3 className="font-semibold text-slate-900 mb-2">영상</h3>
+                            <h3 className="font-semibold text-white mb-2">영상</h3>
                             <a
                                 href={selectedRequest.videoUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-blue-600 hover:underline"
+                                className="inline-flex items-center gap-2 text-blue-400 hover:underline"
                             >
                                 <ExternalLink className="w-4 h-4" />
                                 YouTube에서 보기
@@ -202,7 +202,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                         </div>
 
                         <div className="mb-6">
-                            <label className="block font-semibold text-slate-900 mb-2">
+                            <label className="block font-semibold text-white mb-2">
                                 피드백 내용 *
                             </label>
                             <textarea
@@ -210,7 +210,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                                 onChange={(e) => setFeedbackContent(e.target.value)}
                                 rows={12}
                                 placeholder="학생에게 전달할 피드백을 작성해주세요..."
-                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <p className="text-xs text-slate-500 mt-1">
                                 구체적이고 건설적인 피드백을 제공해주세요
@@ -223,7 +223,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                                     setSelectedRequest(null);
                                     setFeedbackContent('');
                                 }}
-                                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors"
                             >
                                 취소
                             </button>
@@ -244,10 +244,10 @@ export const FeedbackRequestsTab: React.FC = () => {
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     const config = {
-        pending: { label: '대기 중', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-        in_progress: { label: '진행 중', color: 'bg-blue-100 text-blue-800', icon: MessageSquare },
-        completed: { label: '완료', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-        cancelled: { label: '취소됨', color: 'bg-slate-100 text-slate-800', icon: XCircle }
+        pending: { label: '대기 중', color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', icon: Clock },
+        in_progress: { label: '진행 중', color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20', icon: MessageSquare },
+        completed: { label: '완료', color: 'bg-green-500/10 text-green-400 border border-green-500/20', icon: CheckCircle },
+        cancelled: { label: '취소됨', color: 'bg-slate-500/10 text-slate-400 border border-slate-500/20', icon: XCircle }
     };
 
     const { label, color, icon: Icon } = config[status as keyof typeof config] || config.pending;

@@ -10,21 +10,21 @@ export const CreatorLayout: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-slate-50">
+        <div className="flex min-h-screen bg-slate-950 text-white">
             {/* Sidebar */}
-            <div className="w-64 bg-white border-r border-slate-200 hidden md:block fixed h-full z-10">
-                <div className="p-6 border-b border-slate-200">
-                    <Link to="/" className="flex items-center gap-2 text-blue-600 font-bold text-xl">
+            <div className="w-64 bg-slate-900 border-r border-slate-800 hidden md:block fixed h-full z-10">
+                <div className="p-6 border-b border-slate-800">
+                    <Link to="/" className="flex items-center gap-2 text-blue-500 font-bold text-xl">
                         <span>Grapplay</span>
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">Creator</span>
+                        <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">Creator</span>
                     </Link>
                 </div>
                 <nav className="p-4 space-y-1">
                     <Link
                         to="/creator/dashboard"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/dashboard')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                             }`}
                     >
                         <LayoutDashboard className="w-5 h-5" />
@@ -32,18 +32,19 @@ export const CreatorLayout: React.FC = () => {
                     </Link>
                     <Link
                         to="/creator/courses"
-                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/courses')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            } `}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/courses')
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            }`}
                     >
+                        <BookOpen className="w-5 h-5" />
                         강좌 관리
                     </Link>
                     <Link
                         to="/creator/upload-drill"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/upload-drill')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                             }`}
                     >
                         <Upload className="w-5 h-5" />
@@ -52,8 +53,8 @@ export const CreatorLayout: React.FC = () => {
                     <Link
                         to="/creator/create-routine"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/create-routine')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                             }`}
                     >
                         <Layers className="w-5 h-5" />
@@ -61,29 +62,29 @@ export const CreatorLayout: React.FC = () => {
                     </Link>
                     <Link
                         to="/creator/analytics"
-                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/analytics')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            } `}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/analytics')
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            }`}
                     >
                         <BarChart2 className="w-5 h-5" />
                         분석 (준비중)
                     </Link>
                     <Link
                         to="/creator/settings"
-                        className={`flex items - center gap - 3 px - 4 py - 3 rounded - lg transition - colors ${isActive('/creator/settings')
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            } `}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/settings')
+                            ? 'bg-blue-900/20 text-blue-400 font-medium'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            }`}
                     >
                         <Settings className="w-5 h-5" />
                         설정 (준비중)
                     </Link>
                 </nav>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
                     <Link to="/">
-                        <button className="w-full py-2 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                        <button className="w-full py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors">
                             ← 수강생 모드로 돌아가기
                         </button>
                     </Link>

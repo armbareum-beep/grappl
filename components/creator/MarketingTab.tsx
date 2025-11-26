@@ -100,8 +100,8 @@ export const MarketingTab: React.FC = () => {
     return (
         <div className="space-y-8">
             {/* Bundles Section */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-yellow-800 flex items-center gap-2">
+            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-200 flex items-center gap-2">
                     <span className="text-lg">⚠️</span>
                     <strong>주의:</strong> 번들 및 쿠폰을 통해 판매된 강좌는 구독 수익 정산에 포함되지 않습니다.
                 </p>
@@ -110,8 +110,8 @@ export const MarketingTab: React.FC = () => {
             <div>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <Package className="w-6 h-6 text-blue-600" />
-                        <h2 className="text-2xl font-bold text-slate-900">강좌 번들</h2>
+                        <Package className="w-6 h-6 text-blue-400" />
+                        <h2 className="text-2xl font-bold text-white">강좌 번들</h2>
                     </div>
                     <button
                         onClick={() => setShowBundleForm(!showBundleForm)}
@@ -124,65 +124,65 @@ export const MarketingTab: React.FC = () => {
 
                 {/* Bundle Creation Form */}
                 {showBundleForm && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                        <h3 className="font-semibold text-slate-900 mb-4">새 번들 만들기</h3>
+                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
+                        <h3 className="font-semibold text-white mb-4">새 번들 만들기</h3>
                         <form onSubmit={handleCreateBundle} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
                                     번들 제목
                                 </label>
                                 <input
                                     type="text"
                                     value={bundleTitle}
                                     onChange={(e) => setBundleTitle(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
                                     설명
                                 </label>
                                 <textarea
                                     value={bundleDescription}
                                     onChange={(e) => setBundleDescription(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     rows={3}
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
                                     가격 (KRW)
                                 </label>
                                 <input
                                     type="number"
                                     value={bundlePrice}
                                     onChange={(e) => setBundlePrice(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
                                     포함할 강좌 선택
                                 </label>
-                                <div className="space-y-2 max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                                <div className="space-y-2 max-h-64 overflow-y-auto border border-slate-700 rounded-lg p-4 bg-slate-950">
                                     {courses.map((course) => (
                                         <label
                                             key={course.id}
-                                            className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer"
+                                            className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded cursor-pointer"
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={selectedCourses.includes(course.id)}
                                                 onChange={() => toggleCourseSelection(course.id)}
-                                                className="w-4 h-4 text-blue-600"
+                                                className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700"
                                             />
-                                            <span className="text-sm text-slate-900">{course.title}</span>
+                                            <span className="text-sm text-slate-300">{course.title}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -202,7 +202,7 @@ export const MarketingTab: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowBundleForm(false)}
-                                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                    className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors"
                                 >
                                     취소
                                 </button>
@@ -221,12 +221,12 @@ export const MarketingTab: React.FC = () => {
                         bundles.map((bundle) => (
                             <div
                                 key={bundle.id}
-                                className="bg-white rounded-xl border border-slate-200 p-6"
+                                className="bg-slate-900 rounded-xl border border-slate-800 p-6"
                             >
-                                <h3 className="font-semibold text-slate-900 mb-2">{bundle.title}</h3>
-                                <p className="text-sm text-slate-600 mb-4">{bundle.description}</p>
+                                <h3 className="font-semibold text-white mb-2">{bundle.title}</h3>
+                                <p className="text-sm text-slate-400 mb-4">{bundle.description}</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-lg font-bold text-blue-600">
+                                    <span className="text-lg font-bold text-blue-400">
                                         ₩{bundle.price.toLocaleString()}
                                     </span>
                                     <span className="text-xs text-slate-500">
@@ -243,8 +243,8 @@ export const MarketingTab: React.FC = () => {
             <div>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <Tag className="w-6 h-6 text-green-600" />
-                        <h2 className="text-2xl font-bold text-slate-900">쿠폰</h2>
+                        <Tag className="w-6 h-6 text-green-400" />
+                        <h2 className="text-2xl font-bold text-white">쿠폰</h2>
                     </div>
                     <button
                         onClick={() => setShowCouponForm(!showCouponForm)}
@@ -257,11 +257,11 @@ export const MarketingTab: React.FC = () => {
 
                 {/* Coupon Creation Form */}
                 {showCouponForm && (
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <h3 className="font-semibold text-slate-900 mb-4">새 쿠폰 만들기</h3>
+                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                        <h3 className="font-semibold text-white mb-4">새 쿠폰 만들기</h3>
                         <form onSubmit={handleCreateCoupon} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
                                     쿠폰 코드
                                 </label>
                                 <input
@@ -269,20 +269,20 @@ export const MarketingTab: React.FC = () => {
                                     value={couponCode}
                                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                                     placeholder="예: SUMMER2024"
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                                     required
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
                                         할인 유형
                                     </label>
                                     <select
                                         value={discountType}
                                         onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                                     >
                                         <option value="percent">퍼센트 (%)</option>
                                         <option value="fixed">고정 금액 (KRW)</option>
@@ -290,7 +290,7 @@ export const MarketingTab: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
                                         할인 값
                                     </label>
                                     <input
@@ -298,7 +298,7 @@ export const MarketingTab: React.FC = () => {
                                         value={discountValue}
                                         onChange={(e) => setDiscountValue(e.target.value)}
                                         placeholder={discountType === 'percent' ? '10' : '10000'}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                                         required
                                     />
                                 </div>
@@ -306,7 +306,7 @@ export const MarketingTab: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
                                         최대 사용 횟수 (선택)
                                     </label>
                                     <input
@@ -314,19 +314,19 @@ export const MarketingTab: React.FC = () => {
                                         value={maxUses}
                                         onChange={(e) => setMaxUses(e.target.value)}
                                         placeholder="무제한"
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
                                         만료일 (선택)
                                     </label>
                                     <input
                                         type="date"
                                         value={expiresAt}
                                         onChange={(e) => setExpiresAt(e.target.value)}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                                     />
                                 </div>
                             </div>
@@ -341,7 +341,7 @@ export const MarketingTab: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowCouponForm(false)}
-                                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                    className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors"
                                 >
                                     취소
                                 </button>

@@ -86,27 +86,27 @@ export const CreateRoutine: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">새로운 루틴 만들기</h1>
-                <p className="text-slate-600">여러 드릴을 묶어 체계적인 훈련 루틴을 만드세요.</p>
+                <h1 className="text-2xl font-bold text-white">새로운 루틴 만들기</h1>
+                <p className="text-slate-400">여러 드릴을 묶어 체계적인 훈련 루틴을 만드세요.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Basic Info */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-6">
-                    <h2 className="text-lg font-semibold text-slate-900 border-b border-slate-100 pb-4">기본 정보</h2>
+                <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-8 space-y-6">
+                    <h2 className="text-lg font-semibold text-white border-b border-slate-800 pb-4">기본 정보</h2>
 
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">루틴 제목</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">루틴 제목</label>
                         <div className="relative">
-                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <input
                                 type="text"
                                 name="title"
                                 required
                                 value={formData.title}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="예: 가드 패스 마스터 클래스"
                             />
                         </div>
@@ -114,16 +114,16 @@ export const CreateRoutine: React.FC = () => {
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">설명</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
                         <div className="relative">
-                            <AlignLeft className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                            <AlignLeft className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
                             <textarea
                                 name="description"
                                 required
                                 value={formData.description}
                                 onChange={handleChange}
                                 rows={4}
-                                className="pl-10 w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="이 루틴의 목표와 내용을 설명해주세요..."
                             />
                         </div>
@@ -132,12 +132,12 @@ export const CreateRoutine: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Category */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">대표 카테고리</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">대표 카테고리</label>
                             <select
                                 name="category"
                                 value={formData.category}
                                 onChange={handleChange}
-                                className="w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                             >
                                 {Object.values(VideoCategory).map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -147,12 +147,12 @@ export const CreateRoutine: React.FC = () => {
 
                         {/* Difficulty */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">난이도</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
                             <select
                                 name="difficulty"
                                 value={formData.difficulty}
                                 onChange={handleChange}
-                                className="w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                             >
                                 {Object.values(Difficulty).map(diff => (
                                     <option key={diff} value={diff}>
@@ -165,9 +165,9 @@ export const CreateRoutine: React.FC = () => {
 
                     {/* Price */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">가격 (원)</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">가격 (원)</label>
                         <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <input
                                 type="number"
                                 name="price"
@@ -176,7 +176,7 @@ export const CreateRoutine: React.FC = () => {
                                 required
                                 value={formData.price}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="0"
                             />
                         </div>
@@ -185,16 +185,16 @@ export const CreateRoutine: React.FC = () => {
 
                     {/* Thumbnail URL */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">썸네일 이미지 URL</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 이미지 URL</label>
                         <div className="relative">
-                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <input
                                 type="url"
                                 name="thumbnailUrl"
                                 required
                                 value={formData.thumbnailUrl}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="https://example.com/image.jpg"
                             />
                         </div>
@@ -202,10 +202,10 @@ export const CreateRoutine: React.FC = () => {
                 </div>
 
                 {/* Drill Selection */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-                        <h2 className="text-lg font-semibold text-slate-900">드릴 선택 ({selectedDrillIds.length}개 선택됨)</h2>
-                        <Button type="button" variant="outline" size="sm" onClick={() => loadDrills()}>
+                <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-8">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+                        <h2 className="text-lg font-semibold text-white">드릴 선택 ({selectedDrillIds.length}개 선택됨)</h2>
+                        <Button type="button" variant="outline" size="sm" onClick={() => loadDrills()} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                             목록 새로고침
                         </Button>
                     </div>
@@ -221,13 +221,13 @@ export const CreateRoutine: React.FC = () => {
                                     key={drill.id}
                                     onClick={() => toggleDrillSelection(drill.id)}
                                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedDrillIds.includes(drill.id)
-                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                        ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
+                                        : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
                                         }`}
                                 >
                                     <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${selectedDrillIds.includes(drill.id)
-                                            ? 'bg-blue-500 border-blue-500'
-                                            : 'border-slate-300 bg-white'
+                                        ? 'bg-blue-500 border-blue-500'
+                                        : 'border-slate-600 bg-slate-800'
                                         }`}>
                                         {selectedDrillIds.includes(drill.id) && (
                                             <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -236,18 +236,18 @@ export const CreateRoutine: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-slate-900 truncate">{drill.title}</h4>
-                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{drill.description}</p>
+                                        <h4 className="font-medium text-white truncate">{drill.title}</h4>
+                                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{drill.description}</p>
                                         <div className="flex items-center gap-2 mt-2">
-                                            <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
                                                 {drill.category}
                                             </span>
-                                            <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
                                                 {drill.difficulty}
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="w-16 h-16 rounded bg-slate-100 flex-shrink-0 overflow-hidden">
+                                    <div className="w-16 h-16 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
                                         <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                                     </div>
                                 </div>
@@ -257,7 +257,7 @@ export const CreateRoutine: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => navigate('/creator/dashboard')}>
+                    <Button type="button" variant="outline" onClick={() => navigate('/creator/dashboard')} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                         취소
                     </Button>
                     <Button type="submit" disabled={loading}>

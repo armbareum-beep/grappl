@@ -60,18 +60,18 @@ export const FeedbackSettingsTab: React.FC = () => {
     return (
         <div className="max-w-3xl mx-auto">
             <div className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">1:1 피드백 설정</h2>
-                <p className="text-slate-600">학생들에게 유료 피드백 서비스를 제공하세요</p>
+                <h2 className="text-2xl font-bold text-white mb-2">1:1 피드백 설정</h2>
+                <p className="text-slate-400">학생들에게 유료 피드백 서비스를 제공하세요</p>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 space-y-6">
                 {/* Enable/Disable Toggle */}
-                <div className="flex items-center justify-between pb-6 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-6 border-b border-slate-800">
                     <div className="flex items-center gap-3">
-                        <MessageSquare className="w-6 h-6 text-blue-600" />
+                        <MessageSquare className="w-6 h-6 text-blue-400" />
                         <div>
-                            <h3 className="font-semibold text-slate-900">피드백 서비스 활성화</h3>
-                            <p className="text-sm text-slate-600">학생들이 피드백을 요청할 수 있습니다</p>
+                            <h3 className="font-semibold text-white">피드백 서비스 활성화</h3>
+                            <p className="text-sm text-slate-400">학생들이 피드백을 요청할 수 있습니다</p>
                         </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -81,7 +81,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                             onChange={(e) => setEnabled(e.target.checked)}
                             className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                 </div>
 
@@ -89,7 +89,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                     <>
                         {/* Price Setting */}
                         <div>
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                                 <DollarSign className="w-4 h-4" />
                                 피드백 가격 (KRW)
                             </label>
@@ -97,7 +97,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                                 type="number"
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="50000"
                             />
                             <p className="text-xs text-slate-500 mt-1">
@@ -107,7 +107,7 @@ export const FeedbackSettingsTab: React.FC = () => {
 
                         {/* Turnaround Days */}
                         <div>
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                                 <Clock className="w-4 h-4" />
                                 응답 기간 (일)
                             </label>
@@ -115,7 +115,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                                 type="number"
                                 value={turnaroundDays}
                                 onChange={(e) => setTurnaroundDays(e.target.value)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="3"
                                 min="1"
                                 max="14"
@@ -127,7 +127,7 @@ export const FeedbackSettingsTab: React.FC = () => {
 
                         {/* Max Active Requests */}
                         <div>
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                                 <Users className="w-4 h-4" />
                                 최대 동시 요청 수
                             </label>
@@ -135,7 +135,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                                 type="number"
                                 value={maxActiveRequests}
                                 onChange={(e) => setMaxActiveRequests(e.target.value)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="5"
                                 min="1"
                                 max="20"
@@ -148,7 +148,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                 )}
 
                 {/* Save Button */}
-                <div className="pt-4 border-t border-slate-200">
+                <div className="pt-4 border-t border-slate-800">
                     <button
                         onClick={handleSave}
                         disabled={saving}
@@ -160,9 +160,9 @@ export const FeedbackSettingsTab: React.FC = () => {
             </div>
 
             {/* Info Box */}
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2">💡 피드백 서비스 안내</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
+            <div className="mt-6 bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-400 mb-2">💡 피드백 서비스 안내</h4>
+                <ul className="text-sm text-blue-300 space-y-1">
                     <li>• 학생들이 YouTube 영상 링크를 제공하고 피드백을 요청합니다</li>
                     <li>• 텍스트로 상세한 피드백을 작성해주세요</li>
                     <li>• 수익의 80%가 크리에이터에게, 20%가 플랫폼에 분배됩니다</li>

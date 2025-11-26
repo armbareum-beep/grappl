@@ -134,3 +134,32 @@ export async function deleteTournament(tournamentId: string) {
         .eq('id', tournamentId);
     return { error };
 }
+
+// ==================== Support System ====================
+
+export async function getSupportTickets() {
+    const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        if (error.code === '42P01') return []; // Table doesn't exist yet
+        console.error('Error fetching tickets:', error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function respondToTicket(ticketId: string, response: string, status: 'resolved' | 'in_progress') {
+    const { error } = await supabase
+        .from('support_tickets')
+        .update({
+            admin_response: response,
+            status: status,
+            responded_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', ticketId);
+    return { error };
+}

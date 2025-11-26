@@ -30,15 +30,15 @@ export const CreatorCourses: React.FC = () => {
     }, [user]);
 
     if (loading) {
-        return <div className="p-8 text-center">로딩 중...</div>;
+        return <div className="p-8 text-center text-slate-400">로딩 중...</div>;
     }
 
     return (
         <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">강좌 관리</h1>
-                    <p className="text-slate-600">내가 만든 강좌를 관리하고 새로운 강좌를 만드세요.</p>
+                    <h1 className="text-2xl font-bold text-white">강좌 관리</h1>
+                    <p className="text-slate-400">내가 만든 강좌를 관리하고 새로운 강좌를 만드세요.</p>
                 </div>
                 <Link to="/creator/courses/new">
                     <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
@@ -48,17 +48,17 @@ export const CreatorCourses: React.FC = () => {
                 </Link>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex gap-4">
+            <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-800 flex gap-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                         <input
                             type="text"
                             placeholder="강좌 검색..."
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
-                    <select className="border border-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option>모든 카테고리</option>
                         <option>Technique</option>
                         <option>Drill</option>
@@ -67,16 +67,16 @@ export const CreatorCourses: React.FC = () => {
                 </div>
 
                 <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-800/50 border-b border-slate-800">
                         <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">강좌 정보</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">가격</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">상태</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">수강생</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">관리</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">강좌 정보</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">가격</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">상태</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">수강생</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">관리</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-slate-800">
                         {courses.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
@@ -85,35 +85,35 @@ export const CreatorCourses: React.FC = () => {
                             </tr>
                         ) : (
                             courses.map((course) => (
-                                <tr key={course.id} className="hover:bg-slate-50 transition-colors">
+                                <tr key={course.id} className="hover:bg-slate-800/50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
-                                            <img src={course.thumbnailUrl} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-100" />
+                                            <img src={course.thumbnailUrl} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-800" />
                                             <div>
-                                                <h3 className="font-medium text-slate-900">{course.title}</h3>
+                                                <h3 className="font-medium text-white">{course.title}</h3>
                                                 <p className="text-sm text-slate-500">{course.category} • {course.lessonCount || 0} 레슨</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600">
+                                    <td className="px-6 py-4 text-slate-400">
                                         {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
                                             판매중
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600">
+                                    <td className="px-6 py-4 text-slate-400">
                                         {course.views.toLocaleString()}명
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <Link to={`/creator/courses/${course.id}/edit`}>
-                                                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                <button className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors">
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                             </Link>
-                                            <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                            <button className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors">
                                                 <Trash className="w-4 h-4" />
                                             </button>
                                         </div>

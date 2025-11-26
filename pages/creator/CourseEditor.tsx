@@ -169,16 +169,16 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">로딩 중...</div>;
+    if (loading) return <div className="p-8 text-center text-slate-400">로딩 중...</div>;
 
     return (
         <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/creator/courses')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <ArrowLeft className="w-6 h-6 text-slate-600" />
+                    <button onClick={() => navigate('/creator/courses')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                        <ArrowLeft className="w-6 h-6 text-slate-400" />
                     </button>
-                    <h1 className="text-2xl font-bold text-slate-900">
+                    <h1 className="text-2xl font-bold text-white">
                         {isNew ? '새 강좌 만들기' : '강좌 수정하기'}
                     </h1>
                 </div>
@@ -196,13 +196,13 @@ export const CourseEditor: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="border-b border-slate-200 flex">
+            <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-sm overflow-hidden">
+                <div className="border-b border-slate-800 flex">
                     <button
                         onClick={() => setActiveTab('basic')}
                         className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'basic'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-900'
+                            ? 'border-blue-500 text-blue-400'
+                            : 'border-transparent text-slate-400 hover:text-white'
                             }`}
                     >
                         기본 정보
@@ -216,8 +216,8 @@ export const CourseEditor: React.FC = () => {
                             setActiveTab('curriculum');
                         }}
                         className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'curriculum'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-900'
+                            ? 'border-blue-500 text-blue-400'
+                            : 'border-transparent text-slate-400 hover:text-white'
                             }`}
                     >
                         커리큘럼
@@ -228,34 +228,34 @@ export const CourseEditor: React.FC = () => {
                     {activeTab === 'basic' ? (
                         <div className="space-y-6 max-w-3xl">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">강좌 제목</label>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">강좌 제목</label>
                                 <input
                                     type="text"
                                     value={courseData.title}
                                     onChange={e => setCourseData({ ...courseData, title: e.target.value })}
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="예: 완벽한 암바 마스터 클래스"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">설명</label>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
                                 <textarea
                                     value={courseData.description}
                                     onChange={e => setCourseData({ ...courseData, description: e.target.value })}
                                     rows={4}
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="강좌에 대한 설명을 입력하세요..."
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">카테고리</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">카테고리</label>
                                     <select
                                         value={courseData.category}
                                         onChange={e => setCourseData({ ...courseData, category: e.target.value as VideoCategory })}
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     >
                                         {Object.values(VideoCategory).map(cat => (
                                             <option key={cat} value={cat}>{cat}</option>
@@ -263,11 +263,11 @@ export const CourseEditor: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">난이도</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
                                     <select
                                         value={courseData.difficulty}
                                         onChange={e => setCourseData({ ...courseData, difficulty: e.target.value as Difficulty })}
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     >
                                         {Object.values(Difficulty).map(diff => (
                                             <option key={diff} value={diff}>{diff}</option>
@@ -278,12 +278,12 @@ export const CourseEditor: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">가격 (₩)</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">가격 (₩)</label>
                                     <input
                                         type="number"
                                         value={courseData.price}
                                         onChange={e => setCourseData({ ...courseData, price: Number(e.target.value) })}
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     />
                                     <div className="mt-3 flex items-start">
                                         <div className="flex items-center h-5">
@@ -292,23 +292,23 @@ export const CourseEditor: React.FC = () => {
                                                 id="subscriptionExcluded"
                                                 checked={courseData.isSubscriptionExcluded || false}
                                                 onChange={e => setCourseData({ ...courseData, isSubscriptionExcluded: e.target.checked })}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-slate-950"
                                             />
                                         </div>
                                         <div className="ml-2 text-sm">
-                                            <label htmlFor="subscriptionExcluded" className="font-medium text-slate-900">구독 제외 상품 (단품 구매 전용)</label>
+                                            <label htmlFor="subscriptionExcluded" className="font-medium text-slate-300">구독 제외 상품 (단품 구매 전용)</label>
                                             <p className="text-slate-500">체크하면 구독자도 무료로 볼 수 없으며, 반드시 따로 구매해야 합니다.</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">썸네일 URL</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 URL</label>
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
                                             value={courseData.thumbnailUrl}
                                             onChange={e => setCourseData({ ...courseData, thumbnailUrl: e.target.value })}
-                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="flex-1 px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="Vimeo URL 또는 이미지 URL"
                                         />
                                         <button
@@ -328,10 +328,10 @@ export const CourseEditor: React.FC = () => {
                     ) : (
                         <div>
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg text-slate-900">레슨 목록</h3>
+                                <h3 className="font-bold text-lg text-white">레슨 목록</h3>
                                 <button
                                     onClick={() => setEditingLesson({ title: '', description: '', length: '10:00', difficulty: Difficulty.Beginner })}
-                                    className="flex items-center gap-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors font-medium"
+                                    className="flex items-center gap-2 text-blue-400 hover:bg-blue-900/20 px-4 py-2 rounded-lg transition-colors font-medium"
                                 >
                                     <Plus className="w-4 h-4" />
                                     레슨 추가
@@ -340,16 +340,16 @@ export const CourseEditor: React.FC = () => {
 
                             <div className="space-y-3 mb-8">
                                 {lessons.map((lesson, index) => (
-                                    <div key={lesson.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200 group">
-                                        <div className="text-slate-400 cursor-grab">
+                                    <div key={lesson.id} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-800 group">
+                                        <div className="text-slate-500 cursor-grab">
                                             <GripVertical className="w-5 h-5" />
                                         </div>
-                                        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200 font-bold text-slate-600 text-sm">
+                                        <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-slate-600 font-bold text-slate-300 text-sm">
                                             {index + 1}
                                         </div>
                                         <div className="flex-grow">
-                                            <h4 className="font-bold text-slate-900">{lesson.title}</h4>
-                                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                                            <h4 className="font-bold text-white">{lesson.title}</h4>
+                                            <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
                                                 <span className="flex items-center gap-1"><Video className="w-3 h-3" /> {lesson.length}</span>
                                                 <span>{lesson.difficulty}</span>
                                             </div>
@@ -357,13 +357,13 @@ export const CourseEditor: React.FC = () => {
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => setEditingLesson(lesson)}
-                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg"
+                                                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteLesson(lesson.id)}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-lg"
+                                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -371,16 +371,16 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 ))}
                                 {lessons.length === 0 && (
-                                    <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-xl">
+                                    <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
                                         아직 등록된 레슨이 없습니다.
                                     </div>
                                 )}
                             </div>
 
                             {editingLesson && (
-                                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-                                        <h3 className="text-xl font-bold mb-4">{editingLesson.id ? '레슨 수정' : '새 레슨 추가'}</h3>
+                                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+                                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto border border-slate-800">
+                                        <h3 className="text-xl font-bold mb-4 text-white">{editingLesson.id ? '레슨 수정' : '새 레슨 추가'}</h3>
 
                                         <div className="space-y-4">
                                             <VideoUploader
@@ -402,34 +402,34 @@ export const CourseEditor: React.FC = () => {
                                             />
 
                                             {editingLesson.vimeoUrl && (
-                                                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                                                    <p className="text-sm text-green-800 font-medium flex items-center gap-2">
+                                                <div className="bg-green-900/20 p-4 rounded-lg border border-green-500/30">
+                                                    <p className="text-sm text-green-400 font-medium flex items-center gap-2">
                                                         <CheckCircle className="w-4 h-4" />
                                                         영상 준비 완료
                                                     </p>
-                                                    <p className="text-xs text-green-600 mt-1">
+                                                    <p className="text-xs text-green-500 mt-1">
                                                         ID: {editingLesson.vimeoUrl} | 길이: {editingLesson.length}
                                                     </p>
                                                 </div>
                                             )}
 
-                                            <form onSubmit={handleSaveLesson} className="space-y-4 pt-4 border-t border-slate-100">
+                                            <form onSubmit={handleSaveLesson} className="space-y-4 pt-4 border-t border-slate-800">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">제목</label>
+                                                    <label className="block text-sm font-medium text-slate-300 mb-1">제목</label>
                                                     <input
                                                         type="text"
                                                         required
                                                         value={editingLesson.title}
                                                         onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">설명</label>
+                                                    <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
                                                     <textarea
                                                         value={editingLesson.description}
                                                         onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
                                                         rows={3}
                                                     />
                                                 </div>
@@ -438,7 +438,7 @@ export const CourseEditor: React.FC = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => setEditingLesson(null)}
-                                                        className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                        className="px-4 py-2 text-slate-400 hover:bg-slate-800 rounded-lg"
                                                     >
                                                         취소
                                                     </button>
