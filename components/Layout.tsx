@@ -31,8 +31,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <img src="/logo_v2.png" alt="Grapplay" className="w-14 h-14 object-contain mix-blend-screen" />
+            <Link to="/" className="flex items-center space-x-0">
+              <img src="/logo_v2.png" alt="Grapplay" className="w-14 h-14 object-contain mix-blend-screen -mr-4" />
               <span className="text-2xl font-black text-white">Grapplay</span>
             </Link>
 
@@ -247,8 +247,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-2 mb-4">
-                <img src="/logo_v2.png" alt="Grapplay" className="w-12 h-12 object-contain mix-blend-screen" />
+              <div className="flex items-center space-x-0 mb-4">
+                <img src="/logo_v2.png" alt="Grapplay" className="w-12 h-12 object-contain mix-blend-screen -mr-3" />
                 <span className="text-xl font-black text-white">Grapplay</span>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed max-w-xs">

@@ -218,7 +218,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                     <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
                         <h3 className="text-lg font-bold text-white mb-2">포함된 드릴</h3>
                         {previewRoutine.drills?.map((drill, index) => (
-                            <div key={index} className="flex items-center gap-4 bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                            <Link to={`/drills/${drill.id}`} key={index} className="flex items-center gap-4 bg-slate-800/50 p-3 rounded-xl border border-slate-800 hover:bg-slate-800 transition-colors">
                                 <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                                     <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
                                 </div>
@@ -226,7 +226,8 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
                                     <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
                                 </div>
-                            </div>
+                                <ChevronRight className="w-4 h-4 text-slate-500" />
+                            </Link>
                         ))}
                     </div>
 
