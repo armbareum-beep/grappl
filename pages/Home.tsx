@@ -12,13 +12,17 @@ import {
   getCourses, getDrills, getPublicTrainingLogs
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
-import { checkBadgeUnlocks } from '../components/BadgeDisplay';
+import { checkPatchUnlocks } from '../components/PatchDisplay';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   watch_lesson: { icon: '📺', name: '레슨 시청' },
   write_log: { icon: '📝', name: '수련일지 작성' },
   tournament: { icon: '⚔️', name: '시합 참여' },
-  add_skill: { icon: '🎯', name: '기술 추가' }
+  add_skill: { icon: '🎯', name: '기술 추가' },
+  complete_drill: { icon: '💪', name: '드릴 완료' },
+  sparring_review: { icon: '🥋', name: '스파링 복기' },
+  master_skill: { icon: '🏆', name: '기술 마스터' },
+  complete_routine: { icon: '🔥', name: '루틴 완료' }
 };
 
 export const Home: React.FC = () => {
@@ -46,8 +50,8 @@ export const Home: React.FC = () => {
     trainingLogs: 15
   };
 
-  // Calculate badges
-  const badges = checkBadgeUnlocks({
+  // Calculate patches
+  const patches = checkPatchUnlocks({
     streak: userStats.streak,
     totalSkills: userStats.totalSkills,
     masteredSkills: userStats.masteredSkills,
@@ -55,7 +59,7 @@ export const Home: React.FC = () => {
     trainingLogs: userStats.trainingLogs,
     level: progress?.beltLevel || 0
   });
-  const unlockedBadges = badges.filter(b => b.unlocked);
+  const unlockedPatches = patches.filter(p => p.unlocked);
 
   // Mock Recent Activity
   const recentActivity = [
@@ -227,29 +231,29 @@ export const Home: React.FC = () => {
                 })}
               </div>
 
-              {/* Badges */}
-              {unlockedBadges.length > 0 && (
+              {/* Patches */}
+              {unlockedPatches.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-slate-700">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-400">🏆 획득 배지</span>
-                    <span className="text-xs text-slate-500">{unlockedBadges.length}</span>
+                    <span className="text-xs font-bold text-slate-400">🎖️ 획득 패치</span>
+                    <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {unlockedBadges.slice(0, 6).map((badge) => {
-                      const Icon = badge.icon;
+                    {unlockedPatches.slice(0, 6).map((patch) => {
+                      const Icon = patch.icon;
                       return (
                         <div
-                          key={badge.id}
-                          className={`w-8 h-8 rounded-full ${badge.color} flex items-center justify-center shadow-md border border-white/20`}
-                          title={badge.name}
+                          key={patch.id}
+                          className={`w-8 h-8 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20`}
+                          title={patch.name}
                         >
                           <Icon className="w-4 h-4 text-white" />
                         </div>
                       );
                     })}
-                    {unlockedBadges.length > 6 && (
+                    {unlockedPatches.length > 6 && (
                       <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
-                        +{unlockedBadges.length - 6}
+                        +{unlockedPatches.length - 6}
                       </div>
                     )}
                   </div>
