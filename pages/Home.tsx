@@ -173,7 +173,7 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Belt Progress - Compact */}
             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="flex-shrink-0">
                   <span className="text-4xl">{beltIcon}</span>
                 </div>
@@ -203,6 +203,35 @@ export const Home: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Patches */}
+              {unlockedPatches.length > 0 && (
+                <div className="pt-3 border-t border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-400">🎖️ 획득 패치</span>
+                    <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {unlockedPatches.slice(0, 8).map((patch) => {
+                      const Icon = patch.icon;
+                      return (
+                        <div
+                          key={patch.id}
+                          className={`w-8 h-8 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer`}
+                          title={patch.name}
+                        >
+                          <Icon className="w-4 h-4 text-white" />
+                        </div>
+                      );
+                    })}
+                    {unlockedPatches.length > 8 && (
+                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
+                        +{unlockedPatches.length - 8}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Daily Quests - Compact */}
@@ -230,38 +259,8 @@ export const Home: React.FC = () => {
                   );
                 })}
               </div>
-
-              {/* Patches */}
-              {unlockedPatches.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-400">🎖️ 획득 패치</span>
-                    <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {unlockedPatches.slice(0, 6).map((patch) => {
-                      const Icon = patch.icon;
-                      return (
-                        <div
-                          key={patch.id}
-                          className={`w-8 h-8 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20`}
-                          title={patch.name}
-                        >
-                          <Icon className="w-4 h-4 text-white" />
-                        </div>
-                      );
-                    })}
-                    {unlockedPatches.length > 6 && (
-                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
-                        +{unlockedPatches.length - 6}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
-        </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
