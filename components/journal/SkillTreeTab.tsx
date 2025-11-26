@@ -186,7 +186,7 @@ export const SkillTreeTab: React.FC = () => {
             </div>
 
             {/* Combat Power Radar Chart */}
-            {user && skills.length > 0 && (
+            {user && (
                 <CombatPowerRadar skills={skills} />
             )}
 
@@ -319,11 +319,13 @@ export const SkillTreeTab: React.FC = () => {
                 </button>
                 <button
                     onClick={() => {
+                        console.log('Available courses:', availableCourses);
+                        console.log('All courses:', allCourses);
+                        console.log('Selected category:', selectedCategory);
                         setShowCourseSelector(!showCourseSelector);
                         setShowSubcategoryForm(false);
                     }}
-                    disabled={availableCourses.length === 0}
-                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                     <Plus className="w-5 h-5" />
                     강좌 추가 ({availableCourses.length})
@@ -398,9 +400,19 @@ export const SkillTreeTab: React.FC = () => {
                     {/* Course List */}
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {filteredCourses.length === 0 ? (
-                            <p className="text-slate-400 text-center py-4">
-                                {searchTerm ? '검색 결과가 없습니다.' : `${selectedCategory} 카테고리에 추가할 수 있는 강좌가 없습니다.`}
-                            </p>
+                            <div className="text-center py-8">
+                                <p className="text-slate-400 mb-2">
+                                    {searchTerm ? '검색 결과가 없습니다.' : `${selectedCategory} 카테고리에 추가할 수 있는 강좌가 없습니다.`}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    전체 강좌: {allCourses.length}개 | 이미 추가됨: {skillCourseIds.length}개
+                                </p>
+                                {allCourses.length > 0 && (
+                                    <p className="text-xs text-slate-500 mt-2">
+                                        💡 다른 카테고리를 선택하거나 새 강좌를 구매해보세요
+                                    </p>
+                                )}
+                            </div>
                         ) : (
                             filteredCourses.map((course) => {
                                 const isPurchased = purchasedCourseIds.includes(course.id);
