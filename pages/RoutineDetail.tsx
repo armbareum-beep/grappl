@@ -35,6 +35,23 @@ export const RoutineDetail: React.FC = () => {
 
     const fetchRoutine = async () => {
         if (!id) return;
+
+        // 1. Check for custom routine in localStorage first
+        if (id.startsWith('custom-')) {
+            try {
+                const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+                const found = customRoutines.find((r: any) => r.id === id);
+                if (found) {
+                    setRoutine(found);
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {
+                console.error('Error loading custom routine:', e);
+            }
+        }
+
+        // 2. Fetch from API/DB
         try {
             const { data: routineData, error } = await getRoutineById(id);
             if (routineData) {
