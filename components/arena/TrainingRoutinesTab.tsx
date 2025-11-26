@@ -303,7 +303,22 @@ export const TrainingRoutinesTab: React.FC = () => {
             {/* Saved Drills Section */}
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-white">저장된 드릴</h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-white">저장된 드릴</h2>
+                        {savedDrills.length > 0 && !isSelectionMode && (
+                            <button
+                                onClick={() => {
+                                    if (confirm('저장된 모든 드릴을 삭제하시겠습니까?')) {
+                                        localStorage.removeItem('saved_drills');
+                                        setSavedDrills([]);
+                                    }
+                                }}
+                                className="text-xs text-red-400 hover:text-red-300 underline"
+                            >
+                                전체 삭제
+                            </button>
+                        )}
+                    </div>
                     {savedDrills.length > 0 && (
                         <div className="flex gap-2">
                             {isSelectionMode ? (
