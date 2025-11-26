@@ -171,130 +171,130 @@ export const Home: React.FC = () => {
 
           {/* Bottom Row: Belt & Quests */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Belt Progress - Compact */}
-            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-shrink-0">
-                  <span className="text-4xl">{beltIcon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="text-sm font-bold text-white">{currentBelt?.name || '화이트 4 스트라이프'}</h3>
-                      <p className="text-xs text-slate-400">
-                        {progress && progress.beltLevel < 30 ? `다음: ${nextBelt?.name}` : '최고 단계!'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">XP</p>
-                      <p className="text-sm font-bold text-white">{progress?.currentXp || 0} / {xpToNext}</p>
-                    </div>
+            {/* Left Side: Belt + Quests (2/3) */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Belt Progress */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <span className="text-4xl">{beltIcon}</span>
                   </div>
-                  {progress && progress.beltLevel < 30 && (
-                    <div className="relative w-full bg-slate-700 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${xpProgress * 100}%`,
-                          backgroundColor: currentBelt?.color === '#FFFFFF' ? '#94A3B8' : currentBelt?.color
-                        }}
-                      ></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-white">{currentBelt?.name || '화이트 4 스트라이프'}</h3>
+                        <p className="text-xs text-slate-400">
+                          {progress && progress.beltLevel < 30 ? `다음: ${nextBelt?.name}` : '최고 단계!'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-500">XP</p>
+                        <p className="text-sm font-bold text-white">{progress?.currentXp || 0} / {xpToNext}</p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Patches */}
-              {unlockedPatches.length > 0 && (
-                <div className="pt-3 border-t border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-400">🎖️ 획득 패치</span>
-                    <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {unlockedPatches.slice(0, 8).map((patch) => {
-                      const Icon = patch.icon;
-                      return (
+                    {progress && progress.beltLevel < 30 && (
+                      <div className="relative w-full bg-slate-700 rounded-full h-2">
                         <div
-                          key={patch.id}
-                          className={`w-8 h-8 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer`}
-                          title={patch.name}
-                        >
-                          <Icon className="w-4 h-4 text-white" />
-                        </div>
-                      );
-                    })}
-                    {unlockedPatches.length > 8 && (
-                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600">
-                        +{unlockedPatches.length - 8}
+                          className="h-2 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${xpProgress * 100}%`,
+                            backgroundColor: currentBelt?.color === '#FFFFFF' ? '#94A3B8' : currentBelt?.color
+                          }}
+                        ></div>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Daily Quests - Enhanced */}
-            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-                    <span className="text-sm">📋</span>
+              {/* Daily Quests - Below Belt */}
+              <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 shadow-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                      <span className="text-sm">📋</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white">오늘의 미션</h3>
                   </div>
-                  <h3 className="text-sm font-bold text-white">오늘의 미션</h3>
+                  <div className="text-right">
+                    <div className="text-xs text-slate-400">진행도</div>
+                    <div className="text-sm font-bold text-white">{quests.filter(q => q.completed).length}/{quests.length}</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-slate-400">진행도</div>
-                  <div className="text-sm font-bold text-white">{quests.filter(q => q.completed).length}/{quests.length}</div>
-                </div>
-              </div>
 
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Total XP</span>
-                  <span className="text-xs font-bold text-amber-400">{earnedQuestXP}/{totalQuestXP}</span>
-                </div>
-                <div className="relative w-full bg-slate-700 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 transition-all duration-500"
-                    style={{ width: `${totalQuestXP > 0 ? (earnedQuestXP / totalQuestXP) * 100 : 0}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Quest List */}
-              <div className="space-y-2">
-                {quests.slice(0, 6).map((quest) => {
-                  const info = QUEST_INFO[quest.questType] || { icon: '❓', name: quest.questType };
-                  return (
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold">Total XP</span>
+                    <span className="text-xs font-bold text-amber-400">{earnedQuestXP}/{totalQuestXP}</span>
+                  </div>
+                  <div className="relative w-full bg-slate-700 rounded-full h-2">
                     <div
-                      key={quest.id}
-                      className={`flex items-center justify-between p-2 rounded-lg transition-all ${quest.completed
+                      className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 transition-all duration-500"
+                      style={{ width: `${totalQuestXP > 0 ? (earnedQuestXP / totalQuestXP) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Quest Grid - 2 Columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {quests.slice(0, 6).map((quest) => {
+                    const info = QUEST_INFO[quest.questType] || { icon: '❓', name: quest.questType };
+                    return (
+                      <div
+                        key={quest.id}
+                        className={`flex items-center justify-between p-2 rounded-lg transition-all ${quest.completed
                           ? 'bg-green-900/20 border border-green-800/30'
                           : 'bg-slate-800/50 border border-slate-700/50 hover:border-amber-600/50'
-                        }`}
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${quest.completed ? 'bg-green-600' : 'bg-slate-700'
-                          }`}>
-                          <span className="text-sm">{quest.completed ? '✓' : info.icon}</span>
+                          }`}
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${quest.completed ? 'bg-green-600' : 'bg-slate-700'
+                            }`}>
+                            <span className="text-sm">{quest.completed ? '✓' : info.icon}</span>
+                          </div>
+                          <span className={`text-xs font-medium truncate ${quest.completed ? 'text-slate-400 line-through' : 'text-white'
+                            }`}>
+                            {info.name}
+                          </span>
                         </div>
-                        <span className={`text-xs font-medium truncate ${quest.completed ? 'text-slate-400 line-through' : 'text-white'
-                          }`}>
-                          {info.name}
-                        </span>
-                      </div>
-                      <div className={`text-xs font-bold px-2 py-1 rounded-md ${quest.completed
+                        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${quest.completed
                           ? 'bg-green-900/30 text-green-400'
                           : 'bg-gradient-to-r from-amber-900/30 to-orange-900/30 text-amber-400'
-                        }`}>
-                        +{quest.xpReward} XP
+                          }`}>
+                          +{quest.xpReward}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
+            </div>
+
+            {/* Right Side: Patches (1/3) */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-white">🎖️ 획득 패치</span>
+                <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
+              </div>
+              {unlockedPatches.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {unlockedPatches.map((patch) => {
+                    const Icon = patch.icon;
+                    return (
+                      <div
+                        key={patch.id}
+                        className={`w-10 h-10 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer`}
+                        title={patch.name}
+                      >
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 text-center py-8">아직 획득한 패치가 없습니다</p>
+              )}
             </div>
           </div>
         </div>
@@ -305,7 +305,7 @@ export const Home: React.FC = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <button
-            onClick={() => navigate('/journal')}
+            onClick={() => navigate('/arena?tab=journal')}
             className="group bg-slate-800/80 hover:bg-indigo-600 border border-slate-700 hover:border-indigo-500 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:-translate-y-0.5"
           >
             <div className="flex flex-col items-center text-center gap-3">
@@ -314,13 +314,13 @@ export const Home: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-white text-sm mb-1">수련 일지</h3>
-                <p className="text-xs text-slate-400 group-hover:text-indigo-100">오늘의 스파링 기록</p>
+                <p className="text-xs text-slate-400 group-hover:text-indigo-100">나의 성장 기록</p>
               </div>
             </div>
           </button>
 
           <button
-            onClick={() => navigate('/arena?tab=sparring')}
+            onClick={() => navigate('/arena?tab=tournament')}
             className="group bg-slate-800/80 hover:bg-red-600 border border-slate-700 hover:border-red-500 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-0.5"
           >
             <div className="flex flex-col items-center text-center gap-3">
@@ -335,7 +335,7 @@ export const Home: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/drills')}
+            onClick={() => navigate('/arena?tab=routines')}
             className="group bg-slate-800/80 hover:bg-emerald-600 border border-slate-700 hover:border-emerald-500 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-0.5"
           >
             <div className="flex flex-col items-center text-center gap-3">
