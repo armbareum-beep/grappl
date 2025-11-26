@@ -78,6 +78,54 @@ export interface User {
   ownedVideoIds: string[];
 }
 
+// ==================== Subscription Types ====================
+
+export type SubscriptionTier = 'basic' | 'premium';
+export type BillingPeriod = 'monthly' | 'yearly';
+export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due' | 'trialing';
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  subscriptionTier: SubscriptionTier;
+  billingPeriod: BillingPeriod;
+  amount: number;
+  status: SubscriptionStatus;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  stripeSubscriptionId?: string;
+  createdAt: string;
+}
+
+export interface SubscriptionPricing {
+  id: string;
+  tier: SubscriptionTier;
+  billingPeriod: BillingPeriod;
+  price: number;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const SUBSCRIPTION_BENEFITS = {
+  basic: [
+    '모든 강좌 무제한 시청',
+    '매주 업데이트되는 신규 기술',
+    '스파링 분석 영상 접근',
+    '루틴 30% 할인 구매',
+  ],
+  premium: [
+    '베이직의 모든 혜택',
+    '모든 루틴 무제한 접근',
+    '신규 루틴 자동 추가',
+    '오프라인 세미나 우선권',
+    '인스트럭터 Q&A 우선 답변',
+  ],
+};
+
+// ==================== Revenue Stats ====================
+
 export interface RevenueStats {
   month: string;
   revenue: number;
@@ -276,6 +324,7 @@ export interface Drill {
   difficulty: Difficulty;
   thumbnailUrl: string;
   videoUrl?: string; // Direct video URL for Reels
+  descriptionVideoUrl?: string; // 설명 영상 URL
   vimeoUrl?: string;
   aspectRatio: '9:16'; // 세로 영상
   duration: string; // 예: "2:30"

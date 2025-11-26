@@ -79,7 +79,7 @@ const App: React.FC = () => {
             <Route path="/creator/courses/new" element={<CourseEditor />} />
             <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
             <Route path="/creator/upload" element={<UploadVideo />} />
-            <Route path="/creator/upload-drill" element={<UploadDrill />} />
+            <Route path="/creator/drills/new" element={<UploadDrill />} />
             <Route path="/creator/create-routine" element={<CreateRoutine />} />
             <Route path="/become-creator" element={<BecomeCreator />} />
             <Route path="/creator/:id" element={<CreatorProfile />} />

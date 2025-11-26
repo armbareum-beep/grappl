@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson } from '../../lib/api';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Course, Lesson, VideoCategory, Difficulty } from '../../types';
+import { Course, Lesson, VideoCategory, Difficulty, Drill } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 
@@ -13,7 +13,7 @@ export const CourseEditor: React.FC = () => {
     const { user } = useAuth();
     const isNew = !id || id === 'new';
 
-    const [activeTab, setActiveTab] = useState<'basic' | 'curriculum'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'curriculum' | 'drills'>('basic');
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
 
@@ -21,7 +21,7 @@ export const CourseEditor: React.FC = () => {
     const [courseData, setCourseData] = useState<Partial<Course>>({
         title: '',
         description: '',
-        category: VideoCategory.Standing, // Default to Standing
+        category: VideoCategory.Standing,
         difficulty: Difficulty.Beginner,
         price: 0,
         thumbnailUrl: '',
@@ -33,9 +33,16 @@ export const CourseEditor: React.FC = () => {
     const [editingLesson, setEditingLesson] = useState<Partial<Lesson> | null>(null);
     const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
 
+    // Drills State
+    const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
+    const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
+    const [loadingDrills, setLoadingDrills] = useState(false);
+
     useEffect(() => {
         if (!isNew && id) {
             fetchCourseData(id);
+            loadDrills();
+            loadBundledDrills();
         }
     }, [id, isNew]);
 
@@ -54,6 +61,54 @@ export const CourseEditor: React.FC = () => {
         }
     }
 
+    const loadDrills = async () => {
+        if (!user) return;
+        setLoadingDrills(true);
+        try {
+            const { data } = await getDrills(user.id);
+            if (data) {
+                setAvailableDrills(data);
+            }
+        } catch (error) {
+            console.error('Error loading drills:', error);
+        } finally {
+            setLoadingDrills(false);
+        }
+    };
+
+    const loadBundledDrills = async () => {
+        if (!id) return;
+        try {
+            const { data } = await getCourseDrillBundles(id);
+            if (data) {
+                setBundledDrills(data);
+            }
+        } catch (error) {
+            console.error('Error loading bundled drills:', error);
+        }
+    };
+
+    const toggleDrillBundle = async (drill: Drill) => {
+        if (!id) return;
+
+        const isCurrentlyBundled = bundledDrills.some(d => d.id === drill.id);
+
+        try {
+            if (isCurrentlyBundled) {
+                const { error } = await removeCourseDrillBundle(id, drill.id);
+                if (error) throw error;
+                setBundledDrills(prev => prev.filter(d => d.id !== drill.id));
+            } else {
+                const { error } = await addCourseDrillBundle(id, drill.id);
+                if (error) throw error;
+                setBundledDrills(prev => [...prev, drill]);
+            }
+        } catch (error) {
+            console.error('Error toggling drill bundle:', error);
+            alert('드릴 연결 중 오류가 발생했습니다.');
+        }
+    };
+
     const handleSaveCourse = async () => {
         if (!user) return;
         setSaving(true);
@@ -67,7 +122,6 @@ export const CourseEditor: React.FC = () => {
                 if (error) throw error;
                 if (data) {
                     navigate(`/creator/courses/${data.id}/edit`, { replace: true });
-                    // Switch to curriculum tab after creating
                     setActiveTab('curriculum');
                 }
             } else if (id) {
@@ -89,10 +143,8 @@ export const CourseEditor: React.FC = () => {
 
         try {
             if (editingLesson.id) {
-                // Update
                 await updateLesson(editingLesson.id, editingLesson);
             } else {
-                // Create
                 await createLesson({
                     ...editingLesson,
                     courseId: id,
@@ -100,7 +152,6 @@ export const CourseEditor: React.FC = () => {
                 });
             }
 
-            // Refresh lessons
             const updatedLessons = await getLessonsByCourse(id);
             setLessons(updatedLessons);
             setEditingLesson(null);
@@ -156,7 +207,7 @@ export const CourseEditor: React.FC = () => {
                 setEditingLesson({
                     ...editingLesson,
                     length: formattedDuration,
-                    title: editingLesson.title || videoInfo.title, // Only set if empty
+                    title: editingLesson.title || videoInfo.title,
                     description: editingLesson.description || videoInfo.description,
                 });
                 alert('비디오 정보를 가져왔습니다! 🎉');
@@ -221,6 +272,21 @@ export const CourseEditor: React.FC = () => {
                             }`}
                     >
                         커리큘럼
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (isNew) {
+                                alert('먼저 강좌를 저장해주세요.');
+                                return;
+                            }
+                            setActiveTab('drills');
+                        }}
+                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'drills'
+                            ? 'border-blue-500 text-blue-400'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        🎁 보너스 드릴
                     </button>
                 </div>
 
@@ -325,7 +391,7 @@ export const CourseEditor: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'curriculum' ? (
                         <div>
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-lg text-white">레슨 목록</h3>
@@ -456,7 +522,90 @@ export const CourseEditor: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    )}
+                    ) : activeTab === 'drills' ? (
+                        <div>
+                            <div className="mb-6">
+                                <h3 className="font-bold text-lg text-white mb-2">보너스 드릴 설정</h3>
+                                <p className="text-sm text-slate-400">
+                                    이 강좌를 구매한 유저에게 자동으로 제공될 드릴을 선택하세요. 선택한 드릴은 무료로 지급됩니다.
+                                </p>
+                            </div>
+
+                            {bundledDrills.length > 0 && (
+                                <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                                    <h4 className="text-sm font-medium text-blue-400 mb-2">✅ 연결된 드릴 ({bundledDrills.length}개)</h4>
+                                    <div className="space-y-2">
+                                        {bundledDrills.map(drill => (
+                                            <div key={drill.id} className="flex items-center gap-3 text-sm text-slate-300">
+                                                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                                                <span className="flex-1">{drill.title}</span>
+                                                <span className="text-xs text-slate-500">{drill.category}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {loadingDrills ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    로딩 중...
+                                </div>
+                            ) : availableDrills.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
+                                    등록된 드릴이 없습니다. 먼저 드릴을 만들어주세요.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {availableDrills.map(drill => {
+                                        const isBundled = bundledDrills.some(d => d.id === drill.id);
+                                        return (
+                                            <div
+                                                key={drill.id}
+                                                onClick={() => toggleDrillBundle(drill)}
+                                                className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${isBundled
+                                                        ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
+                                                        : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${isBundled
+                                                        ? 'bg-blue-500 border-blue-500'
+                                                        : 'border-slate-600 bg-slate-800'
+                                                    }`}>
+                                                    {isBundled && (
+                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-medium text-white truncate">{drill.title}</h4>
+                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{drill.description}</p>
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                            {drill.category}
+                                                        </span>
+                                                        {drill.duration && (
+                                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                                {drill.duration}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                            {drill.difficulty}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-16 h-16 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
+                                                    {drill.thumbnailUrl && (
+                                                        <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

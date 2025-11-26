@@ -32,7 +32,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <img src="/logo.png" alt="Grapplay" className="w-10 h-10 object-contain" />
+              <img src="/logo_v2.png" alt="Grapplay" className="w-14 h-14 object-contain mix-blend-screen" />
               <span className="text-2xl font-black text-white">Grapplay</span>
             </Link>
 
@@ -248,7 +248,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="grid md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
-                <img src="/logo.png" alt="Grapplay" className="w-8 h-8 object-contain" />
+                <img src="/logo_v2.png" alt="Grapplay" className="w-12 h-12 object-contain mix-blend-screen" />
                 <span className="text-xl font-black text-white">Grapplay</span>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed max-w-xs">

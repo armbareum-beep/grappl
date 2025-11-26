@@ -17,13 +17,23 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [progress, setProgress] = useState(0);
-    const [touchStart, setTouchStart] = useState(0);
-    const [touchEnd, setTouchEnd] = useState(0);
+
+    // Touch handling
+    const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+    const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+
+    // Video type state: 'main' (action) or 'description' (explanation)
+    const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const currentDrill = drills[currentIndex];
+
+    // Reset video type when drill changes
+    useEffect(() => {
+        setCurrentVideoType('main');
+    }, [currentIndex]);
 
     // Auto-play current video
     useEffect(() => {
@@ -32,7 +42,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         } else if (videoRef.current) {
             videoRef.current.pause();
         }
-    }, [currentIndex, isPlaying]);
+    }, [currentIndex, isPlaying, currentVideoType]);
 
     // Update progress
     useEffect(() => {
@@ -46,7 +56,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
         video.addEventListener('timeupdate', updateProgress);
         return () => video.removeEventListener('timeupdate', updateProgress);
-    }, [currentIndex]);
+    }, [currentIndex, currentVideoType]);
 
     // Handle video end - loop
     useEffect(() => {
@@ -60,7 +70,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
         video.addEventListener('ended', handleEnded);
         return () => video.removeEventListener('ended', handleEnded);
-    }, [currentIndex]);
+    }, [currentIndex, currentVideoType]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -71,6 +81,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 goToNext();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentVideoType === 'description') setCurrentVideoType('main');
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (currentVideoType === 'main') setCurrentVideoType('description');
             } else if (e.key === ' ') {
                 e.preventDefault();
                 togglePlayPause();
@@ -79,7 +95,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex]);
+    }, [currentIndex, currentVideoType]);
 
     // Mouse wheel navigation
     useEffect(() => {
@@ -129,32 +145,48 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStart(e.targetTouches[0].clientY);
-        setTouchEnd(e.targetTouches[0].clientY);
+        setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+        setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        setTouchEnd(e.targetTouches[0].clientY);
+        setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
     };
 
     const handleTouchEnd = () => {
         if (!touchStart || !touchEnd) return;
 
-        const distance = touchStart - touchEnd;
-        const minSwipeDistance = 30;
-        const isSwipeUp = distance > minSwipeDistance;
-        const isSwipeDown = distance < -minSwipeDistance;
+        const xDistance = touchStart.x - touchEnd.x;
+        const yDistance = touchStart.y - touchEnd.y;
+        const minSwipeDistance = 50;
 
-        console.log('Swipe:', { distance, isSwipeUp, isSwipeDown, currentIndex });
-
-        if (isSwipeUp) {
-            goToNext();
-        } else if (isSwipeDown) {
-            goToPrevious();
+        // Determine if horizontal or vertical swipe was dominant
+        if (Math.abs(xDistance) > Math.abs(yDistance)) {
+            // Horizontal swipe
+            if (Math.abs(xDistance) > minSwipeDistance) {
+                if (xDistance > 0) {
+                    // Swipe Left -> Show Description
+                    if (currentVideoType === 'main') setCurrentVideoType('description');
+                } else {
+                    // Swipe Right -> Show Main
+                    if (currentVideoType === 'description') setCurrentVideoType('main');
+                }
+            }
+        } else {
+            // Vertical swipe
+            if (Math.abs(yDistance) > minSwipeDistance) {
+                if (yDistance > 0) {
+                    // Swipe Up -> Next Drill
+                    goToNext();
+                } else {
+                    // Swipe Down -> Previous Drill
+                    goToPrevious();
+                }
+            }
         }
 
-        setTouchStart(0);
-        setTouchEnd(0);
+        setTouchStart(null);
+        setTouchEnd(null);
     };
 
     const handleLike = () => {
@@ -179,12 +211,23 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         }
 
         const newSaved = new Set(saved);
+        let savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+
         if (newSaved.has(currentDrill.id)) {
             newSaved.delete(currentDrill.id);
+            savedDrills = savedDrills.filter((d: Drill) => d.id !== currentDrill.id);
         } else {
             newSaved.add(currentDrill.id);
-            alert('드릴이 아레나 > 수련일지에 저장되었습니다!');
+            // Save full drill object to localStorage for display
+            if (!savedDrills.find((d: Drill) => d.id === currentDrill.id)) {
+                savedDrills.push(currentDrill);
+            }
+
+            alert('드릴이 아레나 > 훈련 루틴에 저장되었습니다!');
+            navigate('/arena?tab=routines');
         }
+
+        localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
         setSaved(newSaved);
     };
 
@@ -213,6 +256,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         );
     }
 
+    // Determine video source based on type
+    // Fallback to main video if description video is missing, or placeholder
+    const videoSrc = currentVideoType === 'main'
+        ? (currentDrill.videoUrl || '/placeholder-drill.mp4')
+        : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || '/placeholder-drill-desc.mp4');
+
     return (
         <div
             ref={containerRef}
@@ -233,7 +282,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
                 <div className="w-full p-6">
                     <div className="max-w-7xl mx-auto flex justify-between items-center">
-                        <div className="text-white font-bold text-xl pointer-events-auto">드릴</div>
+                        <div className="flex items-center gap-3 pointer-events-auto">
+                            <span className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}>
+                                동작
+                            </span>
+                            <span className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}>
+                                설명
+                            </span>
+                        </div>
                         <button
                             onClick={onChangeView}
                             className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-white/20 transition-all group"
@@ -249,13 +305,15 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
                     <video
+                        key={`${currentDrill.id}-${currentVideoType}`} // Force re-render on change
                         ref={videoRef}
                         className="absolute inset-0 w-full h-full object-cover"
                         loop
                         playsInline
                         muted={false}
+                        autoPlay={isPlaying}
                         onClick={togglePlayPause}
-                        src={currentDrill.videoUrl || '/placeholder-drill.mp4'}
+                        src={videoSrc}
                     />
 
                     {/* Play/Pause Overlay */}
@@ -276,6 +334,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                     <div className="flex-1 pr-4">
                         <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
                             {currentDrill.title}
+                            {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
                         </h2>
                         <p className="text-white/80 text-sm mb-3">
                             @{currentDrill.creatorName || 'Instructor'}
@@ -359,10 +418,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 {currentIndex + 1} / {drills.length}
             </div>
 
-            {/* Debug Info */}
-            <div className="absolute top-24 left-4 text-white/60 text-xs z-40 bg-black/50 p-2 rounded">
-                Swipe, Wheel, or Arrow keys to navigate
-            </div>
+            {/* Swipe Hint Animation - Only show once or occasionally */}
+            {currentIndex === 0 && currentVideoType === 'main' && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 animate-pulse-once delay-1000">
+                    <div className="bg-black/50 px-4 py-2 rounded-full text-white text-sm">
+                        ← Swipe for details
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

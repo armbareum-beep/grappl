@@ -2854,7 +2854,10 @@ export async function getUserRoutines(userId: string) {
     const { data, error } = await supabase
         .from('user_routine_purchases')
         .select(`
-            routine:routines(*)
+            routine:routines(
+                *,
+                creator:creators(name)
+            )
         `)
         .eq('user_id', userId);
 
@@ -2863,11 +2866,15 @@ export async function getUserRoutines(userId: string) {
         return { data: null, error };
     }
 
-    // Flatten structure
-    const routines = data.map((item: any) => ({
-        ...item.routine,
-        purchasedAt: item.purchased_at
-    }));
+    // Flatten structure and transform
+    const routines = data.map((item: any) => {
+        const routine = item.routine;
+        return {
+            ...transformDrillRoutine(routine),
+            creatorName: routine.creator?.name,
+            purchasedAt: item.purchased_at
+        };
+    });
 
     return { data: routines as DrillRoutine[], error: null };
 }
@@ -2907,10 +2914,10 @@ function transformDrillRoutine(data: any): DrillRoutine {
         price: data.price,
         difficulty: data.difficulty,
         category: data.category,
-        totalDuration: data.total_duration_minutes,
+        totalDurationMinutes: data.total_duration_minutes,
         drillCount: data.drill_count,
+        views: data.views || 0,
         createdAt: data.created_at,
-        items: [], // Populated separately if needed
     };
 }
 
@@ -2999,8 +3006,133 @@ export function calculateRoutinePrice(price: number, isSubscriber: boolean) {
     return price;
 }
 
+// ============================================================================
+// Course-Routine Bundles
+// ============================================================================
 
+/**
+ * Get routines bundled with a course
+ */
+export async function getCourseRoutineBundles(courseId: string) {
+    const { data, error } = await supabase
+        .from('course_routine_bundles')
+        .select(`
+            *,
+            routine:routines(*)
+        `)
+        .eq('course_id', courseId);
 
+    if (error) {
+        console.error('Error fetching course routine bundles:', error);
+        return { data: null, error };
+    }
+
+    const routines = data?.map((item: any) => transformDrillRoutine(item.routine)) || [];
+    return { data: routines as DrillRoutine[], error: null };
+}
+
+/**
+ * Add a routine to a course bundle
+ */
+export async function addCourseRoutineBundle(courseId: string, routineId: string) {
+    const { data, error } = await supabase
+        .from('course_routine_bundles')
+        .insert({
+            course_id: courseId,
+            routine_id: routineId
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error adding course routine bundle:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Remove a routine from a course bundle
+ */
+export async function removeCourseRoutineBundle(courseId: string, routineId: string) {
+    const { error } = await supabase
+        .from('course_routine_bundles')
+        .delete()
+        .eq('course_id', courseId)
+        .eq('routine_id', routineId);
+
+    if (error) {
+        console.error('Error removing course routine bundle:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+// ============================================================================
+// Course-Drill Bundles
+// ============================================================================
+
+/**
+ * Get drills bundled with a course
+ */
+export async function getCourseDrillBundles(courseId: string) {
+    const { data, error } = await supabase
+        .from('course_drill_bundles')
+        .select(`
+            *,
+            drill:drills(*)
+        `)
+        .eq('course_id', courseId);
+
+    if (error) {
+        console.error('Error fetching course drill bundles:', error);
+        return { data: null, error };
+    }
+
+    const drills = data?.map((item: any) => transformDrill(item.drill)) || [];
+    return { data: drills as Drill[], error: null };
+}
+
+/**
+ * Add a drill to a course bundle
+ */
+export async function addCourseDrillBundle(courseId: string, drillId: string) {
+    const { data, error } = await supabase
+        .from('course_drill_bundles')
+        .insert({
+            course_id: courseId,
+            drill_id: drillId
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error adding course drill bundle:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Remove a drill from a course bundle
+ */
+export async function removeCourseDrillBundle(courseId: string, drillId: string) {
+    const { error } = await supabase
+        .from('course_drill_bundles')
+        .delete()
+        .eq('course_id', courseId)
+        .eq('drill_id', drillId);
+
+    if (error) {
+        console.error('Error removing course drill bundle:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
 
 // ==================== FEED POSTS ====================
 
@@ -3026,6 +3158,142 @@ export async function createFeedPost(post: {
 
     if (error) {
         console.error('Error creating feed post:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+// ==================== SUBSCRIPTION TIERS ====================
+
+/**
+ * Get user's active subscription
+ */
+export async function getUserSubscription(userId: string) {
+    const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching user subscription:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Check if user has premium subscription
+ */
+export async function hasPremiumSubscription(userId: string): Promise<boolean> {
+    const { data } = await supabase.rpc('has_premium_subscription', {
+        p_user_id: userId
+    });
+
+    return data === true;
+}
+
+/**
+ * Check if user has any active subscription
+ */
+export async function hasActiveSubscription(userId: string): Promise<boolean> {
+    const { data } = await supabase.rpc('has_active_subscription', {
+        p_user_id: userId
+    });
+
+    return data === true;
+}
+
+/**
+ * Get user's subscription tier
+ * Returns: 'basic' | 'premium' | 'none'
+ */
+export async function getSubscriptionTier(userId: string): Promise<string> {
+    const { data } = await supabase.rpc('get_subscription_tier', {
+        p_user_id: userId
+    });
+
+    return data || 'none';
+}
+
+/**
+ * Check if user can access a routine
+ * Premium subscribers get all routines, basic subscribers need to purchase
+ */
+export async function checkRoutineAccess(userId: string, routineId: string): Promise<boolean> {
+    const { data } = await supabase.rpc('check_routine_access', {
+        p_user_id: userId,
+        p_routine_id: routineId
+    });
+
+    return data === true;
+}
+
+/**
+ * Get routine discount percentage for user
+ * Returns: 0 (no discount), 30 (basic subscriber), 100 (premium subscriber)
+ */
+export async function getRoutineDiscount(userId: string): Promise<number> {
+    const { data } = await supabase.rpc('get_routine_discount_percent', {
+        p_user_id: userId
+    });
+
+    return data || 0;
+}
+
+/**
+ * Get all subscription pricing options
+ */
+export async function getSubscriptionPricing() {
+    const { data, error } = await supabase
+        .from('subscription_pricing')
+        .select('*')
+        .eq('is_active', true)
+        .order('tier', { ascending: true })
+        .order('billing_period', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching subscription pricing:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Create or update subscription
+ */
+export async function upsertSubscription(subscription: {
+    userId: string;
+    tier: 'basic' | 'premium';
+    billingPeriod: 'monthly' | 'yearly';
+    amount: number;
+    stripeSubscriptionId?: string;
+}) {
+    const { data, error } = await supabase
+        .from('subscriptions')
+        .upsert({
+            user_id: subscription.userId,
+            subscription_tier: subscription.tier,
+            billing_period: subscription.billingPeriod,
+            amount: subscription.amount,
+            status: 'active',
+            stripe_subscription_id: subscription.stripeSubscriptionId,
+            current_period_start: new Date().toISOString(),
+            current_period_end: new Date(
+                Date.now() + (subscription.billingPeriod === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000
+            ).toISOString(),
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error upserting subscription:', error);
         return { data: null, error };
     }
 

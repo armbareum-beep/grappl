@@ -1,49 +1,60 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, Zap } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { PaymentModal } from '../components/payment/PaymentModal';
+
+type BillingPeriod = 'monthly' | 'yearly';
+type SubscriptionTier = 'basic' | 'premium';
 
 export const Pricing: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
   const [showPaymentModal, setShowPaymentModal] = React.useState(false);
+  const [billingPeriod, setBillingPeriod] = React.useState<BillingPeriod>('yearly');
+  const [selectedTier, setSelectedTier] = React.useState<SubscriptionTier>('basic');
+  const [selectedPrice, setSelectedPrice] = React.useState(0);
 
-  const handleSubscription = async () => {
+  const handleSubscription = (tier: SubscriptionTier, price: number) => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    // Open Stripe Payment Modal
+    setSelectedTier(tier);
+    setSelectedPrice(price);
     setShowPaymentModal(true);
   };
 
   const handlePaymentSuccess = () => {
     setShowPaymentModal(false);
-    alert('구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.');
+    const tierName = selectedTier === 'premium' ? '프리미엄' : '베이직';
+    alert(`${tierName} 구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.`);
     window.location.href = '/#/browse';
     window.location.reload();
   };
 
-  // if (isSubscribed) {
-  //   return (
-  //     <div className="bg-slate-50 py-20 min-h-screen flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-  //           <Check className="w-8 h-8" />
-  //         </div>
-  //         <h2 className="text-3xl font-bold text-slate-900 mb-4">이미 구독 중입니다! 🎉</h2>
-  //         <p className="text-slate-600 mb-8">모든 강좌를 무제한으로 이용하실 수 있습니다.</p>
-  //         <Link to="/browse">
-  //           <Button size="lg">강좌 보러 가기</Button>
-  //         </Link>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  // Pricing data
+  const pricing = {
+    basic: {
+      monthly: 29000,
+      yearly: 290000, // 17% discount (₩348,000 → ₩290,000)
+    },
+    premium: {
+      monthly: 39000,
+      yearly: 390000, // 17% discount (₩468,000 → ₩390,000)
+    },
+  };
+
+  const getMonthlyEquivalent = (yearlyPrice: number) => {
+    return Math.floor(yearlyPrice / 12);
+  };
+
+  const getDiscountPercent = (monthly: number, yearly: number) => {
+    return Math.round((1 - yearly / (monthly * 12)) * 100);
+  };
 
   return (
     <div className="bg-slate-50 py-12 md:py-20">
@@ -56,19 +67,65 @@ export const Pricing: React.FC = () => {
           단품 구매로 필요한 기술만 배우거나, 구독을 통해 모든 콘텐츠를 누리세요.
         </p>
 
-        <div className="mt-16 grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
-          {/* Monthly Subscription */}
-          <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-100 p-6 md:p-8 flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-blue-600 text-white px-4 py-1 rounded-bl-xl text-sm font-bold">
-              7일 무료 체험
+        {/* Billing Period Toggle */}
+        <div className="mt-12 flex items-center justify-center gap-4">
+          <button
+            onClick={() => setBillingPeriod('monthly')}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all ${billingPeriod === 'monthly'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+          >
+            월간 결제
+          </button>
+          <button
+            onClick={() => setBillingPeriod('yearly')}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all relative ${billingPeriod === 'yearly'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+          >
+            연간 결제
+            <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-xs font-bold px-2 py-0.5 rounded-full">
+              17% 할인
+            </span>
+          </button>
+        </div>
+
+        <div className="mt-12 grid gap-8 lg:grid-cols-2 max-w-5xl mx-auto">
+          {/* Basic Plan */}
+          <div className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 md:p-8 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-slate-600 text-white px-4 py-1 rounded-bl-xl text-sm font-bold">
+              베이직
             </div>
-            <h3 className="text-2xl font-bold text-slate-900">월간 멤버십</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-2">강의 무제한</h3>
             <p className="mt-4 text-slate-500">부담 없이 시작하는 주짓수 라이프.</p>
+
             <div className="mt-6">
-              <span className="text-4xl md:text-5xl font-black text-slate-900">₩39,000</span>
-              <span className="text-lg font-medium text-slate-500">/월</span>
+              {billingPeriod === 'monthly' ? (
+                <>
+                  <span className="text-4xl md:text-5xl font-black text-slate-900">
+                    ₩{pricing.basic.monthly.toLocaleString()}
+                  </span>
+                  <span className="text-lg font-medium text-slate-500">/월</span>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl font-bold text-slate-400 line-through">
+                      ₩{pricing.basic.monthly.toLocaleString()}
+                    </span>
+                    <span className="text-4xl md:text-5xl font-black text-slate-900">
+                      ₩{getMonthlyEquivalent(pricing.basic.yearly).toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="text-lg font-medium text-slate-500">/월</span>
+                  <p className="text-sm text-blue-600 font-medium mt-2">
+                    🔥 연간 결제 시 {getDiscountPercent(pricing.basic.monthly, pricing.basic.yearly)}% 할인 (총 ₩{pricing.basic.yearly.toLocaleString()})
+                  </p>
+                </>
+              )}
             </div>
-            <p className="text-sm text-blue-600 font-medium mt-2">✨ 7일간 무료, 언제든 해지 가능</p>
 
             <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-start">
@@ -81,68 +138,110 @@ export const Pricing: React.FC = () => {
               </li>
               <li className="flex items-start">
                 <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
-                <span className="ml-3 text-slate-700 text-lg">스파링 분석 영상 접근 권한</span>
+                <span className="ml-3 text-slate-700 text-lg">스파링 분석 영상 접근</span>
               </li>
               <li className="flex items-start">
                 <Check className="flex-shrink-0 w-6 h-6 text-blue-500" />
-                <span className="ml-3 text-slate-700 text-lg">단품 구매 시 추가 할인</span>
+                <span className="ml-3 text-slate-700 text-lg">루틴 30% 할인 구매</span>
               </li>
             </ul>
+
             <div className="mt-8">
               <Button
-                className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
-                onClick={handleSubscription}
+                className="w-full h-14 text-lg bg-slate-600 hover:bg-slate-700 shadow-lg"
+                onClick={() =>
+                  handleSubscription(
+                    'basic',
+                    billingPeriod === 'monthly' ? pricing.basic.monthly : pricing.basic.yearly
+                  )
+                }
                 disabled={loading}
               >
-                {loading ? '처리 중...' : '7일 무료로 시작하기'}
+                {loading ? '처리 중...' : '베이직 시작하기'}
               </Button>
-              <p className="text-xs text-center text-slate-400 mt-3">체험 기간 종료 후 자동 결제됩니다.</p>
+              {billingPeriod === 'monthly' && (
+                <p className="text-xs text-center text-slate-400 mt-3">언제든 해지 가능</p>
+              )}
             </div>
           </div>
 
-          {/* Yearly Plan */}
-          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-6 md:p-8 flex flex-col relative">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg w-max max-w-[90%] text-center whitespace-nowrap">
-              🎉 오픈 특가 35% 할인
+          {/* Premium Plan */}
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-2xl border-2 border-blue-500 p-6 md:p-8 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-1 rounded-bl-xl text-sm font-bold flex items-center gap-1">
+              <Zap className="w-4 h-4" />
+              추천
             </div>
-            <h3 className="text-2xl font-bold text-white mt-2 md:mt-0">연간 멤버십</h3>
-            <p className="mt-4 text-slate-400">진지하게 수련하는 분들을 위한 선택.</p>
+            <h3 className="text-2xl font-bold text-white mt-2">강의 + 루틴 무제한</h3>
+            <p className="mt-4 text-blue-100">진지하게 수련하는 분들을 위한 선택.</p>
+
             <div className="mt-6">
-              <div className="flex items-baseline gap-3">
-                <span className="text-2xl font-bold text-slate-500 line-through">₩468,000</span>
-                <span className="text-4xl md:text-5xl font-black text-white">₩304,200</span>
-              </div>
-              <span className="text-lg font-medium text-slate-400">/년</span>
+              {billingPeriod === 'monthly' ? (
+                <>
+                  <span className="text-4xl md:text-5xl font-black text-white">
+                    ₩{pricing.premium.monthly.toLocaleString()}
+                  </span>
+                  <span className="text-lg font-medium text-blue-100">/월</span>
+                  <p className="text-sm text-amber-300 font-medium mt-2">
+                    💪 베이직 대비 월 1만원 추가로 루틴 무제한!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl font-bold text-blue-300 line-through">
+                      ₩{pricing.premium.monthly.toLocaleString()}
+                    </span>
+                    <span className="text-4xl md:text-5xl font-black text-white">
+                      ₩{getMonthlyEquivalent(pricing.premium.yearly).toLocaleString()}
+                    </span>
+                  </div>
+                  <span className="text-lg font-medium text-blue-100">/월</span>
+                  <p className="text-sm text-amber-300 font-medium mt-2">
+                    🔥 연간 결제 시 {getDiscountPercent(pricing.premium.monthly, pricing.premium.yearly)}% 할인 (총 ₩{pricing.premium.yearly.toLocaleString()})
+                  </p>
+                </>
+              )}
             </div>
-            <p className="text-sm text-amber-400 font-medium mt-2">🔥 월 25,350원 꼴 (35% 할인)</p>
 
             <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
-                <span className="ml-3 text-slate-300 text-lg">월간 멤버십의 모든 혜택</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-300" />
+                <span className="ml-3 text-white text-lg font-semibold">베이직의 모든 혜택</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
-                <span className="ml-3 text-slate-300 text-lg">오프라인 세미나 우선권</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-300" />
+                <span className="ml-3 text-white text-lg font-semibold">모든 루틴 무제한 접근</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
-                <span className="ml-3 text-slate-300 text-lg">한정판 굿즈 증정</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-300" />
+                <span className="ml-3 text-white text-lg">신규 루틴 자동 추가</span>
               </li>
               <li className="flex items-start">
-                <Check className="flex-shrink-0 w-6 h-6 text-amber-400" />
-                <span className="ml-3 text-slate-300 text-lg">인스트럭터 Q&A 우선 답변</span>
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-300" />
+                <span className="ml-3 text-white text-lg">오프라인 세미나 우선권</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="flex-shrink-0 w-6 h-6 text-amber-300" />
+                <span className="ml-3 text-white text-lg">인스트럭터 Q&A 우선 답변</span>
               </li>
             </ul>
+
             <div className="mt-8">
               <Button
-                variant="outline"
-                className="w-full h-14 text-lg border-slate-700 text-white hover:bg-slate-800 hover:text-white"
-                onClick={handleSubscription}
+                className="w-full h-14 text-lg bg-white text-blue-600 hover:bg-blue-50 shadow-lg font-bold"
+                onClick={() =>
+                  handleSubscription(
+                    'premium',
+                    billingPeriod === 'monthly' ? pricing.premium.monthly : pricing.premium.yearly
+                  )
+                }
                 disabled={loading}
               >
-                {loading ? '처리 중...' : '연간 멤버십 가입하기'}
+                {loading ? '처리 중...' : '프리미엄 시작하기'}
               </Button>
+              {billingPeriod === 'monthly' && (
+                <p className="text-xs text-center text-blue-100 mt-3">언제든 해지 가능</p>
+              )}
             </div>
           </div>
         </div>
@@ -153,7 +252,6 @@ export const Pricing: React.FC = () => {
             단품 강좌 둘러보기 &rarr;
           </Link>
         </div>
-
       </div>
 
       {/* Payment Modal */}
@@ -162,8 +260,9 @@ export const Pricing: React.FC = () => {
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         onSuccess={handlePaymentSuccess}
-        courseTitle="Grappl Pro 월간 구독"
-        price={39000}
+        courseTitle={`Grappl ${selectedTier === 'premium' ? '프리미엄' : '베이직'} ${billingPeriod === 'monthly' ? '월간' : '연간'
+          } 구독`}
+        price={selectedPrice}
       />
     </div>
   );
