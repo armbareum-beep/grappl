@@ -22,6 +22,9 @@ import { FeaturedContent } from './pages/admin/FeaturedContent';
 import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminPayouts } from './pages/admin/AdminPayouts';
 import { AdminUserList } from './pages/admin/AdminUserList';
+import { AdminDrillList } from './pages/admin/AdminDrillList';
+import { AdminRoutineList } from './pages/admin/AdminRoutineList';
+import { AdminReportList } from './pages/admin/AdminReportList';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -87,19 +90,41 @@ const App: React.FC = () => {
             <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
             <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
             <Route path="/settings" element={<Settings />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
             <Route path="/admin/courses" element={
               <AdminRoute>
                 <AdminCourseList />
               </AdminRoute>
             } />
+            <Route path="/admin/drills" element={
+              <AdminRoute>
+                <AdminDrillList />
+              </AdminRoute>
+            } />
+            <Route path="/admin/routines" element={
+              <AdminRoute>
+                <AdminRoutineList />
+              </AdminRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <AdminRoute>
+                <AdminReportList />
+              </AdminRoute>
+            } />
             <Route path="/admin/creators" element={
               <AdminRoute>
                 <CreatorApprovalList />
-              </AdminRoute>
-            } />
-            <Route path="/admin/dashboard" element={
-              <AdminRoute>
-                <AdminDashboard />
               </AdminRoute>
             } />
             <Route path="/admin/featured" element={
@@ -122,6 +147,7 @@ const App: React.FC = () => {
                 <AdminUserList />
               </AdminRoute>
             } />
+
             <Route path="/payment/complete" element={<PaymentComplete />} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<NotFound />} />
