@@ -30,6 +30,31 @@ export const LandingPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
+            {/* Navigation Header */}
+            <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
+                        <img src="/logo_v2.png" alt="Grapplay" className="w-10 h-10 object-contain mix-blend-screen" />
+                        <span className="text-xl font-black tracking-tight">Grapplay</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            className="text-slate-300 hover:text-white hover:bg-white/10"
+                            onClick={() => navigate('/login')}
+                        >
+                            로그인
+                        </Button>
+                        <Button
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
+                            onClick={() => navigate('/pricing')}
+                        >
+                            시작하기
+                        </Button>
+                    </div>
+                </div>
+            </header>
+
             {/* 1. Hero Section */}
             <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
                 {/* Cosmic Background */}
