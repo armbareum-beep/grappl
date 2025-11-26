@@ -26,6 +26,7 @@ import { AdminDrillList } from './pages/admin/AdminDrillList';
 import { AdminRoutineList } from './pages/admin/AdminRoutineList';
 import { AdminReportList } from './pages/admin/AdminReportList';
 import { AdminTournamentList } from './pages/admin/AdminTournamentList';
+import { AdminSupportList } from './pages/admin/AdminSupportList';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -126,6 +127,11 @@ const App: React.FC = () => {
             <Route path="/admin/tournaments" element={
               <AdminRoute>
                 <AdminTournamentList />
+              </AdminRoute>
+            } />
+            <Route path="/admin/support" element={
+              <AdminRoute>
+                <AdminSupportList />
               </AdminRoute>
             } />
             <Route path="/admin/creators" element={

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Star, BookOpen, Users, Home, Package, DollarSign,
-    Dumbbell, Trophy, AlertTriangle, Activity, Shield
+    Dumbbell, Trophy, AlertTriangle, Activity, Shield, MessageSquare
 } from 'lucide-react';
 import { getAdminStats, AdminStats } from '../../lib/api-admin';
 
@@ -82,6 +82,14 @@ export const AdminDashboard: React.FC = () => {
                     color: "text-red-400",
                     bg: "bg-red-400/10",
                     link: "/admin/reports"
+                },
+                {
+                    title: "1:1 문의 관리",
+                    desc: "사용자 문의 답변",
+                    icon: MessageSquare, // Make sure MessageSquare is imported
+                    color: "text-blue-400",
+                    bg: "bg-blue-400/10",
+                    link: "/admin/support"
                 }
             ]
         },

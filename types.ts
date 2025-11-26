@@ -534,3 +534,26 @@ export interface Tournament {
   prizePool?: string;
   createdAt: string;
 }
+
+// ==================== Support System ====================
+
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TicketCategory = 'general' | 'account' | 'payment' | 'technical' | 'report';
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  subject: string;
+  message: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  priority: TicketPriority;
+  createdAt: string;
+  updatedAt: string;
+  adminResponse?: string;
+  respondedAt?: string;
+  respondedBy?: string;
+}
