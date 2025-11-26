@@ -493,3 +493,44 @@ export interface TechniqueRecommendation {
   reason: 'weakest' | 'trending' | 'related' | 'goal';
   priority: number;
 }
+
+// ==================== Admin & Reporting ====================
+
+export type ReportTargetType = 'video' | 'comment' | 'user' | 'drill' | 'routine';
+export type ReportStatus = 'pending' | 'resolved' | 'dismissed';
+
+export interface Report {
+  id: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  targetContent?: string; // Preview of the reported content
+  reporterId: string;
+  reporterName?: string;
+  reason: string;
+  status: ReportStatus;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+// ==================== Tournament Management ====================
+
+export type TournamentStatus = 'upcoming' | 'registration_open' | 'in_progress' | 'completed' | 'cancelled';
+export type TournamentFormat = 'single_elimination' | 'double_elimination' | 'round_robin';
+
+export interface Tournament {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  format: TournamentFormat;
+  status: TournamentStatus;
+  maxParticipants: number;
+  currentParticipants: number;
+  imageUrl?: string;
+  registrationFee: number;
+  prizePool?: string;
+  createdAt: string;
+}

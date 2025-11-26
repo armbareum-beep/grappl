@@ -1,55 +1,56 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCourses, deleteCourse } from '../../lib/api';
-import { Course } from '../../types';
+import { getDrills } from '../../lib/api';
+import { deleteDrill } from '../../lib/api-admin';
+import { Drill, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
-import { Edit, Trash2, Eye, Search, Plus, ArrowLeft } from 'lucide-react';
+import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle } from 'lucide-react';
 
-export const AdminCourseList: React.FC = () => {
+export const AdminDrillList: React.FC = () => {
     const navigate = useNavigate();
-    const [courses, setCourses] = useState<Course[]>([]);
+    const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        fetchCourses();
+        fetchDrills();
     }, []);
 
-    async function fetchCourses() {
+    async function fetchDrills() {
         try {
-            const data = await getCourses();
-            setCourses(data);
+            const { data } = await getDrills();
+            setDrills(data || []);
         } catch (error) {
-            console.error('Error fetching courses:', error);
+            console.error('Error fetching drills:', error);
         } finally {
             setLoading(false);
         }
     }
 
-    const handleDelete = async (courseId: string) => {
-        if (!window.confirm('정말로 이 강좌를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const handleDelete = async (drillId: string) => {
+        if (!window.confirm('정말로 이 드릴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
         try {
-            const { error } = await deleteCourse(courseId);
+            const { error } = await deleteDrill(drillId);
             if (error) throw error;
 
-            setCourses(courses.filter(c => c.id !== courseId));
-            alert('강좌가 삭제되었습니다.');
+            setDrills(drills.filter(d => d.id !== drillId));
+            alert('드릴이 삭제되었습니다.');
         } catch (error) {
-            console.error('Error deleting course:', error);
+            console.error('Error deleting drill:', error);
             alert('삭제 중 오류가 발생했습니다.');
         }
     };
 
-    const filteredCourses = courses.filter(course =>
-        course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredDrills = drills.filter(drill =>
+        drill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (drill.creatorName && drill.creatorName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
             </div>
         );
     }
@@ -67,14 +68,14 @@ export const AdminCourseList: React.FC = () => {
                             <ArrowLeft className="w-4 h-4" />
                             <span>대시보드로 돌아가기</span>
                         </button>
-                        <h1 className="text-3xl font-bold">강좌 관리</h1>
-                        <p className="text-slate-400">등록된 모든 강좌를 관리합니다.</p>
+                        <h1 className="text-3xl font-bold">드릴 관리</h1>
+                        <p className="text-slate-400">등록된 모든 드릴 영상을 관리합니다.</p>
                     </div>
                     <div className="flex gap-3 w-full md:w-auto">
-                        <Link to="/creator/courses/new">
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto">
+                        <Link to="/drills/upload">
+                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto">
                                 <Plus className="w-4 h-4 mr-2" />
-                                새 강좌 등록
+                                새 드릴 등록
                             </Button>
                         </Link>
                     </div>
@@ -85,10 +86,10 @@ export const AdminCourseList: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
                     <input
                         type="text"
-                        placeholder="강좌명, 인스트럭터 검색..."
+                        placeholder="드릴 제목, 인스트럭터 검색..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
 
@@ -98,50 +99,57 @@ export const AdminCourseList: React.FC = () => {
                         <table className="w-full">
                             <thead className="bg-slate-800/50 border-b border-slate-800">
                                 <tr>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">강좌 정보</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">드릴 정보</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">인스트럭터</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">가격</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">상태</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">조회수</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">난이도</th>
                                     <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">관리</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
-                                {filteredCourses.length > 0 ? (
-                                    filteredCourses.map((course) => (
-                                        <tr key={course.id} className="hover:bg-slate-800/50 transition-colors">
+                                {filteredDrills.length > 0 ? (
+                                    filteredDrills.map((drill) => (
+                                        <tr key={drill.id} className="hover:bg-slate-800/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
-                                                    <img
-                                                        src={course.thumbnailUrl}
-                                                        alt={course.title}
-                                                        className="w-16 h-10 object-cover rounded bg-slate-800"
-                                                    />
+                                                    <div className="w-16 h-10 bg-slate-800 rounded flex items-center justify-center text-slate-500">
+                                                        <PlayCircle className="w-6 h-6" />
+                                                    </div>
                                                     <div>
-                                                        <div className="font-medium text-white">{course.title}</div>
-                                                        <div className="text-xs text-slate-400">{course.category}</div>
+                                                        <div className="font-medium text-white">{drill.title}</div>
+                                                        <div className="flex gap-2 mt-1">
+                                                            {drill.tags?.slice(0, 2).map((tag, i) => (
+                                                                <span key={i} className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                                                                    #{tag}
+                                                                </span>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-400">
-                                                {course.creatorName}
+                                                {drill.creatorName || 'Unknown'}
                                             </td>
-                                            <td className="px-6 py-4 text-sm font-medium text-white">
-                                                {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}
+                                            <td className="px-6 py-4 text-sm text-slate-400">
+                                                {drill.views?.toLocaleString() || 0}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                    공개됨
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                                    ${drill.difficulty === Difficulty.Beginner ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                                        drill.difficulty === Difficulty.Intermediate ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                                            'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                                    {drill.difficulty}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Link to={`/courses/${course.id}`}>
+                                                    <Link to={`/drills/${drill.id}`}>
                                                         <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                                                             <Eye className="w-4 h-4" />
                                                         </button>
                                                     </Link>
                                                     <button
-                                                        onClick={() => handleDelete(course.id)}
+                                                        onClick={() => handleDelete(drill.id)}
                                                         className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
