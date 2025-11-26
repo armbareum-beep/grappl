@@ -130,23 +130,28 @@ ALTER TABLE match_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_titles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_challenge_progress ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own match history" ON match_history;
 CREATE POLICY "Users can view their own match history"
     ON match_history FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own match history" ON match_history;
 CREATE POLICY "Users can insert their own match history"
     ON match_history FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view all titles" ON titles;
 CREATE POLICY "Users can view all titles"
     ON titles FOR SELECT
     TO authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Users can view their own titles" ON user_titles;
 CREATE POLICY "Users can view their own titles"
     ON user_titles FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own challenge progress" ON user_challenge_progress;
 CREATE POLICY "Users can view their own challenge progress"
     ON user_challenge_progress FOR SELECT
     USING (auth.uid() = user_id);
@@ -291,10 +296,12 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE xp_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_login_streak ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own XP activities" ON xp_activities;
 CREATE POLICY "Users can view their own XP activities"
     ON xp_activities FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own login streak" ON user_login_streak;
 CREATE POLICY "Users can view their own login streak"
     ON user_login_streak FOR SELECT
     USING (auth.uid() = user_id);
@@ -659,10 +666,12 @@ CREATE POLICY "Everyone can view routine drills"
     USING (true);
 
 -- User routine purchases: Users can view their own
+DROP POLICY IF EXISTS "Users can view their own routine purchases" ON user_routine_purchases;
 CREATE POLICY "Users can view their own routine purchases"
     ON user_routine_purchases FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can purchase routines" ON user_routine_purchases;
 CREATE POLICY "Users can purchase routines"
     ON user_routine_purchases FOR INSERT
     WITH CHECK (auth.uid() = user_id);
