@@ -1252,17 +1252,19 @@ export async function getTrainingLogs(userId: string) {
 /**
  * Create a new training log
  */
-export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
-    // Check if log already exists for this date
-    const { data: existingLogs, error: checkError } = await supabase
-        .from('training_logs')
-        .select('id')
-        .eq('user_id', log.userId)
-        .eq('date', log.date);
+export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>, skipDailyCheck = false) {
+    // Check if log already exists for this date (unless skipping check)
+    if (!skipDailyCheck) {
+        const { data: existingLogs, error: checkError } = await supabase
+            .from('training_logs')
+            .select('id')
+            .eq('user_id', log.userId)
+            .eq('date', log.date);
 
-    if (checkError) return { error: checkError };
-    if (existingLogs && existingLogs.length > 0) {
-        return { error: new Error('하루에 하나의 수련 일지만 작성할 수 있습니다.') };
+        if (checkError) return { error: checkError };
+        if (existingLogs && existingLogs.length > 0) {
+            return { error: new Error('하루에 하나의 수련 일지만 작성할 수 있습니다.') };
+        }
     }
 
     const { data, error } = await supabase
@@ -1300,6 +1302,84 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
         error: null
     };
 }
+
+/**
+ * Create a new sparring review
+ */
+export async function createSparringReview(review: Omit<SparringReview, 'id' | 'createdAt'>) {
+    const { data, error } = await supabase
+        .from('sparring_reviews')
+        .insert({
+            user_id: review.userId,
+            date: review.date,
+            opponent_name: review.opponentName,
+            opponent_belt: review.opponentBelt,
+            rounds: review.rounds,
+            result: review.result,
+            notes: review.notes,
+            techniques: review.techniques,
+            what_worked: review.whatWorked,
+            what_to_improve: review.whatToImprove,
+            video_url: review.videoUrl
+        })
+        .select()
+        .single();
+
+    if (error) return { data: null, error };
+
+    return {
+        data: {
+            id: data.id,
+            userId: data.user_id,
+            date: data.date,
+            opponentName: data.opponent_name,
+            opponentBelt: data.opponent_belt,
+            rounds: data.rounds,
+            result: data.result,
+            notes: data.notes,
+            techniques: data.techniques,
+            whatWorked: data.what_worked,
+            whatToImprove: data.what_to_improve,
+            videoUrl: data.video_url,
+            createdAt: data.created_at
+        } as SparringReview,
+        error: null
+    };
+}
+
+/**
+ * Get sparring reviews for a user
+ */
+export async function getSparringReviews(userId: string) {
+    const { data, error } = await supabase
+        .from('sparring_reviews')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+    if (error) return { data: null, error };
+
+    return {
+        data: data.map((item: any) => ({
+            id: item.id,
+            userId: item.user_id,
+            date: item.date,
+            opponentName: item.opponent_name,
+            opponentBelt: item.opponent_belt,
+            rounds: item.rounds,
+            result: item.result,
+            notes: item.notes,
+            techniques: item.techniques,
+            whatWorked: item.what_worked,
+            whatToImprove: item.what_to_improve,
+            videoUrl: item.video_url,
+            createdAt: item.created_at
+        })) as SparringReview[],
+        error: null
+    };
+}
+
+
 
 /**
  * Delete a training log
@@ -2705,9 +2785,36 @@ export async function getRoutines(creatorId?: string) {
     */
 }
 
+// Alias for backward compatibility
+export const getDrillRoutines = getRoutines;
+
 export async function getRoutineById(id: string) {
+    // First check mock routines
     const mockRoutine = MOCK_ROUTINES.find(r => r.id === id);
     if (mockRoutine) return { data: mockRoutine, error: null };
+
+    // Check if this is actually a drill ID (for backward compatibility)
+    const mockDrill = MOCK_DRILLS.find(d => d.id === id);
+    if (mockDrill) {
+        // Create a temporary single-drill routine
+        const tempRoutine: DrillRoutine = {
+            id: `temp-routine-${id}`,
+            title: mockDrill.title,
+            description: mockDrill.description,
+            creatorId: mockDrill.creatorId,
+            creatorName: mockDrill.creatorName,
+            thumbnailUrl: mockDrill.thumbnailUrl,
+            price: mockDrill.price,
+            difficulty: mockDrill.difficulty,
+            category: mockDrill.category,
+            totalDurationMinutes: parseInt(mockDrill.duration.split(':')[0]) || 5,
+            drillCount: 1,
+            views: mockDrill.views,
+            createdAt: mockDrill.createdAt,
+            drills: [mockDrill]
+        };
+        return { data: tempRoutine, error: null };
+    }
 
     const { data, error } = await supabase
         .from('routines')
@@ -2997,10 +3104,10 @@ const MOCK_ROUTINES: DrillRoutine[] = [
         difficulty: Difficulty.Intermediate,
         category: VideoCategory.Submission,
         totalDurationMinutes: 45,
-        drillCount: 5,
+        drillCount: 3,
         views: 500,
         createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[0], MOCK_DRILLS[1]]
+        drills: [MOCK_DRILLS[0], MOCK_DRILLS[1], MOCK_DRILLS[4]]
     },
     {
         id: 'mock-routine-2',
@@ -3013,10 +3120,10 @@ const MOCK_ROUTINES: DrillRoutine[] = [
         difficulty: Difficulty.Beginner,
         category: VideoCategory.GuardPass,
         totalDurationMinutes: 30,
-        drillCount: 4,
+        drillCount: 2,
         views: 320,
         createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[2]]
+        drills: [MOCK_DRILLS[2], MOCK_DRILLS[3]]
     },
     {
         id: 'mock-routine-3',
@@ -3029,10 +3136,10 @@ const MOCK_ROUTINES: DrillRoutine[] = [
         difficulty: Difficulty.Advanced,
         category: VideoCategory.Guard,
         totalDurationMinutes: 50,
-        drillCount: 6,
+        drillCount: 3,
         views: 890,
         createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[3], MOCK_DRILLS[5]]
+        drills: [MOCK_DRILLS[3], MOCK_DRILLS[5], MOCK_DRILLS[1]]
     },
     {
         id: 'mock-routine-4',
@@ -3045,10 +3152,10 @@ const MOCK_ROUTINES: DrillRoutine[] = [
         difficulty: Difficulty.Intermediate,
         category: VideoCategory.Submission,
         totalDurationMinutes: 40,
-        drillCount: 5,
+        drillCount: 2,
         views: 600,
         createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[4]]
+        drills: [MOCK_DRILLS[4], MOCK_DRILLS[0]]
     }
 ];
 
@@ -3149,6 +3256,51 @@ export async function getDrillById(id: string) {
     }
 
     return transformDrill(data);
+}
+
+/**
+ * Find the routine that contains a specific drill
+ * Returns the first routine found that contains this drill
+ */
+export async function getRoutineByDrillId(drillId: string): Promise<{ data: DrillRoutine | null; error: any }> {
+    // Check mock data first
+    const mockRoutine = MOCK_ROUTINES.find(r =>
+        r.drills?.some(d => d.id === drillId)
+    );
+    if (mockRoutine) {
+        return { data: mockRoutine, error: null };
+    }
+
+    // Query database for routine containing this drill
+    const { data, error } = await supabase
+        .from('drill_routine_items')
+        .select(`
+            routine_id,
+            routine:drill_routines(
+                *,
+                creator:creators(name)
+            )
+        `)
+        .eq('drill_id', drillId)
+        .limit(1)
+        .single();
+
+    if (error) {
+        console.error('Error fetching routine by drill:', error);
+        return { data: null, error };
+    }
+
+    if (!data || !data.routine) {
+        return { data: null, error: new Error('No routine found for this drill') };
+    }
+
+    return {
+        data: {
+            ...transformDrillRoutine(data.routine),
+            creatorName: data.routine.creator?.name || 'Unknown'
+        },
+        error: null
+    };
 }
 
 export async function checkDrillOwnership(userId: string, drillId: string) {

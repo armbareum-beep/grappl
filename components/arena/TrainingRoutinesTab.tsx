@@ -96,7 +96,7 @@ export const TrainingRoutinesTab: React.FC = () => {
     }, [user]);
 
     const handleRoutineClick = (routine: DrillRoutine) => {
-        setPreviewRoutine(routine);
+        navigate(`/my-routines/${routine.id}`);
     };
 
     const handleStartRoutine = () => {

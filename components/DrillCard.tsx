@@ -10,7 +10,7 @@ interface DrillCardProps {
 export const DrillCard: React.FC<DrillCardProps> = ({ drill }) => {
     return (
         <Link
-            to={`/drills/${drill.id}`}
+            to={`/routines/${drill.id}`}
             className="group block relative overflow-hidden rounded-lg bg-slate-900 hover:ring-2 hover:ring-blue-500 transition-all duration-200"
             style={{ aspectRatio: '9/16' }}
         >

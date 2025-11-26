@@ -90,13 +90,22 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         videoUrl: ''
     });
 
-    // Load mock data for testing
+    // Load reviews
     useEffect(() => {
         if (user) {
-            // Mock 데이터 로드 (실제 환경에서는 API 호출)
-            setReviews(MOCK_REVIEWS);
+            loadReviews();
         }
     }, [user]);
+
+    const loadReviews = async () => {
+        setLoading(true);
+        const { getSparringReviews } = await import('../../lib/api');
+        const { data } = await getSparringReviews(user!.id);
+        if (data) {
+            setReviews(data);
+        }
+        setLoading(false);
+    };
 
     // Convert SparringReview[] to TrainingLog[] for AI analysis
     const trainingLogsForAI: TrainingLog[] = reviews.map(review => ({
@@ -116,19 +125,19 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         if (!user) return;
 
         try {
+            const { createSparringReview, createTrainingLog, updateQuestProgress, createFeedPost } = await import('../../lib/api');
+
             // 1. Create sparring review
-            const newReview: SparringReview = {
-                id: Math.random().toString(36).substr(2, 9),
+            const { data: newReview, error: reviewError } = await createSparringReview({
                 userId: user.id,
-                ...formData,
-                createdAt: new Date().toISOString()
-            };
+                ...formData
+            });
+
+            if (reviewError || !newReview) throw reviewError;
 
             setReviews([newReview, ...reviews]);
 
-            // 2. Automatically create training log
-            const { createTrainingLog, addXP } = await import('../../lib/api');
-
+            // 2. Automatically create training log (Skip daily check)
             const logContent = `스파링 복기\n\n상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)\n라운드: ${formData.rounds}\n결과: ${formData.result === 'win' ? '승리' : formData.result === 'loss' ? '패배' : '무승부'}\n\n잘된 점:\n${formData.whatWorked}\n\n개선할 점:\n${formData.whatToImprove}\n\n메모:\n${formData.notes}`;
 
             await createTrainingLog({
@@ -138,11 +147,12 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 durationMinutes: formData.rounds * 5,
                 sparringRounds: formData.rounds,
                 techniques: formData.techniques,
-                isPublic: false
-            });
+                isPublic: false,
+                location: 'Gym'
+            }, true); // Skip daily check
 
-            // 3. Award XP
-            await addXP(user.id, 30, 'sparring_review', newReview.id);
+            // 3. Update Quest (Awards XP if completed, handles daily limit)
+            const { xpEarned } = await updateQuestProgress(user.id, 'sparring_review');
 
             // Reset form
             setIsCreating(false);
@@ -160,10 +170,9 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             });
 
             // Ask if user wants to share to feed
-            const shareToFeed = confirm('스파링 복기가 저장되었습니다! (+30 XP)\n\n피드에 공유하시겠습니까?');
+            const shareToFeed = confirm(`스파링 복기가 저장되었습니다! ${xpEarned > 0 ? `(+${xpEarned} XP)` : ''}\n\n피드에 공유하시겠습니까?`);
 
             if (shareToFeed) {
-                const { createFeedPost } = await import('../../lib/api');
                 const feedContent = `🥋 스파링 복기\n\n상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)\n결과: ${formData.result === 'win' ? '승리 🏆' : formData.result === 'loss' ? '패배' : '무승부'}\n라운드: ${formData.rounds}\n\n${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
 
                 await createFeedPost({

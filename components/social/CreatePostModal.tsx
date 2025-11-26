@@ -37,32 +37,55 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
 
         setIsSubmitting(true);
 
-        // Mock API call - in real app, upload file to storage and save to DB
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const { createTrainingLog, updateQuestProgress, addXP } = await import('../../lib/api');
 
-        const newPost: TrainingLog = {
-            id: Math.random().toString(36).substr(2, 9),
-            userId: user.id,
-            date: new Date().toISOString(),
-            durationMinutes: 0,
-            techniques: selectedTechniques,
-            sparringRounds: 0,
-            notes: content,
-            isPublic: true,
-            createdAt: new Date().toISOString(),
-            mediaUrl: mediaPreview || undefined,
-            mediaType: mediaFile?.type.startsWith('video') ? 'video' : 'image',
-            likes: 0,
-            comments: 0,
-            user: {
-                name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-                email: user.email || '',
-                profileImage: user.user_metadata?.avatar_url
+            // Create training log
+            const { data: newLog, error } = await createTrainingLog({
+                userId: user.id,
+                date: new Date().toISOString().split('T')[0],
+                durationMinutes: 0,
+                techniques: selectedTechniques,
+                sparringRounds: 0,
+                notes: content,
+                isPublic: true,
+                youtubeUrl: mediaPreview || undefined
+            });
+
+            if (error) {
+                alert(error.message || '일지 작성 중 오류가 발생했습니다.');
+                setIsSubmitting(false);
+                return;
             }
-        };
 
-        onPostCreated(newPost);
-        setIsSubmitting(false);
+            if (newLog) {
+                // Update quest progress
+                const { completed, xpEarned } = await updateQuestProgress(user.id, 'write_log');
+
+                if (completed && xpEarned > 0) {
+                    alert(`일지가 작성되었습니다! +${xpEarned} XP`);
+                } else {
+                    alert('일지가 작성되었습니다!');
+                }
+
+                // Create post object for UI
+                const newPost: TrainingLog = {
+                    ...newLog,
+                    user: {
+                        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                        email: user.email || '',
+                        profileImage: user.user_metadata?.avatar_url
+                    }
+                };
+
+                onPostCreated(newPost);
+            }
+        } catch (error) {
+            console.error('Error creating training log:', error);
+            alert('일지 작성 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

@@ -289,7 +289,7 @@ export interface UserProgress {
   updatedAt: string;
 }
 
-export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill';
+export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill' | 'play_match' | 'sparring_review' | 'complete_routine';
 
 export interface DailyQuest {
   id: string;
@@ -605,4 +605,19 @@ export interface SupportTicket {
   adminResponse?: string;
   respondedAt?: string;
   respondedBy?: string;
+}
+export interface SparringReview {
+  id: string;
+  userId: string;
+  date: string;
+  opponentName: string;
+  opponentBelt: string;
+  rounds: number;
+  result: 'win' | 'loss' | 'draw';
+  notes: string;
+  techniques: string[];
+  whatWorked: string;
+  whatToImprove: string;
+  videoUrl?: string;
+  createdAt: string;
 }

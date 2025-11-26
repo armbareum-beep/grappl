@@ -82,7 +82,14 @@ export const PublicJournalFeed: React.FC<PublicJournalFeedProps> = ({ onLogClick
                         {log.techniques && log.techniques.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {log.techniques.map((tech, idx) => (
-                                    <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-md border border-slate-200">
+                                    <span
+                                        key={idx}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.location.href = `/drills?search=${encodeURIComponent(tech)}`;
+                                        }}
+                                        className="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-md border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors cursor-pointer"
+                                    >
                                         #{tech}
                                     </span>
                                 ))}
