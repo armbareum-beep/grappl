@@ -188,6 +188,32 @@ export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
     return (data || []).map(transformLesson);
 }
 
+export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]> {
+    // Get all courses by this creator first
+    const { data: courses } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('creator_id', creatorId);
+
+    if (!courses || courses.length === 0) return [];
+
+    const courseIds = courses.map(c => c.id);
+
+    // Get all lessons from these courses
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .in('course_id', courseIds)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching creator lessons:', error);
+        return [];
+    }
+
+    return (data || []).map(transformLesson);
+}
+
 export async function getLessonById(id: string): Promise<Lesson | null> {
     const { data, error } = await supabase
         .from('lessons')

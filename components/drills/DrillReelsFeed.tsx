@@ -219,9 +219,30 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             alert('저장된 드릴에서 제거되었습니다.');
         } else {
             newSaved.add(currentDrill.id);
-            // Save full drill object to localStorage for display
-            if (!savedDrills.find((d: Drill) => d.id === currentDrill.id)) {
-                savedDrills.push(currentDrill);
+
+            // Create a clean drill object to avoid saving nested routine data
+            const drillToSave: Drill = {
+                id: currentDrill.id,
+                title: currentDrill.title,
+                description: currentDrill.description,
+                creatorId: currentDrill.creatorId,
+                creatorName: currentDrill.creatorName,
+                category: currentDrill.category,
+                difficulty: currentDrill.difficulty,
+                thumbnailUrl: currentDrill.thumbnailUrl,
+                videoUrl: currentDrill.videoUrl,
+                aspectRatio: currentDrill.aspectRatio,
+                duration: currentDrill.duration,
+                length: currentDrill.length,
+                tags: currentDrill.tags,
+                price: currentDrill.price,
+                views: currentDrill.views,
+                createdAt: currentDrill.createdAt
+            };
+
+            // Save clean drill object to localStorage for display
+            if (!savedDrills.find((d: Drill) => d.id === drillToSave.id)) {
+                savedDrills.push(drillToSave);
             }
 
             alert('드릴이 개별 드릴로 저장되었습니다!\n아레나 > 훈련 루틴에서 나만의 맞춤형 루틴을 만들 수 있습니다.');

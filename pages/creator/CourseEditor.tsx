@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle } from '../../lib/api';
+import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
@@ -37,6 +37,11 @@ export const CourseEditor: React.FC = () => {
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
     const [loadingDrills, setLoadingDrills] = useState(false);
+
+    // Import Lesson State
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
+    const [selectedImportLesson, setSelectedImportLesson] = useState<Lesson | null>(null);
 
     useEffect(() => {
         if (!isNew && id) {
@@ -168,6 +173,46 @@ export const CourseEditor: React.FC = () => {
             setLessons(lessons.filter(l => l.id !== lessonId));
         } catch (error) {
             console.error('Error deleting lesson:', error);
+        }
+    };
+
+    const handleOpenImportModal = async () => {
+        if (!user) return;
+        setShowImportModal(true);
+        try {
+            const allLessons = await getAllCreatorLessons(user.id);
+            // Filter out lessons already in this course to avoid confusion (optional, but good UX)
+            // But user might want to duplicate within same course, so maybe keep them.
+            // Let's just show all.
+            setCreatorLessons(allLessons);
+        } catch (error) {
+            console.error('Error loading creator lessons:', error);
+        }
+    };
+
+    const handleImportLesson = async () => {
+        if (!selectedImportLesson || !id) return;
+
+        try {
+            // Clone the lesson
+            await createLesson({
+                courseId: id,
+                title: selectedImportLesson.title,
+                description: selectedImportLesson.description,
+                lessonNumber: lessons.length + 1,
+                vimeoUrl: selectedImportLesson.vimeoUrl,
+                length: selectedImportLesson.length,
+                difficulty: selectedImportLesson.difficulty,
+            });
+
+            const updatedLessons = await getLessonsByCourse(id);
+            setLessons(updatedLessons);
+            setShowImportModal(false);
+            setSelectedImportLesson(null);
+            alert('레슨을 가져왔습니다!');
+        } catch (error) {
+            console.error('Error importing lesson:', error);
+            alert('레슨 가져오기 중 오류가 발생했습니다.');
         }
     };
 
@@ -402,6 +447,13 @@ export const CourseEditor: React.FC = () => {
                                     <Plus className="w-4 h-4" />
                                     레슨 추가
                                 </button>
+                                <button
+                                    onClick={handleOpenImportModal}
+                                    className="flex items-center gap-2 text-slate-300 hover:bg-slate-800 px-4 py-2 rounded-lg transition-colors font-medium border border-slate-700 ml-2"
+                                >
+                                    <BookOpen className="w-4 h-4" />
+                                    기존 레슨 가져오기
+                                </button>
                             </div>
 
                             <div className="space-y-3 mb-8">
@@ -521,6 +573,66 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Import Lesson Modal */}
+                            {showImportModal && (
+                                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+                                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-xl font-bold text-white">기존 레슨 가져오기</h3>
+                                            <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white">
+                                                <X className="w-6 h-6" />
+                                            </button>
+                                        </div>
+
+                                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 space-y-2 pr-2">
+                                            {creatorLessons.length === 0 ? (
+                                                <p className="text-slate-500 text-center py-8">가져올 수 있는 레슨이 없습니다.</p>
+                                            ) : (
+                                                creatorLessons.map(lesson => (
+                                                    <div
+                                                        key={lesson.id}
+                                                        onClick={() => setSelectedImportLesson(lesson)}
+                                                        className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${selectedImportLesson?.id === lesson.id
+                                                                ? 'bg-blue-900/30 border-blue-500'
+                                                                : 'bg-slate-950 border-slate-800 hover:border-slate-600'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedImportLesson?.id === lesson.id ? 'border-blue-500' : 'border-slate-600'
+                                                            }`}>
+                                                            {selectedImportLesson?.id === lesson.id && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="text-white font-medium">{lesson.title}</h4>
+                                                            <div className="flex gap-2 text-xs text-slate-400">
+                                                                <span>{lesson.length}</span>
+                                                                <span>•</span>
+                                                                <span>{lesson.difficulty}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                                            <button
+                                                onClick={() => setShowImportModal(false)}
+                                                className="px-4 py-2 text-slate-400 hover:bg-slate-800 rounded-lg"
+                                            >
+                                                취소
+                                            </button>
+                                            <button
+                                                onClick={handleImportLesson}
+                                                disabled={!selectedImportLesson}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                선택한 레슨 가져오기
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : activeTab === 'drills' ? (
                         <div>
@@ -563,13 +675,13 @@ export const CourseEditor: React.FC = () => {
                                                 key={drill.id}
                                                 onClick={() => toggleDrillBundle(drill)}
                                                 className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${isBundled
-                                                        ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
-                                                        : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                                    ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
+                                                    : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
                                                     }`}
                                             >
                                                 <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${isBundled
-                                                        ? 'bg-blue-500 border-blue-500'
-                                                        : 'border-slate-600 bg-slate-800'
+                                                    ? 'bg-blue-500 border-blue-500'
+                                                    : 'border-slate-600 bg-slate-800'
                                                     }`}>
                                                     {isBundled && (
                                                         <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
