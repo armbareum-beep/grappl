@@ -81,182 +81,180 @@ export const DrillDetail: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-black">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
             </div>
         );
     }
 
-    if (!drill) return <div>Drill not found</div>;
+    if (!drill) return <div className="text-white text-center pt-20">Drill not found</div>;
 
     const finalPrice = calculateDrillPrice(drill.price, isSubscriber);
 
     return (
-        <div className="min-h-screen bg-slate-50 pt-6">
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Main Content (Left, 2 cols) */}
-                    <div className="lg:col-span-2 space-y-4">
-                        {/* Video Player */}
-                        <div className="bg-black rounded-xl overflow-hidden aspect-video shadow-lg relative">
-                            {owns && drill.vimeoUrl ? (
-                                <iframe
-                                    src={drill.vimeoUrl}
-                                    className="w-full h-full"
-                                    frameBorder="0"
-                                    allow="autoplay; fullscreen; picture-in-picture"
-                                    allowFullScreen
-                                ></iframe>
-                            ) : (
-                                <div className="w-full h-full relative">
-                                    <img
-                                        src={drill.thumbnailUrl}
-                                        alt={drill.title}
-                                        className="w-full h-full object-cover opacity-50"
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
-                                        <PlayCircle className="w-16 h-16 mb-4 opacity-80" />
-                                        <h3 className="text-xl font-bold mb-2">
-                                            {owns ? '영상을 불러오는 중...' : '이 드릴은 구매가 필요합니다'}
-                                        </h3>
-                                        {!owns && (
-                                            <Button onClick={handlePurchase} size="lg" className="mt-4">
-                                                ₩{finalPrice.toLocaleString()}에 구매하기
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+        <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
+            {/* Left: Immersive Video Stage */}
+            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative p-6">
+                {/* Ambient Background Glow */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[800px] bg-blue-500/10 blur-[100px] rounded-full"></div>
+                </div>
 
-                        {/* Completion Button */}
-                        {owns && (
-                            <div className="bg-slate-100 rounded-xl p-4">
-                                <Button
-                                    onClick={handleComplete}
-                                    className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500"
-                                    size="lg"
-                                >
-                                    <CheckCircle className="w-5 h-5 mr-2" />
-                                    드릴 완료하기
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* Video Info */}
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900 mb-2">{drill.title}</h1>
-                            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                                <div className="flex items-center gap-4 text-sm text-slate-600">
-                                    <div className="flex items-center gap-2">
-                                        <img
-                                            src={`https://ui-avatars.com/api/?name=${drill.creatorName}&background=random`}
-                                            className="w-10 h-10 rounded-full"
-                                            alt={drill.creatorName}
-                                        />
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{drill.creatorName}</p>
-                                            <p className="text-xs">구독자 1.2만명</p>
-                                        </div>
-                                    </div>
+                {/* Video Player Container */}
+                <div className={`relative shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10 ${drill.aspectRatio === '9:16' ? 'h-full max-h-[800px] aspect-[9/16]' : 'w-full max-w-4xl aspect-video'}`}>
+                    {owns && drill.vimeoUrl ? (
+                        <iframe
+                            src={drill.vimeoUrl}
+                            className="w-full h-full"
+                            frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                        ></iframe>
+                    ) : (
+                        <div className="w-full h-full relative group">
+                            <img
+                                src={drill.thumbnailUrl}
+                                alt={drill.title}
+                                className="w-full h-full object-cover opacity-60 transition-opacity group-hover:opacity-40"
+                            />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center bg-black/20 backdrop-blur-sm">
+                                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform">
+                                    <PlayCircle className="w-10 h-10 text-white fill-white/20" />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
-                                        <ThumbsUp className="w-4 h-4" />
-                                        <span className="text-sm font-medium">124</span>
-                                    </button>
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
-                                        <Share2 className="w-4 h-4" />
-                                        <span className="text-sm font-medium">공유</span>
-                                    </button>
-                                    <button className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
-                                        <MoreHorizontal className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Description Box */}
-                            <div className="mt-4 bg-slate-100 rounded-xl p-4 text-sm">
-                                <div className="flex gap-4 font-bold text-slate-900 mb-2">
-                                    <span>조회수 {drill.views.toLocaleString()}회</span>
-                                    <span>{drill.duration}</span>
-                                </div>
-                                <p className="text-slate-700 whitespace-pre-wrap">{drill.description || '설명이 없습니다.'}</p>
-                                <div className="mt-4 flex gap-2">
-                                    <span className="bg-slate-200 px-2 py-1 rounded text-xs text-slate-600">#{drill.category}</span>
-                                    <span className="bg-slate-200 px-2 py-1 rounded text-xs text-slate-600">#{drill.difficulty}</span>
-                                </div>
-                            </div>
-
-                            {/* Comments Section (Placeholder) */}
-                            <div className="mt-6">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    댓글 <span className="text-slate-500 text-base font-normal">3개</span>
+                                <h3 className="text-2xl font-bold mb-3 tracking-tight">
+                                    {owns ? '영상을 불러오는 중...' : '프리미엄 드릴 잠금'}
                                 </h3>
-                                <div className="flex gap-4 mb-6">
-                                    <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0" />
-                                    <input
-                                        type="text"
-                                        placeholder="댓글 추가..."
-                                        className="w-full border-b border-slate-200 focus:border-slate-900 outline-none py-2 bg-transparent transition-colors"
-                                    />
-                                </div>
-                                {/* Mock Comments */}
-                                <div className="space-y-4">
-                                    {[1, 2, 3].map((i) => (
-                                        <div key={i} className="flex gap-4">
-                                            <div className="w-10 h-10 bg-slate-200 rounded-full flex-shrink-0" />
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-semibold text-sm">User {i}</span>
-                                                    <span className="text-xs text-slate-500">2일 전</span>
-                                                </div>
-                                                <p className="text-sm text-slate-700">정말 좋은 드릴이네요! 많은 도움이 되었습니다.</p>
-                                                <div className="flex items-center gap-4 mt-2">
-                                                    <button className="text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1">
-                                                        <ThumbsUp className="w-3 h-3" /> 12
-                                                    </button>
-                                                    <button className="text-xs text-slate-500 hover:text-slate-900">답글</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <p className="text-zinc-300 mb-8 max-w-xs text-sm">
+                                    이 기술을 마스터하고 싶으신가요? <br />지금 바로 수련을 시작하세요.
+                                </p>
+                                {!owns && (
+                                    <Button
+                                        onClick={handlePurchase}
+                                        size="lg"
+                                        className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
+                                    >
+                                        ₩{finalPrice.toLocaleString()}에 잠금 해제
+                                    </Button>
+                                )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Floating Actions (Right side of video) */}
+                    <div className="absolute right-4 bottom-20 flex flex-col gap-4">
+                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
+                            <ThumbsUp className="w-6 h-6" />
+                        </button>
+                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
+                            <MessageSquare className="w-6 h-6" />
+                        </button>
+                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
+                            <Share2 className="w-6 h-6" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right: Info & Context Panel */}
+            <div className="w-[400px] bg-zinc-950 border-l border-zinc-800 flex flex-col z-10">
+                {/* Header: Creator */}
+                <div className="p-6 border-b border-zinc-900 flex items-center justify-between bg-zinc-950/50 backdrop-blur-md sticky top-0 z-20">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <img
+                                src={`https://ui-avatars.com/api/?name=${drill.creatorName}&background=random`}
+                                className="w-10 h-10 rounded-full ring-2 ring-zinc-800"
+                                alt={drill.creatorName}
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-blue-500 text-[10px] text-white px-1.5 py-0.5 rounded-full border border-zinc-950 font-bold">
+                                PRO
+                            </div>
+                        </div>
+                        <div>
+                            <p className="font-bold text-white text-sm hover:underline cursor-pointer">{drill.creatorName}</p>
+                            <p className="text-xs text-zinc-500">구독자 1.2만명</p>
                         </div>
                     </div>
+                    <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
+                        구독하기
+                    </Button>
+                </div>
 
-                    {/* Sidebar (Right, 1 col) */}
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-slate-900 text-lg">다음 동영상</h3>
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                    {/* Drill Info */}
+                    <div>
+                        <h1 className="text-2xl font-black text-white mb-3 leading-tight">{drill.title}</h1>
+                        <div className="flex items-center gap-4 text-xs text-zinc-500 mb-4">
+                            <div className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{drill.views.toLocaleString()}회</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{drill.duration}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                <span>{drill.difficulty}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <span className="px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-400 text-xs border border-zinc-800">#{drill.category}</span>
+                            {drill.tags?.map(tag => (
+                                <span key={tag} className="px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-400 text-xs border border-zinc-800">#{tag}</span>
+                            ))}
+                        </div>
+
+                        <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">
+                            {drill.description || '설명이 없습니다.'}
+                        </p>
+                    </div>
+
+                    {/* Related Drills */}
+                    <div>
+                        <h3 className="text-sm font-bold text-white mb-3">다음 드릴</h3>
                         <div className="space-y-3">
                             {relatedRoutines.map((routine) => (
-                                <Link to={`/drills`} key={routine.id} className="flex gap-2 group cursor-pointer">
-                                    <div className="relative w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0">
+                                <Link to={`/drills`} key={routine.id} className="flex gap-3 group cursor-pointer p-2 rounded-xl hover:bg-zinc-900 transition-colors">
+                                    <div className="relative w-20 aspect-[9/16] rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
                                         <img
                                             src={routine.thumbnailUrl || 'https://via.placeholder.com/300'}
                                             alt={routine.title}
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                                         />
-                                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 rounded">
-                                            {routine.totalDurationMinutes}:00
-                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-semibold text-sm text-slate-900 line-clamp-2 group-hover:text-blue-600 leading-tight mb-1">
+                                    <div className="flex-1 min-w-0 py-1">
+                                        <h4 className="font-medium text-sm text-zinc-200 line-clamp-2 group-hover:text-blue-400 leading-snug mb-1">
                                             {routine.title}
                                         </h4>
-                                        <p className="text-xs text-slate-500">{routine.creatorName || 'Grappl Official'}</p>
-                                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                                            <span>조회수 1.2천회</span>
-                                            <span>•</span>
-                                            <span>3일 전</span>
-                                        </div>
+                                        <p className="text-xs text-zinc-500 truncate">{routine.creatorName || 'Grappl Official'}</p>
                                     </div>
                                 </Link>
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* Footer CTA */}
+                <div className="p-4 border-t border-zinc-900 bg-zinc-950">
+                    {owns ? (
+                        <Button
+                            onClick={handleComplete}
+                            className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-emerald-900/20"
+                        >
+                            <CheckCircle className="w-5 h-5 mr-2" />
+                            드릴 완료 체크
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handlePurchase}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-900/20"
+                        >
+                            ₩{finalPrice.toLocaleString()} • 구매하기
+                        </Button>
+                    )}
                 </div>
             </div>
 
