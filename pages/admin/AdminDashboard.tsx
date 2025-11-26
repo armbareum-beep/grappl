@@ -30,14 +30,6 @@ export const AdminDashboard: React.FC = () => {
             title: "콘텐츠 관리",
             items: [
                 {
-                    title: "홈 화면 관리",
-                    desc: "추천 강좌 및 배너 설정",
-                    icon: Star,
-                    color: "text-amber-400",
-                    bg: "bg-amber-400/10",
-                    link: "/admin/featured"
-                },
-                {
                     title: "강좌 관리",
                     desc: `총 ${stats.totalCourses}개의 강좌`,
                     icon: BookOpen,
