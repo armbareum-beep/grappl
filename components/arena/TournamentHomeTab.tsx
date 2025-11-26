@@ -20,9 +20,45 @@ export const TournamentHomeTab: React.FC = () => {
         setBattleState('battling');
     };
 
-    const handleBattleEnd = (result: 'win' | 'loss') => {
+    const handleBattleEnd = async (result: 'win' | 'loss') => {
         console.log(`Battle ended with result: ${result}`);
-        // Here you would update user stats, history, etc.
+
+        try {
+            const { supabase } = await import('../../lib/supabase');
+            // Get user directly from supabase
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) return;
+
+            // 1. Save match history
+            const { error: matchError } = await supabase
+                .from('match_history')
+                .insert({
+                    user_id: user.id,
+                    opponent_name: currentOpponent.name,
+                    opponent_level: currentOpponent.level,
+                    user_level: 1, // Should fetch real level
+                    result: result,
+                    win_type: result === 'win' ? 'submission' : null, // Mock for now
+                    xp_earned: result === 'win' ? 50 : 10
+                });
+
+            if (matchError) throw matchError;
+
+            // 2. Award XP
+            const { addXP } = await import('../../lib/api');
+            await addXP(user.id, result === 'win' ? 50 : 10, 'tournament_match');
+
+            // 3. Update Quest
+            const { updateQuestProgress } = await import('../../lib/api');
+            await updateQuestProgress(user.id, 'play_match'); // Assuming this quest exists
+
+            alert(result === 'win' ? '승리했습니다! (+50 XP)' : '패배했습니다. (+10 XP)');
+        } catch (error) {
+            console.error('Error saving match result:', error);
+            alert('결과 저장 중 오류가 발생했습니다.');
+        }
+
         setBattleState('idle');
         setCurrentOpponent(null);
     };

@@ -37,9 +37,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-0">
-              <img src="/logo_v2.png" alt="Grapplay" className="w-14 h-14 object-contain mix-blend-screen -mr-4" />
-              <span className="text-2xl font-black text-white">Grapplay</span>
+            <Link to="/" className="flex items-center">
+              <img src="/logo_v2.png" alt="Grapplay" className="h-14 w-auto object-contain mix-blend-screen" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -253,9 +252,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-0 mb-4">
-                <img src="/logo_v2.png" alt="Grapplay" className="w-12 h-12 object-contain mix-blend-screen -mr-3" />
-                <span className="text-xl font-black text-white">Grapplay</span>
+              <div className="flex items-center mb-4">
+                <img src="/logo_v2.png" alt="Grapplay" className="h-12 w-auto object-contain mix-blend-screen" />
               </div>
               <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
                 세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.

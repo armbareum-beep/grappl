@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice, getRoutines } from '../lib/api';
-import { Drill, DrillRoutine } from '../types';
+import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice } from '../lib/api';
+import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ArrowLeft, ThumbsUp, MessageSquare, Share2, MoreHorizontal, CheckCircle } from 'lucide-react';
+import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, Lock, ArrowLeft } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [drill, setDrill] = useState<Drill | null>(null);
-    const [relatedRoutines, setRelatedRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
@@ -22,7 +21,6 @@ export const DrillDetail: React.FC = () => {
         if (id) {
             fetchDrill();
             checkUser();
-            fetchRelated();
         }
     }, [id]);
 
@@ -39,12 +37,6 @@ export const DrillDetail: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const fetchRelated = async () => {
-        // Mock related content by fetching some routines
-        const { data } = await getRoutines();
-        if (data) setRelatedRoutines(data.slice(0, 5));
     };
 
     const checkUser = async () => {
@@ -76,7 +68,6 @@ export const DrillDetail: React.FC = () => {
 
     const handleComplete = () => {
         setShowQuestComplete(true);
-        // TODO: Save completion to database and award XP
     };
 
     if (loading) {
@@ -93,15 +84,23 @@ export const DrillDetail: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
-            {/* Left: Immersive Video Stage */}
-            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative p-6">
-                {/* Ambient Background Glow */}
+            {/* Left: Video Stage */}
+            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="absolute top-6 left-6 z-10 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/60 transition-colors border border-white/10"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
+
+                {/* Ambient Glow */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[800px] bg-blue-500/10 blur-[100px] rounded-full"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] bg-blue-500/10 blur-[120px] rounded-full"></div>
                 </div>
 
-                {/* Video Player Container */}
-                <div className={`relative shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10 ${drill.aspectRatio === '9:16' ? 'h-full max-h-[800px] aspect-[9/16]' : 'w-full max-w-4xl aspect-video'}`}>
+                {/* Video Player - Full Height 9:16 */}
+                <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10">
                     {owns && drill.vimeoUrl ? (
                         <iframe
                             src={drill.vimeoUrl}
@@ -119,29 +118,38 @@ export const DrillDetail: React.FC = () => {
                             />
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center bg-black/20 backdrop-blur-sm">
                                 <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform">
-                                    <PlayCircle className="w-10 h-10 text-white fill-white/20" />
+                                    <Lock className="w-10 h-10 text-white" />
                                 </div>
                                 <h3 className="text-2xl font-bold mb-3 tracking-tight">
-                                    {owns ? '영상을 불러오는 중...' : '프리미엄 드릴 잠금'}
+                                    {drill.price === 0 ? '구독 필요' : '드릴 구매 필요'}
                                 </h3>
                                 <p className="text-zinc-300 mb-8 max-w-xs text-sm">
-                                    이 기술을 마스터하고 싶으신가요? <br />지금 바로 수련을 시작하세요.
+                                    이 기술을 마스터하고 싶으신가요? <br />지금 바로 시작하세요.
                                 </p>
-                                {!owns && (
+                                {!owns && drill.price > 0 && (
                                     <Button
                                         onClick={handlePurchase}
                                         size="lg"
                                         className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
                                     >
-                                        ₩{finalPrice.toLocaleString()}에 잠금 해제
+                                        ₩{finalPrice.toLocaleString()}에 구매하기
+                                    </Button>
+                                )}
+                                {!owns && drill.price === 0 && (
+                                    <Button
+                                        onClick={() => navigate('/pricing')}
+                                        size="lg"
+                                        className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
+                                    >
+                                        구독하기
                                     </Button>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Floating Actions (Right side of video) */}
-                    <div className="absolute right-4 bottom-20 flex flex-col gap-4">
+                    {/* Floating Actions */}
+                    <div className="absolute right-4 bottom-24 flex flex-col gap-4">
                         <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
                             <ThumbsUp className="w-6 h-6" />
                         </button>
@@ -155,11 +163,11 @@ export const DrillDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Right: Info & Context Panel */}
-            <div className="w-[400px] bg-zinc-950 border-l border-zinc-800 flex flex-col z-10">
-                {/* Header: Creator */}
-                <div className="p-6 border-b border-zinc-900 flex items-center justify-between bg-zinc-950/50 backdrop-blur-md sticky top-0 z-20">
-                    <div className="flex items-center gap-3">
+            {/* Right: Info Panel */}
+            <div className="w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full">
+                {/* Header */}
+                <div className="p-6 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md flex-shrink-0">
+                    <div className="flex items-center gap-3 mb-4">
                         <div className="relative">
                             <img
                                 src={`https://ui-avatars.com/api/?name=${drill.creatorName}&background=random`}
@@ -170,18 +178,18 @@ export const DrillDetail: React.FC = () => {
                                 PRO
                             </div>
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <p className="font-bold text-white text-sm hover:underline cursor-pointer">{drill.creatorName}</p>
                             <p className="text-xs text-zinc-500">구독자 1.2만명</p>
                         </div>
+                        <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
+                            구독하기
+                        </Button>
                     </div>
-                    <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
-                        구독하기
-                    </Button>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                     {/* Drill Info */}
                     <div>
                         <h1 className="text-2xl font-black text-white mb-3 leading-tight">{drill.title}</h1>
@@ -212,33 +220,34 @@ export const DrillDetail: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Related Drills */}
-                    <div>
-                        <h3 className="text-sm font-bold text-white mb-3">다음 드릴</h3>
-                        <div className="space-y-3">
-                            {relatedRoutines.map((routine) => (
-                                <Link to={`/drills`} key={routine.id} className="flex gap-3 group cursor-pointer p-2 rounded-xl hover:bg-zinc-900 transition-colors">
-                                    <div className="relative w-20 aspect-[9/16] rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
-                                        <img
-                                            src={routine.thumbnailUrl || 'https://via.placeholder.com/300'}
-                                            alt={routine.title}
-                                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                                        />
-                                    </div>
-                                    <div className="flex-1 min-w-0 py-1">
-                                        <h4 className="font-medium text-sm text-zinc-200 line-clamp-2 group-hover:text-blue-400 leading-snug mb-1">
-                                            {routine.title}
-                                        </h4>
-                                        <p className="text-xs text-zinc-500 truncate">{routine.creatorName || 'Grappl Official'}</p>
-                                    </div>
-                                </Link>
-                            ))}
+                    {/* Add to Routine */}
+                    {(owns || drill.price === 0) && (
+                        <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800">
+                            <h3 className="text-sm font-bold text-white mb-2">내 루틴에 추가</h3>
+                            <p className="text-xs text-zinc-400 mb-3">이 드릴을 나만의 루틴에 추가하세요</p>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                                    if (!saved.find((d: any) => d.id === drill.id)) {
+                                        saved.push(drill);
+                                        localStorage.setItem('saved_drills', JSON.stringify(saved));
+                                        alert('나만의 루틴 목록에 추가되었습니다! 아레나 탭에서 확인하세요.');
+                                    } else {
+                                        alert('이미 추가된 드릴입니다.');
+                                    }
+                                }}
+                                className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                            >
+                                + 루틴에 추가
+                            </Button>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Footer CTA */}
-                <div className="p-4 border-t border-zinc-900 bg-zinc-950">
+                <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex-shrink-0">
                     {owns ? (
                         <Button
                             onClick={handleComplete}
@@ -247,12 +256,19 @@ export const DrillDetail: React.FC = () => {
                             <CheckCircle className="w-5 h-5 mr-2" />
                             드릴 완료 체크
                         </Button>
-                    ) : (
+                    ) : drill.price > 0 ? (
                         <Button
                             onClick={handlePurchase}
                             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-900/20"
                         >
                             ₩{finalPrice.toLocaleString()} • 구매하기
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={() => navigate('/pricing')}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-900/20"
+                        >
+                            구독하여 시청하기
                         </Button>
                     )}
                 </div>
@@ -264,7 +280,7 @@ export const DrillDetail: React.FC = () => {
                 onClose={() => setShowQuestComplete(false)}
                 questName={drill?.title || '드릴'}
                 xpEarned={10}
-                streak={3}
+                streak={1}
             />
         </div>
     );

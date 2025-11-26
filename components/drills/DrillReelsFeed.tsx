@@ -402,12 +402,23 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
                         {/* More */}
                         <button
-                            onClick={() => navigate(`/drills/${currentDrill.id}`)}
+                            onClick={async () => {
+                                // Find the routine that contains this drill
+                                const { getRoutineByDrillId } = await import('../../lib/api');
+                                const { data: routine } = await getRoutineByDrillId(currentDrill.id);
+
+                                if (routine) {
+                                    navigate(`/routines/${routine.id}`);
+                                } else {
+                                    alert('이 드릴은 아직 루틴에 포함되지 않았습니다.');
+                                }
+                            }}
                             className="flex flex-col items-center gap-1 group"
                         >
                             <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
                                 <MoreVertical className="w-6 h-6 text-white" />
                             </div>
+                            <span className="text-white text-xs">루틴보기</span>
                         </button>
                     </div>
                 </div>

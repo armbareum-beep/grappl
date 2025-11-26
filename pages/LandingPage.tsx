@@ -33,9 +33,8 @@ export const LandingPage: React.FC = () => {
             {/* Navigation Header */}
             <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
-                        <img src="/logo_v2.png" alt="Grapplay" className="w-10 h-10 object-contain mix-blend-screen" />
-                        <span className="text-xl font-black tracking-tight">Grapplay</span>
+                    <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
+                        <img src="/logo_v2.png" alt="Grapplay" className="h-14 w-auto object-contain mix-blend-screen" />
                     </div>
                     <div className="flex items-center gap-4">
                         <Button

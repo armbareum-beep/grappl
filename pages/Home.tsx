@@ -401,7 +401,7 @@ export const Home: React.FC = () => {
                 {recentActivity.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/drills/${item.id}`)}
+                    onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/routines/${item.id}`)}
                     className="group bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer"
                   >
                     <div className={`w-24 h-16 rounded-lg ${item.thumbnail} flex-shrink-0 flex items-center justify-center relative overflow-hidden`}>
@@ -465,7 +465,7 @@ export const Home: React.FC = () => {
                 {drills.map(drill => (
                   <div
                     key={drill.id}
-                    onClick={() => navigate(`/drills/${drill.id}`)}
+                    onClick={() => navigate(`/routines/${drill.id}`)}
                     className="aspect-[9/16] bg-slate-900/50 rounded-xl relative overflow-hidden group cursor-pointer border border-slate-800 hover:border-emerald-500/50 transition-all"
                   >
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80"></div>
