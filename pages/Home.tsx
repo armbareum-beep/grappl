@@ -21,7 +21,7 @@ export const Home: React.FC = () => {
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [drills, setDrills] = useState<Drill[]>([]);
   const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'courses' | 'drills' | 'feed'>('courses');
+  const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
 
   // Mock User Stats (나중에 DB 연동 필요)
   const userStats = {
@@ -32,6 +32,13 @@ export const Home: React.FC = () => {
     streak: 12,
     weeklyActivity: [true, true, false, true, true, false, true] // 월~일 수련 여부
   };
+
+  // Mock Recent Activity (최근 시청 내역)
+  const recentActivity = [
+    { id: '101', type: 'lesson', title: 'Lesson 3: 암바 디테일', courseTitle: '화이트벨트 탈출기', progress: 75, thumbnail: 'bg-blue-900', lastWatched: '2시간 전' },
+    { id: '205', type: 'drill', title: '힙 이스케이프 100회', difficulty: '초급', progress: 100, thumbnail: 'bg-emerald-900', lastWatched: '어제' },
+    { id: '102', type: 'lesson', title: 'Lesson 4: 트라이앵글 초크', courseTitle: '화이트벨트 탈출기', progress: 10, thumbnail: 'bg-indigo-900', lastWatched: '3일 전' },
+  ];
 
   useEffect(() => {
     if (!user) {
@@ -162,7 +169,7 @@ export const Home: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/arena')}
+            onClick={() => navigate('/arena?tab=sparring')}
             className="group bg-slate-800 hover:bg-red-600 border border-slate-700 hover:border-red-500 rounded-xl p-4 transition-all duration-300 shadow-lg hover:shadow-red-500/20 hover:-translate-y-1 text-left"
           >
             <div className="w-10 h-10 rounded-lg bg-slate-700 group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors">
@@ -186,7 +193,7 @@ export const Home: React.FC = () => {
 
         {/* 3. AI Coach Insight Banner */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 rounded-xl p-4 mb-10 flex items-center gap-4 shadow-lg relative overflow-hidden group cursor-pointer hover:border-indigo-500/50 transition-colors"
-          onClick={() => navigate('/arena')}>
+          onClick={() => navigate('/arena?tab=sparring&action=analyze')}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
 
           <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 flex-shrink-0">
@@ -206,24 +213,31 @@ export const Home: React.FC = () => {
 
         {/* 4. Content Deck (Tabs) */}
         <div>
-          <div className="flex items-center gap-6 border-b border-slate-800 mb-6">
+          <div className="flex items-center gap-6 border-b border-slate-800 mb-6 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setActiveTab('recent')}
+              className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'recent' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              최근 시청
+              {activeTab === 'recent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 rounded-t-full"></div>}
+            </button>
             <button
               onClick={() => setActiveTab('courses')}
-              className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'courses' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'courses' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
             >
               추천 강의
               {activeTab === 'courses' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-500 rounded-t-full"></div>}
             </button>
             <button
               onClick={() => setActiveTab('drills')}
-              className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'drills' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'drills' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
             >
               실전 드릴
               {activeTab === 'drills' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full"></div>}
             </button>
             <button
               onClick={() => setActiveTab('feed')}
-              className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'feed' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'feed' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
             >
               커뮤니티
               {activeTab === 'feed' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
@@ -232,6 +246,54 @@ export const Home: React.FC = () => {
 
           {/* Tab Content */}
           <div className="min-h-[300px]">
+
+            {/* Recent Activity Tab */}
+            {activeTab === 'recent' && (
+              <div className="space-y-3 animate-fade-in">
+                {recentActivity.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/drills/${item.id}`)}
+                    className="group bg-slate-900 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer"
+                  >
+                    {/* Thumbnail */}
+                    <div className={`w-24 h-16 rounded-lg ${item.thumbnail} flex-shrink-0 flex items-center justify-center relative overflow-hidden`}>
+                      {item.type === 'lesson' ? <Play className="w-6 h-6 text-white/80" /> : <Dumbbell className="w-6 h-6 text-white/80" />}
+                      {/* Progress Bar Overlay */}
+                      <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50">
+                        <div className="h-full bg-orange-500" style={{ width: `${item.progress}%` }}></div>
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${item.type === 'lesson'
+                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          }`}>
+                          {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
+                        </span>
+                        <span className="text-xs text-slate-500">{item.lastWatched}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white truncate group-hover:text-orange-400 transition-colors">{item.title}</h4>
+                      <p className="text-xs text-slate-400 truncate">{item.type === 'lesson' ? item.courseTitle : item.difficulty}</p>
+                    </div>
+
+                    <div className="flex items-center justify-center w-8">
+                      <Play className="w-4 h-4 text-slate-600 group-hover:text-white transition-colors" />
+                    </div>
+                  </div>
+                ))}
+
+                {recentActivity.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">
+                    <p>아직 시청 기록이 없습니다.</p>
+                    <button onClick={() => setActiveTab('courses')} className="text-indigo-400 text-sm mt-2 hover:underline">강의 보러가기</button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Courses Tab */}
             {activeTab === 'courses' && (
@@ -327,6 +389,13 @@ export const Home: React.FC = () => {
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out forwards;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
       `}</style>
     </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Trophy, Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
 import { TournamentHomeTab } from '../components/arena/TournamentHomeTab';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
@@ -12,7 +13,15 @@ type ArenaTab = 'journal' | 'routines' | 'skills' | 'sparring' | 'tournament';
 
 export const Arena: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<ArenaTab>('tournament');
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['journal', 'routines', 'skills', 'sparring', 'tournament'].includes(tabParam)) {
+            setActiveTab(tabParam as ArenaTab);
+        }
+    }, [searchParams]);
 
     const ARENA_TABS = [
         { id: 'journal', label: '수련일지', icon: BookOpen },
@@ -70,7 +79,11 @@ export const Arena: React.FC = () => {
                 {activeTab === 'journal' && <JournalTab />}
                 {activeTab === 'routines' && <TrainingRoutinesTab />}
                 {activeTab === 'skills' && <SkillTreeTab />}
-                {activeTab === 'sparring' && <SparringReviewTab />}
+                {activeTab === 'sparring' && (
+                    <SparringReviewTab
+                        autoRunAI={searchParams.get('action') === 'analyze'}
+                    />
+                )}
                 {activeTab === 'tournament' && <TournamentHomeTab />}
             </div>
         </div>

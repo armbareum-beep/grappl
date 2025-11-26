@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bot, Sparkles, Brain, AlertTriangle, ChevronRight, Terminal, PlayCircle, Lock, Dumbbell, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TrainingLog } from '../../types';
 
 interface AICoachWidgetProps {
     logs?: TrainingLog[];
+    autoRun?: boolean;
 }
 
 interface AnalysisResult {
@@ -51,14 +52,31 @@ const ROUTINE_DATABASE = {
     ]
 };
 
-export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [] }) => {
+export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun = false }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [displayedText, setDisplayedText] = useState('');
     const [results, setResults] = useState<AnalysisResult[]>([]);
+    const hasRunRef = useRef(false);
+
+    const typeWriterEffect = useCallback((text: string) => {
+        let i = 0;
+        const speed = 30;
+        setDisplayedText(''); // 초기화
+        const interval = setInterval(() => {
+            if (i < text.length) {
+                setDisplayedText((prev) => prev + text.charAt(i));
+                i++;
+            } else {
+                clearInterval(interval);
+            }
+        }, speed);
+    }, []);
 
     // 🧠 분석 엔진 (Rule-based AI)
-    const analyzeLogs = () => {
+    const analyzeLogs = useCallback(() => {
+        if (isAnalyzing) return; // 이미 분석 중이면 중단
+
         setIsAnalyzing(true);
         setShowResult(false);
         setDisplayedText('');
@@ -175,20 +193,15 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [] }) => {
             setShowResult(true);
             typeWriterEffect(`최근 ${logs.length}개의 수련 일지를 분석했습니다. 현재 회원님에게 필요한 맞춤형 솔루션입니다.`);
         }, 1500);
-    };
+    }, [logs, typeWriterEffect, isAnalyzing]); // isAnalyzing 의존성 추가
 
-    const typeWriterEffect = (text: string) => {
-        let i = 0;
-        const speed = 30;
-        const interval = setInterval(() => {
-            if (i < text.length) {
-                setDisplayedText((prev) => prev + text.charAt(i));
-                i++;
-            } else {
-                clearInterval(interval);
-            }
-        }, speed);
-    };
+    // Auto Run Effect
+    useEffect(() => {
+        if (autoRun && logs.length > 0 && !hasRunRef.current) {
+            hasRunRef.current = true;
+            analyzeLogs();
+        }
+    }, [autoRun, logs, analyzeLogs]);
 
     return (
         <div className="w-full bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl mb-8">
@@ -201,7 +214,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [] }) => {
                     <div>
                         <h3 className="text-white font-bold text-lg flex items-center gap-2">
                             AI 코치
-                            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] border border-indigo-500/30">BETA</span>
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-indigo-300 text-[10px] border border-indigo-500/30">BETA</span>
                         </h3>
                         <p className="text-slate-400 text-xs">수련 데이터를 분석하여 맞춤형 강의와 루틴을 추천합니다.</p>
                     </div>
