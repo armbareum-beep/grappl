@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, Lock, ArrowLeft } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
+import { AddToRoutineModal } from '../components/AddToRoutineModal';
 
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export const DrillDetail: React.FC = () => {
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
+    const [showAddToRoutine, setShowAddToRoutine] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -221,48 +223,20 @@ export const DrillDetail: React.FC = () => {
                     </div>
 
                     {/* Add to Routine */}
-                    {(owns || drill.price === 0) && (() => {
-                        const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                        const isSaved = saved.find((d: any) => d.id === drill.id);
-
-                        return (
-                            <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800">
-                                <h3 className="text-sm font-bold text-white mb-2">내 루틴에 추가</h3>
-                                <p className="text-xs text-zinc-400 mb-3">이 드릴을 나만의 루틴에 추가하세요</p>
-                                {isSaved ? (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                            const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                                            const filtered = saved.filter((d: any) => d.id !== drill.id);
-                                            localStorage.setItem('saved_drills', JSON.stringify(filtered));
-                                            alert('루틴에서 제거되었습니다.');
-                                            window.location.reload();
-                                        }}
-                                        className="w-full border-red-700 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                    >
-                                        - 루틴에서 제거
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                            const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                                            saved.push(drill);
-                                            localStorage.setItem('saved_drills', JSON.stringify(saved));
-                                            alert('나만의 루틴 목록에 추가되었습니다! 아레나 탭에서 확인하세요.');
-                                            window.location.reload();
-                                        }}
-                                        className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
-                                    >
-                                        + 루틴에 추가
-                                    </Button>
-                                )}
-                            </div>
-                        );
-                    })()}
+                    {(owns || drill.price === 0) && (
+                        <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800">
+                            <h3 className="text-sm font-bold text-white mb-2">내 루틴에 추가</h3>
+                            <p className="text-xs text-zinc-400 mb-3">이 드릴을 나만의 맞춤형 루틴에 추가하세요</p>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowAddToRoutine(true)}
+                                className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                            >
+                                + 루틴에 추가
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer CTA */}
@@ -301,6 +275,18 @@ export const DrillDetail: React.FC = () => {
                 xpEarned={10}
                 streak={1}
             />
+
+            {/* Add to Routine Modal */}
+            {drill && (
+                <AddToRoutineModal
+                    drill={drill}
+                    isOpen={showAddToRoutine}
+                    onClose={() => setShowAddToRoutine(false)}
+                    onSuccess={() => {
+                        // Optionally reload or update UI
+                    }}
+                />
+            )}
         </div>
     );
 };
