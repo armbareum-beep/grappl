@@ -221,29 +221,48 @@ export const DrillDetail: React.FC = () => {
                     </div>
 
                     {/* Add to Routine */}
-                    {(owns || drill.price === 0) && (
-                        <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800">
-                            <h3 className="text-sm font-bold text-white mb-2">내 루틴에 추가</h3>
-                            <p className="text-xs text-zinc-400 mb-3">이 드릴을 나만의 루틴에 추가하세요</p>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                    const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                                    if (!saved.find((d: any) => d.id === drill.id)) {
-                                        saved.push(drill);
-                                        localStorage.setItem('saved_drills', JSON.stringify(saved));
-                                        alert('나만의 루틴 목록에 추가되었습니다! 아레나 탭에서 확인하세요.');
-                                    } else {
-                                        alert('이미 추가된 드릴입니다.');
-                                    }
-                                }}
-                                className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
-                            >
-                                + 루틴에 추가
-                            </Button>
-                        </div>
-                    )}
+                    {(owns || drill.price === 0) && (() => {
+                        const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                        const isSaved = saved.find((d: any) => d.id === drill.id);
+
+                        return (
+                            <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800">
+                                <h3 className="text-sm font-bold text-white mb-2">내 루틴에 추가</h3>
+                                <p className="text-xs text-zinc-400 mb-3">이 드릴을 나만의 루틴에 추가하세요</p>
+                                {isSaved ? (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                                            const filtered = saved.filter((d: any) => d.id !== drill.id);
+                                            localStorage.setItem('saved_drills', JSON.stringify(filtered));
+                                            alert('루틴에서 제거되었습니다.');
+                                            window.location.reload();
+                                        }}
+                                        className="w-full border-red-700 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                    >
+                                        - 루틴에서 제거
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                                            saved.push(drill);
+                                            localStorage.setItem('saved_drills', JSON.stringify(saved));
+                                            alert('나만의 루틴 목록에 추가되었습니다! 아레나 탭에서 확인하세요.');
+                                            window.location.reload();
+                                        }}
+                                        className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                                    >
+                                        + 루틴에 추가
+                                    </Button>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Footer CTA */}

@@ -1253,19 +1253,8 @@ export async function getTrainingLogs(userId: string) {
  * Create a new training log
  */
 export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>, skipDailyCheck = false) {
-    // Check if log already exists for this date (unless skipping check)
-    if (!skipDailyCheck) {
-        const { data: existingLogs, error: checkError } = await supabase
-            .from('training_logs')
-            .select('id')
-            .eq('user_id', log.userId)
-            .eq('date', log.date);
-
-        if (checkError) return { error: checkError };
-        if (existingLogs && existingLogs.length > 0) {
-            return { error: new Error('하루에 하나의 수련 일지만 작성할 수 있습니다.') };
-        }
-    }
+    // Daily check removed - users can create multiple logs per day
+    // XP is controlled by quest system which has daily limits
 
     const { data, error } = await supabase
         .from('training_logs')
