@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory } from '../types';
 
 
 // Revenue split constants
@@ -2681,6 +2681,10 @@ export async function deleteDrill(drillId: string) {
 }
 
 export async function getRoutines(creatorId?: string) {
+    // Return mocks immediately for now
+    return { data: MOCK_ROUTINES, error: null };
+
+    /*
     let query = supabase
         .from('routines')
         .select('*')
@@ -2698,9 +2702,13 @@ export async function getRoutines(creatorId?: string) {
     }
 
     return { data: data as DrillRoutine[], error: null };
+    */
 }
 
 export async function getRoutineById(id: string) {
+    const mockRoutine = MOCK_ROUTINES.find(r => r.id === id);
+    if (mockRoutine) return { data: mockRoutine, error: null };
+
     const { data, error } = await supabase
         .from('routines')
         .select(`
@@ -2914,6 +2922,66 @@ const MOCK_DRILLS: Drill[] = [
         likes: 230,
         price: 0,
         createdAt: new Date().toISOString()
+    },
+    {
+        id: 'mock-4',
+        title: 'X-Guard Sweep Mechanics',
+        description: 'Master the off-balancing mechanics of the X-Guard. Learn how to elevate your opponent and transition to sweeps.',
+        creatorId: 'mock-creator-4',
+        creatorName: 'Marcelo Garcia',
+        category: VideoCategory.Guard,
+        difficulty: Difficulty.Advanced,
+        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
+        videoUrl: 'https://player.vimeo.com/video/76979871',
+        vimeoUrl: 'https://player.vimeo.com/video/76979871',
+        aspectRatio: '16:9',
+        views: 3400,
+        duration: '6:10',
+        length: '6:10',
+        tags: ['x-guard', 'sweep', 'butterfly'],
+        likes: 450,
+        price: 0,
+        createdAt: new Date().toISOString()
+    },
+    {
+        id: 'mock-5',
+        title: 'Kimura Trap System',
+        description: 'A comprehensive look at the Kimura trap system from side control. Control, isolate, and submit.',
+        creatorId: 'mock-creator-1',
+        creatorName: 'John Danaher',
+        category: VideoCategory.Submission,
+        difficulty: Difficulty.Intermediate,
+        thumbnailUrl: 'https://i.ytimg.com/vi/8Xj_k_k_k_k/maxresdefault.jpg',
+        videoUrl: 'https://player.vimeo.com/video/76979871',
+        vimeoUrl: 'https://player.vimeo.com/video/76979871',
+        aspectRatio: '16:9',
+        views: 1800,
+        duration: '7:20',
+        length: '7:20',
+        tags: ['kimura', 'side control', 'submission'],
+        likes: 210,
+        price: 0,
+        createdAt: new Date().toISOString()
+    },
+    {
+        id: 'mock-6',
+        title: 'De La Riva to Back Take',
+        description: 'Smooth transition from De La Riva guard to taking the back. Uses the berimbolo concept simplified.',
+        creatorId: 'mock-creator-5',
+        creatorName: 'Rafa Mendes',
+        category: VideoCategory.Back,
+        difficulty: Difficulty.Advanced,
+        thumbnailUrl: 'https://i.ytimg.com/vi/9_9_9_9_9/maxresdefault.jpg',
+        videoUrl: 'https://player.vimeo.com/video/76979871',
+        vimeoUrl: 'https://player.vimeo.com/video/76979871',
+        aspectRatio: '16:9',
+        views: 2900,
+        duration: '5:45',
+        length: '5:45',
+        tags: ['delariva', 'back take', 'berimbolo'],
+        likes: 380,
+        price: 0,
+        createdAt: new Date().toISOString()
     }
 ];
 
@@ -2949,6 +3017,38 @@ const MOCK_ROUTINES: DrillRoutine[] = [
         views: 320,
         createdAt: new Date().toISOString(),
         drills: [MOCK_DRILLS[2]]
+    },
+    {
+        id: 'mock-routine-3',
+        title: 'Advanced Guard Sweeps',
+        description: 'High-level sweeps for competitive grapplers. Includes X-Guard and De La Riva variations.',
+        creatorId: 'mock-creator-4',
+        creatorName: 'Marcelo Garcia',
+        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
+        price: 35000,
+        difficulty: Difficulty.Advanced,
+        category: VideoCategory.Guard,
+        totalDurationMinutes: 50,
+        drillCount: 6,
+        views: 890,
+        createdAt: new Date().toISOString(),
+        drills: [MOCK_DRILLS[3], MOCK_DRILLS[5]]
+    },
+    {
+        id: 'mock-routine-4',
+        title: 'Side Control Attacks',
+        description: 'Dominate from side control with this attack system. Focuses on the Kimura and armbar transitions.',
+        creatorId: 'mock-creator-1',
+        creatorName: 'John Danaher',
+        thumbnailUrl: 'https://i.ytimg.com/vi/8Xj_k_k_k_k/maxresdefault.jpg',
+        price: 25000,
+        difficulty: Difficulty.Intermediate,
+        category: VideoCategory.Submission,
+        totalDurationMinutes: 40,
+        drillCount: 5,
+        views: 600,
+        createdAt: new Date().toISOString(),
+        drills: [MOCK_DRILLS[4]]
     }
 ];
 
