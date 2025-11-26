@@ -234,33 +234,70 @@ export const Home: React.FC = () => {
               )}
             </div>
 
-            {/* Daily Quests - Compact */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-white">📋 오늘의 미션</h3>
-                <span className="text-xs text-slate-400">{earnedQuestXP}/{totalQuestXP} XP</span>
+            {/* Daily Quests - Enhanced */}
+            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                    <span className="text-sm">📋</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">오늘의 미션</h3>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-400">진행도</div>
+                  <div className="text-sm font-bold text-white">{quests.filter(q => q.completed).length}/{quests.length}</div>
+                </div>
               </div>
+
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Total XP</span>
+                  <span className="text-xs font-bold text-amber-400">{earnedQuestXP}/{totalQuestXP}</span>
+                </div>
+                <div className="relative w-full bg-slate-700 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 transition-all duration-500"
+                    style={{ width: `${totalQuestXP > 0 ? (earnedQuestXP / totalQuestXP) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Quest List */}
               <div className="space-y-2">
-                {quests.slice(0, 4).map((quest) => {
+                {quests.slice(0, 6).map((quest) => {
                   const info = QUEST_INFO[quest.questType] || { icon: '❓', name: quest.questType };
                   return (
-                    <div key={quest.id} className="flex items-center justify-between text-xs">
+                    <div
+                      key={quest.id}
+                      className={`flex items-center justify-between p-2 rounded-lg transition-all ${quest.completed
+                          ? 'bg-green-900/20 border border-green-800/30'
+                          : 'bg-slate-800/50 border border-slate-700/50 hover:border-amber-600/50'
+                        }`}
+                    >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className={quest.completed ? 'opacity-50' : ''}>{quest.completed ? '✅' : info.icon}</span>
-                        <span className={`truncate ${quest.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${quest.completed ? 'bg-green-600' : 'bg-slate-700'
+                          }`}>
+                          <span className="text-sm">{quest.completed ? '✓' : info.icon}</span>
+                        </div>
+                        <span className={`text-xs font-medium truncate ${quest.completed ? 'text-slate-400 line-through' : 'text-white'
+                          }`}>
                           {info.name}
                         </span>
                       </div>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${quest.completed ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'
+                      <div className={`text-xs font-bold px-2 py-1 rounded-md ${quest.completed
+                          ? 'bg-green-900/30 text-green-400'
+                          : 'bg-gradient-to-r from-amber-900/30 to-orange-900/30 text-amber-400'
                         }`}>
-                        +{quest.xpReward}
-                      </span>
+                        +{quest.xpReward} XP
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
+        </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
