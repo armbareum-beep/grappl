@@ -13,6 +13,7 @@ export const TrainingRoutinesTab: React.FC = () => {
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeRoutine, setActiveRoutine] = useState<DrillRoutine | null>(null);
+    const [previewRoutine, setPreviewRoutine] = useState<DrillRoutine | null>(null);
     const [completedRoutineData, setCompletedRoutineData] = useState<{ duration: number; xp: number } | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
 
@@ -33,6 +34,25 @@ export const TrainingRoutinesTab: React.FC = () => {
             newSelected.add(drillId);
         }
         setSelectedDrills(newSelected);
+    };
+
+    const loadRoutines = async () => {
+        if (!user) return;
+        setLoading(true);
+
+        // Load purchased routines from API
+        const { data } = await getUserRoutines(user.id);
+
+        // Load custom routines from LocalStorage
+        const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+
+        // Merge and set
+        if (data) {
+            setRoutines([...customRoutines, ...data]);
+        } else {
+            setRoutines(customRoutines);
+        }
+        setLoading(false);
     };
 
     const handleCreateRoutine = () => {
@@ -61,10 +81,10 @@ export const TrainingRoutinesTab: React.FC = () => {
         const existingCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
         localStorage.setItem('my_custom_routines', JSON.stringify([...existingCustomRoutines, newRoutine]));
 
-        alert('루틴이 생성되었습니다! 라이브러리에서 확인하세요.');
+        alert('루틴이 생성되었습니다!');
         setIsSelectionMode(false);
         setSelectedDrills(new Set());
-        navigate('/library');
+        loadRoutines(); // Reload to show the new routine immediately
     };
 
     useEffect(() => {
@@ -75,27 +95,15 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
     }, [user]);
 
-    const loadRoutines = async () => {
-        if (!user) return;
-        setLoading(true);
-
-        // Load purchased routines from API
-        const { data } = await getUserRoutines(user.id);
-
-        // Load custom routines from LocalStorage
-        const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-
-        // Merge and set
-        if (data) {
-            setRoutines([...customRoutines, ...data]);
-        } else {
-            setRoutines(customRoutines);
-        }
-        setLoading(false);
+    const handleRoutineClick = (routine: DrillRoutine) => {
+        setPreviewRoutine(routine);
     };
 
-    const handleStartRoutine = (routine: DrillRoutine) => {
-        setActiveRoutine(routine);
+    const handleStartRoutine = () => {
+        if (previewRoutine) {
+            setActiveRoutine(previewRoutine);
+            setPreviewRoutine(null);
+        }
     };
 
     const handleRoutineComplete = async (durationSeconds: number) => {
@@ -173,6 +181,73 @@ export const TrainingRoutinesTab: React.FC = () => {
                 onComplete={handleRoutineComplete}
                 onCancel={() => setActiveRoutine(null)}
             />
+        );
+    }
+
+    // Routine Preview Modal
+    if (previewRoutine) {
+        return (
+            <div className="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-2xl my-8">
+                    <div className="p-6 border-b border-slate-800">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-1">{previewRoutine.title}</h2>
+                                <p className="text-slate-400">{previewRoutine.description}</p>
+                            </div>
+                            <button
+                                onClick={() => setPreviewRoutine(null)}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm text-slate-400">
+                            <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {previewRoutine.totalDurationMinutes}분
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Dumbbell className="w-4 h-4" />
+                                {previewRoutine.drillCount}개 드릴
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                        <h3 className="text-lg font-bold text-white mb-2">포함된 드릴</h3>
+                        {previewRoutine.drills?.map((drill, index) => (
+                            <div key={index} className="flex items-center gap-4 bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                                <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                    <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
+                                    <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="p-6 border-t border-slate-800 flex gap-3">
+                        <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setPreviewRoutine(null)}
+                        >
+                            닫기
+                        </Button>
+                        <Button
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                            onClick={handleStartRoutine}
+                        >
+                            <Play className="w-4 h-4 mr-2 fill-current" />
+                            루틴 시작하기
+                        </Button>
+                    </div>
+                </div>
+            </div>
         );
     }
 
@@ -373,11 +448,11 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         </div>
 
                                         <Button
-                                            onClick={() => handleStartRoutine(routine)}
+                                            onClick={() => handleRoutineClick(routine)}
                                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 h-auto text-sm flex items-center justify-center gap-2"
                                         >
                                             <Play className="w-4 h-4 fill-current" />
-                                            루틴 시작하기
+                                            루틴 보기
                                         </Button>
                                     </div>
                                 </div>
