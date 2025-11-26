@@ -22,7 +22,11 @@ interface SparringReview {
     createdAt: string;
 }
 
-export const SparringReviewTab: React.FC = () => {
+interface SparringReviewTabProps {
+    autoRunAI?: boolean;
+}
+
+export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
     const [reviews, setReviews] = useState<SparringReview[]>([]);
     const [loading, setLoading] = useState(false);
@@ -166,7 +170,7 @@ export const SparringReviewTab: React.FC = () => {
             </div>
 
             {/* AI Coach Widget */}
-            <AICoachWidget logs={trainingLogsForAI} />
+            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-4">
