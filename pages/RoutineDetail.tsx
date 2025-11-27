@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock } from 'lucide-react';
+import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
+import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 
 export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -17,8 +18,24 @@ export const RoutineDetail: React.FC = () => {
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
+
+    // Completion & Sharing State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareModalData, setShareModalData] = useState<{
+        defaultContent: string;
+        metadata: any;
+    } | null>(null);
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
+    const [earnedXpToday, setEarnedXpToday] = useState(false);
+    const [isCompletedToday, setIsCompletedToday] = useState(false);
+
+    // Timer State
+    const [isTrainingMode, setIsTrainingMode] = useState(false);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+
+    const isCustomRoutine = id?.startsWith('custom-');
 
     useEffect(() => {
         if (id) {
@@ -32,6 +49,26 @@ export const RoutineDetail: React.FC = () => {
             loadDrill(currentDrillIndex);
         }
     }, [routine, currentDrillIndex]);
+
+    // Timer Logic
+    useEffect(() => {
+        if (isTrainingMode) {
+            const interval = setInterval(() => {
+                setElapsedSeconds(prev => prev + 1);
+            }, 1000);
+            setTimerInterval(interval);
+            return () => clearInterval(interval);
+        } else if (timerInterval) {
+            clearInterval(timerInterval);
+            setTimerInterval(null);
+        }
+    }, [isTrainingMode]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const fetchRoutine = async () => {
         if (!id) return;
@@ -90,10 +127,28 @@ export const RoutineDetail: React.FC = () => {
                 .eq('id', user.id)
                 .single();
             if (userData) setIsSubscriber(userData.is_subscriber);
+
             if (id) {
-                const ownership = await checkDrillRoutineOwnership(user.id, id);
-                setOwns(ownership);
+                // For custom routines, ownership is always true if it's in local storage (simplified)
+                // or we could check creator_id if it was a real DB custom routine.
+                // For now, assume ownership for custom routines or check DB for others.
+                if (id.startsWith('custom-')) {
+                    setOwns(true);
+                } else {
+                    const ownership = await checkDrillRoutineOwnership(user.id, id);
+                    setOwns(ownership);
+                }
+
+                // Check if this specific routine is completed today
+                const completedIds = await getCompletedRoutinesToday(user.id);
+                if (completedIds.includes(id)) {
+                    setIsCompletedToday(true);
+                }
             }
+
+            // Check if user already earned XP today
+            const alreadyEarned = await checkDailyRoutineXP(user.id);
+            setEarnedXpToday(alreadyEarned);
         }
     };
 
@@ -116,9 +171,83 @@ export const RoutineDetail: React.FC = () => {
         if (currentDrillIndex < (routine?.drills?.length || 0) - 1) {
             setCurrentDrillIndex(currentDrillIndex + 1);
         } else {
-            // All drills completed
-            setShowQuestComplete(true);
+            // All drills completed - Start Training Timer
+            setIsTrainingMode(true);
         }
+    };
+
+    const handleFinishTraining = async () => {
+        setIsTrainingMode(false);
+        const durationMinutes = Math.ceil(elapsedSeconds / 60);
+
+        // Calculate XP
+        let xpEarned = 0;
+        if (user) {
+            // 1. Create Training Log
+            const { data: log } = await createTrainingLog({
+                userId: user.id,
+                userName: user.user_metadata?.name || 'Unknown User',
+                date: new Date().toISOString().split('T')[0],
+                durationMinutes: durationMinutes,
+                sparringRounds: 0,
+                notes: `[Routine Completed] ${routine?.title}`,
+                techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [],
+                isPublic: true,
+                location: 'Home / Gym',
+                metadata: {
+                    routineId: routine?.id,
+                    routineTitle: routine?.title
+                }
+            });
+
+            // Only award XP if not earned today (global limit)
+            if (!earnedXpToday) {
+                // 2. Award XP
+                const xpAmount = Math.max(1, Math.floor(durationMinutes / 5));
+                const xpResult = await addXP(user.id, xpAmount, 'training_log', log?.id);
+                xpEarned = xpResult.xpEarned || 0;
+
+                // 3. Update Quest
+                await updateQuestProgress(user.id, 'complete_routine');
+            }
+        }
+
+        // Prepare share modal
+        const defaultContent = `💪 훈련 루틴 완료!
+
+${routine?.title}
+소요 시간: ${durationMinutes}분
+획득 XP: +${xpEarned}
+
+${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.drills.length}개` : ''}`;
+
+        setShareModalData({
+            defaultContent,
+            metadata: {
+                routineTitle: routine?.title,
+                durationMinutes,
+                xpEarned,
+                drillCount: routine?.drills?.length || 0
+            }
+        });
+
+        setEarnedXpToday(true);
+        setIsCompletedToday(true);
+        setShowQuestComplete(true);
+    };
+
+    const handleShareToFeed = async (comment: string) => {
+        if (!user || !shareModalData) return;
+
+        await createFeedPost({
+            userId: user.id,
+            content: comment,
+            type: 'routine',
+            metadata: shareModalData.metadata
+        });
+
+        alert('피드에 공유되었습니다!');
+        setShowShareModal(false);
     };
 
     const handleDrillSelect = (index: number) => {
@@ -138,18 +267,43 @@ export const RoutineDetail: React.FC = () => {
 
     const progress = (completedDrills.size / (routine.drills?.length || 1)) * 100;
 
+    // Theme colors based on routine type
+    const themeColor = isCustomRoutine ? 'purple' : 'blue';
+    const accentColor = isCustomRoutine ? 'text-purple-400' : 'text-blue-400';
+    const activeBg = isCustomRoutine ? 'bg-purple-600/20' : 'bg-blue-600/20';
+    const activeBorder = isCustomRoutine ? 'border-purple-500/50' : 'border-blue-500/50';
+    const activeDot = isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500';
+    const progressGradient = isCustomRoutine ? 'from-purple-500 to-pink-500' : 'from-blue-500 to-purple-500';
+    const buttonGradient = isCustomRoutine
+        ? 'from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-900/20'
+        : 'from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/20';
+
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
             {/* Left: Video Stage */}
             <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative">
                 {/* Ambient Glow */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] bg-blue-500/10 blur-[120px] rounded-full"></div>
+                    <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] ${isCustomRoutine ? 'bg-purple-500/10' : 'bg-blue-500/10'} blur-[120px] rounded-full`}></div>
                 </div>
 
                 {/* Video Player - Full Height 9:16 */}
                 <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10">
-                    {owns && currentDrill.vimeoUrl ? (
+                    {isTrainingMode ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
+                            <div className="text-slate-400 mb-4 text-lg animate-pulse">Training in Progress...</div>
+                            <div className="text-8xl font-black text-white tabular-nums tracking-wider mb-8 font-mono">
+                                {formatTime(elapsedSeconds)}
+                            </div>
+                            <Button
+                                onClick={handleFinishTraining}
+                                className={`text-white px-12 py-6 text-xl rounded-full shadow-lg transform hover:scale-105 transition-all bg-gradient-to-r ${buttonGradient}`}
+                            >
+                                <CheckCircle className="w-6 h-6 mr-3" />
+                                훈련 완료하기
+                            </Button>
+                        </div>
+                    ) : owns && currentDrill.vimeoUrl ? (
                         <iframe
                             src={currentDrill.vimeoUrl}
                             className="w-full h-full"
@@ -204,7 +358,7 @@ export const RoutineDetail: React.FC = () => {
                     {owns && (
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
                             <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                                className={`h-full bg-gradient-to-r ${progressGradient} transition-all duration-300`}
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
@@ -223,21 +377,32 @@ export const RoutineDetail: React.FC = () => {
                                 className="w-10 h-10 rounded-full ring-2 ring-zinc-800"
                                 alt={routine.creatorName}
                             />
-                            <div className="absolute -bottom-1 -right-1 bg-blue-500 text-[10px] text-white px-1.5 py-0.5 rounded-full border border-zinc-950 font-bold">
-                                PRO
+                            <div className={`absolute -bottom-1 -right-1 ${isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500'} text-[10px] text-white px-1.5 py-0.5 rounded-full border border-zinc-950 font-bold`}>
+                                {isCustomRoutine ? 'ME' : 'PRO'}
                             </div>
                         </div>
                         <div className="flex-1">
                             <p className="font-bold text-white text-sm hover:underline cursor-pointer">{routine.creatorName}</p>
                             <p className="text-xs text-zinc-500">구독자 1.2만명</p>
                         </div>
-                        <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
-                            구독하기
-                        </Button>
+                        {!isCustomRoutine && (
+                            <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
+                                구독하기
+                            </Button>
+                        )}
                     </div>
 
                     {/* Routine Title */}
-                    <h2 className="text-lg font-black text-white mb-2">{routine.title}</h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-lg font-black text-white">{routine.title}</h2>
+                        {isCompletedToday && (
+                            <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30">
+                                <CalendarCheck className="w-3.5 h-3.5" />
+                                <span className="text-xs font-bold">오늘 완료함</span>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="flex items-center gap-4 text-xs text-zinc-500">
                         <div className="flex items-center gap-1">
                             <Eye className="w-3 h-3" />
@@ -257,16 +422,18 @@ export const RoutineDetail: React.FC = () => {
                 {/* Scrollable Content - Drill List */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                     {/* Current Drill Info */}
-                    <div className="p-6 border-b border-zinc-900">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-bold text-blue-400">현재 재생중</span>
-                            <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
+                    {!isTrainingMode && (
+                        <div className="p-6 border-b border-zinc-900">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-xs font-bold ${accentColor}`}>현재 재생중</span>
+                                <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">{currentDrill.title}</h3>
+                            <p className="text-sm text-zinc-400 leading-relaxed">
+                                {currentDrill.description || '설명이 없습니다.'}
+                            </p>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">{currentDrill.title}</h3>
-                        <p className="text-sm text-zinc-400 leading-relaxed">
-                            {currentDrill.description || '설명이 없습니다.'}
-                        </p>
-                    </div>
+                    )}
 
                     {/* Drill Playlist */}
                     <div className="p-6">
@@ -283,7 +450,7 @@ export const RoutineDetail: React.FC = () => {
                                         onClick={() => owns && handleDrillSelect(index)}
                                         disabled={!owns}
                                         className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${isCurrent
-                                            ? 'bg-blue-600/20 border border-blue-500/50'
+                                            ? `${activeBg} border ${activeBorder}`
                                             : owns
                                                 ? 'hover:bg-zinc-900 border border-transparent'
                                                 : 'opacity-50 cursor-not-allowed border border-transparent'
@@ -308,7 +475,7 @@ export const RoutineDetail: React.FC = () => {
                                                 <span className="text-xs font-bold text-zinc-500">#{index + 1}</span>
                                                 {isCompleted && <CheckCircle className="w-3 h-3 text-green-400" />}
                                             </div>
-                                            <h5 className={`text-sm font-medium line-clamp-2 leading-snug ${isCurrent ? 'text-blue-400' : 'text-zinc-200'
+                                            <h5 className={`text-sm font-medium line-clamp-2 leading-snug ${isCurrent ? accentColor : 'text-zinc-200'
                                                 }`}>
                                                 {drillData?.title || `드릴 ${index + 1}`}
                                             </h5>
@@ -316,7 +483,7 @@ export const RoutineDetail: React.FC = () => {
                                         </div>
                                         {isCurrent && (
                                             <div className="flex-shrink-0">
-                                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                                <div className={`w-2 h-2 rounded-full ${activeDot} animate-pulse`} />
                                             </div>
                                         )}
                                     </button>
@@ -331,7 +498,7 @@ export const RoutineDetail: React.FC = () => {
                     {owns ? (
                         <Button
                             onClick={handleDrillComplete}
-                            className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-emerald-900/20"
+                            className={`w-full bg-gradient-to-r ${buttonGradient} text-white font-bold py-6 rounded-xl shadow-lg`}
                         >
                             <CheckCircle className="w-5 h-5 mr-2" />
                             드릴 완료 & 다음으로
@@ -350,11 +517,30 @@ export const RoutineDetail: React.FC = () => {
             {/* Quest Complete Modal */}
             <QuestCompleteModal
                 isOpen={showQuestComplete}
-                onClose={() => setShowQuestComplete(false)}
+                onClose={() => {
+                    setShowQuestComplete(false);
+                    setShareModalData(null);
+                }}
+                onContinue={() => {
+                    setShowQuestComplete(false);
+                    setShowShareModal(true);
+                }}
                 questName={routine?.title || '루틴'}
-                xpEarned={50}
+                xpEarned={earnedXpToday ? 0 : 50}
                 streak={completedDrills.size}
             />
+
+            {/* Share to Feed Modal */}
+            {showShareModal && shareModalData && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={handleShareToFeed}
+                    activityType="routine"
+                    defaultContent={shareModalData.defaultContent}
+                    metadata={shareModalData.metadata}
+                />
+            )}
         </div>
     );
 };

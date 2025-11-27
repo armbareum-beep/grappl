@@ -37,7 +37,6 @@ import { PaymentComplete } from './pages/PaymentComplete';
 import { Drills } from './pages/Drills';
 import { DrillDetail } from './pages/DrillDetail';
 import { RoutineDetail } from './pages/RoutineDetail';
-import { MyRoutineDetail } from './pages/MyRoutineDetail';
 import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
 import { Arena } from './pages/Arena';
 import { TechniqueRoadmapDashboard } from './components/technique/TechniqueRoadmapDashboard';
@@ -90,7 +89,7 @@ const App: React.FC = () => {
             <Route path="/drills" element={<Drills />} />
             <Route path="/drills/:id" element={<DrillDetail />} />
             <Route path="/routines/:id" element={<RoutineDetail />} />
-            <Route path="/my-routines/:id" element={<MyRoutineDetail />} />
+            <Route path="/my-routines/:id" element={<RoutineDetail />} />
             <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
             <Route path="/arena" element={<Arena />} />
             <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
