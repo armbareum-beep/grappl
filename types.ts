@@ -39,6 +39,7 @@ export interface Course {
   lessonCount?: number;
   createdAt: string;
   isSubscriptionExcluded?: boolean; // If true, subscribers cannot access for free
+  previewVideoUrl?: string; // URL of the first lesson for preview
 }
 
 export interface Lesson {
@@ -289,7 +290,7 @@ export interface UserProgress {
   updatedAt: string;
 }
 
-export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill' | 'play_match' | 'sparring_review' | 'complete_routine';
+export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill' | 'play_match' | 'sparring_review' | 'complete_routine' | 'give_feedback';
 
 export interface DailyQuest {
   id: string;

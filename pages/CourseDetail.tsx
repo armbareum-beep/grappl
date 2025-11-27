@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion } from '../lib/api';
 import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -144,6 +144,14 @@ export const CourseDetail: React.FC = () => {
             newSet.add(selectedLesson.id);
             return newSet;
         });
+
+        // Check for course completion
+        if (course) {
+            const { data } = await checkCourseCompletion(user.id, course.id);
+            if (data && data.newly_awarded) {
+                alert(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+            }
+        }
     };
 
     const toggleLessonComplete = async (lessonId: string) => {
@@ -161,6 +169,14 @@ export const CourseDetail: React.FC = () => {
             }
             return newSet;
         });
+
+        // Check for course completion if we just marked a lesson as complete
+        if (!isCompleted && course) {
+            const { data } = await checkCourseCompletion(user.id, course.id);
+            if (data && data.newly_awarded) {
+                alert(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+            }
+        }
     };
 
     if (loading) {
@@ -321,8 +337,8 @@ export const CourseDetail: React.FC = () => {
                                 </span>
                                 <span>•</span>
                                 <span className={`font-semibold ${course.difficulty === 'Advanced' ? 'text-red-600' :
-                                        course.difficulty === 'Intermediate' ? 'text-yellow-600' :
-                                            'text-green-600'
+                                    course.difficulty === 'Intermediate' ? 'text-yellow-600' :
+                                        'text-green-600'
                                     }`}>
                                     {course.difficulty === 'Beginner' ? '초급' : course.difficulty === 'Intermediate' ? '중급' : '상급'}
                                 </span>

@@ -113,7 +113,8 @@ export async function getCourses(): Promise<Course[]> {
         .select(`
       *,
       creator:creators(name),
-      lessons:lessons(count)
+      lessons:lessons(count),
+      preview_lessons:lessons(vimeo_url, lesson_number)
     `)
         .order('created_at', { ascending: false });
 
@@ -122,10 +123,16 @@ export async function getCourses(): Promise<Course[]> {
         throw error;
     }
 
-    return (data || []).map(course => ({
-        ...transformCourse(course),
-        lessonCount: course.lessons?.[0]?.count || 0,
-    }));
+    return (data || []).map(course => {
+        // Find first lesson for preview
+        const firstLesson = course.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+
+        return {
+            ...transformCourse(course),
+            lessonCount: course.lessons?.[0]?.count || 0,
+            previewVideoUrl: firstLesson?.vimeo_url
+        };
+    });
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {
@@ -134,7 +141,8 @@ export async function getCourseById(id: string): Promise<Course | null> {
         .select(`
       *,
       creator:creators(name),
-      lessons:lessons(count)
+      lessons:lessons(count),
+      preview_lessons:lessons(vimeo_url, lesson_number)
     `)
         .eq('id', id)
         .single();
@@ -144,9 +152,13 @@ export async function getCourseById(id: string): Promise<Course | null> {
         return null;
     }
 
+    // Find first lesson for preview
+    const firstLesson = data.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+
     return data ? {
         ...transformCourse(data),
         lessonCount: data.lessons?.[0]?.count || 0,
+        previewVideoUrl: firstLesson?.vimeo_url
     } : null;
 }
 
@@ -156,7 +168,8 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
         .select(`
       *,
       creator:creators(name),
-      lessons:lessons(count)
+      lessons:lessons(count),
+      preview_lessons:lessons(vimeo_url, lesson_number)
     `)
         .eq('creator_id', creatorId)
         .order('created_at', { ascending: false });
@@ -166,10 +179,16 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
         throw error;
     }
 
-    return (data || []).map(course => ({
-        ...transformCourse(course),
-        lessonCount: course.lessons?.[0]?.count || 0,
-    }));
+    return (data || []).map(course => {
+        // Find first lesson for preview
+        const firstLesson = course.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+
+        return {
+            ...transformCourse(course),
+            lessonCount: course.lessons?.[0]?.count || 0,
+            previewVideoUrl: firstLesson?.vimeo_url
+        };
+    });
 }
 
 // Lessons API
@@ -344,7 +363,8 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
       courses (
         *,
         creator:creators(name),
-        lessons:lessons(count)
+        lessons:lessons(count),
+        preview_lessons:lessons(vimeo_url, lesson_number)
       )
     `)
         .eq('user_id', userId);
@@ -354,10 +374,16 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        ...transformCourse(item.courses),
-        lessonCount: item.courses.lessons?.[0]?.count || 0,
-    }));
+    return (data || []).map((item: any) => {
+        // Find first lesson for preview
+        const firstLesson = item.courses.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+
+        return {
+            ...transformCourse(item.courses),
+            lessonCount: item.courses.lessons?.[0]?.count || 0,
+            previewVideoUrl: firstLesson?.vimeo_url
+        };
+    });
 }
 
 export const getUserPurchasedCourses = getUserCourses;
@@ -3682,4 +3708,24 @@ export async function upsertSubscription(subscription: {
     }
 
     return { data, error: null };
+}
+
+// ==================== COURSE COMPLETION & STATS ====================
+
+export async function checkCourseCompletion(userId: string, courseId: string) {
+    const { data, error } = await supabase.rpc('check_and_grant_course_completion', {
+        p_user_id: userId,
+        p_course_id: courseId
+    });
+    return { data, error };
+}
+
+export async function getUserArenaStats(userId: string) {
+    const { data, error } = await supabase
+        .from('user_arena_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    return { data, error };
 }

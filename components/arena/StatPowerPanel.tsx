@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, TrendingUp, Info } from 'lucide-react';
+import { getUserArenaStats } from '../../lib/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface StatBarProps {
     label: string;
@@ -72,14 +74,27 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, color, description }) =
 };
 
 export const StatPowerPanel: React.FC = () => {
+    const { user } = useAuth();
+    const [arenaStats, setArenaStats] = useState<any>(null);
+
+    useEffect(() => {
+        if (user) {
+            getUserArenaStats(user.id).then(({ data }) => {
+                if (data) setArenaStats(data);
+            });
+        }
+    }, [user]);
+
     const stats = [
-        { label: 'Standing', value: 65, color: '#8b5cf6', description: '테이크다운 및 스탠딩 공방 능력' },
-        { label: 'Guard', value: 72, color: '#3b82f6', description: '가드 유지 및 서브미션 세팅 능력' },
-        { label: 'Guard Pass', value: 58, color: '#06b6d4', description: '상대의 가드를 뚫고 포지션을 점유하는 능력' },
-        { label: 'Side', value: 80, color: '#10b981', description: '사이드 포지션에서의 압박 및 공격 능력' },
-        { label: 'Mount', value: 45, color: '#f59e0b', description: '마운트 포지션 유지 및 피니시 능력' },
-        { label: 'Back', value: 55, color: '#ef4444', description: '백 포지션 점유 및 초크/암바 결정력' },
+        { label: 'Standing', value: arenaStats?.standing_power || 0, color: '#8b5cf6', description: '테이크다운 및 스탠딩 공방 능력' },
+        { label: 'Guard', value: arenaStats?.guard_power || 0, color: '#3b82f6', description: '가드 유지 및 서브미션 세팅 능력' },
+        { label: 'Guard Pass', value: arenaStats?.guard_pass_power || 0, color: '#06b6d4', description: '상대의 가드를 뚫고 포지션을 점유하는 능력' },
+        { label: 'Side', value: arenaStats?.side_power || 0, color: '#10b981', description: '사이드 포지션에서의 압박 및 공격 능력' },
+        { label: 'Mount', value: arenaStats?.mount_power || 0, color: '#f59e0b', description: '마운트 포지션 유지 및 피니시 능력' },
+        { label: 'Back', value: arenaStats?.back_power || 0, color: '#ef4444', description: '백 포지션 점유 및 초크/암바 결정력' },
     ];
+
+    const totalPower = stats.reduce((acc, curr) => acc + curr.value, 0);
 
     return (
         <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl p-6 border border-white/5 shadow-xl relative overflow-hidden group hover:border-purple-500/20 transition-colors duration-500">
@@ -93,7 +108,7 @@ export const StatPowerPanel: React.FC = () => {
                     <p className="text-xs text-slate-400 mt-1">카테고리별 실력 분석</p>
                 </div>
                 <div className="text-right">
-                    <div className="text-3xl font-black text-white tracking-tighter drop-shadow-lg">375</div>
+                    <div className="text-3xl font-black text-white tracking-tighter drop-shadow-lg">{totalPower}</div>
                     <div className="text-xs font-bold text-green-400 flex items-center justify-end gap-1">
                         <TrendingUp className="w-3 h-3" />
                         일일 보너스 +0.5 XP
