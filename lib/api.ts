@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview } from '../types';
 
 
 // Revenue split constants
