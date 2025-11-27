@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TrainingLog } from '../../types';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -102,8 +102,77 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         </div>
                     )}
 
-                    {/* Media */}
-                    {(post.mediaUrl || post.youtubeUrl) && (
+                    {/* Dynamic Content based on Type */}
+                    {post.type === 'level_up' && post.metadata ? (
+                        <div className="mb-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-5 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Sparkles className="w-24 h-24 text-yellow-500" />
+                            </div>
+                            <div className="relative z-10">
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold mb-3">
+                                    <Sparkles className="w-3 h-3" />
+                                    LEVEL UP
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-1">Level {post.metadata.newLevel} 달성!</h3>
+                                <p className="text-slate-400 text-sm mb-3">
+                                    {post.metadata.beltName} 벨트로 한 단계 더 성장했습니다.
+                                </p>
+                                <div className="flex items-center gap-3 text-sm">
+                                    <span className="text-slate-500 line-through">Lv.{post.metadata.oldLevel}</span>
+                                    <span className="text-yellow-500 font-bold">Lv.{post.metadata.newLevel}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : post.type === 'title_earned' && post.metadata ? (
+                        <div className="mb-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-5 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Trophy className="w-24 h-24 text-purple-500" />
+                            </div>
+                            <div className="relative z-10">
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold mb-3">
+                                    <Trophy className="w-3 h-3" />
+                                    TITLE EARNED
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-1">{post.metadata.titleName}</h3>
+                                <p className="text-slate-400 text-sm">
+                                    {post.metadata.description}
+                                </p>
+                            </div>
+                        </div>
+                    ) : post.type === 'routine' && post.metadata ? (
+                        <div className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex gap-4 items-center">
+                            <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Dumbbell className="w-8 h-8 text-blue-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-white text-lg leading-tight mb-1">{post.metadata.routineTitle}</h3>
+                                <div className="flex items-center gap-3 text-xs text-slate-400">
+                                    <span>⏱ {post.metadata.durationMinutes}분</span>
+                                    <span className="text-yellow-500 font-bold">+{post.metadata.xpEarned} XP</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : post.type === 'sparring' && post.metadata ? (
+                        <div className={`mb-4 border rounded-xl p-4 ${post.metadata.result === 'win' ? 'bg-green-500/5 border-green-500/20' :
+                            post.metadata.result === 'loss' ? 'bg-red-500/5 border-red-500/20' :
+                                'bg-blue-500/5 border-blue-500/20'
+                            }`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${post.metadata.result === 'win' ? 'bg-green-500/20 text-green-400' :
+                                    post.metadata.result === 'loss' ? 'bg-red-500/20 text-red-400' :
+                                        'bg-blue-500/20 text-blue-400'
+                                    }`}>
+                                    {post.metadata.result === 'win' ? 'WIN' : post.metadata.result === 'loss' ? 'LOSS' : 'DRAW'}
+                                </span>
+                                <span className="text-xs text-slate-500">{post.metadata.rounds} 라운드</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">vs</span>
+                                <span className="font-bold text-white">{post.metadata.opponentName}</span>
+                                <span className="text-xs text-slate-500">({post.metadata.opponentBelt})</span>
+                            </div>
+                        </div>
+                    ) : (post.mediaUrl || post.youtubeUrl) && (
                         <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg max-h-[600px]">
                             {post.mediaType === 'video' || post.youtubeUrl ? (
                                 <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">

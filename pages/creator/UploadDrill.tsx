@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty } from '../../types';
-// import { uploadVideo } from '../../lib/api-video-upload';
+import { createDrill } from '../../lib/api';
+import { uploadToVimeo } from '../../lib/vimeo/upload';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Video, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const UploadDrill: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
+    const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'processing' | 'complete'>('idle');
+    const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -39,48 +41,72 @@ export const UploadDrill: React.FC = () => {
         e.preventDefault();
         if (!user || !formData.videoFile || !formData.descriptionVideoFile) return;
 
-        setLoading(true);
+        setIsUploading(true);
         setError(null);
         setUploadProgress(0);
+        setUploadStep('uploading');
 
         try {
-            // Note: This uses the existing video upload API. 
-            // In a real implementation, we might need a specific API for Drills if they are stored differently than Lessons.
-            // For now, we'll assume a generic video upload or placeholder logic.
-            // Since we don't have a specific 'createDrill' API yet, we will simulate the upload and creation.
+            // 1. Upload Main Video
+            const mainVideoResult = await uploadToVimeo({
+                file: formData.videoFile,
+                title: `[Drill] ${formData.title}`,
+                description: formData.description,
+                onProgress: (progress) => {
+                    // Main video progress (0-50%)
+                    setUploadProgress(Math.round(progress * 0.5));
+                }
+            });
 
-            // Simulate upload progress
-            const interval = setInterval(() => {
-                setUploadProgress(prev => {
-                    if (prev >= 95) {
-                        clearInterval(interval);
-                        return 95;
+            let descriptionVideoId = '';
+
+            // 2. Upload Description Video (if exists)
+            if (formData.descriptionVideoFile) {
+                const descVideoResult = await uploadToVimeo({
+                    file: formData.descriptionVideoFile,
+                    title: `[Drill Explanation] ${formData.title}`,
+                    description: `Explanation for ${formData.title}`,
+                    onProgress: (progress) => {
+                        // Description video progress (50-90%)
+                        setUploadProgress(50 + Math.round(progress * 0.4));
                     }
-                    return prev + 5;
                 });
-            }, 200);
+                descriptionVideoId = descVideoResult.videoId;
+            } else {
+                setUploadProgress(90);
+            }
 
-            // Mock upload delay
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            // 3. Create Drill in Database
+            setUploadStep('processing');
+            const { error } = await createDrill({
+                title: formData.title,
+                description: formData.description,
+                creatorId: user.id,
+                category: formData.category,
+                difficulty: formData.difficulty,
+                vimeoUrl: mainVideoResult.videoId,
+                descriptionVideoUrl: descriptionVideoId,
+                thumbnailUrl: `https://vumbnail.com/${mainVideoResult.videoId}.jpg`,
+                duration: '0:00', // Vimeo processing takes time, default to 0
+                price: 0 // Free for now
+            });
 
-            clearInterval(interval);
+            if (error) throw error;
+
             setUploadProgress(100);
+            setUploadStep('complete');
             setSuccess(true);
 
-            // In real app:
-            // const videoUrl = await uploadVideo(formData.videoFile);
-            // const descriptionVideoUrl = await uploadVideo(formData.descriptionVideoFile);
-            // await createDrill({ ...formData, videoUrl, descriptionVideoUrl, creatorId: user.id });
-
+            // Show success and redirect
             setTimeout(() => {
                 navigate('/creator/dashboard');
             }, 1500);
 
-        } catch (err) {
-            console.error(err);
+        } catch (error) {
+            console.error('Upload failed:', error);
             setError('업로드 중 오류가 발생했습니다.');
-        } finally {
-            setLoading(false);
+            setIsUploading(false);
+            setUploadStep('idle');
         }
     };
 
@@ -232,10 +258,12 @@ export const UploadDrill: React.FC = () => {
                             </div>
                         </div>
 
-                        {loading && (
+                        {isUploading && (
                             <div className="space-y-2">
                                 <div className="flex justify-between text-xs text-slate-400">
-                                    <span>업로드 중...</span>
+                                    <span>
+                                        {uploadStep === 'uploading' ? '영상 업로드 중...' : '처리 중...'}
+                                    </span>
                                     <span>{uploadProgress}%</span>
                                 </div>
                                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -250,10 +278,10 @@ export const UploadDrill: React.FC = () => {
                         <div className="pt-4 flex justify-end">
                             <Button
                                 type="submit"
-                                disabled={loading || !formData.videoFile || !formData.descriptionVideoFile}
+                                disabled={isUploading || !formData.videoFile || !formData.descriptionVideoFile}
                                 className="px-8"
                             >
-                                {loading ? '업로드 중...' : '드릴 등록하기'}
+                                {isUploading ? '처리 중...' : '드릴 등록하기'}
                             </Button>
                         </div>
                     </form>
