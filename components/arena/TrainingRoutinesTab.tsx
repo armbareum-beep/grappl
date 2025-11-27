@@ -518,6 +518,18 @@ ${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: $
                     </div>
                 )}
             </div>
+
+            {/* Share to Feed Modal */}
+            {showShareModal && shareModalData && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={handleShareToFeed}
+                    activityType="routine"
+                    defaultContent={shareModalData.defaultContent}
+                    metadata={shareModalData.metadata}
+                />
+            )}
         </div>
     );
 };
