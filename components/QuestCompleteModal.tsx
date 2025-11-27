@@ -4,6 +4,7 @@ import { CheckCircle, Flame, Trophy, Zap, Star } from 'lucide-react';
 interface QuestCompleteModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onContinue?: () => void; // Optional callback for "계속하기" button
     questName: string;
     xpEarned: number;
     streak?: number;
@@ -16,6 +17,7 @@ interface QuestCompleteModalProps {
 export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
     isOpen,
     onClose,
+    onContinue,
     questName,
     xpEarned,
     streak,
@@ -32,14 +34,16 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
             setTimeout(() => setShowContent(true), 200);
             setTimeout(() => setShowRewards(true), 600);
 
-            // Auto close after 3 seconds
-            const timer = setTimeout(() => {
-                onClose();
-            }, 3000);
+            // Only auto close if no onContinue callback is provided
+            if (!onContinue) {
+                const timer = setTimeout(() => {
+                    onClose();
+                }, 3000);
 
-            return () => clearTimeout(timer);
+                return () => clearTimeout(timer);
+            }
         }
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, onContinue]);
 
     if (!isOpen) return null;
 
@@ -129,7 +133,13 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
 
                     {/* Continue Button */}
                     <button
-                        onClick={onClose}
+                        onClick={() => {
+                            if (onContinue) {
+                                onContinue();
+                            } else {
+                                onClose();
+                            }
+                        }}
                         className="mt-6 w-full py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
                     >
                         계속하기

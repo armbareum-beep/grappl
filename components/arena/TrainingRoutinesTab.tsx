@@ -7,6 +7,7 @@ import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { ActiveRoutineView } from './ActiveRoutineView';
 import { Button } from '../Button';
 import { ShareToFeedModal } from '../social/ShareToFeedModal';
+import { QuestCompleteModal } from '../QuestCompleteModal';
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
@@ -17,6 +18,13 @@ export const TrainingRoutinesTab: React.FC = () => {
     const [previewRoutine, setPreviewRoutine] = useState<DrillRoutine | null>(null);
     const [completedRoutineData, setCompletedRoutineData] = useState<{ duration: number; xp: number } | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
+
+    // Quest Complete Modal State
+    const [showQuestComplete, setShowQuestComplete] = useState(false);
+    const [questCompleteData, setQuestCompleteData] = useState<{
+        questName: string;
+        xpEarned: number;
+    } | null>(null);
 
     // Share to Feed Modal State
     const [showShareModal, setShowShareModal] = useState(false);
@@ -184,9 +192,12 @@ ${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: $
             }
         });
 
-        // 6. Show Success State and Share Modal
-        setCompletedRoutineData({ duration: durationMinutes, xp: xpEarned });
-        setShowShareModal(true);
+        // 6. Show Quest Complete Modal first
+        setQuestCompleteData({
+            questName: activeRoutine.title,
+            xpEarned
+        });
+        setShowQuestComplete(true);
         setActiveRoutine(null);
     };
 
@@ -518,6 +529,23 @@ ${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: $
                     </div>
                 )}
             </div>
+
+            {/* Quest Complete Modal */}
+            {showQuestComplete && questCompleteData && (
+                <QuestCompleteModal
+                    isOpen={showQuestComplete}
+                    onClose={() => {
+                        setShowQuestComplete(false);
+                        setQuestCompleteData(null);
+                    }}
+                    onContinue={() => {
+                        setShowQuestComplete(false);
+                        setShowShareModal(true);
+                    }}
+                    questName={questCompleteData.questName}
+                    xpEarned={questCompleteData.xpEarned}
+                />
+            )}
 
             {/* Share to Feed Modal */}
             {showShareModal && shareModalData && (
