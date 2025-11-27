@@ -2,20 +2,32 @@ import React from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from 'recharts';
 
 interface CombatPowerRadarProps {
-    skills: Array<{ category: string; status: string }>;
+    stats: {
+        standing_power: number;
+        guard_power: number;
+        guard_pass_power: number;
+        side_power: number;
+        mount_power: number;
+        back_power: number;
+    } | null;
 }
 
-export const CombatPowerRadar: React.FC<CombatPowerRadarProps> = ({ skills }) => {
+export const CombatPowerRadar: React.FC<CombatPowerRadarProps> = ({ stats }) => {
     // Calculate power for each category (0-100)
     const categories = ['Standing', 'Guard', 'Guard Pass', 'Side', 'Mount', 'Back'];
 
     const data = categories.map(category => {
-        const categorySkills = skills.filter(s => s.category === category);
-        const masteredCount = categorySkills.filter(s => s.status === 'mastered').length;
-        const learningCount = categorySkills.filter(s => s.status === 'learning').length;
-
-        // Power calculation: mastered = 10 points, learning = 5 points
-        const power = Math.min(100, (masteredCount * 10) + (learningCount * 5));
+        let power = 0;
+        if (stats) {
+            switch (category) {
+                case 'Standing': power = stats.standing_power; break;
+                case 'Guard': power = stats.guard_power; break;
+                case 'Guard Pass': power = stats.guard_pass_power; break;
+                case 'Side': power = stats.side_power; break;
+                case 'Mount': power = stats.mount_power; break;
+                case 'Back': power = stats.back_power; break;
+            }
+        }
 
         return {
             category,

@@ -19,7 +19,7 @@ const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   write_log: { icon: '📝', name: '수련일지 작성' },
   tournament: { icon: '⚔️', name: '시합 참여' },
   add_skill: { icon: '🎯', name: '기술 추가' },
-  complete_drill: { icon: '💪', name: '드릴 완료' },
+  give_feedback: { icon: '💬', name: '피드백 주기' },
   sparring_review: { icon: '🥋', name: '스파링 복기' },
   master_skill: { icon: '🏆', name: '기술 마스터' },
   complete_routine: { icon: '🔥', name: '루틴 완료' }

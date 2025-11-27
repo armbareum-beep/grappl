@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
+import { ImageUploader } from '../../components/ImageUploader';
 
 export const CourseEditor: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -216,19 +217,25 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const fetchVimeoThumbnail = async () => {
-        if (!courseData.thumbnailUrl) {
-            alert('먼저 Vimeo URL을 입력하세요.');
+    const autoCaptureThumbnail = async () => {
+        if (lessons.length === 0) {
+            alert('먼저 레슨을 추가해주세요.');
+            return;
+        }
+
+        const firstLesson = lessons[0];
+        if (!firstLesson.vimeoUrl) {
+            alert('첫 번째 레슨에 영상이 없습니다.');
             return;
         }
 
         try {
-            const videoInfo = await getVimeoVideoInfo(courseData.thumbnailUrl);
+            const videoInfo = await getVimeoVideoInfo(firstLesson.vimeoUrl);
             if (videoInfo && videoInfo.thumbnail) {
                 setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
-                alert('썸네일을 가져왔습니다! 🎉');
+                alert('첫 번째 레슨에서 썸네일을 가져왔습니다! 🎉');
             } else {
-                alert('썸네일을 가져올 수 없습니다. Vimeo URL을 확인하세요.');
+                alert('썸네일을 가져올 수 없습니다.');
             }
         } catch (error) {
             console.error('Error fetching thumbnail:', error);
@@ -413,26 +420,23 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 URL</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={courseData.thumbnailUrl}
-                                            onChange={e => setCourseData({ ...courseData, thumbnailUrl: e.target.value })}
-                                            className="flex-1 px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            placeholder="Vimeo URL 또는 이미지 URL"
-                                        />
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 이미지</label>
+                                    <ImageUploader
+                                        currentImageUrl={courseData.thumbnailUrl}
+                                        onUploadComplete={(url) => setCourseData({ ...courseData, thumbnailUrl: url })}
+                                    />
+                                    <div className="mt-3">
                                         <button
                                             type="button"
-                                            onClick={fetchVimeoThumbnail}
-                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
+                                            onClick={autoCaptureThumbnail}
+                                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                                         >
-                                            Vimeo에서 가져오기
+                                            첫 번째 레슨에서 자동 캡처
                                         </button>
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            썸네일을 업로드하지 않으면 첫 번째 레슨 영상에서 자동으로 캡처됩니다
+                                        </p>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        Vimeo URL을 입력하고 버튼을 클릭하면 자동으로 썸네일을 가져옵니다
-                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -594,8 +598,8 @@ export const CourseEditor: React.FC = () => {
                                                         key={lesson.id}
                                                         onClick={() => setSelectedImportLesson(lesson)}
                                                         className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${selectedImportLesson?.id === lesson.id
-                                                                ? 'bg-blue-900/30 border-blue-500'
-                                                                : 'bg-slate-950 border-slate-800 hover:border-slate-600'
+                                                            ? 'bg-blue-900/30 border-blue-500'
+                                                            : 'bg-slate-950 border-slate-800 hover:border-slate-600'
                                                             }`}
                                                     >
                                                         <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedImportLesson?.id === lesson.id ? 'border-blue-500' : 'border-slate-600'

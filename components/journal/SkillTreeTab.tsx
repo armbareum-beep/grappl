@@ -11,7 +11,8 @@ import {
     deleteSkillSubcategory,
     getCourseProgress,
     addXP,
-    updateQuestProgress
+    updateQuestProgress,
+    getUserArenaStats
 } from '../../lib/api';
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus, Trophy } from 'lucide-react';
@@ -42,6 +43,7 @@ export const SkillTreeTab: React.FC = () => {
     const [newSubcategoryName, setNewSubcategoryName] = useState('');
     const [showMasteryModal, setShowMasteryModal] = useState(false);
     const [masteryData, setMasteryData] = useState<{ courseTitle: string; xpEarned: number; leveledUp: boolean; newLevel?: number } | null>(null);
+    const [arenaStats, setArenaStats] = useState<any>(null);
 
     useEffect(() => {
         loadData();
@@ -55,17 +57,19 @@ export const SkillTreeTab: React.FC = () => {
                 setLoading(false);
                 return;
             }
-            const [skills, purchasedCourses, allCourses, subcats] = await Promise.all([
+            const [skills, purchasedCourses, allCourses, subcats, stats] = await Promise.all([
                 getUserSkills(user.id),
                 getUserCourses(user.id),
                 getCourses(),
-                getSkillSubcategories(user.id)
+                getSkillSubcategories(user.id),
+                getUserArenaStats(user.id)
             ]);
 
             setSkills(skills);
             setPurchasedCourseIds(purchasedCourses.map(c => c.id));
             setAllCourses(allCourses);
             setSubcategories(subcats);
+            if (stats.data) setArenaStats(stats.data);
             setLoading(false);
         } catch (error) {
             console.error('Error loading skill tree data:', error);
@@ -187,7 +191,7 @@ export const SkillTreeTab: React.FC = () => {
 
             {/* Combat Power Radar Chart */}
             {user && (
-                <CombatPowerRadar skills={skills} />
+                <CombatPowerRadar stats={arenaStats} />
             )}
 
             {/* Dashboard Overview */}
