@@ -4,7 +4,7 @@ import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews,
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck } from 'lucide-react';
+import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck, Save } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 
@@ -113,7 +113,17 @@ export const RoutineDetail: React.FC = () => {
             const drillData = await getDrillById(drill);
             setCurrentDrill(drillData);
         } else {
-            setCurrentDrill(drill);
+            // If drill object exists but missing vimeoUrl (incomplete data), fetch full details
+            if (!drill.vimeoUrl) {
+                const drillData = await getDrillById(drill.id);
+                if (drillData) {
+                    setCurrentDrill(drillData);
+                } else {
+                    setCurrentDrill(drill);
+                }
+            } else {
+                setCurrentDrill(drill);
+            }
         }
     };
 
@@ -129,9 +139,6 @@ export const RoutineDetail: React.FC = () => {
             if (userData) setIsSubscriber(userData.is_subscriber);
 
             if (id) {
-                // For custom routines, ownership is always true if it's in local storage (simplified)
-                // or we could check creator_id if it was a real DB custom routine.
-                // For now, assume ownership for custom routines or check DB for others.
                 if (id.startsWith('custom-')) {
                     setOwns(true);
                 } else {
@@ -159,6 +166,36 @@ export const RoutineDetail: React.FC = () => {
         }
         if (!routine) return;
         navigate(`/payment/routine/${routine.id}?price=${routine.price}`);
+    };
+
+    const handleSaveRoutine = () => {
+        if (!routine) return;
+
+        try {
+            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+
+            // Check for duplicates (by ID or title)
+            const isDuplicate = customRoutines.some((r: any) => r.id === routine.id || (r.title === routine.title && r.creatorId === routine.creatorId));
+
+            if (isDuplicate) {
+                alert('이미 저장된 루틴입니다.');
+                return;
+            }
+
+            // Create a copy with a new custom ID if it's not already a custom routine
+            const newRoutine = {
+                ...routine,
+                id: routine.id.startsWith('custom-') ? routine.id : `custom-saved-${routine.id}-${Date.now()}`,
+                title: routine.title, // Keep original title
+                isSaved: true
+            };
+
+            localStorage.setItem('my_custom_routines', JSON.stringify([...customRoutines, newRoutine]));
+            alert('나만의 루틴에 저장되었습니다!');
+        } catch (e) {
+            console.error('Error saving routine:', e);
+            alert('루틴 저장 중 오류가 발생했습니다.');
+        }
     };
 
     const handleDrillComplete = () => {
@@ -227,7 +264,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                 routineTitle: routine?.title,
                 durationMinutes,
                 xpEarned,
-                drillCount: routine?.drills?.length || 0
+                drillCount: routine?.drills?.length || 0,
+                // Include full routine data for sharing/importing
+                sharedRoutine: routine
             }
         });
 
@@ -278,6 +317,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         ? 'from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-900/20'
         : 'from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/20';
 
+    // Check if drill is playable (owned OR free OR has vimeoUrl)
+    const isPlayable = owns || currentDrill.price === 0 || !!currentDrill.vimeoUrl;
+
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
             {/* Left: Video Stage */}
@@ -303,7 +345,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 훈련 완료하기
                             </Button>
                         </div>
-                    ) : owns && currentDrill.vimeoUrl ? (
+                    ) : isPlayable && currentDrill.vimeoUrl ? (
                         <iframe
                             src={currentDrill.vimeoUrl}
                             className="w-full h-full"
@@ -385,6 +427,18 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             <p className="font-bold text-white text-sm hover:underline cursor-pointer">{routine.creatorName}</p>
                             <p className="text-xs text-zinc-500">구독자 1.2만명</p>
                         </div>
+
+                        {/* Save Routine Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSaveRoutine}
+                            className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8 flex items-center gap-1"
+                        >
+                            <Save className="w-3 h-3" />
+                            저장
+                        </Button>
+
                         {!isCustomRoutine && (
                             <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
                                 구독하기
@@ -443,15 +497,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 const drillData = typeof drill === 'string' ? null : drill;
                                 const isCompleted = drillData && completedDrills.has(drillData.id);
                                 const isCurrent = index === currentDrillIndex;
+                                const isDrillPlayable = isPlayable; // Simplify for now, can be per-drill logic
 
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => owns && handleDrillSelect(index)}
-                                        disabled={!owns}
+                                        onClick={() => isDrillPlayable && handleDrillSelect(index)}
+                                        disabled={!isDrillPlayable}
                                         className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${isCurrent
                                             ? `${activeBg} border ${activeBorder}`
-                                            : owns
+                                            : isDrillPlayable
                                                 ? 'hover:bg-zinc-900 border border-transparent'
                                                 : 'opacity-50 cursor-not-allowed border border-transparent'
                                             }`}
@@ -464,7 +519,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                                     className="w-full h-full object-cover"
                                                 />
                                             )}
-                                            {!owns && (
+                                            {!isDrillPlayable && (
                                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                                                     <Lock className="w-4 h-4 text-white" />
                                                 </div>
@@ -495,7 +550,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
                 {/* Footer CTA */}
                 <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex-shrink-0">
-                    {owns ? (
+                    {isPlayable ? (
                         <Button
                             onClick={handleDrillComplete}
                             className={`w-full bg-gradient-to-r ${buttonGradient} text-white font-bold py-6 rounded-xl shadow-lg`}

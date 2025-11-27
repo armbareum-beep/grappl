@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TrainingLog } from '../../types';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell, Save } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -32,6 +32,38 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         } else {
             video.pause();
             setIsPlaying(false);
+        }
+    };
+
+    const handleSaveRoutine = () => {
+        if (!post.metadata?.sharedRoutine) return;
+
+        try {
+            const routine = post.metadata.sharedRoutine;
+            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+
+            // Check for duplicates
+            const isDuplicate = customRoutines.some((r: any) => r.id === routine.id || (r.title === routine.title && r.creatorId === routine.creatorId));
+
+            if (isDuplicate) {
+                alert('이미 저장된 루틴입니다.');
+                return;
+            }
+
+            // Create a copy with a new custom ID if needed
+            const newRoutine = {
+                ...routine,
+                id: routine.id.startsWith('custom-') ? routine.id : `custom-saved-${routine.id}-${Date.now()}`,
+                title: routine.title,
+                isSaved: true,
+                savedFromFeed: true
+            };
+
+            localStorage.setItem('my_custom_routines', JSON.stringify([...customRoutines, newRoutine]));
+            alert('나만의 루틴에 저장되었습니다!');
+        } catch (e) {
+            console.error('Error saving routine:', e);
+            alert('루틴 저장 중 오류가 발생했습니다.');
         }
     };
 
@@ -140,17 +172,31 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             </div>
                         </div>
                     ) : post.type === 'routine' && post.metadata ? (
-                        <div className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex gap-4 items-center">
-                            <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Dumbbell className="w-8 h-8 text-blue-500" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-white text-lg leading-tight mb-1">{post.metadata.routineTitle}</h3>
-                                <div className="flex items-center gap-3 text-xs text-slate-400">
-                                    <span>⏱ {post.metadata.durationMinutes}분</span>
-                                    <span className="text-yellow-500 font-bold">+{post.metadata.xpEarned} XP</span>
+                        <div className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                            <div className="flex gap-4 items-center mb-3">
+                                <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Dumbbell className="w-8 h-8 text-blue-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-white text-lg leading-tight mb-1">{post.metadata.routineTitle}</h3>
+                                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                                        <span>⏱ {post.metadata.durationMinutes}분</span>
+                                        <span className="text-yellow-500 font-bold">+{post.metadata.xpEarned} XP</span>
+                                    </div>
                                 </div>
                             </div>
+                            {post.metadata.sharedRoutine && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSaveRoutine();
+                                    }}
+                                    className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold rounded-lg border border-blue-500/30 flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    루틴 저장하기
+                                </button>
+                            )}
                         </div>
                     ) : post.type === 'sparring' && post.metadata ? (
                         <div className={`mb-4 border rounded-xl p-4 ${post.metadata.result === 'win' ? 'bg-green-500/5 border-green-500/20' :
@@ -202,41 +248,27 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 <img
                                     src={post.mediaUrl}
                                     alt="Post content"
-                                    className="w-full h-auto object-cover max-h-[600px]"
+                                    className="w-full h-auto object-cover"
                                 />
                             )}
                         </div>
                     )}
 
-                    {/* Action Bar */}
-                    <div className="flex items-center gap-8 mt-2">
+                    {/* Actions */}
+                    <div className="flex items-center gap-6 pt-2">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className="flex items-center gap-2 group"
+                            className={`flex items-center gap-2 text-sm font-medium transition-colors ${liked ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
                         >
-                            <div className={`p-2 rounded-full transition-colors ${liked ? 'bg-red-500/10' : 'group-hover:bg-slate-800'}`}>
-                                <Heart className={`w-6 h-6 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover:text-red-500'}`} />
-                            </div>
-                            {likeCount > 0 && (
-                                <span className={`text-sm font-medium ${liked ? 'text-red-500' : 'text-slate-500'}`}>
-                                    {likeCount}
-                                </span>
-                            )}
+                            <Heart className={`w-5 h-5 ${liked ? 'fill-pink-500' : ''}`} />
+                            <span>{likeCount}</span>
                         </button>
-
-                        <button className="flex items-center gap-2 group">
-                            <div className="p-2 rounded-full group-hover:bg-slate-800 transition-colors">
-                                <MessageCircle className="w-6 h-6 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                            </div>
-                            {post.comments && post.comments > 0 && (
-                                <span className="text-sm font-medium text-slate-500">{post.comments}</span>
-                            )}
+                        <button className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
+                            <MessageCircle className="w-5 h-5" />
+                            <span>{post.comments || 0}</span>
                         </button>
-
-                        <button className="flex items-center gap-2 group">
-                            <div className="p-2 rounded-full group-hover:bg-slate-800 transition-colors">
-                                <Share2 className="w-6 h-6 text-slate-400 group-hover:text-green-500 transition-colors" />
-                            </div>
+                        <button className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-colors ml-auto">
+                            <Share2 className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
