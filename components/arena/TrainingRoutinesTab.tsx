@@ -1,37 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, ChevronRight, Dumbbell, Play, Lock, Check } from 'lucide-react';
+import { PlaySquare, Clock, ChevronRight, Dumbbell, Play, Lock, Check, CalendarCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserRoutines, createTrainingLog, addXP, updateQuestProgress, createFeedPost } from '../../lib/api';
+import { getUserRoutines, getCompletedRoutinesToday } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
-import { ActiveRoutineView } from './ActiveRoutineView';
 import { Button } from '../Button';
-import { ShareToFeedModal } from '../social/ShareToFeedModal';
-import { QuestCompleteModal } from '../QuestCompleteModal';
+import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeRoutine, setActiveRoutine] = useState<DrillRoutine | null>(null);
-    const [previewRoutine, setPreviewRoutine] = useState<DrillRoutine | null>(null);
-    const [completedRoutineData, setCompletedRoutineData] = useState<{ duration: number; xp: number } | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
-
-    // Quest Complete Modal State
-    const [showQuestComplete, setShowQuestComplete] = useState(false);
-    const [questCompleteData, setQuestCompleteData] = useState<{
-        questName: string;
-        xpEarned: number;
-    } | null>(null);
-
-    // Share to Feed Modal State
-    const [showShareModal, setShowShareModal] = useState(false);
-    const [shareModalData, setShareModalData] = useState<{
-        defaultContent: string;
-        metadata: Record<string, any>;
-    } | null>(null);
+    const [completedRoutineIds, setCompletedRoutineIds] = useState<Set<string>>(new Set());
 
     // Custom Routine Creation State
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -68,6 +50,11 @@ export const TrainingRoutinesTab: React.FC = () => {
         } else {
             setRoutines(customRoutines);
         }
+
+        // Load completed routines for today
+        const completedIds = await getCompletedRoutinesToday(user.id);
+        setCompletedRoutineIds(new Set(completedIds));
+
         setLoading(false);
     };
 
@@ -115,449 +102,170 @@ export const TrainingRoutinesTab: React.FC = () => {
         navigate(`/my-routines/${routine.id}`);
     };
 
-    const handleStartRoutine = () => {
-        if (previewRoutine) {
-            setActiveRoutine(previewRoutine);
-            setPreviewRoutine(null);
-        }
+    const handleDragStart = (e: React.DragEvent, routine: DrillRoutine) => {
+        e.dataTransfer.setData('application/json', JSON.stringify(routine));
+        e.dataTransfer.effectAllowed = 'copy';
     };
 
-    const handleRoutineComplete = async (durationSeconds: number) => {
-        if (!user || !activeRoutine) return;
+    return (
+        <div className="space-y-8">
+            {/* Weekly Planner */}
+            <WeeklyRoutinePlanner />
 
-        const durationMinutes = Math.ceil(durationSeconds / 60);
+            {/* My Routines Section */}
+            <section>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <PlaySquare className="w-5 h-5 text-blue-500" />
+                        나만의 루틴
+                    </h2>
+                </div>
 
-        // 1. Create Training Log
-        const { data: log, error } = await createTrainingLog({
-            userId: user.id,
-            userName: user.user_metadata?.name || 'Unknown User',
-            date: new Date().toISOString().split('T')[0],
-            durationMinutes: durationMinutes,
-            sparringRounds: 0,
-            notes: `[Routine Completed] ${activeRoutine.title} \n\n${activeRoutine.description || ''} `,
-            techniques: activeRoutine.drills?.map(item => item.title) || [],
-            isPublic: true,
-            location: 'Home / Gym'
-        });
+                {loading ? (
+                    <div className="text-center py-12 text-slate-500">로딩 중...</div>
+                ) : routines.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {routines.map((routine) => {
+                            const isCompleted = completedRoutineIds.has(routine.id);
+                            return (
+                                <div
+                                    key={routine.id}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, routine)}
+                                    onClick={() => handleRoutineClick(routine)}
+                                    className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'
+                                        }`}
+                                >
+                                    {isCompleted && (
+                                        <div className="absolute top-2 left-2 z-10 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                                            <CalendarCheck className="w-3 h-3" />
+                                            오늘 완료
+                                        </div>
+                                    )}
 
-        if (error) {
-            console.error('Error saving routine log:', error);
-            alert('기록 저장 중 오류가 발생했습니다.');
-            setActiveRoutine(null);
-            return;
-        }
+                                    <div className="aspect-video bg-slate-800 relative">
+                                        {routine.thumbnailUrl ? (
+                                            <img
+                                                src={routine.thumbnailUrl}
+                                                alt={routine.title}
+                                                className={`w-full h-full object-cover transition-transform duration-500 ${isCompleted ? 'grayscale-[0.5]' : 'group-hover:scale-105'
+                                                    }`}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                <Dumbbell className="w-8 h-8" />
+                                            </div>
+                                        )}
+                                        <div className={`absolute inset-0 transition-colors ${isCompleted ? 'bg-black/40' : 'bg-black/20 group-hover:bg-black/0'
+                                            }`} />
 
-        // 2. Award Arena XP (1 XP per 5 mins)
-        const xpAmount = Math.max(1, Math.floor(durationMinutes / 5));
-        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, xpAmount, 'training_log', log?.id);
-
-        if (leveledUp && newLevel) {
-            window.dispatchEvent(new CustomEvent('grappl:level-up', {
-                detail: {
-                    oldLevel: newLevel - 1,
-                    newLevel: newLevel,
-                    beltLevel: newLevel
-                }
-            }));
-        }
-
-        // 3. Award Technique XP for linked techniques
-        // TODO: Get technique IDs from routine metadata and award XP
-        // const { awardTechniqueXp } = await import('../../lib/api-technique-mastery');
-        // if (activeRoutine.linkedTechniqueIds) {
-        //     for (const techniqueId of activeRoutine.linkedTechniqueIds) {
-        //         await awardTechniqueXp(user.id, techniqueId, 'routine_completion', activeRoutine.id);
-        //     }
-        // }
-
-        // 4. Update Quests
-        await updateQuestProgress(user.id, 'write_log');
-
-        // 5. Prepare share to feed modal
-        const defaultContent = `💪 훈련 루틴 완료!
-
-${activeRoutine.title}
-소요 시간: ${durationMinutes}분
-획득 XP: +${xpEarned}
-
-${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: ${activeRoutine.drills.slice(0, 3).map(item => item.title).join(', ')}${activeRoutine.drills.length > 3 ? ` 외 ${activeRoutine.drills.length - 3}개` : ''}` : ''}`;
-
-        setShareModalData({
-            defaultContent,
-            metadata: {
-                routineTitle: activeRoutine.title,
-                durationMinutes,
-                xpEarned,
-                drillCount: activeRoutine.drills?.length || 0
-            }
-        });
-
-        // 6. Show Quest Complete Modal first
-        setQuestCompleteData({
-            questName: activeRoutine.title,
-            xpEarned
-        });
-        setShowQuestComplete(true);
-        setActiveRoutine(null);
-    };
-
-    const handleShareToFeed = async (comment: string) => {
-        if (!user || !shareModalData) return;
-
-        await createFeedPost({
-            userId: user.id,
-            content: comment,
-            type: 'routine',
-            metadata: shareModalData.metadata
-        });
-
-        alert('피드에 공유되었습니다!');
-    };
-
-    if (activeRoutine) {
-        return (
-            <ActiveRoutineView
-                routine={activeRoutine}
-                onComplete={handleRoutineComplete}
-                onCancel={() => setActiveRoutine(null)}
-            />
-        );
-    }
-
-    // Routine Preview Modal
-    if (previewRoutine) {
-        return (
-            <div className="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-2xl my-8">
-                    <div className="p-6 border-b border-slate-800">
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">{previewRoutine.title}</h2>
-                                <p className="text-slate-400">{previewRoutine.description}</p>
-                            </div>
-                            <button
-                                onClick={() => setPreviewRoutine(null)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-sm text-slate-400">
-                            <div className="flex items-center gap-1">
-                                <Clock className="w-4 h-4" />
-                                {previewRoutine.totalDurationMinutes}분
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Dumbbell className="w-4 h-4" />
-                                {previewRoutine.drillCount}개 드릴
-                            </div>
-                        </div>
+                                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {routine.totalDurationMinutes}분
+                                        </div>
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-green-400' : 'text-white group-hover:text-blue-400'
+                                            }`}>
+                                            {routine.title}
+                                        </h3>
+                                        <p className="text-slate-400 text-sm line-clamp-1 mb-3">{routine.description}</p>
+                                        <div className="flex items-center justify-between text-xs text-slate-500">
+                                            <span>{routine.drillCount}개 드릴</span>
+                                            <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+                ) : (
+                    <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+                        <Dumbbell className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400 mb-4">아직 생성된 루틴이 없습니다.</p>
+                        <p className="text-sm text-slate-500">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
+                    </div>
+                )}
+            </section>
 
-                    <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                        <h3 className="text-lg font-bold text-white mb-2">포함된 드릴</h3>
-                        {previewRoutine.drills?.map((drill, index) => (
-                            <Link to={`/drills/${drill.id}`} key={index} className="flex items-center gap-4 bg-slate-800/50 p-3 rounded-xl border border-slate-800 hover:bg-slate-800 transition-colors">
+            {/* Create Routine Section */}
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
+                        <p className="text-slate-400 text-sm">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
+                    </div>
+                    {isSelectionMode ? (
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setIsSelectionMode(false);
+                                    setSelectedDrills(new Set());
+                                }}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                onClick={handleCreateRoutine}
+                                disabled={selectedDrills.size === 0}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                {selectedDrills.size}개 선택됨 - 루틴 생성
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button
+                            onClick={() => setIsSelectionMode(true)}
+                            className="bg-slate-800 hover:bg-slate-700"
+                        >
+                            드릴 선택하기
+                        </Button>
+                    )}
+                </div>
+
+                {savedDrills.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {savedDrills.map((drill) => (
+                            <div
+                                key={drill.id}
+                                onClick={() => isSelectionMode && toggleDrillSelection(drill.id)}
+                                className={`
+                                    relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
+                                    ${isSelectionMode
+                                        ? selectedDrills.has(drill.id)
+                                            ? 'bg-blue-900/20 border-blue-500'
+                                            : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                                        : 'bg-slate-800/50 border-slate-800'
+                                    }
+                                `}
+                            >
                                 <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                                     <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                    {isSelectionMode && selectedDrills.has(drill.id) && (
+                                        <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
+                                            <Check className="w-6 h-6 text-white" />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
                                     <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-slate-500" />
-                            </Link>
-                        ))}
-                    </div>
-
-                    <div className="p-6 border-t border-slate-800 flex gap-3">
-                        <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => setPreviewRoutine(null)}
-                        >
-                            닫기
-                        </Button>
-                        <Button
-                            className="flex-1 bg-blue-600 hover:bg-blue-700"
-                            onClick={handleStartRoutine}
-                        >
-                            <Play className="w-4 h-4 mr-2 fill-current" />
-                            루틴 시작하기
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (completedRoutineData) {
-        return (
-            <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 max-w-md w-full text-center space-y-6">
-                    <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto">
-                        <Check className="w-10 h-10 text-green-500" />
-                    </div>
-
-                    <div>
-                        <h2 className="text-2xl font-bold text-white mb-2">루틴 완료!</h2>
-                        <p className="text-slate-400">오늘도 수련을 완료하셨군요. 멋집니다!</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-800 p-4 rounded-xl">
-                            <div className="text-slate-400 text-xs mb-1">수련 시간</div>
-                            <div className="text-2xl font-bold text-white">{completedRoutineData.duration}분</div>
-                        </div>
-                        <div className="bg-slate-800 p-4 rounded-xl">
-                            <div className="text-slate-400 text-xs mb-1">획득 XP</div>
-                            <div className="text-2xl font-bold text-yellow-500">+{completedRoutineData.xp} XP</div>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => setCompletedRoutineData(null)}
-                        >
-                            닫기
-                        </Button>
-                        <Button
-                            className="flex-1"
-                            onClick={() => {
-                                setCompletedRoutineData(null);
-                            }}
-                        >
-                            수련일지 확인
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Share Modal */}
-                {showShareModal && shareModalData && (
-                    <ShareToFeedModal
-                        isOpen={showShareModal}
-                        onClose={() => setShowShareModal(false)}
-                        onShare={handleShareToFeed}
-                        activityType="routine"
-                        defaultContent={shareModalData.defaultContent}
-                        metadata={shareModalData.metadata}
-                    />
-                )}
-            </div>
-        );
-    }
-
-    return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            {/* Saved Drills Section */}
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-bold text-white">저장된 드릴</h2>
-                        {savedDrills.length > 0 && !isSelectionMode && (
-                            <button
-                                onClick={() => {
-                                    if (confirm('저장된 모든 드릴을 삭제하시겠습니까?')) {
-                                        localStorage.removeItem('saved_drills');
-                                        setSavedDrills([]);
-                                    }
-                                }}
-                                className="text-xs text-red-400 hover:text-red-300 underline"
-                            >
-                                전체 삭제
-                            </button>
-                        )}
-                    </div>
-                    {savedDrills.length > 0 && (
-                        <div className="flex gap-2">
-                            {isSelectionMode ? (
-                                <>
-                                    <button
-                                        onClick={() => {
-                                            setIsSelectionMode(false);
-                                            setSelectedDrills(new Set());
-                                        }}
-                                        className="text-sm text-slate-400 hover:text-white transition-colors"
-                                    >
-                                        취소
-                                    </button>
-                                    <button
-                                        onClick={handleCreateRoutine}
-                                        disabled={selectedDrills.size === 0}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${selectedDrills.size > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-800 text-slate-500 cursor-not-allowed'} `}
-                                    >
-                                        루틴 생성 ({selectedDrills.size})
-                                    </button>
-                                </>
-                            ) : (
-                                <button
-                                    onClick={() => setIsSelectionMode(true)}
-                                    className="px-3 py-1.5 bg-slate-800 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors"
-                                >
-                                    나만의 루틴 만들기
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {savedDrills.length === 0 ? (
-                    <div className="text-center py-8 bg-slate-900 rounded-2xl border border-slate-800">
-                        <p className="text-slate-400 text-sm">저장된 드릴이 없습니다.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                        {savedDrills.map((drill: any) => (
-                            <div key={drill.id} className="relative group">
-                                <Link to={`/drills/${drill.id}`} className="block">
-                                    <div className={`bg-slate-900 rounded-xl overflow-hidden border transition-colors ${isSelectionMode && selectedDrills.has(drill.id) ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-800 hover:border-slate-700'} `}>
-                                        <div className="aspect-video bg-slate-800 relative">
-                                            <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
-                                            <div className="absolute bottom-2 right-2 bg-black/60 px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {drill.length || '0:00'}
-                                            </div>
-                                        </div>
-                                        <div className="p-3">
-                                            <h3 className="text-white font-bold text-sm line-clamp-1 mb-1">{drill.title}</h3>
-                                            <p className="text-slate-400 text-xs">{drill.creatorName}</p>
-                                        </div>
-                                    </div>
-                                </Link>
-
-                                {isSelectionMode && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            toggleDrillSelection(drill.id);
-                                        }}
-                                        className="absolute inset-0 z-10 flex items-start justify-end p-2"
-                                    >
-                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedDrills.has(drill.id) ? 'bg-blue-600 border-blue-600' : 'bg-black/40 border-white/50'} `}>
-                                            {selectedDrills.has(drill.id) && <Check className="w-4 h-4 text-white" />}
-                                        </div>
-                                    </button>
+                                {!isSelectionMode && (
+                                    <Link to={`/drills/${drill.id}`} className="p-2 hover:bg-slate-700 rounded-full transition-colors">
+                                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                                    </Link>
                                 )}
                             </div>
                         ))}
                     </div>
-                )}
-            </div>
-
-            <div className="space-y-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">나의 훈련 루틴</h2>
-                        <p className="text-slate-400 text-sm">구매한 루틴을 따라하고 기록하세요</p>
-                    </div>
-                    <Link to="/drills">
-                        <button className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                            <Dumbbell className="w-4 h-4" />
-                            새 루틴 찾기
-                        </button>
-                    </Link>
-                </div>
-
-                {loading ? (
-                    <div className="text-center py-12">
-                        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-slate-400">루틴을 불러오는 중...</p>
-                    </div>
-                ) : routines.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-900 rounded-2xl border border-slate-800">
-                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Dumbbell className="w-8 h-8 text-slate-500" />
-                        </div>
-                        <h3 className="text-white font-bold mb-2">구매한 루틴이 없습니다</h3>
-                        <p className="text-slate-400 text-sm mb-6">
-                            드릴 탭에서 전문가들의 루틴을 구매해보세요.
-                        </p>
-                        <Link to="/drills" className="text-blue-500 hover:text-blue-400 font-medium">
-                            드릴 보러 가기 &rarr;
-                        </Link>
-                    </div>
                 ) : (
-                    <div className="grid gap-4">
-                        {routines.map((routine) => (
-                            <div key={routine.id} className="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors group">
-                                <div className="flex gap-4 items-start">
-                                    {/* Thumbnail */}
-                                    <div className="w-24 h-24 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
-                                        <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                            <PlaySquare className="w-8 h-8 text-white opacity-80" />
-                                        </div>
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div>
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 inline-block bg-purple-900/50 text-purple-400">
-                                                    ROUTINE
-                                                </span>
-                                                <h3 className="text-white font-bold text-lg leading-tight">{routine.title}</h3>
-                                                <p className="text-slate-400 text-sm">{routine.creatorName}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {routine.totalDurationMinutes || 0}분
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Dumbbell className="w-3 h-3" />
-                                                {routine.drillCount || 0}개 드릴
-                                            </div>
-                                        </div>
-
-                                        <Button
-                                            onClick={() => handleRoutineClick(routine)}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 h-auto text-sm flex items-center justify-center gap-2"
-                                        >
-                                            <Play className="w-4 h-4 fill-current" />
-                                            루틴 보기
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="text-center py-8 text-slate-500">
+                        저장된 드릴이 없습니다. 드릴 메뉴에서 마음에 드는 드릴을 저장해보세요.
                     </div>
                 )}
-            </div>
-
-            {/* Quest Complete Modal */}
-            {showQuestComplete && questCompleteData && (
-                <QuestCompleteModal
-                    isOpen={showQuestComplete}
-                    onClose={() => {
-                        setShowQuestComplete(false);
-                        setQuestCompleteData(null);
-                    }}
-                    onContinue={() => {
-                        setShowQuestComplete(false);
-                        setShowShareModal(true);
-                    }}
-                    questName={questCompleteData.questName}
-                    xpEarned={questCompleteData.xpEarned}
-                />
-            )}
-
-            {/* Share to Feed Modal */}
-            {showShareModal && shareModalData && (
-                <ShareToFeedModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    onShare={handleShareToFeed}
-                    activityType="routine"
-                    defaultContent={shareModalData.defaultContent}
-                    metadata={shareModalData.metadata}
-                />
-            )}
+            </section>
         </div>
     );
 };

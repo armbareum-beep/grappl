@@ -1302,6 +1302,56 @@ export async function getTrainingLogs(userId: string) {
 }
 
 /**
+ * Check if user already earned XP from routine completion today
+ */
+export async function checkDailyRoutineXP(userId: string): Promise<boolean> {
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+        .from('training_logs')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .eq('type', 'routine')
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error checking daily routine XP:', error);
+        return false;
+    }
+
+    // If there's a record, user already earned XP today
+    return !!data;
+}
+
+/**
+ * Get IDs of routines completed today
+ */
+export async function getCompletedRoutinesToday(userId: string): Promise<string[]> {
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+        .from('training_logs')
+        .select('metadata')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .eq('type', 'routine');
+
+    if (error) {
+        console.error('Error fetching completed routines:', error);
+        return [];
+    }
+
+    // Extract routine IDs from metadata
+    const completedIds = data
+        ?.map((log: any) => log.metadata?.routineId)
+        .filter((id: any) => typeof id === 'string') || [];
+
+    return [...new Set(completedIds)];
+}
+
+/**
  * Create a new training log
  */
 export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>, skipDailyCheck = false) {

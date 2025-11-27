@@ -1,0 +1,131 @@
+import React, { useState, useEffect } from 'react';
+import { DrillRoutine } from '../../types';
+import { Calendar, Trash2, GripVertical, Clock } from 'lucide-react';
+
+interface WeeklySchedule {
+    [key: string]: DrillRoutine[];
+}
+
+const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+
+export const WeeklyRoutinePlanner: React.FC = () => {
+    const [schedule, setSchedule] = useState<WeeklySchedule>({
+        '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': []
+    });
+
+    useEffect(() => {
+        const saved = localStorage.getItem('weekly_routine_schedule');
+        if (saved) {
+            try {
+                setSchedule(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to load schedule', e);
+            }
+        }
+    }, []);
+
+    const saveSchedule = (newSchedule: WeeklySchedule) => {
+        setSchedule(newSchedule);
+        localStorage.setItem('weekly_routine_schedule', JSON.stringify(newSchedule));
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.currentTarget.classList.add('bg-slate-800/80', 'ring-2', 'ring-blue-500');
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.currentTarget.classList.remove('bg-slate-800/80', 'ring-2', 'ring-blue-500');
+    };
+
+    const handleDrop = (e: React.DragEvent, day: string) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('bg-slate-800/80', 'ring-2', 'ring-blue-500');
+
+        try {
+            const routineData = e.dataTransfer.getData('application/json');
+            if (!routineData) return;
+
+            const routine: DrillRoutine = JSON.parse(routineData);
+
+            // Check for duplicates in the same day (optional, but good UX)
+            if (schedule[day].some(r => r.id === routine.id)) {
+                alert('이미 해당 요일에 추가된 루틴입니다.');
+                return;
+            }
+
+            const newSchedule = {
+                ...schedule,
+                [day]: [...schedule[day], routine]
+            };
+            saveSchedule(newSchedule);
+        } catch (err) {
+            console.error('Drop error:', err);
+        }
+    };
+
+    const removeRoutine = (day: string, routineId: string) => {
+        const newSchedule = {
+            ...schedule,
+            [day]: schedule[day].filter(r => r.id !== routineId)
+        };
+        saveSchedule(newSchedule);
+    };
+
+    return (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 mb-8">
+            <div className="flex items-center gap-2 mb-6">
+                <Calendar className="w-5 h-5 text-purple-500" />
+                <h2 className="text-xl font-bold text-white">주간 루틴 계획표</h2>
+                <span className="text-xs text-slate-500 ml-2">아래 루틴 목록에서 카드를 드래그하여 요일별 계획을 세워보세요.</span>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2">
+                {DAYS.map(day => (
+                    <div key={day} className="flex flex-col gap-2">
+                        <div className="text-center py-2 bg-slate-800 rounded-lg text-slate-400 font-bold text-sm">
+                            {day}
+                        </div>
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, day)}
+                            className="flex-1 min-h-[120px] bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800 p-2 transition-all"
+                        >
+                            {schedule[day].length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-slate-700 text-xs">
+                                    Drop Here
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {schedule[day].map((routine, idx) => (
+                                        <div
+                                            key={`${routine.id}-${idx}`}
+                                            className="bg-slate-800 rounded-lg p-2 group relative border border-slate-700 hover:border-purple-500/50 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between gap-1 mb-1">
+                                                <span className="text-xs font-bold text-white line-clamp-2 leading-tight">
+                                                    {routine.title}
+                                                </span>
+                                                <button
+                                                    onClick={() => removeRoutine(day, routine.id)}
+                                                    className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                <Clock className="w-3 h-3" />
+                                                <span>{routine.totalDurationMinutes}분</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
