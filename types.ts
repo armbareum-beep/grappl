@@ -5,6 +5,7 @@ export enum VideoCategory {
   Side = 'Side',
   Mount = 'Mount',
   Back = 'Back',
+  Submission = 'Submission',
 }
 
 export enum Difficulty {
@@ -147,6 +148,8 @@ export interface TrainingLog {
   youtubeUrl?: string; // Legacy support
   mediaUrl?: string; // New: Direct video/image upload
   mediaType?: 'video' | 'image';
+  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general';
+  metadata?: Record<string, any>;
   likes?: number;
   comments?: number;
   createdAt: string;

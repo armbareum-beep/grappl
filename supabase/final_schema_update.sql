@@ -320,6 +320,7 @@ CREATE TABLE IF NOT EXISTS drills (
     title TEXT NOT NULL,
     description TEXT,
     vimeo_url TEXT,
+    description_video_url TEXT,
     thumbnail_url TEXT,
     difficulty TEXT CHECK (difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
     duration_minutes INTEGER,

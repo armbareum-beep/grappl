@@ -2743,6 +2743,7 @@ export async function createDrill(drillData: Partial<Drill>) {
         difficulty: drillData.difficulty,
         thumbnail_url: drillData.thumbnailUrl,
         vimeo_url: drillData.vimeoUrl,
+        description_video_url: drillData.descriptionVideoUrl,
         duration: drillData.duration,
         price: drillData.price,
     };
@@ -2769,6 +2770,7 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.difficulty) dbData.difficulty = drillData.difficulty;
     if (drillData.thumbnailUrl) dbData.thumbnail_url = drillData.thumbnailUrl;
     if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
+    if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.duration) dbData.duration = drillData.duration;
     if (drillData.price !== undefined) dbData.price = drillData.price;
 
@@ -3552,7 +3554,7 @@ export async function removeCourseDrillBundle(courseId: string, drillId: string)
 export async function createFeedPost(post: {
     userId: string;
     content: string;
-    type: 'sparring' | 'routine' | 'mastery' | 'general';
+    type: 'sparring' | 'routine' | 'mastery' | 'general' | 'title_earned' | 'level_up' | 'technique';
     metadata?: any;
 }) {
     const { data, error } = await supabase

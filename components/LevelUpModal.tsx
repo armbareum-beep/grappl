@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Trophy, Sparkles, Star, Zap } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Trophy, Sparkles, Star, Zap, Share2 } from 'lucide-react';
 import { getBeltInfo, getBeltIcon } from '../lib/belt-system';
+import { ShareToFeedModal } from './social/ShareToFeedModal';
+import { useAuth } from '../contexts/AuthContext';
+import { createFeedPost } from '../lib/api';
+import { Button } from './Button';
 
 interface LevelUpModalProps {
     isOpen: boolean;
@@ -17,8 +21,11 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
     newLevel,
     beltLevel
 }) => {
+    const { user } = useAuth();
     const [showContent, setShowContent] = useState(false);
     const [showRewards, setShowRewards] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const beltInfo = getBeltInfo(beltLevel);
     const beltIcon = getBeltIcon(beltInfo.belt);
@@ -27,19 +34,50 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
         if (isOpen) {
             setShowContent(false);
             setShowRewards(false);
+            setShowShareModal(false);
 
             // Stagger animations
             setTimeout(() => setShowContent(true), 300);
             setTimeout(() => setShowRewards(true), 1000);
 
-            // Auto close after 4 seconds
-            const timer = setTimeout(() => {
-                onClose();
-            }, 4000);
+            // Auto close after 5 seconds (slightly longer to allow reading)
+            // Only if share modal is not open
+            if (!showShareModal) {
+                timerRef.current = setTimeout(() => {
+                    onClose();
+                }, 5000);
+            }
 
-            return () => clearTimeout(timer);
+            return () => {
+                if (timerRef.current) clearTimeout(timerRef.current);
+            };
         }
     }, [isOpen, onClose]);
+
+    const handleShareClick = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+        setShowShareModal(true);
+    };
+
+    const handleShareToFeed = async (comment: string) => {
+        if (!user) return;
+
+        await createFeedPost({
+            userId: user.id,
+            content: comment,
+            type: 'level_up',
+            metadata: {
+                oldLevel,
+                newLevel,
+                beltName: beltInfo.name
+            }
+        });
+
+        alert('피드에 공유되었습니다!');
+        onClose(); // Close the level up modal after sharing
+    };
 
     if (!isOpen) return null;
 
@@ -48,7 +86,9 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
             {/* Backdrop with blur */}
             <div
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
-                onClick={onClose}
+                onClick={() => {
+                    if (!showShareModal) onClose();
+                }}
             ></div>
 
             {/* Main Content */}
@@ -139,16 +179,41 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
                             </div>
                         )}
 
-                        {/* Continue Button */}
-                        <button
-                            onClick={onClose}
-                            className="mt-6 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-indigo-500/50 hover:shadow-indigo-500/70 hover:scale-105"
-                        >
-                            계속하기
-                        </button>
+                        {/* Buttons */}
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                onClick={handleShareClick}
+                                className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
+                            >
+                                <Share2 className="w-4 h-4" />
+                                자랑하기
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-indigo-500/50 hover:shadow-indigo-500/70 hover:scale-105"
+                            >
+                                계속하기
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Share Modal */}
+            {showShareModal && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={handleShareToFeed}
+                    activityType="level_up"
+                    defaultContent={`🎉 레벨 업! Level ${newLevel} 달성!\n\n${beltInfo.name} 벨트로 승급했습니다. 더 높은 곳을 향해 계속 정진하겠습니다! 🥋`}
+                    metadata={{
+                        oldLevel,
+                        newLevel,
+                        beltName: beltInfo.name
+                    }}
+                />
+            )}
 
             <style>{`
         @keyframes fade-in {

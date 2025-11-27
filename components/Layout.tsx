@@ -9,11 +9,40 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+import { LevelUpModal } from './LevelUpModal';
+import { TitleEarnedModal } from './TitleEarnedModal';
+
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const location = useLocation();
   const { user, signOut, isCreator, isAdmin } = useAuth();
+
+  // Global Modals State
+  const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);
+  const [titleEarnedData, setTitleEarnedData] = React.useState<{ titleName: string; description?: string; rarity?: 'common' | 'rare' | 'epic' | 'legendary' } | null>(null);
+
+  React.useEffect(() => {
+    const handleLevelUp = (event: CustomEvent) => {
+      setLevelUpData(event.detail);
+    };
+
+    const handleTitleEarned = (event: CustomEvent) => {
+      setTitleEarnedData(event.detail);
+    };
+
+    window.addEventListener('grappl:level-up' as any, handleLevelUp);
+    window.addEventListener('grappl:title-earned' as any, handleTitleEarned);
+
+    return () => {
+      window.removeEventListener('grappl:level-up' as any, handleLevelUp);
+      window.removeEventListener('grappl:title-earned' as any, handleTitleEarned);
+    };
+  }, []);
 
   const navigation = [
     { name: '클래스', href: '/browse', icon: BookOpen },
@@ -288,6 +317,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </footer>
+
+      {/* Global Modals */}
+      {levelUpData && (
+        <LevelUpModal
+          isOpen={!!levelUpData}
+          onClose={() => setLevelUpData(null)}
+          oldLevel={levelUpData.oldLevel}
+          newLevel={levelUpData.newLevel}
+          beltLevel={levelUpData.beltLevel}
+        />
+      )}
+
+      {titleEarnedData && (
+        <TitleEarnedModal
+          isOpen={!!titleEarnedData}
+          onClose={() => setTitleEarnedData(null)}
+          titleName={titleEarnedData.titleName}
+          description={titleEarnedData.description}
+          rarity={titleEarnedData.rarity}
+        />
+      )}
     </div>
   );
 };

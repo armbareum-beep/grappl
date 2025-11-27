@@ -5,6 +5,8 @@ import { Button } from '../Button';
 import { Plus, User, Lock, Clock, Target, TrendingUp } from 'lucide-react';
 import { AICoachWidget } from '../journal/AICoachWidget';
 import { TrainingLog } from '../../types';
+import { ShareToFeedModal } from '../social/ShareToFeedModal';
+import { createFeedPost } from '../../lib/api';
 
 interface SparringReview {
     id: string;
@@ -90,6 +92,13 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         videoUrl: ''
     });
 
+    // Share to Feed Modal State
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareModalData, setShareModalData] = useState<{
+        defaultContent: string;
+        metadata: Record<string, any>;
+    } | null>(null);
+
     // Load reviews
     useEffect(() => {
         if (user) {
@@ -125,7 +134,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         if (!user) return;
 
         try {
-            const { createSparringReview, createTrainingLog, updateQuestProgress, createFeedPost } = await import('../../lib/api');
+            const { createSparringReview, createTrainingLog, updateQuestProgress } = await import('../../lib/api');
 
             // 1. Create sparring review
             const { data: newReview, error: reviewError } = await createSparringReview({
@@ -154,6 +163,25 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             // 3. Update Quest (Awards XP if completed, handles daily limit)
             const { xpEarned } = await updateQuestProgress(user.id, 'sparring_review');
 
+            // 4. Prepare Share Modal Data
+            const defaultContent = `🥋 스파링 복기
+
+상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)
+결과: ${formData.result === 'win' ? '승리 🏆' : formData.result === 'loss' ? '패배' : '무승부'}
+라운드: ${formData.rounds}
+
+${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
+
+            setShareModalData({
+                defaultContent,
+                metadata: {
+                    opponentName: formData.opponentName,
+                    opponentBelt: formData.opponentBelt,
+                    result: formData.result,
+                    rounds: formData.rounds
+                }
+            });
+
             // Reset form
             setIsCreating(false);
             setFormData({
@@ -169,30 +197,26 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 videoUrl: ''
             });
 
-            // Ask if user wants to share to feed
-            const shareToFeed = confirm(`스파링 복기가 저장되었습니다! ${xpEarned > 0 ? `(+${xpEarned} XP)` : ''}\n\n피드에 공유하시겠습니까?`);
+            // Show Share Modal
+            setShowShareModal(true);
 
-            if (shareToFeed) {
-                const feedContent = `🥋 스파링 복기\n\n상대: ${formData.opponentName} (${formData.opponentBelt} 벨트)\n결과: ${formData.result === 'win' ? '승리 🏆' : formData.result === 'loss' ? '패배' : '무승부'}\n라운드: ${formData.rounds}\n\n${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
-
-                await createFeedPost({
-                    userId: user.id,
-                    content: feedContent,
-                    type: 'sparring',
-                    metadata: {
-                        opponentName: formData.opponentName,
-                        opponentBelt: formData.opponentBelt,
-                        result: formData.result,
-                        rounds: formData.rounds
-                    }
-                });
-
-                alert('피드에 공유되었습니다!');
-            }
         } catch (error) {
             console.error('Error saving sparring review:', error);
             alert('저장 중 오류가 발생했습니다.');
         }
+    };
+
+    const handleShareToFeed = async (comment: string) => {
+        if (!user || !shareModalData) return;
+
+        await createFeedPost({
+            userId: user.id,
+            content: comment,
+            type: 'sparring',
+            metadata: shareModalData.metadata
+        });
+
+        alert('피드에 공유되었습니다!');
     };
 
     if (!user) {
@@ -454,6 +478,18 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Share Modal */}
+            {showShareModal && shareModalData && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={handleShareToFeed}
+                    activityType="sparring"
+                    defaultContent={shareModalData.defaultContent}
+                    metadata={shareModalData.metadata}
+                />
             )}
         </div>
     );

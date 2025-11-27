@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { PlaySquare, Clock, ChevronRight, Dumbbell, Play, Lock, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserRoutines, createTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
+import { getUserRoutines, createTrainingLog, addXP, updateQuestProgress, createFeedPost } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { ActiveRoutineView } from './ActiveRoutineView';
 import { Button } from '../Button';
+import { ShareToFeedModal } from '../social/ShareToFeedModal';
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
@@ -16,6 +17,13 @@ export const TrainingRoutinesTab: React.FC = () => {
     const [previewRoutine, setPreviewRoutine] = useState<DrillRoutine | null>(null);
     const [completedRoutineData, setCompletedRoutineData] = useState<{ duration: number; xp: number } | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
+
+    // Share to Feed Modal State
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareModalData, setShareModalData] = useState<{
+        defaultContent: string;
+        metadata: Record<string, any>;
+    } | null>(null);
 
     // Custom Routine Creation State
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -133,7 +141,17 @@ export const TrainingRoutinesTab: React.FC = () => {
 
         // 2. Award Arena XP (1 XP per 5 mins)
         const xpAmount = Math.max(1, Math.floor(durationMinutes / 5));
-        const { xpEarned } = await addXP(user.id, xpAmount, 'training_log', log?.id);
+        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, xpAmount, 'training_log', log?.id);
+
+        if (leveledUp && newLevel) {
+            window.dispatchEvent(new CustomEvent('grappl:level-up', {
+                detail: {
+                    oldLevel: newLevel - 1,
+                    newLevel: newLevel,
+                    beltLevel: newLevel
+                }
+            }));
+        }
 
         // 3. Award Technique XP for linked techniques
         // TODO: Get technique IDs from routine metadata and award XP
@@ -147,31 +165,42 @@ export const TrainingRoutinesTab: React.FC = () => {
         // 4. Update Quests
         await updateQuestProgress(user.id, 'write_log');
 
-        // 5. Ask if user wants to share to feed
-        const shareToFeed = confirm(`루틴 완료!(+${xpEarned} XP) \n\n피드에 공유하시겠습니까 ? `);
+        // 5. Prepare share to feed modal
+        const defaultContent = `💪 훈련 루틴 완료!
 
-        if (shareToFeed) {
-            const { createFeedPost } = await import('../../lib/api');
-            const feedContent = `💪 훈련 루틴 완료!\n\n${activeRoutine.title} \n소요 시간: ${durationMinutes} 분\n획득 XP: +${xpEarned} \n\n${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: ${activeRoutine.drills.slice(0, 3).map(item => item.title).join(', ')}${activeRoutine.drills.length > 3 ? ` 외 ${activeRoutine.drills.length - 3}개` : ''}` : ''} `;
+${activeRoutine.title}
+소요 시간: ${durationMinutes}분
+획득 XP: +${xpEarned}
 
-            await createFeedPost({
-                userId: user.id,
-                content: feedContent,
-                type: 'routine',
-                metadata: {
-                    routineTitle: activeRoutine.title,
-                    durationMinutes,
-                    xpEarned,
-                    drillCount: activeRoutine.drills?.length || 0
-                }
-            });
+${activeRoutine.drills && activeRoutine.drills.length > 0 ? `완료한 드릴: ${activeRoutine.drills.slice(0, 3).map(item => item.title).join(', ')}${activeRoutine.drills.length > 3 ? ` 외 ${activeRoutine.drills.length - 3}개` : ''}` : ''}`;
 
-            alert('피드에 공유되었습니다!');
-        }
+        setShareModalData({
+            defaultContent,
+            metadata: {
+                routineTitle: activeRoutine.title,
+                durationMinutes,
+                xpEarned,
+                drillCount: activeRoutine.drills?.length || 0
+            }
+        });
 
-        // 6. Show Success State
+        // 6. Show Success State and Share Modal
         setCompletedRoutineData({ duration: durationMinutes, xp: xpEarned });
+        setShowShareModal(true);
         setActiveRoutine(null);
+    };
+
+    const handleShareToFeed = async (comment: string) => {
+        if (!user || !shareModalData) return;
+
+        await createFeedPost({
+            userId: user.id,
+            content: comment,
+            type: 'routine',
+            metadata: shareModalData.metadata
+        });
+
+        alert('피드에 공유되었습니다!');
     };
 
     if (activeRoutine) {
@@ -294,6 +323,18 @@ export const TrainingRoutinesTab: React.FC = () => {
                         </Button>
                     </div>
                 </div>
+
+                {/* Share Modal */}
+                {showShareModal && shareModalData && (
+                    <ShareToFeedModal
+                        isOpen={showShareModal}
+                        onClose={() => setShowShareModal(false)}
+                        onShare={handleShareToFeed}
+                        activityType="routine"
+                        defaultContent={shareModalData.defaultContent}
+                        metadata={shareModalData.metadata}
+                    />
+                )}
             </div>
         );
     }
