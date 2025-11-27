@@ -401,7 +401,94 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 5. Final CTA Section */}
+            {/* 5. Arena System Promotion Section */}
+            <section className="py-32 bg-slate-900 relative overflow-hidden">
+                {/* Background Elements */}
+                <div className="absolute inset-0">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid_pattern.png')] opacity-10"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px]"></div>
+                </div>
+
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    <div className="flex flex-col lg:flex-row items-center gap-16">
+                        {/* Text Content */}
+                        <div className="flex-1 text-center lg:text-left">
+                            <div className="inline-block px-4 py-2 mb-6 border border-purple-500/40 rounded-full bg-purple-500/10 backdrop-blur-md">
+                                <span className="text-purple-300 text-sm font-semibold tracking-wider uppercase flex items-center gap-2 justify-center lg:justify-start">
+                                    <Trophy className="w-4 h-4 text-purple-400" />
+                                    Arena System
+                                </span>
+                            </div>
+
+                            <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
+                                당신의 성장을 <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+                                    증명하세요
+                                </span>
+                            </h2>
+
+                            <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed">
+                                막연한 수련은 이제 그만. <br className="md:hidden" />
+                                아레나 시스템으로 당신의 전투력을 시각화하세요. <br />
+                                일일 퀘스트, 토너먼트, 그리고 랭킹 시스템이 <br className="md:hidden" />
+                                당신의 도파민을 자극합니다.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
+                                    <Target className="w-5 h-5 text-blue-400" />
+                                    <span className="font-medium">전투력 측정</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
+                                    <Trophy className="w-5 h-5 text-purple-400" />
+                                    <span className="font-medium">랭킹 시스템</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
+                                    <Zap className="w-5 h-5 text-yellow-400" />
+                                    <span className="font-medium">일일 퀘스트</span>
+                                </div>
+                            </div>
+
+                            <div className="mt-10">
+                                <Button
+                                    size="lg"
+                                    className="bg-white text-black hover:bg-slate-200 px-8 py-6 rounded-full font-bold text-lg transition-all hover:scale-105"
+                                    onClick={() => navigate('/pricing')}
+                                >
+                                    아레나 입장하기
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Image Content */}
+                        <div className="flex-1 relative">
+                            <div className="relative rounded-3xl overflow-hidden border border-slate-700/50 shadow-2xl shadow-purple-500/20 group">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-blue-500/10 group-hover:opacity-0 transition-opacity duration-500"></div>
+                                <img
+                                    src="/arena_mockup.png"
+                                    alt="Arena Dashboard Interface"
+                                    className="w-full h-auto transform transition-transform duration-700 group-hover:scale-105"
+                                />
+
+                                {/* Floating Badges */}
+                                <div className="absolute -bottom-6 -right-6 bg-slate-900/90 backdrop-blur-xl border border-slate-700 p-4 rounded-2xl shadow-xl animate-bounce" style={{ animationDuration: '3s' }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                                            <Trophy className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-400 font-bold uppercase">Current Rank</p>
+                                            <p className="text-white font-black">Diamond League</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* 6. Final CTA Section */}
             <section className="py-40 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
                 <div className="absolute inset-0">
                     <img
