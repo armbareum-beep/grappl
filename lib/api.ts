@@ -1345,51 +1345,6 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
 }
 
 /**
- * Create a feed post (wrapper around createTrainingLog with type and metadata support)
- */
-export async function createFeedPost(post: {
-    userId: string;
-    content: string;
-    type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general';
-    metadata?: Record<string, any>;
-}) {
-    const { data, error } = await supabase
-        .from('training_logs')
-        .insert({
-            user_id: post.userId,
-            date: new Date().toISOString().split('T')[0],
-            duration_minutes: 0,
-            techniques: [],
-            sparring_rounds: 0,
-            notes: post.content,
-            is_public: true,
-            type: post.type || 'general',
-            metadata: post.metadata || {}
-        })
-        .select()
-        .single();
-
-    if (error) return { data: null, error };
-
-    return {
-        data: {
-            id: data.id,
-            userId: data.user_id,
-            date: data.date,
-            durationMinutes: data.duration_minutes,
-            techniques: data.techniques,
-            sparringRounds: data.sparring_rounds,
-            notes: data.notes,
-            isPublic: data.is_public,
-            type: data.type,
-            metadata: data.metadata,
-            createdAt: data.created_at
-        } as TrainingLog,
-        error: null
-    };
-}
-
-/**
  * Create a new sparring review
  */
 export async function createSparringReview(review: Omit<SparringReview, 'id' | 'createdAt'>) {
@@ -3603,12 +3558,17 @@ export async function createFeedPost(post: {
     metadata?: any;
 }) {
     const { data, error } = await supabase
-        .from('feed_posts')
+        .from('training_logs')
         .insert({
             user_id: post.userId,
-            content: post.content,
-            post_type: post.type,
-            metadata: post.metadata
+            date: new Date().toISOString().split('T')[0],
+            duration_minutes: 0,
+            techniques: [],
+            sparring_rounds: 0,
+            notes: post.content,
+            is_public: true,
+            type: post.type,
+            metadata: post.metadata || {}
         })
         .select()
         .single();
@@ -3618,7 +3578,22 @@ export async function createFeedPost(post: {
         return { data: null, error };
     }
 
-    return { data, error: null };
+    return {
+        data: {
+            id: data.id,
+            userId: data.user_id,
+            date: data.date,
+            durationMinutes: data.duration_minutes,
+            techniques: data.techniques,
+            sparringRounds: data.sparring_rounds,
+            notes: data.notes,
+            isPublic: data.is_public,
+            type: data.type,
+            metadata: data.metadata,
+            createdAt: data.created_at
+        } as TrainingLog,
+        error: null
+    };
 }
 
 // ==================== SUBSCRIPTION TIERS ====================
