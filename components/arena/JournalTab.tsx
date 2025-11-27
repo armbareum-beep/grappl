@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTrainingLogs, createTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
 import { TrainingLog } from '../../types';
@@ -12,6 +12,7 @@ import { ko } from 'date-fns/locale';
 
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -21,6 +22,16 @@ export const JournalTab: React.FC = () => {
 
     // Heatmap Scroll Ref
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    const handleStartCreating = () => {
+        if (!user) {
+            if (confirm('로그인이 필요한 서비스입니다. 로그인하시겠습니까?')) {
+                navigate('/login');
+            }
+            return;
+        }
+        setIsCreating(true);
+    };
 
     useEffect(() => {
         if (user) {
@@ -230,7 +241,7 @@ export const JournalTab: React.FC = () => {
                         ? `${format(selectedDate, 'M월 d일', { locale: ko })}의 기록`
                         : '최근 기록'}
                 </h3>
-                <Button onClick={() => setIsCreating(true)} size="sm" className="rounded-full px-4">
+                <Button onClick={handleStartCreating} size="sm" className="rounded-full px-4">
                     <Plus className="w-4 h-4 mr-1.5" />
                     기록하기
                 </Button>
@@ -241,7 +252,7 @@ export const JournalTab: React.FC = () => {
                 {displayedLogs.length === 0 ? (
                     <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
                         <p className="text-slate-400 mb-4">기록이 없습니다.</p>
-                        <Button onClick={() => setIsCreating(true)} variant="outline" size="sm">
+                        <Button onClick={handleStartCreating} variant="outline" size="sm">
                             첫 기록 남기기
                         </Button>
                     </div>

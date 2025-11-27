@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../Button';
 import { Plus, User, Lock, Clock, Target, TrendingUp } from 'lucide-react';
@@ -76,6 +76,7 @@ const MOCK_REVIEWS: SparringReview[] = [
 
 export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [reviews, setReviews] = useState<SparringReview[]>([]);
     const [loading, setLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -99,6 +100,16 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         metadata: Record<string, any>;
     } | null>(null);
 
+    const handleStartCreating = () => {
+        if (!user) {
+            if (confirm('로그인이 필요한 서비스입니다. 로그인하시겠습니까?')) {
+                navigate('/login');
+            }
+            return;
+        }
+        setIsCreating(true);
+    };
+
     // Load reviews
     useEffect(() => {
         if (user) {
@@ -107,9 +118,10 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     }, [user]);
 
     const loadReviews = async () => {
+        if (!user) return;
         setLoading(true);
         const { getSparringReviews } = await import('../../lib/api');
-        const { data } = await getSparringReviews(user!.id);
+        const { data } = await getSparringReviews(user.id);
         if (data) {
             setReviews(data);
         }
@@ -219,20 +231,20 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
         alert('피드에 공유되었습니다!');
     };
 
-    if (!user) {
-        return (
-            <div className="text-center py-20 bg-slate-900 rounded-3xl border border-dashed border-slate-800 max-w-2xl mx-auto">
-                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                    <Lock className="w-8 h-8 text-slate-500" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">로그인이 필요합니다</h3>
-                <p className="text-slate-400 mb-6">스파링 복기를 작성하고 실력을 향상시키세요.</p>
-                <Link to="/login">
-                    <Button>로그인하기</Button>
-                </Link>
-            </div>
-        );
-    }
+    // if (!user) {
+    //     return (
+    //         <div className="text-center py-20 bg-slate-900 rounded-3xl border border-dashed border-slate-800 max-w-2xl mx-auto">
+    //             <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+    //                 <Lock className="w-8 h-8 text-slate-500" />
+    //             </div>
+    //             <h3 className="text-xl font-bold text-white mb-2">로그인이 필요합니다</h3>
+    //             <p className="text-slate-400 mb-6">스파링 복기를 작성하고 실력을 향상시키세요.</p>
+    //             <Link to="/login">
+    //                 <Button>로그인하기</Button>
+    //             </Link>
+    //         </div>
+    //     );
+    // }
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">
@@ -242,7 +254,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     <h2 className="text-xl font-bold text-white mb-1">스파링 복기</h2>
                     <p className="text-sm text-slate-400">스파링을 분석하고 성장하세요</p>
                 </div>
-                <Button onClick={() => setIsCreating(true)} size="sm" className="rounded-full px-4">
+                <Button onClick={handleStartCreating} size="sm" className="rounded-full px-4">
                     <Plus className="w-4 h-4 mr-1.5" />
                     복기 작성
                 </Button>
@@ -277,7 +289,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             {reviews.length === 0 ? (
                 <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl">
                     <p className="text-slate-400 mb-4">아직 작성된 스파링 복기가 없습니다.</p>
-                    <Button onClick={() => setIsCreating(true)} variant="outline">
+                    <Button onClick={handleStartCreating} variant="outline">
                         첫 복기 작성하기
                     </Button>
                 </div>
