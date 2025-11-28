@@ -169,22 +169,64 @@ serve(async (req) => {
                     const stripeSubscription = await stripe.subscriptions.retrieve(subscription)
                     const userId = stripeSubscription.metadata.userId
 
+                    // Determine Tier based on Product ID
+                    const productId = stripeSubscription.items.data[0].price.product as string
+                    const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
+                    const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
+
+                    let tier = 'basic'
+                    if (productId === PRO_PRODUCT_ID) tier = 'premium'
+                    if (productId === BASIC_PRODUCT_ID) tier = 'basic'
+
                     if (userId) {
                         const endDate = new Date()
-                        endDate.setDate(endDate.getDate() + 30)
+                        endDate.setDate(endDate.getDate() + 30) // Default to 30 days, should ideally check interval
 
-                        const { error } = await supabaseClient
+                        // Update Users Table
+                        const { error: userError } = await supabaseClient
                             .from('users')
                             .update({
                                 is_subscriber: true,
+                                subscription_tier: tier,
                                 subscription_end_date: endDate.toISOString(),
                                 stripe_subscription_id: subscription,
                             })
                             .eq('id', userId)
 
-                        if (error) {
-                            console.error('Error updating subscription:', error)
-                            throw error
+                        if (userError) {
+                            console.error('Error updating user subscription:', userError)
+                            throw userError
+                        }
+
+                        // Update/Insert Subscriptions Table
+                        // Check if subscription exists
+                        const { data: existingSub } = await supabaseClient
+                            .from('subscriptions')
+                            .select('id')
+                            .eq('stripe_subscription_id', subscription)
+                            .single()
+
+                        if (existingSub) {
+                            await supabaseClient
+                                .from('subscriptions')
+                                .update({
+                                    status: 'active',
+                                    subscription_tier: tier,
+                                    current_period_end: endDate.toISOString(),
+                                })
+                                .eq('id', existingSub.id)
+                        } else {
+                            await supabaseClient
+                                .from('subscriptions')
+                                .insert({
+                                    user_id: userId,
+                                    stripe_subscription_id: subscription,
+                                    subscription_tier: tier,
+                                    status: 'active',
+                                    plan_interval: 'month', // Default, ideally fetch from price
+                                    current_period_start: new Date().toISOString(),
+                                    current_period_end: endDate.toISOString(),
+                                })
                         }
 
                         await supabaseClient
@@ -198,7 +240,7 @@ serve(async (req) => {
                                 stripe_subscription_id: subscription,
                             })
 
-                        console.log(`Subscription activated for user ${userId}`)
+                        console.log(`Subscription activated for user ${userId} with tier ${tier}`)
                     }
                 }
                 break

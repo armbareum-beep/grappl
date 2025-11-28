@@ -21,7 +21,7 @@ export const CourseDetail: React.FC = () => {
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
-    const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+
 
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);

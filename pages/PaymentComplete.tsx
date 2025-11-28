@@ -50,7 +50,7 @@ export const PaymentComplete: React.FC = () => {
                         </div>
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">결제 완료!</h2>
                         <p className="text-slate-600 mb-8">{message}</p>
-                        <Button onClick={() => navigate('/my-courses')} className="w-full">
+                        <Button onClick={() => navigate('/library')} className="w-full">
                             내 강의실로 이동
                         </Button>
                     </div>
