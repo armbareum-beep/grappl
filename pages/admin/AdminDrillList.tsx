@@ -5,12 +5,14 @@ import { deleteDrill } from '../../lib/api-admin';
 import { Drill, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 export const AdminDrillList: React.FC = () => {
     const navigate = useNavigate();
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const { success, error: toastError } = useToast();
 
     useEffect(() => {
         fetchDrills();
@@ -35,10 +37,10 @@ export const AdminDrillList: React.FC = () => {
             if (error) throw error;
 
             setDrills(drills.filter(d => d.id !== drillId));
-            alert('드릴이 삭제되었습니다.');
+            success('드릴이 삭제되었습니다.');
         } catch (error) {
             console.error('Error deleting drill:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+            toastError('삭제 중 오류가 발생했습니다.');
         }
     };
 
