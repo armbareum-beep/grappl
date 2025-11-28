@@ -360,7 +360,139 @@ CREATE POLICY "Users can update their own notifications (mark as read)"
   USING (auth.uid() = user_id);
 
 -- ============================================================================
--- 10. 기존 사용자 데이터 마이그레이션
+-- 10. 게이미피케이션 & XP 시스템 (누락된 테이블 추가)
+-- ============================================================================
+
+-- 10.1 User Progress (XP 및 벨트)
+CREATE TABLE IF NOT EXISTS user_progress (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    belt_level INTEGER DEFAULT 1,
+    current_xp INTEGER DEFAULT 0,
+    total_xp INTEGER DEFAULT 0,
+    last_quest_reset TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10.2 Daily Quests (일일 미션)
+CREATE TABLE IF NOT EXISTS daily_quests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    quest_type TEXT NOT NULL,
+    target_count INTEGER NOT NULL,
+    current_count INTEGER DEFAULT 0,
+    xp_reward INTEGER NOT NULL,
+    completed BOOLEAN DEFAULT FALSE,
+    quest_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10.3 XP Transactions (XP 획득 로그)
+CREATE TABLE IF NOT EXISTS xp_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    source_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10.4 XP Activities (활동 로그)
+CREATE TABLE IF NOT EXISTS xp_activities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) NOT NULL,
+    activity_type TEXT NOT NULL,
+    xp_earned INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10.5 Login Streak (로그인 스트릭)
+CREATE TABLE IF NOT EXISTS user_login_streak (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+    current_streak INTEGER DEFAULT 0,
+    last_login_date DATE,
+    longest_streak INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10.6 RLS 설정
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_quests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE xp_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE xp_activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_login_streak ENABLE ROW LEVEL SECURITY;
+
+-- 정책 생성
+DROP POLICY IF EXISTS "Users can view their own progress" ON user_progress;
+CREATE POLICY "Users can view their own progress" ON user_progress FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own progress" ON user_progress;
+CREATE POLICY "Users can update their own progress" ON user_progress FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own progress" ON user_progress;
+CREATE POLICY "Users can insert their own progress" ON user_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own quests" ON daily_quests;
+CREATE POLICY "Users can view their own quests" ON daily_quests FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own quests" ON daily_quests;
+CREATE POLICY "Users can update their own quests" ON daily_quests FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own quests" ON daily_quests;
+CREATE POLICY "Users can insert their own quests" ON daily_quests FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own transactions" ON xp_transactions;
+CREATE POLICY "Users can view their own transactions" ON xp_transactions FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON xp_transactions;
+CREATE POLICY "Users can insert their own transactions" ON xp_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own XP activities" ON xp_activities;
+CREATE POLICY "Users can view their own XP activities" ON xp_activities FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own login streak" ON user_login_streak;
+CREATE POLICY "Users can view their own login streak" ON user_login_streak FOR SELECT USING (auth.uid() = user_id);
+
+-- 10.7 함수 정의
+
+-- add_xp 함수
+CREATE OR REPLACE FUNCTION add_xp(
+    p_user_id UUID,
+    p_amount INTEGER,
+    p_source TEXT,
+    p_source_id TEXT DEFAULT NULL
+)
+RETURNS VOID AS $$
+DECLARE
+    v_current_xp INTEGER;
+    v_total_xp INTEGER;
+BEGIN
+    -- Get current progress
+    SELECT total_xp INTO v_total_xp FROM user_progress WHERE user_id = p_user_id;
+
+    -- If no progress, create it
+    IF v_total_xp IS NULL THEN
+        INSERT INTO user_progress (user_id, belt_level, current_xp, total_xp)
+        VALUES (p_user_id, 1, 0, 0)
+        RETURNING total_xp INTO v_total_xp;
+    END IF;
+
+    -- Update total XP
+    v_total_xp := v_total_xp + p_amount;
+
+    -- Update user_progress
+    UPDATE user_progress
+    SET total_xp = v_total_xp, current_xp = current_xp + p_amount, updated_at = NOW()
+    WHERE user_id = p_user_id;
+
+    -- Record transaction
+    INSERT INTO xp_transactions (user_id, amount, source, source_id)
+    VALUES (p_user_id, p_amount, p_source, p_source_id);
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- 11. 기존 사용자 데이터 마이그레이션
 -- ============================================================================
 
 -- 기존 auth.users를 public.users로 복사
