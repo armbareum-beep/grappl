@@ -26,7 +26,7 @@ const CheckoutForm: React.FC<{ clientSecret: string; amount: number }> = ({ clie
         const { error: submitError } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                return_url: `${window.location.origin}/payment-complete`,
+                return_url: `${window.location.origin}/payment/complete`,
             },
         });
 

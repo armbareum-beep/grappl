@@ -32,7 +32,8 @@ serve(async (req) => {
             throw new Error('Not authenticated')
         }
 
-        const { mode, courseId, routineId, drillId, feedbackRequestId } = await req.json()
+        const body = await req.json()
+        const { mode, courseId, routineId, drillId, feedbackRequestId, priceId } = body
 
         if (mode === 'course') {
             // Single Course Purchase
@@ -213,11 +214,18 @@ serve(async (req) => {
             }
 
             // 2. Create Subscription
-            const priceId = await req.json().then(body => body.priceId).catch(() => null) || Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID');
+            const priceId = body.priceId || Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID');
 
             if (!priceId) {
                 throw new Error('Price ID is required for subscription');
             }
+
+            // Determine tier
+            const BASIC_PRICE_IDS = ['price_1SWs3iDWGN6smyu7MNbjs5kM', 'price_1SYHwZDWGN6smyu74bzDxySW'];
+            const PREMIUM_PRICE_IDS = ['price_1SYHxWDWGN6smyu7qHuppVy5', 'price_1SYI2UDWGN6smyu7BhMUtAQN'];
+
+            let tier = 'basic';
+            if (PREMIUM_PRICE_IDS.includes(priceId)) tier = 'premium';
 
             const subscription = await stripe.subscriptions.create({
                 customer: customerId,
@@ -228,6 +236,7 @@ serve(async (req) => {
                 metadata: {
                     userId: user.id,
                     userEmail: user.email || '',
+                    tier: tier,
                 },
             })
 
