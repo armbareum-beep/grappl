@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../contexts/AuthContext';
@@ -68,6 +68,7 @@ export const Checkout: React.FC = () => {
     const { type, id } = useParams<{ type: string; id: string }>();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [clientSecret, setClientSecret] = useState('');
     const [amount, setAmount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export const Checkout: React.FC = () => {
 
     useEffect(() => {
         if (!user) {
-            navigate('/login');
+            navigate('/login', { state: { from: location } });
             return;
         }
 
