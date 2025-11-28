@@ -165,7 +165,7 @@ export const RoutineDetail: React.FC = () => {
             return;
         }
         if (!routine) return;
-        navigate(`/payment/routine/${routine.id}?price=${routine.price}`);
+        navigate(`/checkout/routine/${routine.id}`);
     };
 
     const handleSaveRoutine = () => {

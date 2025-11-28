@@ -32,7 +32,7 @@ serve(async (req) => {
             throw new Error('Not authenticated')
         }
 
-        const { mode, courseId } = await req.json()
+        const { mode, courseId, routineId, drillId, feedbackRequestId } = await req.json()
 
         if (mode === 'course') {
             // Single Course Purchase
@@ -40,7 +40,6 @@ serve(async (req) => {
                 throw new Error('Course ID is required for course purchases')
             }
 
-            // 1. Get Course Price from DB
             const { data: course, error: courseError } = await supabaseClient
                 .from('courses')
                 .select('price, title')
@@ -51,7 +50,6 @@ serve(async (req) => {
                 throw new Error('Course not found')
             }
 
-            // 2. Create PaymentIntent
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: course.price,
                 currency: 'krw',
@@ -73,13 +71,120 @@ serve(async (req) => {
                     status: 200,
                 }
             )
+        } else if (mode === 'routine') {
+            // Routine Purchase
+            if (!routineId) {
+                throw new Error('Routine ID is required')
+            }
+
+            const { data: routine, error: routineError } = await supabaseClient
+                .from('routines')
+                .select('price, title')
+                .eq('id', routineId)
+                .single()
+
+            if (routineError || !routine) {
+                throw new Error('Routine not found')
+            }
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: routine.price,
+                currency: 'krw',
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+                metadata: {
+                    mode: 'routine',
+                    routineId: routineId,
+                    userId: user.id,
+                    userEmail: user.email || '',
+                },
+            })
+
+            return new Response(
+                JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                }
+            )
+        } else if (mode === 'drill') {
+            // Drill Purchase
+            if (!drillId) {
+                throw new Error('Drill ID is required')
+            }
+
+            const { data: drill, error: drillError } = await supabaseClient
+                .from('drills')
+                .select('price, title')
+                .eq('id', drillId)
+                .single()
+
+            if (drillError || !drill) {
+                throw new Error('Drill not found')
+            }
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: drill.price,
+                currency: 'krw',
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+                metadata: {
+                    mode: 'drill',
+                    drillId: drillId,
+                    userId: user.id,
+                    userEmail: user.email || '',
+                },
+            })
+
+            return new Response(
+                JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                }
+            )
+        } else if (mode === 'feedback') {
+            // Feedback Request Purchase
+            if (!feedbackRequestId) {
+                throw new Error('Feedback request ID is required')
+            }
+
+            const { data: feedbackRequest, error: feedbackError } = await supabaseClient
+                .from('feedback_requests')
+                .select('price')
+                .eq('id', feedbackRequestId)
+                .single()
+
+            if (feedbackError || !feedbackRequest) {
+                throw new Error('Feedback request not found')
+            }
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: feedbackRequest.price,
+                currency: 'krw',
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+                metadata: {
+                    mode: 'feedback',
+                    feedbackRequestId: feedbackRequestId,
+                    userId: user.id,
+                    userEmail: user.email || '',
+                },
+            })
+
+            return new Response(
+                JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                }
+            )
         } else if (mode === 'subscription') {
             // Monthly Subscription
-            const subscriptionPriceId = Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID')
-
-            if (!subscriptionPriceId) {
-                throw new Error('Subscription price ID not configured')
-            }
+            // const subscriptionPriceId = Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID')
 
             // 1. Create or retrieve Stripe Customer
             let customerId: string
@@ -108,9 +213,15 @@ serve(async (req) => {
             }
 
             // 2. Create Subscription
+            const priceId = await req.json().then(body => body.priceId).catch(() => null) || Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID');
+
+            if (!priceId) {
+                throw new Error('Price ID is required for subscription');
+            }
+
             const subscription = await stripe.subscriptions.create({
                 customer: customerId,
-                items: [{ price: subscriptionPriceId }],
+                items: [{ price: priceId }],
                 payment_behavior: 'default_incomplete',
                 payment_settings: { save_default_payment_method: 'on_subscription' },
                 expand: ['latest_invoice.payment_intent'],
