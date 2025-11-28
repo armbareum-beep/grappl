@@ -34,6 +34,7 @@ import { BecomeCreator } from './pages/BecomeCreator';
 import { UploadVideo } from './pages/UploadVideo';
 import { NotFound } from './pages/NotFound';
 import { PaymentComplete } from './pages/PaymentComplete';
+import { Checkout } from './pages/Checkout';
 import { Drills } from './pages/Drills';
 import { DrillDetail } from './pages/DrillDetail';
 import { RoutineDetail } from './pages/RoutineDetail';
@@ -164,6 +165,7 @@ const App: React.FC = () => {
             } />
 
             <Route path="/payment/complete" element={<PaymentComplete />} />
+            <Route path="/checkout/:type/:id" element={<Checkout />} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

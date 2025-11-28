@@ -7,7 +7,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-import { PaymentModal } from '../components/payment/PaymentModal';
+
 
 export const CourseDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -21,7 +21,7 @@ export const CourseDetail: React.FC = () => {
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
 
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);
@@ -98,18 +98,8 @@ export const CourseDetail: React.FC = () => {
                 setPurchasing(false);
             }
         } else {
-            // Paid course - Open Payment Modal
-            setShowPaymentModal(true);
-        }
-    };
-
-    const handlePaymentSuccess = async () => {
-        setShowPaymentModal(false);
-        setOwnsCourse(true);
-        // You might want to refresh course ownership status here just in case
-        if (user && id) {
-            const owns = await checkCourseOwnership(user.id, id);
-            setOwnsCourse(owns);
+            // Paid course - Redirect to Checkout
+            navigate(`/checkout/course/${course.id}`);
         }
     };
 
@@ -494,18 +484,7 @@ export const CourseDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Payment Modal */}
-            {course && (
-                <PaymentModal
-                    mode="course"
-                    isOpen={showPaymentModal}
-                    onClose={() => setShowPaymentModal(false)}
-                    onSuccess={handlePaymentSuccess}
-                    courseId={course.id}
-                    courseTitle={course.title}
-                    price={course.price}
-                />
-            )}
+
         </div>
     );
 };

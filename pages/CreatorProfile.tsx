@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 
 export const CreatorProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -62,7 +63,7 @@ export const CreatorProfile: React.FC = () => {
         }
 
         setSubmitting(true);
-        const { error } = await createFeedbackRequest({
+        const { data, error } = await createFeedbackRequest({
             studentId: user.id,
             instructorId: id,
             videoUrl: videoUrl.trim(),
@@ -70,15 +71,13 @@ export const CreatorProfile: React.FC = () => {
             price: feedbackSettings.price
         });
 
-        if (!error) {
-            alert('피드백 요청이 완료되었습니다!');
-            setShowFeedbackModal(false);
-            setVideoUrl('');
-            setDescription('');
-        } else {
+        if (error || !data) {
             alert('요청 중 오류가 발생했습니다.');
+            setSubmitting(false);
+        } else {
+            // Redirect to checkout
+            navigate(`/checkout/feedback/${data.id}`);
         }
-        setSubmitting(false);
     };
 
     const handleSubscribe = async () => {

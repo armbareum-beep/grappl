@@ -37,8 +37,9 @@ serve(async (req) => {
         switch (event.type) {
             case 'payment_intent.succeeded': {
                 const paymentIntent = event.data.object as Stripe.PaymentIntent
-                const { mode, courseId, userId } = paymentIntent.metadata
+                const { mode, courseId, routineId, drillId, feedbackRequestId, userId } = paymentIntent.metadata
 
+                // Course Purchase
                 if (mode === 'course' && courseId && userId) {
                     const { error } = await supabaseClient
                         .from('course_enrollments')
@@ -66,6 +67,96 @@ serve(async (req) => {
                         })
 
                     console.log(`Course access granted: ${courseId} to user ${userId}`)
+                }
+
+                // Routine Purchase
+                if (mode === 'routine' && routineId && userId) {
+                    const { error } = await supabaseClient
+                        .from('user_routines')
+                        .insert({
+                            user_id: userId,
+                            routine_id: routineId,
+                            purchased_at: new Date().toISOString(),
+                        })
+
+                    if (error) {
+                        console.error('Error granting routine access:', error)
+                        throw error
+                    }
+
+                    await supabaseClient
+                        .from('payments')
+                        .insert({
+                            user_id: userId,
+                            routine_id: routineId,
+                            amount: paymentIntent.amount,
+                            currency: paymentIntent.currency,
+                            status: 'completed',
+                            payment_method: 'stripe',
+                            stripe_payment_intent_id: paymentIntent.id,
+                        })
+
+                    console.log(`Routine access granted: ${routineId} to user ${userId}`)
+                }
+
+                // Drill Purchase
+                if (mode === 'drill' && drillId && userId) {
+                    const { error } = await supabaseClient
+                        .from('user_drills')
+                        .insert({
+                            user_id: userId,
+                            drill_id: drillId,
+                            purchased_at: new Date().toISOString(),
+                        })
+
+                    if (error) {
+                        console.error('Error granting drill access:', error)
+                        throw error
+                    }
+
+                    await supabaseClient
+                        .from('payments')
+                        .insert({
+                            user_id: userId,
+                            drill_id: drillId,
+                            amount: paymentIntent.amount,
+                            currency: paymentIntent.currency,
+                            status: 'completed',
+                            payment_method: 'stripe',
+                            stripe_payment_intent_id: paymentIntent.id,
+                        })
+
+                    console.log(`Drill access granted: ${drillId} to user ${userId}`)
+                }
+
+                // Feedback Request Payment
+                if (mode === 'feedback' && feedbackRequestId && userId) {
+                    const { error } = await supabaseClient
+                        .from('feedback_requests')
+                        .update({
+                            payment_status: 'paid',
+                            paid_at: new Date().toISOString(),
+                        })
+                        .eq('id', feedbackRequestId)
+
+                    if (error) {
+                        console.error('Error updating feedback payment:', error)
+                        throw error
+                    }
+
+                    await supabaseClient
+                        .from('payments')
+                        .insert({
+                            user_id: userId,
+                            feedback_request_id: feedbackRequestId,
+                            amount: paymentIntent.amount,
+                            currency: paymentIntent.currency,
+                            status: 'completed',
+                            payment_method: 'stripe',
+                            stripe_payment_intent_id: paymentIntent.id,
+                        })
+
+                    console.log(`Feedback payment recorded: ${feedbackRequestId}`)
                 }
                 break
             }
