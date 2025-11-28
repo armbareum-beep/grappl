@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, Zap } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { PaymentModal } from '../components/payment/PaymentModal';
+
 
 type BillingPeriod = 'monthly' | 'yearly';
 type SubscriptionTier = 'basic' | 'premium';
@@ -12,40 +12,28 @@ export const Pricing: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
-  const [showPaymentModal, setShowPaymentModal] = React.useState(false);
   const [billingPeriod, setBillingPeriod] = React.useState<BillingPeriod>('yearly');
-  const [selectedTier, setSelectedTier] = React.useState<SubscriptionTier>('basic');
-  const [selectedPrice, setSelectedPrice] = React.useState(0);
 
-  const handleSubscription = (tier: SubscriptionTier, price: number) => {
+
+  // Pricing data with Stripe Price IDs
+  // TODO: Replace these with actual Stripe Price IDs from your dashboard
+  const pricing = {
+    basic: {
+      monthly: { price: 29000, priceId: import.meta.env.VITE_STRIPE_SUBSCRIPTION_PRICE_ID || 'price_basic_monthly' },
+      yearly: { price: 290000, priceId: 'price_basic_yearly' },
+    },
+    premium: {
+      monthly: { price: 39000, priceId: 'price_premium_monthly' },
+      yearly: { price: 390000, priceId: 'price_premium_yearly' },
+    },
+  };
+
+  const handleSubscription = (priceId: string) => {
     if (!user) {
       navigate('/login');
       return;
     }
-
-    setSelectedTier(tier);
-    setSelectedPrice(price);
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    setShowPaymentModal(false);
-    const tierName = selectedTier === 'premium' ? '프리미엄' : '베이직';
-    alert(`${tierName} 구독이 완료되었습니다! 🎉\n이제 모든 강좌를 무제한으로 이용할 수 있습니다.`);
-    window.location.href = '/#/browse';
-    window.location.reload();
-  };
-
-  // Pricing data
-  const pricing = {
-    basic: {
-      monthly: 29000,
-      yearly: 290000, // 17% discount (₩348,000 → ₩290,000)
-    },
-    premium: {
-      monthly: 39000,
-      yearly: 390000, // 17% discount (₩468,000 → ₩390,000)
-    },
+    navigate(`/checkout/subscription/${priceId}`);
   };
 
   const getMonthlyEquivalent = (yearlyPrice: number) => {
@@ -105,7 +93,7 @@ export const Pricing: React.FC = () => {
               {billingPeriod === 'monthly' ? (
                 <>
                   <span className="text-4xl md:text-5xl font-black text-slate-900">
-                    ₩{pricing.basic.monthly.toLocaleString()}
+                    ₩{pricing.basic.monthly.price.toLocaleString()}
                   </span>
                   <span className="text-lg font-medium text-slate-500">/월</span>
                 </>
@@ -113,15 +101,15 @@ export const Pricing: React.FC = () => {
                 <>
                   <div className="flex items-baseline gap-3">
                     <span className="text-2xl font-bold text-slate-400 line-through">
-                      ₩{pricing.basic.monthly.toLocaleString()}
+                      ₩{pricing.basic.monthly.price.toLocaleString()}
                     </span>
                     <span className="text-4xl md:text-5xl font-black text-slate-900">
-                      ₩{getMonthlyEquivalent(pricing.basic.yearly).toLocaleString()}
+                      ₩{getMonthlyEquivalent(pricing.basic.yearly.price).toLocaleString()}
                     </span>
                   </div>
                   <span className="text-lg font-medium text-slate-500">/월</span>
                   <p className="text-sm text-blue-600 font-medium mt-2">
-                    🔥 연간 결제 시 {getDiscountPercent(pricing.basic.monthly, pricing.basic.yearly)}% 할인 (총 ₩{pricing.basic.yearly.toLocaleString()})
+                    🔥 연간 결제 시 {getDiscountPercent(pricing.basic.monthly.price, pricing.basic.yearly.price)}% 할인 (총 ₩{pricing.basic.yearly.price.toLocaleString()})
                   </p>
                 </>
               )}
@@ -151,8 +139,7 @@ export const Pricing: React.FC = () => {
                 className="w-full h-14 text-lg bg-slate-600 hover:bg-slate-700 shadow-lg"
                 onClick={() =>
                   handleSubscription(
-                    'basic',
-                    billingPeriod === 'monthly' ? pricing.basic.monthly : pricing.basic.yearly
+                    billingPeriod === 'monthly' ? pricing.basic.monthly.priceId : pricing.basic.yearly.priceId
                   )
                 }
                 disabled={loading}
@@ -178,7 +165,7 @@ export const Pricing: React.FC = () => {
               {billingPeriod === 'monthly' ? (
                 <>
                   <span className="text-4xl md:text-5xl font-black text-white">
-                    ₩{pricing.premium.monthly.toLocaleString()}
+                    ₩{pricing.premium.monthly.price.toLocaleString()}
                   </span>
                   <span className="text-lg font-medium text-blue-100">/월</span>
                   <p className="text-sm text-amber-300 font-medium mt-2">
@@ -189,15 +176,15 @@ export const Pricing: React.FC = () => {
                 <>
                   <div className="flex items-baseline gap-3">
                     <span className="text-2xl font-bold text-blue-300 line-through">
-                      ₩{pricing.premium.monthly.toLocaleString()}
+                      ₩{pricing.premium.monthly.price.toLocaleString()}
                     </span>
                     <span className="text-4xl md:text-5xl font-black text-white">
-                      ₩{getMonthlyEquivalent(pricing.premium.yearly).toLocaleString()}
+                      ₩{getMonthlyEquivalent(pricing.premium.yearly.price).toLocaleString()}
                     </span>
                   </div>
                   <span className="text-lg font-medium text-blue-100">/월</span>
                   <p className="text-sm text-amber-300 font-medium mt-2">
-                    🔥 연간 결제 시 {getDiscountPercent(pricing.premium.monthly, pricing.premium.yearly)}% 할인 (총 ₩{pricing.premium.yearly.toLocaleString()})
+                    🔥 연간 결제 시 {getDiscountPercent(pricing.premium.monthly.price, pricing.premium.yearly.price)}% 할인 (총 ₩{pricing.premium.yearly.price.toLocaleString()})
                   </p>
                 </>
               )}
@@ -231,8 +218,7 @@ export const Pricing: React.FC = () => {
                 className="w-full h-14 text-lg bg-white text-blue-600 hover:bg-blue-50 shadow-lg font-bold"
                 onClick={() =>
                   handleSubscription(
-                    'premium',
-                    billingPeriod === 'monthly' ? pricing.premium.monthly : pricing.premium.yearly
+                    billingPeriod === 'monthly' ? pricing.premium.monthly.priceId : pricing.premium.yearly.priceId
                   )
                 }
                 disabled={loading}
@@ -255,15 +241,7 @@ export const Pricing: React.FC = () => {
       </div>
 
       {/* Payment Modal */}
-      <PaymentModal
-        mode="subscription"
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSuccess={handlePaymentSuccess}
-        courseTitle={`Grappl ${selectedTier === 'premium' ? '프리미엄' : '베이직'} ${billingPeriod === 'monthly' ? '월간' : '연간'
-          } 구독`}
-        price={selectedPrice}
-      />
+
     </div>
   );
 };
