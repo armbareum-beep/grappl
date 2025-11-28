@@ -270,15 +270,29 @@ export const Pricing: React.FC = () => {
             <div className="mt-8">
               <Button
                 className="w-full h-14 text-lg bg-white text-blue-600 hover:bg-blue-50 shadow-lg font-bold"
-          <p className="text-slate-500 mb-4">구독이 부담스러우신가요?</p>
-              <Link to="/browse" className="text-blue-600 font-semibold hover:underline">
-                단품 강좌 둘러보기 &rarr;
-              </Link>
+                onClick={() =>
+                  handleSubscription(
+                    billingPeriod === 'monthly' ? pricing.premium.monthly.priceId : pricing.premium.yearly.priceId
+                  )
+                }
+                disabled={loading || (isSubscribed && currentTier === 'premium')}
+              >
+                {isSubscribed && currentTier === 'premium' ? '현재 플랜' : loading ? '처리 중...' : '프리미엄 시작하기'}
+              </Button>
+              {billingPeriod === 'monthly' && (
+                <p className="text-xs text-center text-blue-200 mt-3">언제든 해지 가능</p>
+              )}
             </div>
           </div>
-
-          {/* Payment Modal */}
-
         </div>
-        );
+
+        <div className="mt-16 text-center">
+          <p className="text-slate-500 mb-4">구독이 부담스러우신가요?</p>
+          <Link to="/browse" className="text-blue-600 font-semibold hover:underline">
+            단품 강좌 둘러보기 &rarr;
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 };
