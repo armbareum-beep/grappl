@@ -13,6 +13,12 @@ export const PayoutSettingsTab: React.FC = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // Wise account fields
+    const [wiseAccountNumber, setWiseAccountNumber] = useState('');
+    const [wiseRoutingNumber, setWiseRoutingNumber] = useState('');
+    const [wiseSwiftBic, setWiseSwiftBic] = useState('');
+    const [wiseAccountName, setWiseAccountName] = useState('');
+
     useEffect(() => {
         if (user) {
             loadSettings();
@@ -28,6 +34,13 @@ export const PayoutSettingsTab: React.FC = () => {
                 setStripeAccountId(data.stripeAccountId);
                 if (data.payoutSettings?.type) {
                     setPayoutType(data.payoutSettings.type);
+                }
+                // Load Wise account info
+                if (data.payoutSettings) {
+                    setWiseAccountNumber(data.payoutSettings.wiseAccountNumber || '');
+                    setWiseRoutingNumber(data.payoutSettings.wiseRoutingNumber || '');
+                    setWiseSwiftBic(data.payoutSettings.wiseSwiftBic || '');
+                    setWiseAccountName(data.payoutSettings.wiseAccountName || '');
                 }
             }
         } catch (err) {
@@ -45,7 +58,13 @@ export const PayoutSettingsTab: React.FC = () => {
         setSuccess('');
 
         try {
-            const { error } = await updatePayoutSettings(user.id, { type: payoutType });
+            const { error } = await updatePayoutSettings(user.id, {
+                type: payoutType,
+                wiseAccountNumber,
+                wiseRoutingNumber,
+                wiseSwiftBic,
+                wiseAccountName
+            });
             if (error) throw error;
             setSuccess('설정이 저장되었습니다.');
         } catch (err) {
@@ -122,6 +141,66 @@ export const PayoutSettingsTab: React.FC = () => {
                     </button>
 
                     {/* Business option removed as per user request */}
+                </div>
+            </div>
+
+            {/* Wise Account Information */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">Wise 계좌 정보</h3>
+                <p className="text-sm text-slate-400">정산금을 받을 Wise 계좌 정보를 입력하세요.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            계좌번호 (Account Number) *
+                        </label>
+                        <input
+                            type="text"
+                            value={wiseAccountNumber}
+                            onChange={(e) => setWiseAccountNumber(e.target.value)}
+                            placeholder="977226919280108"
+                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            라우팅 번호 (Routing Number) *
+                        </label>
+                        <input
+                            type="text"
+                            value={wiseRoutingNumber}
+                            onChange={(e) => setWiseRoutingNumber(e.target.value)}
+                            placeholder="084009519"
+                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            SWIFT/BIC *
+                        </label>
+                        <input
+                            type="text"
+                            value={wiseSwiftBic}
+                            onChange={(e) => setWiseSwiftBic(e.target.value)}
+                            placeholder="TRWIUS35XXX"
+                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            예금주명 (Account Name) *
+                        </label>
+                        <input
+                            type="text"
+                            value={wiseAccountName}
+                            onChange={(e) => setWiseAccountName(e.target.value)}
+                            placeholder="그래플레이"
+                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -23,6 +23,10 @@ export interface Creator {
   stripeAccountId?: string;
   payoutSettings?: {
     type: 'individual' | 'business';
+    wiseAccountNumber?: string;
+    wiseRoutingNumber?: string;
+    wiseSwiftBic?: string;
+    wiseAccountName?: string;
   };
 }
 
