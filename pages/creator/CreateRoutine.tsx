@@ -5,6 +5,7 @@ import { createRoutine, getDrills, Drill } from '../../lib/api';
 import { VideoCategory, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
 import { Upload, Image as ImageIcon, DollarSign, Type, AlignLeft, Plus, X, GripVertical } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
     const { user } = useAuth();
@@ -12,6 +13,7 @@ export const CreateRoutine: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [drills, setDrills] = useState<Drill[]>([]);
     const [selectedDrillIds, setSelectedDrillIds] = useState<string[]>([]);
+    const { success, error: toastError } = useToast();
 
     const [formData, setFormData] = useState({
         title: '',
@@ -59,7 +61,7 @@ export const CreateRoutine: React.FC = () => {
         if (!user) return;
 
         if (selectedDrillIds.length === 0) {
-            alert('최소 1개 이상의 드릴을 선택해야 합니다.');
+            toastError('최소 1개 이상의 드릴을 선택해야 합니다.');
             return;
         }
 
@@ -73,11 +75,11 @@ export const CreateRoutine: React.FC = () => {
 
             if (error) throw error;
 
-            alert('루틴이 성공적으로 생성되었습니다!');
+            success('루틴이 성공적으로 생성되었습니다!');
             navigate('/creator/dashboard');
         } catch (error) {
             console.error('Error creating routine:', error);
-            alert('루틴 생성 중 오류가 발생했습니다.');
+            toastError('루틴 생성 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
