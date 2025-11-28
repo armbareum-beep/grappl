@@ -133,10 +133,16 @@ export const RoutineDetail: React.FC = () => {
             setUser(user);
             const { data: userData } = await supabase
                 .from('users')
-                .select('is_subscriber')
+                .select('is_subscriber, subscription_tier')
                 .eq('id', user.id)
                 .single();
-            if (userData) setIsSubscriber(userData.is_subscriber);
+
+            if (userData) {
+                setIsSubscriber(userData.is_subscriber);
+                // Store tier in user object or separate state if needed, 
+                // but for now we can just use the userData directly or update a state
+                setUser(prev => ({ ...prev, subscription_tier: userData.subscription_tier }));
+            }
 
             if (id) {
                 if (id.startsWith('custom-')) {
@@ -317,8 +323,8 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         ? 'from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-900/20'
         : 'from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/20';
 
-    // Check if drill is playable (owned OR free OR has vimeoUrl)
-    const isPlayable = owns || currentDrill.price === 0 || !!currentDrill.vimeoUrl;
+    // Check if drill is playable (owned OR free OR has vimeoUrl OR premium subscriber)
+    const isPlayable = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0 || !!currentDrill.vimeoUrl;
 
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
