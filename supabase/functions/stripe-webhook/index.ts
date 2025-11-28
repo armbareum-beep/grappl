@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
 
                     if (userId) {
                         const endDate = new Date()
-                        endDate.setDate(endDate.getDate() + 30) // Default to 30 days, should ideally check interval
+                        endDate.setDate(endDate.getDate() + 30) // Default to 30 days
 
                         // Update Users Table
                         const { error: userError } = await supabaseClient
@@ -204,7 +204,6 @@ Deno.serve(async (req) => {
                         }
 
                         // Update/Insert Subscriptions Table
-                        // Check if subscription exists
                         const { data: existingSub } = await supabaseClient
                             .from('subscriptions')
                             .select('id')
@@ -228,7 +227,7 @@ Deno.serve(async (req) => {
                                     stripe_subscription_id: subscription,
                                     subscription_tier: tier,
                                     status: 'active',
-                                    plan_interval: 'month', // Default, ideally fetch from price
+                                    plan_interval: 'month',
                                     current_period_start: new Date().toISOString(),
                                     current_period_end: endDate.toISOString(),
                                 })
@@ -245,7 +244,78 @@ Deno.serve(async (req) => {
                                 stripe_subscription_id: subscription,
                             })
 
-                        console.log(`Subscription activated for user ${userId} with tier ${tier}`)
+                        console.log(`Subscription activated (invoice) for user ${userId} with tier ${tier}`)
+                    }
+                }
+                break
+            }
+
+            case 'customer.subscription.updated': {
+                const subscription = event.data.object as Stripe.Subscription
+
+                if (subscription.status === 'active') {
+                    const userId = subscription.metadata.userId
+                    let tier = subscription.metadata.tier
+
+                    if (!tier) {
+                        const productId = subscription.items.data[0].price.product as string
+                        const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
+                        const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
+
+                        tier = 'basic'
+                        if (productId === PRO_PRODUCT_ID) tier = 'premium'
+                        if (productId === BASIC_PRODUCT_ID) tier = 'basic'
+                    }
+
+                    if (userId) {
+                        const endDate = new Date(subscription.current_period_end * 1000)
+
+                        // Update Users Table
+                        const { error: userError } = await supabaseClient
+                            .from('users')
+                            .update({
+                                is_subscriber: true,
+                                subscription_tier: tier,
+                                subscription_end_date: endDate.toISOString(),
+                                stripe_subscription_id: subscription.id,
+                            })
+                            .eq('id', userId)
+
+                        if (userError) {
+                            console.error('Error updating user subscription (updated event):', userError)
+                        } else {
+                            console.log(`User subscription updated via subscription.updated for ${userId}`)
+                        }
+
+                        // Update Subscriptions Table
+                        const { data: existingSub } = await supabaseClient
+                            .from('subscriptions')
+                            .select('id')
+                            .eq('stripe_subscription_id', subscription.id)
+                            .single()
+
+                        if (existingSub) {
+                            await supabaseClient
+                                .from('subscriptions')
+                                .update({
+                                    status: 'active',
+                                    subscription_tier: tier,
+                                    current_period_end: endDate.toISOString(),
+                                })
+                                .eq('id', existingSub.id)
+                        } else {
+                            await supabaseClient
+                                .from('subscriptions')
+                                .insert({
+                                    user_id: userId,
+                                    stripe_subscription_id: subscription.id,
+                                    subscription_tier: tier,
+                                    status: 'active',
+                                    plan_interval: subscription.items.data[0].plan.interval,
+                                    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+                                    current_period_end: endDate.toISOString(),
+                                })
+                        }
                     }
                 }
                 break
