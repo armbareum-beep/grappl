@@ -16,15 +16,14 @@ export const Pricing: React.FC = () => {
 
 
   // Pricing data with Stripe Price IDs
-  // TODO: Replace these with actual Stripe Price IDs from your dashboard
   const pricing = {
     basic: {
-      monthly: { price: 29000, priceId: import.meta.env.VITE_STRIPE_SUBSCRIPTION_PRICE_ID || 'price_basic_monthly' },
-      yearly: { price: 290000, priceId: 'price_basic_yearly' },
+      monthly: { price: 29000, priceId: 'price_1SWs3iDWGN6smyu7MNbjs5kM' }, // Basic Monthly
+      yearly: { price: 290000, priceId: 'price_1SYHwZDWGN6smyu74bzDxySW' }, // Basic Yearly
     },
     premium: {
-      monthly: { price: 39000, priceId: 'price_premium_monthly' },
-      yearly: { price: 390000, priceId: 'price_premium_yearly' },
+      monthly: { price: 39000, priceId: 'price_1SYHxWDWGN6smyu7qHuppVy5' }, // Pro Monthly
+      yearly: { price: 390000, priceId: 'price_1SYI2UDWGN6smyu7BhMUtAQN' }, // Pro Yearly
     },
   };
 
