@@ -18,15 +18,37 @@ Deno.serve(async (req) => {
         return new Response('Missing signature or webhook secret', { status: 400 })
     }
 
+    // Helper to log to database
+    const logWebhook = async (status: string, eventType: string | null, payload: any, errorMessage: string | null = null) => {
+        const supabaseClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        )
+        await supabaseClient.from('webhook_logs').insert({
+            event_type: eventType,
+            status,
+            payload,
+            error_message: errorMessage
+        })
+    }
+
     try {
         const body = await req.text()
-        const event = await stripe.webhooks.constructEventAsync(
-            body,
-            signature,
-            webhookSecret,
-            undefined,
-            cryptoProvider
-        )
+        let event;
+
+        try {
+            event = await stripe.webhooks.constructEventAsync(
+                body,
+                signature,
+                webhookSecret,
+                undefined,
+                cryptoProvider
+            )
+        } catch (err: any) {
+            console.error(`Webhook signature verification failed.`, err.message);
+            await logWebhook('error', 'signature_verification_failed', { header: signature }, err.message);
+            return new Response(JSON.stringify({ error: err.message }), { status: 400 })
+        }
 
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
@@ -34,11 +56,77 @@ Deno.serve(async (req) => {
         )
 
         console.log(`Received event: ${event.type}`)
+        await logWebhook('received', event.type, event, null);
 
         switch (event.type) {
             case 'payment_intent.succeeded': {
                 const paymentIntent = event.data.object as Stripe.PaymentIntent
-                const { mode, courseId, routineId, drillId, feedbackRequestId, userId } = paymentIntent.metadata
+                const { mode, courseId, routineId, drillId, feedbackRequestId, userId, subscription_id, tier } = paymentIntent.metadata
+
+                // Subscription Purchase (NEW)
+                if (mode === 'subscription' && subscription_id && userId && tier) {
+                    const endDate = new Date()
+                    endDate.setDate(endDate.getDate() + 30)
+
+                    const { error: userError } = await supabaseClient
+                        .from('users')
+                        .update({
+                            is_subscriber: true,
+                            subscription_tier: tier,
+                            subscription_end_date: endDate.toISOString(),
+                            stripe_subscription_id: subscription_id,
+                        })
+                        .eq('id', userId)
+
+                    if (userError) {
+                        console.error('Error updating user subscription:', userError)
+                        await logWebhook('error', event.type, { userId, tier, subscription: subscription_id }, userError.message);
+                        throw userError
+                    }
+
+                    const { data: existingSub } = await supabaseClient
+                        .from('subscriptions')
+                        .select('id')
+                        .eq('stripe_subscription_id', subscription_id)
+                        .single()
+
+                    if (existingSub) {
+                        await supabaseClient
+                            .from('subscriptions')
+                            .update({
+                                status: 'active',
+                                subscription_tier: tier,
+                                current_period_end: endDate.toISOString(),
+                            })
+                            .eq('id', existingSub.id)
+                    } else {
+                        await supabaseClient
+                            .from('subscriptions')
+                            .insert({
+                                user_id: userId,
+                                stripe_subscription_id: subscription_id,
+                                subscription_tier: tier,
+                                status: 'active',
+                                plan_interval: 'month',
+                                current_period_start: new Date().toISOString(),
+                                current_period_end: endDate.toISOString(),
+                            })
+                    }
+
+                    await supabaseClient
+                        .from('payments')
+                        .insert({
+                            user_id: userId,
+                            amount: paymentIntent.amount,
+                            currency: paymentIntent.currency,
+                            status: 'completed',
+                            payment_method: 'stripe',
+                            stripe_subscription_id: subscription_id,
+                        })
+
+                    console.log(`Subscription activated (payment_intent) for user ${userId} with tier ${tier}`)
+                    await logWebhook('success', event.type, { userId, tier, subscription: subscription_id }, null);
+                }
 
                 // Course Purchase
                 if (mode === 'course' && courseId && userId) {
@@ -52,6 +140,7 @@ Deno.serve(async (req) => {
 
                     if (error) {
                         console.error('Error granting course access:', error)
+                        await logWebhook('error', event.type, { mode, courseId, userId }, error.message);
                         throw error
                     }
 
@@ -68,6 +157,7 @@ Deno.serve(async (req) => {
                         })
 
                     console.log(`Course access granted: ${courseId} to user ${userId}`)
+                    await logWebhook('success', event.type, { mode, courseId, userId }, null);
                 }
 
                 // Routine Purchase
@@ -82,6 +172,7 @@ Deno.serve(async (req) => {
 
                     if (error) {
                         console.error('Error granting routine access:', error)
+                        await logWebhook('error', event.type, { mode, routineId, userId }, error.message);
                         throw error
                     }
 
@@ -98,6 +189,7 @@ Deno.serve(async (req) => {
                         })
 
                     console.log(`Routine access granted: ${routineId} to user ${userId}`)
+                    await logWebhook('success', event.type, { mode, routineId, userId }, null);
                 }
 
                 // Drill Purchase
@@ -112,6 +204,7 @@ Deno.serve(async (req) => {
 
                     if (error) {
                         console.error('Error granting drill access:', error)
+                        await logWebhook('error', event.type, { mode, drillId, userId }, error.message);
                         throw error
                     }
 
@@ -128,6 +221,7 @@ Deno.serve(async (req) => {
                         })
 
                     console.log(`Drill access granted: ${drillId} to user ${userId}`)
+                    await logWebhook('success', event.type, { mode, drillId, userId }, null);
                 }
 
                 // Feedback Request Payment
@@ -142,6 +236,7 @@ Deno.serve(async (req) => {
 
                     if (error) {
                         console.error('Error updating feedback payment:', error)
+                        await logWebhook('error', event.type, { mode, feedbackRequestId, userId }, error.message);
                         throw error
                     }
 
@@ -158,94 +253,115 @@ Deno.serve(async (req) => {
                         })
 
                     console.log(`Feedback payment recorded: ${feedbackRequestId}`)
+                    await logWebhook('success', event.type, { mode, feedbackRequestId, userId }, null);
                 }
                 break
             }
 
             case 'invoice.payment_succeeded': {
                 const invoice = event.data.object as Stripe.Invoice
-                const subscription = invoice.subscription as string
+                let subscriptionId = invoice.subscription as string
 
-                if (subscription) {
-                    const stripeSubscription = await stripe.subscriptions.retrieve(subscription)
-                    const userId = stripeSubscription.metadata.userId
+                if (!subscriptionId && invoice.lines?.data?.length > 0) {
+                    subscriptionId = invoice.lines.data[0].subscription as string
+                    console.log(`Found subscription ID in invoice lines: ${subscriptionId}`)
+                }
 
-                    // Determine Tier based on metadata (preferred) or Product ID (fallback)
-                    let tier = stripeSubscription.metadata.tier;
+                if (subscriptionId) {
+                    try {
+                        const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId)
+                        const userId = stripeSubscription.metadata.userId
 
-                    if (!tier) {
-                        const productId = stripeSubscription.items.data[0].price.product as string
-                        const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
-                        const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
+                        await logWebhook('info', 'subscription_retrieved', {
+                            subscriptionId,
+                            metadata: stripeSubscription.metadata
+                        }, null);
 
-                        tier = 'basic'
-                        if (productId === PRO_PRODUCT_ID) tier = 'premium'
-                        if (productId === BASIC_PRODUCT_ID) tier = 'basic'
-                    }
+                        let tier = stripeSubscription.metadata.tier;
 
-                    if (userId) {
-                        const endDate = new Date()
-                        endDate.setDate(endDate.getDate() + 30) // Default to 30 days
+                        if (!tier) {
+                            const productId = stripeSubscription.items.data[0].price.product as string
+                            const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
+                            const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
 
-                        // Update Users Table
-                        const { error: userError } = await supabaseClient
-                            .from('users')
-                            .update({
-                                is_subscriber: true,
-                                subscription_tier: tier,
-                                subscription_end_date: endDate.toISOString(),
-                                stripe_subscription_id: subscription,
-                            })
-                            .eq('id', userId)
-
-                        if (userError) {
-                            console.error('Error updating user subscription:', userError)
-                            throw userError
+                            tier = 'basic'
+                            if (productId === PRO_PRODUCT_ID) tier = 'premium'
+                            if (productId === BASIC_PRODUCT_ID) tier = 'basic'
                         }
 
-                        // Update/Insert Subscriptions Table
-                        const { data: existingSub } = await supabaseClient
-                            .from('subscriptions')
-                            .select('id')
-                            .eq('stripe_subscription_id', subscription)
-                            .single()
+                        if (userId) {
+                            const endDate = new Date()
+                            endDate.setDate(endDate.getDate() + 30)
 
-                        if (existingSub) {
-                            await supabaseClient
-                                .from('subscriptions')
+                            const { error: userError } = await supabaseClient
+                                .from('users')
                                 .update({
-                                    status: 'active',
+                                    is_subscriber: true,
                                     subscription_tier: tier,
-                                    current_period_end: endDate.toISOString(),
+                                    subscription_end_date: endDate.toISOString(),
+                                    stripe_subscription_id: subscriptionId,
                                 })
-                                .eq('id', existingSub.id)
-                        } else {
-                            await supabaseClient
+                                .eq('id', userId)
+
+                            if (userError) {
+                                console.error('Error updating user subscription:', userError)
+                                await logWebhook('error', event.type, { userId, tier, subscription: subscriptionId }, userError.message);
+                                throw userError
+                            }
+
+                            const { data: existingSub } = await supabaseClient
                                 .from('subscriptions')
+                                .select('id')
+                                .eq('stripe_subscription_id', subscriptionId)
+                                .single()
+
+                            if (existingSub) {
+                                await supabaseClient
+                                    .from('subscriptions')
+                                    .update({
+                                        status: 'active',
+                                        subscription_tier: tier,
+                                        current_period_end: endDate.toISOString(),
+                                    })
+                                    .eq('id', existingSub.id)
+                            } else {
+                                await supabaseClient
+                                    .from('subscriptions')
+                                    .insert({
+                                        user_id: userId,
+                                        stripe_subscription_id: subscriptionId,
+                                        subscription_tier: tier,
+                                        status: 'active',
+                                        plan_interval: 'month',
+                                        current_period_start: new Date().toISOString(),
+                                        current_period_end: endDate.toISOString(),
+                                    })
+                            }
+
+                            await supabaseClient
+                                .from('payments')
                                 .insert({
                                     user_id: userId,
-                                    stripe_subscription_id: subscription,
-                                    subscription_tier: tier,
-                                    status: 'active',
-                                    plan_interval: 'month',
-                                    current_period_start: new Date().toISOString(),
-                                    current_period_end: endDate.toISOString(),
+                                    amount: invoice.amount_paid,
+                                    currency: invoice.currency,
+                                    status: 'completed',
+                                    payment_method: 'stripe',
+                                    stripe_subscription_id: subscriptionId,
                                 })
+
+                            console.log(`Subscription activated (invoice) for user ${userId} with tier ${tier}`)
+                            await logWebhook('success', event.type, { userId, tier, subscription: subscriptionId }, null);
+                        } else {
+                            console.warn('No userId found in subscription metadata');
+                            await logWebhook('warning', event.type, { subscription: subscriptionId, metadata: stripeSubscription.metadata }, 'No userId in metadata');
                         }
-
-                        await supabaseClient
-                            .from('payments')
-                            .insert({
-                                user_id: userId,
-                                amount: invoice.amount_paid,
-                                currency: invoice.currency,
-                                status: 'completed',
-                                payment_method: 'stripe',
-                                stripe_subscription_id: subscription,
-                            })
-
-                        console.log(`Subscription activated (invoice) for user ${userId} with tier ${tier}`)
+                    } catch (err: any) {
+                        console.error('Error processing subscription:', err);
+                        await logWebhook('error', event.type, { subscription: subscriptionId }, err.message);
                     }
+                } else {
+                    console.warn('No subscription ID found in invoice');
+                    await logWebhook('warning', event.type, { invoiceId: invoice.id }, 'No subscription ID found in invoice object or lines');
                 }
                 break
             }
@@ -270,7 +386,6 @@ Deno.serve(async (req) => {
                     if (userId) {
                         const endDate = new Date(subscription.current_period_end * 1000)
 
-                        // Update Users Table
                         const { error: userError } = await supabaseClient
                             .from('users')
                             .update({
@@ -283,11 +398,12 @@ Deno.serve(async (req) => {
 
                         if (userError) {
                             console.error('Error updating user subscription (updated event):', userError)
+                            await logWebhook('error', event.type, { userId, tier, subscription: subscription.id }, userError.message);
                         } else {
                             console.log(`User subscription updated via subscription.updated for ${userId}`)
+                            await logWebhook('success', event.type, { userId, tier, subscription: subscription.id }, null);
                         }
 
-                        // Update Subscriptions Table
                         const { data: existingSub } = await supabaseClient
                             .from('subscriptions')
                             .select('id')
@@ -316,6 +432,9 @@ Deno.serve(async (req) => {
                                     current_period_end: endDate.toISOString(),
                                 })
                         }
+                    } else {
+                        console.warn('No userId found in subscription metadata (updated event)');
+                        await logWebhook('warning', event.type, { subscription: subscription.id, metadata: subscription.metadata }, 'No userId in metadata');
                     }
                 }
                 break
@@ -337,24 +456,40 @@ Deno.serve(async (req) => {
 
                     if (error) {
                         console.error('Error revoking subscription:', error)
+                        await logWebhook('error', event.type, { userId, subscription: subscription.id }, error.message);
                         throw error
                     }
 
                     console.log(`Subscription cancelled for user ${userId}`)
+                    await logWebhook('success', event.type, { userId, subscription: subscription.id }, 'Subscription revoked');
                 }
                 break
             }
 
             default:
                 console.log(`Unhandled event type: ${event.type}`)
+                await logWebhook('ignored', event.type, null, 'Unhandled event type');
         }
 
         return new Response(JSON.stringify({ received: true }), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('Webhook error:', error)
+        try {
+            const supabaseClient = createClient(
+                Deno.env.get('SUPABASE_URL') ?? '',
+                Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            )
+            await supabaseClient.from('webhook_logs').insert({
+                status: 'fatal_error',
+                error_message: error.message
+            })
+        } catch (e) {
+            // Ignore logging error
+        }
+
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { 'Content-Type': 'application/json' },
             status: 400,
