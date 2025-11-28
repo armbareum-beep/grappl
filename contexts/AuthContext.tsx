@@ -31,44 +31,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
 
-    // Check if user is an approved creator
-    const checkCreatorStatus = async (userId: string) => {
-        const { data, error } = await supabase
-            .from('creators')
-            .select('id, approved')
-            .eq('id', userId)
-            .single();
-
-        // Only set isCreator to true if approved by admin
-        setIsCreator(!!data && !error && data.approved === true);
-    };
-
-    // Check if user is an admin
-    const checkAdminStatus = async (userId: string) => {
-        const { data, error } = await supabase
+    // Check user status from database - only called once on initial load
+    const checkUserStatus = async (userId: string) => {
+        const { data: userData } = await supabase
             .from('users')
-            .select('is_admin')
+            .select('is_admin, is_subscriber, subscription_tier')
             .eq('id', userId)
             .single();
 
-        setIsAdmin(!!data && !error && data.is_admin === true);
+        if (userData) {
+            setIsAdmin(userData.is_admin === true);
+            setIsSubscribed(userData.is_subscriber === true);
+        }
+
+        // Check creator status (non-blocking)
+        supabase
+            .from('creators')
+            .select('approved')
+            .eq('id', userId)
+            .single()
+            .then(({ data }) => {
+                if (data) setIsCreator(data.approved === true);
+            })
+            .catch(() => setIsCreator(false));
+
+        return userData?.is_subscriber === true;
     };
 
     useEffect(() => {
         // Check active sessions and sets the user
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             const baseUser = session?.user ?? null;
             if (baseUser) {
-                // Check subscription status and attach to user object
-                const subscribed = localStorage.getItem(`subscription_${baseUser.id}`) === 'true';
+                const subscribed = await checkUserStatus(baseUser.id);
                 const userWithSubscription: User = {
                     ...baseUser,
                     isSubscriber: subscribed
                 };
                 setUser(userWithSubscription);
-                setIsSubscribed(subscribed);
-                checkCreatorStatus(baseUser.id);
-                checkAdminStatus(baseUser.id);
             } else {
                 setUser(null);
             }
@@ -79,16 +79,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const baseUser = session?.user ?? null;
             if (baseUser) {
-                // Check subscription status and attach to user object
-                const subscribed = localStorage.getItem(`subscription_${baseUser.id}`) === 'true';
+                // Don't re-check DB on every state change - just use existing state
                 const userWithSubscription: User = {
                     ...baseUser,
-                    isSubscriber: subscribed
+                    isSubscriber: isSubscribed
                 };
                 setUser(userWithSubscription);
-                setIsSubscribed(subscribed);
-                checkCreatorStatus(baseUser.id);
-                checkAdminStatus(baseUser.id);
             } else {
                 setUser(null);
                 setIsCreator(false);

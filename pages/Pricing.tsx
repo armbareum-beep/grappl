@@ -196,9 +196,15 @@ export const Pricing: React.FC = () => {
                     billingPeriod === 'monthly' ? pricing.basic.monthly.priceId : pricing.basic.yearly.priceId
                   )
                 }
-                disabled={loading || (isSubscribed && currentTier === 'basic')}
+                disabled={loading || (isSubscribed && currentTier === 'basic') || (isSubscribed && currentTier === 'premium')}
               >
-                {isSubscribed && currentTier === 'basic' ? '현재 플랜' : loading ? '처리 중...' : '베이직 시작하기'}
+                {isSubscribed && currentTier === 'basic'
+                  ? '현재 플랜'
+                  : isSubscribed && currentTier === 'premium'
+                    ? '다운그레이드 불가'
+                    : loading
+                      ? '처리 중...'
+                      : '베이직 시작하기'}
               </Button>
               {billingPeriod === 'monthly' && (
                 <p className="text-xs text-center text-slate-500 mt-3">언제든 해지 가능</p>

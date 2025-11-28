@@ -1,5 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2?target=deno'
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import Stripe from 'npm:stripe@^14.21.0'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
     apiVersion: '2023-10-16',
@@ -34,6 +34,24 @@ Deno.serve(async (req) => {
         const body = await req.json()
         const { mode, courseId, routineId, drillId, feedbackRequestId, priceId } = body
 
+        console.log(`Processing payment request: mode=${mode}, user=${user.id}`);
+
+        // DEBUG: Log to database using SERVICE_ROLE_KEY to bypass RLS
+        try {
+            const adminClient = createClient(
+                Deno.env.get('SUPABASE_URL') ?? '',
+                Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            )
+            await adminClient.from('webhook_logs').insert({
+                event_type: 'debug_pi_start',
+                status: 'info',
+                payload: { body, userId: user.id, version: 'v4-admin-log' },
+                error_message: 'Initiating payment intent creation'
+            })
+        } catch (logError) {
+            console.error('Failed to log debug info:', logError)
+        }
+
         if (mode === 'course') {
             // Single Course Purchase
             if (!courseId) {
@@ -62,6 +80,7 @@ Deno.serve(async (req) => {
                     userId: user.id,
                 },
             })
+            console.log(`Created Course PI with metadata:`, paymentIntent.metadata);
 
             return new Response(
                 JSON.stringify({ clientSecret: paymentIntent.client_secret }),
@@ -98,6 +117,7 @@ Deno.serve(async (req) => {
                     userId: user.id,
                 },
             })
+            console.log(`Created Routine PI with metadata:`, paymentIntent.metadata);
 
             return new Response(
                 JSON.stringify({ clientSecret: paymentIntent.client_secret }),
@@ -134,6 +154,7 @@ Deno.serve(async (req) => {
                     userId: user.id,
                 },
             })
+            console.log(`Created Drill PI with metadata:`, paymentIntent.metadata);
 
             return new Response(
                 JSON.stringify({ clientSecret: paymentIntent.client_secret }),
@@ -171,6 +192,7 @@ Deno.serve(async (req) => {
                     userId: user.id,
                 },
             })
+            console.log(`Created Feedback PI with metadata:`, paymentIntent.metadata);
 
             return new Response(
                 JSON.stringify({ clientSecret: paymentIntent.client_secret }),
@@ -221,6 +243,8 @@ Deno.serve(async (req) => {
             let tier = 'basic';
             if (PREMIUM_PRICE_IDS.includes(priceId)) tier = 'premium';
 
+            console.log(`Creating subscription for user ${user.id} with price ${priceId} (tier: ${tier})`);
+
             const subscription = await stripe.subscriptions.create({
                 customer: customerId,
                 items: [{ price: priceId }],
@@ -233,9 +257,26 @@ Deno.serve(async (req) => {
                     tier: tier,
                 },
             })
+            console.log(`Created Subscription: ${subscription.id} with metadata:`, subscription.metadata);
 
             const invoice = subscription.latest_invoice as Stripe.Invoice
-            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent
+            let paymentIntent = invoice.payment_intent as Stripe.PaymentIntent
+
+            // Ensure we have the PaymentIntent object
+            if (typeof paymentIntent === 'string') {
+                paymentIntent = await stripe.paymentIntents.retrieve(paymentIntent);
+            }
+
+            // CRITICAL: Update PaymentIntent with metadata so payment_intent.succeeded webhook has it
+            await stripe.paymentIntents.update(paymentIntent.id, {
+                metadata: {
+                    mode: 'subscription',
+                    userId: user.id,
+                    tier: tier,
+                    subscription_id: subscription.id,
+                }
+            });
+            console.log(`Updated PaymentIntent ${paymentIntent.id} with metadata`);
 
             return new Response(
                 JSON.stringify({
