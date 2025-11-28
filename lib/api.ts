@@ -947,7 +947,16 @@ export async function updateCreatorProfile(creatorId: string, updates: { bio?: s
 /**
  * Update creator payout settings
  */
-export async function updatePayoutSettings(creatorId: string, settings: { type: 'individual' | 'business' }) {
+export async function updatePayoutSettings(
+    creatorId: string,
+    settings: {
+        type: 'individual' | 'business';
+        wiseAccountNumber?: string;
+        wiseRoutingNumber?: string;
+        wiseSwiftBic?: string;
+        wiseAccountName?: string;
+    }
+) {
     const { error } = await supabase
         .from('creators')
         .update({ payout_settings: settings })
