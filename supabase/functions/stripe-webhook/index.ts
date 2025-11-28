@@ -169,14 +169,18 @@ serve(async (req) => {
                     const stripeSubscription = await stripe.subscriptions.retrieve(subscription)
                     const userId = stripeSubscription.metadata.userId
 
-                    // Determine Tier based on Product ID
-                    const productId = stripeSubscription.items.data[0].price.product as string
-                    const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
-                    const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
+                    // Determine Tier based on metadata (preferred) or Product ID (fallback)
+                    let tier = stripeSubscription.metadata.tier;
 
-                    let tier = 'basic'
-                    if (productId === PRO_PRODUCT_ID) tier = 'premium'
-                    if (productId === BASIC_PRODUCT_ID) tier = 'basic'
+                    if (!tier) {
+                        const productId = stripeSubscription.items.data[0].price.product as string
+                        const PRO_PRODUCT_ID = 'prod_TVIYrF1czLhXdk'
+                        const BASIC_PRODUCT_ID = 'prod_TTpj2uTu0biyyA'
+
+                        tier = 'basic'
+                        if (productId === PRO_PRODUCT_ID) tier = 'premium'
+                        if (productId === BASIC_PRODUCT_ID) tier = 'basic'
+                    }
 
                     if (userId) {
                         const endDate = new Date()
