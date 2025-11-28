@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2?target=deno'
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -12,7 +11,7 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -41,27 +40,26 @@ serve(async (req) => {
                 throw new Error('Course ID is required for course purchases')
             }
 
-            const { data: course, error: courseError } = await supabaseClient
+            const { data: course } = await supabaseClient
                 .from('courses')
-                .select('price, title')
+                .select('*')
                 .eq('id', courseId)
                 .single()
 
-            if (courseError || !course) {
+            if (!course) {
                 throw new Error('Course not found')
             }
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: course.price,
+                amount: course.price * 100,
                 currency: 'krw',
                 automatic_payment_methods: {
                     enabled: true,
                 },
                 metadata: {
                     mode: 'course',
-                    courseId: courseId,
+                    courseId: course.id,
                     userId: user.id,
-                    userEmail: user.email || '',
                 },
             })
 
@@ -78,27 +76,26 @@ serve(async (req) => {
                 throw new Error('Routine ID is required')
             }
 
-            const { data: routine, error: routineError } = await supabaseClient
+            const { data: routine } = await supabaseClient
                 .from('routines')
-                .select('price, title')
+                .select('*')
                 .eq('id', routineId)
                 .single()
 
-            if (routineError || !routine) {
+            if (!routine) {
                 throw new Error('Routine not found')
             }
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: routine.price,
+                amount: routine.price * 100,
                 currency: 'krw',
                 automatic_payment_methods: {
                     enabled: true,
                 },
                 metadata: {
                     mode: 'routine',
-                    routineId: routineId,
+                    routineId: routine.id,
                     userId: user.id,
-                    userEmail: user.email || '',
                 },
             })
 
@@ -115,27 +112,26 @@ serve(async (req) => {
                 throw new Error('Drill ID is required')
             }
 
-            const { data: drill, error: drillError } = await supabaseClient
+            const { data: drill } = await supabaseClient
                 .from('drills')
-                .select('price, title')
+                .select('*')
                 .eq('id', drillId)
                 .single()
 
-            if (drillError || !drill) {
+            if (!drill) {
                 throw new Error('Drill not found')
             }
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: drill.price,
+                amount: drill.price * 100,
                 currency: 'krw',
                 automatic_payment_methods: {
                     enabled: true,
                 },
                 metadata: {
                     mode: 'drill',
-                    drillId: drillId,
+                    drillId: drill.id,
                     userId: user.id,
-                    userEmail: user.email || '',
                 },
             })
 
@@ -152,27 +148,27 @@ serve(async (req) => {
                 throw new Error('Feedback request ID is required')
             }
 
-            const { data: feedbackRequest, error: feedbackError } = await supabaseClient
+            const { data: feedback } = await supabaseClient
                 .from('feedback_requests')
-                .select('price')
+                .select('*, creator:profiles!feedback_requests_creator_id_fkey(feedback_price)')
                 .eq('id', feedbackRequestId)
                 .single()
 
-            if (feedbackError || !feedbackRequest) {
-                throw new Error('Feedback request not found')
-            }
+            if (!feedback) throw new Error('Feedback request not found')
+
+            // Handle case where creator might be null or price missing
+            const price = feedback.creator?.feedback_price || 10000 // Fallback
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: feedbackRequest.price,
+                amount: price * 100,
                 currency: 'krw',
                 automatic_payment_methods: {
                     enabled: true,
                 },
                 metadata: {
                     mode: 'feedback',
-                    feedbackRequestId: feedbackRequestId,
+                    feedbackRequestId: feedback.id,
                     userId: user.id,
-                    userEmail: user.email || '',
                 },
             })
 
@@ -185,8 +181,6 @@ serve(async (req) => {
             )
         } else if (mode === 'subscription') {
             // Monthly Subscription
-            // const subscriptionPriceId = Deno.env.get('STRIPE_SUBSCRIPTION_PRICE_ID')
-
             // 1. Create or retrieve Stripe Customer
             let customerId: string
 
