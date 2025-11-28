@@ -2522,8 +2522,10 @@ export async function getDailyQuests(userId: string): Promise<DailyQuest[]> {
         const questTemplates = [
             { type: 'watch_lesson', target: 1, reward: 10 },
             { type: 'write_log', target: 1, reward: 20 },
-            { type: 'tournament', target: 3, reward: 30 },
-            { type: 'add_skill', target: 1, reward: 15 }
+            { type: 'give_feedback', target: 1, reward: 15 },
+            { type: 'sparring_review', target: 1, reward: 30 },
+            { type: 'add_skill', target: 1, reward: 15 },
+            { type: 'tournament', target: 1, reward: 30 }
         ];
 
         const newQuests = questTemplates.map(q => ({
