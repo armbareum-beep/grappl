@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Bell, Shield, CreditCard, ChevronRight, Plus, Trash2, Check, Upload as UploadIcon } from 'lucide-react';
-import { updateUserProfile, uploadProfileImage, updateCreatorProfileImage, getCreatorById, updateCreatorProfile } from '../lib/api';
+import { updateUserProfile, uploadProfileImage, updateCreatorProfileImage, getCreatorById, updateCreatorProfile, updatePassword } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 type SettingsSection = 'profile' | 'notifications' | 'security' | 'payment';
 
@@ -17,6 +18,11 @@ export const Settings: React.FC = () => {
     const [displayName, setDisplayName] = useState(user?.user_metadata?.name || '');
     const [bio, setBio] = useState('');
 
+    // Notification Settings State
+    const [emailNotifications, setEmailNotifications] = useState(true);
+    const [pushNotifications, setPushNotifications] = useState(true);
+    const [marketingEmails, setMarketingEmails] = useState(false);
+
     // Load creator profile image if user is creator
     React.useEffect(() => {
         async function loadCreatorProfile() {
@@ -31,6 +37,15 @@ export const Settings: React.FC = () => {
         loadCreatorProfile();
     }, [isCreator, user]);
 
+    // Load notification preferences from user metadata
+    React.useEffect(() => {
+        if (user?.user_metadata) {
+            setEmailNotifications(user.user_metadata.emailNotifications ?? true);
+            setPushNotifications(user.user_metadata.pushNotifications ?? true);
+            setMarketingEmails(user.user_metadata.marketingEmails ?? false);
+        }
+    }, [user]);
+
     // Payment State (Mock)
     const [cards, setCards] = useState([
         { id: '1', last4: '4242', brand: 'Visa', exp: '12/25' },
@@ -38,6 +53,12 @@ export const Settings: React.FC = () => {
     ]);
     const [showAddCard, setShowAddCard] = useState(false);
     const [newCard, setNewCard] = useState({ number: '', exp: '', cvc: '' });
+
+    // Password Change State
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -112,6 +133,64 @@ export const Settings: React.FC = () => {
         setCards(cards.filter(c => c.id !== id));
         setMessage({ type: 'success', text: '카드가 삭제되었습니다.' });
     };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPasswordError('');
+
+        if (newPassword.length < 6) {
+            setPasswordError('비밀번호는 6자 이상이어야 합니다.');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordError('비밀번호가 일치하지 않습니다.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { error } = await updatePassword(newPassword);
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: '비밀번호가 성공적으로 변경되었습니다.' });
+            setShowPasswordModal(false);
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: any) {
+            console.error(err);
+            setPasswordError(err.message || '비밀번호 변경에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleNotification = async (type: 'email' | 'push' | 'marketing', value: boolean) => {
+        const updates: any = {};
+
+        if (type === 'email') {
+            setEmailNotifications(value);
+            updates.emailNotifications = value;
+        } else if (type === 'push') {
+            setPushNotifications(value);
+            updates.pushNotifications = value;
+        } else if (type === 'marketing') {
+            setMarketingEmails(value);
+            updates.marketingEmails = value;
+        }
+
+        try {
+            const { error } = await supabase.auth.updateUser({
+                data: updates
+            });
+            if (error) throw error;
+            setMessage({ type: 'success', text: '알림 설정이 업데이트되었습니다.' });
+        } catch (err) {
+            console.error(err);
+            setMessage({ type: 'error', text: '알림 설정 업데이트에 실패했습니다.' });
+        }
+    };
+
 
     const renderContent = () => {
         switch (activeSection) {
@@ -273,14 +352,39 @@ export const Settings: React.FC = () => {
                             <p className="text-sm text-slate-400">알림 수신 여부를 설정하세요.</p>
                         </div>
                         <div className="space-y-4">
-                            {['이메일 알림', '앱 푸시 알림', '마케팅 정보 수신'].map((item, i) => (
-                                <div key={i} className="flex items-center justify-between py-3 border-b border-slate-800 last:border-0">
-                                    <span className="text-slate-300">{item}</span>
-                                    <div className="w-11 h-6 bg-blue-600 rounded-full relative cursor-pointer">
-                                        <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
-                                    </div>
-                                </div>
-                            ))}
+                            <div className="flex items-center justify-between py-3 border-b border-slate-800">
+                                <span className="text-slate-300">이메일 알림</span>
+                                <button
+                                    onClick={() => handleToggleNotification('email', !emailNotifications)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors ${emailNotifications ? 'bg-blue-600' : 'bg-slate-700'
+                                        }`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${emailNotifications ? 'right-1' : 'left-1'
+                                        }`}></div>
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between py-3 border-b border-slate-800">
+                                <span className="text-slate-300">앱 푸시 알림</span>
+                                <button
+                                    onClick={() => handleToggleNotification('push', !pushNotifications)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors ${pushNotifications ? 'bg-blue-600' : 'bg-slate-700'
+                                        }`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${pushNotifications ? 'right-1' : 'left-1'
+                                        }`}></div>
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between py-3">
+                                <span className="text-slate-300">마케팅 정보 수신</span>
+                                <button
+                                    onClick={() => handleToggleNotification('marketing', !marketingEmails)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors ${marketingEmails ? 'bg-blue-600' : 'bg-slate-700'
+                                        }`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${marketingEmails ? 'right-1' : 'left-1'
+                                        }`}></div>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -291,14 +395,14 @@ export const Settings: React.FC = () => {
                             <h3 className="text-lg font-medium text-white">보안</h3>
                             <p className="text-sm text-slate-400">계정 보안을 강화하세요.</p>
                         </div>
-                        <button className="w-full text-left px-4 py-3 border border-slate-700 rounded-lg hover:bg-slate-800 flex justify-between items-center">
+                        <button
+                            onClick={() => setShowPasswordModal(true)}
+                            className="w-full text-left px-4 py-3 border border-slate-700 rounded-lg hover:bg-slate-800 flex justify-between items-center"
+                        >
                             <span className="font-medium text-slate-300">비밀번호 변경</span>
                             <ChevronRight className="w-4 h-4 text-slate-500" />
                         </button>
-                        <button className="w-full text-left px-4 py-3 border border-slate-700 rounded-lg hover:bg-slate-800 flex justify-between items-center">
-                            <span className="font-medium text-slate-300">2단계 인증 설정</span>
-                            <ChevronRight className="w-4 h-4 text-slate-500" />
-                        </button>
+
                     </div>
                 );
         }
@@ -363,6 +467,65 @@ export const Settings: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Password Change Modal */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-900 rounded-xl max-w-md w-full p-6 border border-slate-800">
+                        <h3 className="text-xl font-bold text-white mb-4">비밀번호 변경</h3>
+                        <form onSubmit={handleUpdatePassword} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">새 비밀번호</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-700 rounded-md bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="6자 이상 입력"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">비밀번호 확인</label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-700 rounded-md bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="비밀번호 재입력"
+                                    required
+                                />
+                            </div>
+
+                            {passwordError && (
+                                <p className="text-red-400 text-sm">{passwordError}</p>
+                            )}
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordModal(false);
+                                        setNewPassword('');
+                                        setConfirmPassword('');
+                                        setPasswordError('');
+                                    }}
+                                    className="flex-1 px-4 py-2 border border-slate-700 rounded-md text-slate-300 hover:bg-slate-800 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                >
+                                    {loading ? '변경 중...' : '변경하기'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
