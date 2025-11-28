@@ -808,6 +808,16 @@ export async function rejectCreator(creatorId: string) {
     return { error: null };
 }
 
+// ==================== AUTH API ====================
+
+export async function updatePassword(password: string) {
+    const { data, error } = await supabase.auth.updateUser({
+        password: password
+    });
+
+    return { data, error };
+}
+
 /**
  * Update user profile
  */
