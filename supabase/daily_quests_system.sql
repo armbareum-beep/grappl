@@ -27,14 +27,14 @@ BEGIN
         -- Core training activities
         (p_user_id, 'watch_lesson', 1, 10, NOW()),
         (p_user_id, 'write_log', 1, 20, NOW()),
-        (p_user_id, 'complete_drill', 1, 30, NOW()),
+        (p_user_id, 'give_feedback', 1, 15, NOW()),
         
         -- Engagement activities
         (p_user_id, 'sparring_review', 1, 30, NOW()),
-        (p_user_id, 'complete_routine', 1, 50, NOW()),
+        (p_user_id, 'add_skill', 1, 15, NOW()),
         
         -- Weekly special
-        (p_user_id, 'tournament', 1, 50, NOW());
+        (p_user_id, 'tournament', 1, 30, NOW());
 END;
 $$ LANGUAGE plpgsql;
 
