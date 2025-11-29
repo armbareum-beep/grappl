@@ -4,7 +4,7 @@ import { CheckCircle, Flame, Trophy, Zap, Star } from 'lucide-react';
 interface QuestCompleteModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onContinue?: () => void; // Optional callback for "계속하기" button
+    onContinue?: () => void;
     questName: string;
     xpEarned: number;
     streak?: number;
@@ -34,7 +34,6 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
             setTimeout(() => setShowContent(true), 200);
             setTimeout(() => setShowRewards(true), 600);
 
-            // Only auto close if no onContinue callback is provided
             if (!onContinue) {
                 const timer = setTimeout(() => {
                     onClose();
@@ -51,78 +50,78 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
+                className="absolute inset-0 bg-black/80 backdrop-blur-md animate-fade-in"
                 onClick={onClose}
             ></div>
 
             {/* Content */}
-            <div className="relative z-10 w-full max-w-sm">
-                {/* Glow */}
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-2xl blur-2xl animate-pulse"></div>
+            <div className="relative z-10 w-full max-w-md">
+                {/* Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 to-green-500/30 rounded-3xl blur-3xl animate-pulse"></div>
 
                 {/* Card */}
-                <div className="relative bg-slate-900 border-2 border-emerald-500/50 rounded-2xl p-6 shadow-2xl">
+                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-2xl">
                     {/* Success Icon */}
-                    <div className={`text-center mb-4 transition-all duration-500 ${showContent ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
-                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/50 mb-4">
-                            <CheckCircle className="w-12 h-12 text-white animate-bounce-once" />
+                    <div className={`text-center mb-6 transition-all duration-500 ${showContent ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
+                        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-2xl shadow-emerald-500/50 mb-4 animate-bounce-once">
+                            <CheckCircle className="w-14 h-14 text-white" strokeWidth={2.5} />
                         </div>
-                        <h2 className="text-2xl font-black text-white mb-1">완료!</h2>
-                        <p className="text-slate-400 text-sm">{questName}</p>
+                        <h2 className="text-3xl font-black text-white mb-2">완료!</h2>
+                        <p className="text-slate-300 text-base font-medium">{questName}</p>
                     </div>
 
                     {/* Rewards */}
                     {showRewards && (
                         <div className="space-y-3 animate-slide-up">
-                            {/* XP Reward */}
-                            <div className="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-500/30 rounded-xl p-4">
+                            {/* XP Reward Card */}
+                            <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-2 border-indigo-500/40 rounded-2xl p-5 backdrop-blur-sm">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                                            <Zap className="w-5 h-5 text-indigo-400" />
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                                            <Zap className="w-7 h-7 text-white fill-white" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-white">경험치 획득</p>
-                                            <p className="text-xs text-slate-400">레벨업까지 한 걸음!</p>
+                                            <p className="text-base font-bold text-white">경험치 획득</p>
+                                            <p className="text-sm text-indigo-300">레벨업까지 한 걸음!</p>
                                         </div>
                                     </div>
-                                    <span className="text-xl font-black text-indigo-400">+{xpEarned}</span>
+                                    <span className="text-3xl font-black text-indigo-300">+{xpEarned}</span>
                                 </div>
                             </div>
 
-                            {/* Streak Bonus */}
+                            {/* Streak Bonus Card */}
                             {streak && (
-                                <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-500/30 rounded-xl p-4">
+                                <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 border-2 border-orange-500/40 rounded-2xl p-5 backdrop-blur-sm">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                                                <Flame className="w-5 h-5 text-orange-400 fill-orange-400" />
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
+                                                <Flame className="w-7 h-7 text-white fill-white" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-white">연속 달성</p>
-                                                <p className="text-xs text-slate-400">불타는 열정!</p>
+                                                <p className="text-base font-bold text-white">연속 달성</p>
+                                                <p className="text-sm text-orange-300">불타는 열정!</p>
                                             </div>
                                         </div>
-                                        <span className="text-xl font-black text-orange-400">{streak}일</span>
+                                        <span className="text-3xl font-black text-orange-300">{streak}일</span>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Bonus Reward */}
+                            {/* Bonus Reward Card */}
                             {bonusReward && (
-                                <div className="bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border border-yellow-500/30 rounded-xl p-4">
+                                <div className="bg-gradient-to-r from-yellow-600/20 to-amber-600/20 border-2 border-yellow-500/40 rounded-2xl p-5 backdrop-blur-sm">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
                                                 {bonusReward.type === 'badge' ? (
-                                                    <Trophy className="w-5 h-5 text-yellow-400" />
+                                                    <Trophy className="w-7 h-7 text-white" />
                                                 ) : (
-                                                    <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                                                    <Star className="w-7 h-7 text-white fill-white" />
                                                 )}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-white">보너스 보상</p>
-                                                <p className="text-xs text-slate-400">{bonusReward.value}</p>
+                                                <p className="text-base font-bold text-white">보너스 보상</p>
+                                                <p className="text-sm text-yellow-300">{bonusReward.value}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -140,7 +139,7 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                                 onClose();
                             }
                         }}
-                        className="mt-6 w-full py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
+                        className="mt-8 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white text-lg font-black rounded-2xl transition-all duration-300 shadow-2xl shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-[1.02] active:scale-[0.98]"
                     >
                         계속하기
                     </button>
@@ -153,21 +152,21 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
           to { opacity: 1; }
         }
         @keyframes slide-up {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes bounce-once {
           0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
+          50% { transform: scale(1.15); }
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
         }
         .animate-slide-up {
-          animation: slide-up 0.4s ease-out;
+          animation: slide-up 0.5s ease-out;
         }
         .animate-bounce-once {
-          animation: bounce-once 0.6s ease-out;
+          animation: bounce-once 0.8s ease-out;
         }
       `}</style>
         </div>

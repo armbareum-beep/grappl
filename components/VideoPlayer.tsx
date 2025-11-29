@@ -24,6 +24,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
                 loop: false,
                 autopause: true,
                 title: true,
+                color: 'a855f7', // Purple-500 to match app theme (don't include #)
             };
 
             // Ensure vimeoId is a string for checking
