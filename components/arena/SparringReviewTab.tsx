@@ -115,6 +115,13 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         setIsCreating(true);
     };
 
+    // Automatically show share modal when shareModalData is set
+    useEffect(() => {
+        if (shareModalData && !showQuestModal && !loading) {
+            setShowShareModal(true);
+        }
+    }, [shareModalData, showQuestModal, loading]);
+
     // Load reviews
     useEffect(() => {
         if (user) {
@@ -223,19 +230,6 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 whatToImprove: '',
                 videoUrl: ''
             });
-
-            // Show Quest Complete Modal first (only if XP was earned)
-            if (earnedXp > 0) {
-                setXpEarned(earnedXp);
-                setShowQuestModal(true);
-            } else {
-                // If no XP earned (already completed today), go directly to share modal
-                // Use setTimeout to ensure shareModalData state is updated
-                setTimeout(() => {
-                    setShowShareModal(true);
-                }, 100);
-            }
-
         } catch (error) {
             console.error('Error saving sparring review:', error);
             alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
