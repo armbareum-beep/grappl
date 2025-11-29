@@ -1306,11 +1306,15 @@ export async function getTrainingLogs(userId: string) {
 
     // Robust JS filtering
     const filteredData = data.filter((log: any) => {
-        // 1. Exclude if type is explicitly a feed type
+        // 1. Exclude if duration is -1 (Feed Post Marker)
+        if (log.duration_minutes === -1) {
+            return false;
+        }
+        // 2. Exclude if type is explicitly a feed type
         if (log.type && ['sparring', 'routine', 'mastery', 'title_earned', 'level_up', 'technique', 'general'].includes(log.type)) {
             return false;
         }
-        // 2. Exclude if location has the special FEED tag
+        // 3. Exclude if location has the special FEED tag
         if (log.location && typeof log.location === 'string' && log.location.startsWith('__FEED__')) {
             return false;
         }
@@ -1547,12 +1551,14 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 1. Fetch logs without join first to avoid FK errors
+    // 1. Fetch ONLY feed posts (shared content from Arena)
     const { data, count, error } = await supabase
         .from('training_logs')
         .select('*', { count: 'exact' })
         .eq('is_public', true)
-        .order('date', { ascending: false })
+        .eq('duration_minutes', -1)  // Feed posts are marked with -1
+        .like('location', '__FEED__%')  // Feed posts have location starting with __FEED__
+        .order('created_at', { ascending: false })
         .range(from, to);
 
     if (error) {
@@ -1594,20 +1600,30 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         });
     }
 
-    const logs: TrainingLog[] = data.map((log: any) => ({
-        id: log.id,
-        userId: log.user_id,
-        userName: userMap[log.user_id] || 'User',
-        date: log.date,
-        durationMinutes: log.duration_minutes,
-        techniques: log.techniques || [],
-        sparringRounds: log.sparring_rounds,
-        notes: log.notes,
-        isPublic: log.is_public,
-        location: log.location,
-        youtubeUrl: log.youtube_url,
-        createdAt: log.created_at,
-    }));
+    const logs: TrainingLog[] = data.map((log: any) => {
+        // Restore type from location tag if needed (since we might not save type to DB)
+        let type = log.type;
+        if (!type && log.location && typeof log.location === 'string' && log.location.startsWith('__FEED__')) {
+            type = log.location.replace('__FEED__', '');
+        }
+
+        return {
+            id: log.id,
+            userId: log.user_id,
+            userName: userMap[log.user_id] || 'User',
+            date: log.date,
+            durationMinutes: log.duration_minutes,
+            techniques: log.techniques || [],
+            sparringRounds: log.sparring_rounds,
+            notes: log.notes,
+            isPublic: log.is_public,
+            type: type,
+            location: log.location,
+            youtubeUrl: log.youtube_url,
+            createdAt: log.created_at,
+            metadata: log.metadata
+        };
+    });
 
     return { data: logs, count: count || 0, error: null };
 }
@@ -3647,13 +3663,13 @@ export async function createFeedPost(post: {
         .insert({
             user_id: post.userId,
             date: new Date().toISOString().split('T')[0],
-            duration_minutes: 0,
+            duration_minutes: -1, // MARKER: -1 indicates a feed post
             techniques: [],
             sparring_rounds: 0,
             notes: post.content,
             is_public: true,
-            type: post.type, // Keep trying to save type
-            location: `__FEED__${post.type}`, // Fallback: use location to tag feed posts
+            // type: post.type, // REMOVED: Causing insert error if column is missing
+            location: `__FEED__${post.type}`,
             metadata: post.metadata || {}
         })
         .select()
