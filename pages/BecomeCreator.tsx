@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { Button } from '../components/Button';
 import { Upload, DollarSign, TrendingUp, Users } from 'lucide-react';
 
 export const BecomeCreator: React.FC = () => {
     const { user, becomeCreator } = useAuth();
+    const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
@@ -20,10 +22,10 @@ export const BecomeCreator: React.FC = () => {
             const errorMessage = typeof error === 'string' ? error : error.message || '인스트럭터 등록 중 오류가 발생했습니다.';
 
             if (error) throw new Error(errorMessage);
-            alert('인스트럭터 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다. 🎉');
+            success('인스트럭터 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다. 🎉');
             navigate('/');
         } catch (err: any) {
-            alert(err.message);
+            toastError(err.message);
         } finally {
             setLoading(false);
         }

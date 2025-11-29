@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Image as ImageIcon, Video, Hash, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { TrainingLog } from '../../types';
 import { Button } from '../Button';
 import { TechniqueTagModal } from './TechniqueTagModal';
@@ -12,6 +13,7 @@ interface CreatePostModalProps {
 
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPostCreated }) => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [content, setContent] = useState('');
     const [selectedTechniques, setSelectedTechniques] = useState<string[]>([]);
     const [addToJournal, setAddToJournal] = useState(true);
@@ -53,7 +55,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
             });
 
             if (error) {
-                alert(error.message || '일지 작성 중 오류가 발생했습니다.');
+                toastError(error.message || '일지 작성 중 오류가 발생했습니다.');
                 setIsSubmitting(false);
                 return;
             }
@@ -63,9 +65,9 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                 const { completed, xpEarned } = await updateQuestProgress(user.id, 'write_log');
 
                 if (completed && xpEarned > 0) {
-                    alert(`일지가 작성되었습니다! +${xpEarned} XP`);
+                    success(`일지가 작성되었습니다! +${xpEarned} XP`);
                 } else {
-                    alert('일지가 작성되었습니다!');
+                    success('일지가 작성되었습니다!');
                 }
 
                 // Create post object for UI
@@ -82,7 +84,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
             }
         } catch (error) {
             console.error('Error creating training log:', error);
-            alert('일지 작성 중 오류가 발생했습니다.');
+            toastError('일지 작성 중 오류가 발생했습니다.');
         } finally {
             setIsSubmitting(false);
         }
