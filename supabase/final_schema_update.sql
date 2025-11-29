@@ -583,3 +583,16 @@ DROP POLICY IF EXISTS "Users can purchase drills" ON user_drill_purchases;
 CREATE POLICY "Users can purchase drills"
     ON user_drill_purchases FOR INSERT
     WITH CHECK (auth.uid() = user_id);
+
+-- ============================================
+-- ADD TYPE AND METADATA TO TRAINING_LOGS
+-- ============================================
+
+ALTER TABLE training_logs 
+ADD COLUMN IF NOT EXISTS type TEXT;
+
+ALTER TABLE training_logs 
+ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS idx_training_logs_type ON training_logs(type);
+CREATE INDEX IF NOT EXISTS idx_training_logs_metadata ON training_logs USING GIN (metadata);

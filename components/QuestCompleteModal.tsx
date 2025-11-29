@@ -23,26 +23,18 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
     streak,
     bonusReward
 }) => {
-    const [showContent, setShowContent] = useState(false);
-    const [showRewards, setShowRewards] = useState(false);
+    // Remove internal state for animations to prevent race conditions
+    // const [showContent, setShowContent] = useState(false);
+    // const [showRewards, setShowRewards] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            setShowContent(false);
-            setShowRewards(false);
-
-            setTimeout(() => setShowContent(true), 200);
-            setTimeout(() => setShowRewards(true), 600);
-
-            if (!onContinue) {
-                const timer = setTimeout(() => {
-                    onClose();
-                }, 3000);
-
-                return () => clearTimeout(timer);
-            }
-        }
-    }, [isOpen, onClose, onContinue]);
+    // useEffect(() => {
+    //     if (isOpen) {
+    //         setShowContent(false);
+    //         setShowRewards(false);
+    //         setTimeout(() => setShowContent(true), 200);
+    //         setTimeout(() => setShowRewards(true), 600);
+    //     }
+    // }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -51,7 +43,6 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/80 backdrop-blur-md animate-fade-in"
-                onClick={onClose}
             ></div>
 
             {/* Content */}
@@ -62,7 +53,7 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                 {/* Card */}
                 <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-2xl">
                     {/* Success Icon */}
-                    <div className={`text-center mb-6 transition-all duration-500 ${showContent ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
+                    <div className="text-center mb-6 animate-scale-in" style={{ animationDelay: '0.1s', opacity: 0, animationFillMode: 'forwards' }}>
                         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-2xl shadow-emerald-500/50 mb-4 animate-bounce-once">
                             <CheckCircle className="w-14 h-14 text-white" strokeWidth={2.5} />
                         </div>
@@ -71,64 +62,62 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                     </div>
 
                     {/* Rewards */}
-                    {showRewards && (
-                        <div className="space-y-3 animate-slide-up">
-                            {/* XP Reward Card */}
-                            <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-2 border-indigo-500/40 rounded-2xl p-5 backdrop-blur-sm">
+                    <div className="space-y-3">
+                        {/* XP Reward Card */}
+                        <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-2 border-indigo-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.3s', opacity: 0, animationFillMode: 'forwards' }}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                                        <Zap className="w-7 h-7 text-white fill-white" />
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-bold text-white">경험치 획득</p>
+                                        <p className="text-sm text-indigo-300">레벨업까지 한 걸음!</p>
+                                    </div>
+                                </div>
+                                <span className="text-3xl font-black text-indigo-300">+{xpEarned}</span>
+                            </div>
+                        </div>
+
+                        {/* Streak Bonus Card */}
+                        {streak !== undefined && streak > 0 && (
+                            <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 border-2 border-orange-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                            <Zap className="w-7 h-7 text-white fill-white" />
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
+                                            <Flame className="w-7 h-7 text-white fill-white" />
                                         </div>
                                         <div>
-                                            <p className="text-base font-bold text-white">경험치 획득</p>
-                                            <p className="text-sm text-indigo-300">레벨업까지 한 걸음!</p>
+                                            <p className="text-base font-bold text-white">연속 달성</p>
+                                            <p className="text-sm text-orange-300">불타는 열정!</p>
                                         </div>
                                     </div>
-                                    <span className="text-3xl font-black text-indigo-300">+{xpEarned}</span>
+                                    <span className="text-3xl font-black text-orange-300">{streak}일</span>
                                 </div>
                             </div>
+                        )}
 
-                            {/* Streak Bonus Card */}
-                            {streak && (
-                                <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 border-2 border-orange-500/40 rounded-2xl p-5 backdrop-blur-sm">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
-                                                <Flame className="w-7 h-7 text-white fill-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-base font-bold text-white">연속 달성</p>
-                                                <p className="text-sm text-orange-300">불타는 열정!</p>
-                                            </div>
+                        {/* Bonus Reward Card */}
+                        {bonusReward && (
+                            <div className="bg-gradient-to-r from-yellow-600/20 to-amber-600/20 border-2 border-yellow-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.7s', opacity: 0, animationFillMode: 'forwards' }}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                                            {bonusReward.type === 'badge' ? (
+                                                <Trophy className="w-7 h-7 text-white" />
+                                            ) : (
+                                                <Star className="w-7 h-7 text-white fill-white" />
+                                            )}
                                         </div>
-                                        <span className="text-3xl font-black text-orange-300">{streak}일</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Bonus Reward Card */}
-                            {bonusReward && (
-                                <div className="bg-gradient-to-r from-yellow-600/20 to-amber-600/20 border-2 border-yellow-500/40 rounded-2xl p-5 backdrop-blur-sm">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
-                                                {bonusReward.type === 'badge' ? (
-                                                    <Trophy className="w-7 h-7 text-white" />
-                                                ) : (
-                                                    <Star className="w-7 h-7 text-white fill-white" />
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className="text-base font-bold text-white">보너스 보상</p>
-                                                <p className="text-sm text-yellow-300">{bonusReward.value}</p>
-                                            </div>
+                                        <div>
+                                            <p className="text-base font-bold text-white">보너스 보상</p>
+                                            <p className="text-sm text-yellow-300">{bonusReward.value}</p>
                                         </div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    )}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Continue Button */}
                     <button
@@ -139,7 +128,8 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                                 onClose();
                             }
                         }}
-                        className="mt-8 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white text-lg font-black rounded-2xl transition-all duration-300 shadow-2xl shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-[1.02] active:scale-[0.98]"
+                        className="mt-8 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white text-lg font-black rounded-2xl transition-all duration-300 shadow-2xl shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-[1.02] active:scale-[0.98] animate-fade-in"
+                        style={{ animationDelay: '0.8s', opacity: 0, animationFillMode: 'forwards' }}
                     >
                         계속하기
                     </button>
@@ -155,15 +145,22 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes scale-in {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
         @keyframes bounce-once {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.15); }
         }
         .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
+          animation: fade-in 0.5s ease-out forwards;
         }
         .animate-slide-up {
-          animation: slide-up 0.5s ease-out;
+          animation: slide-up 0.5s ease-out forwards;
+        }
+        .animate-scale-in {
+          animation: scale-in 0.5s ease-out forwards;
         }
         .animate-bounce-once {
           animation: bounce-once 0.8s ease-out;

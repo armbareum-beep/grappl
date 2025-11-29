@@ -92,15 +92,14 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
     const isOverLimit = characterCount > MAX_CHARACTERS;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
-                onClick={onClose}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             />
 
             {/* Modal */}
-            <div className="relative z-10 bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-lg shadow-2xl animate-slide-up">
+            <div className="relative z-10 bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-lg shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-800">
                     <div className="flex items-center gap-3">
@@ -141,7 +140,6 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                                 : 'border-slate-700 focus:ring-blue-500'
                                 }`}
                             disabled={isSharing}
-                            autoFocus
                         />
 
                         {/* Character Count */}
@@ -170,17 +168,17 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                         <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
                             <p className="text-xs text-slate-400 mb-1">미리보기</p>
                             <div className="flex items-center gap-2 text-sm text-slate-300">
-                                {metadata.xpEarned && (
+                                {metadata?.xpEarned !== undefined && (
                                     <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded text-xs font-bold">
                                         +{metadata.xpEarned} XP
                                     </span>
                                 )}
-                                {metadata.durationMinutes && (
+                                {metadata?.durationMinutes !== undefined && (
                                     <span className="text-xs text-slate-400">
                                         {metadata.durationMinutes}분
                                     </span>
                                 )}
-                                {metadata.routineTitle && (
+                                {metadata?.routineTitle && typeof metadata.routineTitle === 'string' && (
                                     <span className="text-xs text-slate-400 truncate">
                                         {metadata.routineTitle}
                                     </span>

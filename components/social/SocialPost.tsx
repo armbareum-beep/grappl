@@ -98,6 +98,12 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             </div>
                             <span className="text-slate-500 text-sm">
                                 {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: ko })}
+                                {post.location && !post.location.startsWith('__FEED__') && (
+                                    <>
+                                        <span className="mx-1">·</span>
+                                        <span>{post.location}</span>
+                                    </>
+                                )}
                             </span>
                         </div>
                         <button className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors">
