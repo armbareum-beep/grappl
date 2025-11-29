@@ -8,6 +8,7 @@ import { TrainingLogForm } from '../journal/TrainingLogForm';
 import { Button } from '../Button';
 import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
+import { QuestCompleteModal } from '../QuestCompleteModal';
 import { format, subDays, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -22,6 +23,8 @@ export const JournalTab: React.FC = () => {
     const [showBeltUp, setShowBeltUp] = useState(false);
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [showQuestComplete, setShowQuestComplete] = useState(false);
+    const [questCompleteData, setQuestCompleteData] = useState<{ questName: string; xpEarned: number } | null>(null);
 
     // Heatmap Scroll Ref
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -109,7 +112,8 @@ export const JournalTab: React.FC = () => {
                     setBeltUpData({ old: newLevel - 1, new: newLevel });
                     setShowBeltUp(true);
                 } else {
-                    success(`일지가 작성되었습니다! (+${xpEarned} XP)`);
+                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 20 });
+                    setShowQuestComplete(true);
                 }
             }
         }
@@ -383,6 +387,15 @@ export const JournalTab: React.FC = () => {
                     />
                 )
             }
+
+            {showQuestComplete && questCompleteData && (
+                <QuestCompleteModal
+                    isOpen={showQuestComplete}
+                    onClose={() => setShowQuestComplete(false)}
+                    questName={questCompleteData.questName}
+                    xpEarned={questCompleteData.xpEarned}
+                />
+            )}
         </div>
     );
 };

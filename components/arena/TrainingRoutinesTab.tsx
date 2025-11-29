@@ -179,13 +179,7 @@ export const TrainingRoutinesTab: React.FC = () => {
     };
 
     return (
-        <div
-            className="space-y-8 min-h-screen"
-            onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-            }}
-        >
+        <div className="space-y-8 min-h-screen">
             {/* Weekly Planner */}
             <WeeklyRoutinePlanner
                 selectedRoutine={selectedRoutineForPlacement}
@@ -224,8 +218,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                             return (
                                 <div
                                     key={routine.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, routine)}
                                     onClick={() => handleRoutineClick(routine)}
                                     className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative 
                                         ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
@@ -237,8 +229,8 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         <button
                                             onClick={(e) => handleSelectForPlacement(e, routine)}
                                             className={`p-2 rounded-full backdrop-blur-md transition-all ${isSelected
-                                                    ? 'bg-blue-500 text-white shadow-lg scale-110'
-                                                    : 'bg-black/40 text-slate-300 hover:bg-blue-500 hover:text-white'
+                                                ? 'bg-blue-500 text-white shadow-lg scale-110'
+                                                : 'bg-black/40 text-slate-300 hover:bg-blue-500 hover:text-white'
                                                 }`}
                                             title="주간 계획표에 추가하기"
                                         >

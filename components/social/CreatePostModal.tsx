@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { TrainingLog } from '../../types';
 import { Button } from '../Button';
 import { TechniqueTagModal } from './TechniqueTagModal';
+import { QuestCompleteModal } from '../QuestCompleteModal';
 
 interface CreatePostModalProps {
     onClose: () => void;
@@ -21,6 +22,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showQuestComplete, setShowQuestComplete] = useState(false);
+    const [questCompleteData, setQuestCompleteData] = useState<{ questName: string; xpEarned: number } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,9 +68,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                 const { completed, xpEarned } = await updateQuestProgress(user.id, 'write_log');
 
                 if (completed && xpEarned > 0) {
-                    success(`일지가 작성되었습니다! +${xpEarned} XP`);
+                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned });
+                    setShowQuestComplete(true);
                 } else {
-                    success('일지가 작성되었습니다!');
+                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: 0 });
+                    setShowQuestComplete(true);
                 }
 
                 // Create post object for UI
@@ -206,6 +211,19 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     selectedTechniques={selectedTechniques}
                     onSelect={(techs) => setSelectedTechniques(techs)}
                     onClose={() => setShowTechModal(false)}
+                />
+            )}
+
+            {/* Quest Complete Modal */}
+            {showQuestComplete && questCompleteData && (
+                <QuestCompleteModal
+                    isOpen={showQuestComplete}
+                    onClose={() => {
+                        setShowQuestComplete(false);
+                        onClose(); // Close the create post modal too
+                    }}
+                    questName={questCompleteData.questName}
+                    xpEarned={questCompleteData.xpEarned}
                 />
             )}
         </div>
