@@ -3822,3 +3822,19 @@ export async function getUserArenaStats(userId: string) {
 
     return { data, error };
 }
+
+/**
+ * Get user's current training streak (consecutive days with training logs)
+ */
+export async function getUserStreak(userId: string): Promise<{ data: number | null, error: any }> {
+    const { data, error } = await supabase.rpc('get_user_streak', {
+        p_user_id: userId
+    });
+
+    if (error) {
+        console.error('Error fetching user streak:', error);
+        return { data: null, error };
+    }
+
+    return { data: data || 0, error: null };
+}
