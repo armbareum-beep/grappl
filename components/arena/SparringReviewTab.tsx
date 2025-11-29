@@ -7,6 +7,7 @@ import { AICoachWidget } from '../journal/AICoachWidget';
 import { TrainingLog } from '../../types';
 import { ShareToFeedModal } from '../social/ShareToFeedModal';
 import { createFeedPost } from '../../lib/api';
+import { QuestCompleteModal } from '../QuestCompleteModal';
 
 interface SparringReview {
     id: string;
@@ -100,6 +101,10 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         metadata: Record<string, any>;
     } | null>(null);
 
+    // Quest Complete Modal State
+    const [showQuestModal, setShowQuestModal] = useState(false);
+    const [xpEarned, setXpEarned] = useState(0);
+
     const handleStartCreating = () => {
         if (!user) {
             if (confirm('로그인이 필요한 서비스입니다. 로그인하시겠습니까?')) {
@@ -190,7 +195,8 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     opponentName: formData.opponentName,
                     opponentBelt: formData.opponentBelt,
                     result: formData.result,
-                    rounds: formData.rounds
+                    rounds: formData.rounds,
+                    xpEarned // Pass XP to share modal for preview
                 }
             });
 
@@ -209,8 +215,9 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 videoUrl: ''
             });
 
-            // Show Share Modal
-            setShowShareModal(true);
+            // Show Quest Complete Modal first
+            setXpEarned(xpEarned);
+            setShowQuestModal(true);
 
         } catch (error) {
             console.error('Error saving sparring review:', error);
@@ -491,6 +498,18 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     </div>
                 </div>
             )}
+
+            {/* Quest Complete Modal */}
+            <QuestCompleteModal
+                isOpen={showQuestModal}
+                onClose={() => setShowQuestModal(false)}
+                onContinue={() => {
+                    setShowQuestModal(false);
+                    setShowShareModal(true);
+                }}
+                questName="스파링 복기 완료"
+                xpEarned={xpEarned}
+            />
 
             {/* Share Modal */}
             {showShareModal && shareModalData && (
