@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 
 
@@ -13,6 +14,7 @@ export const CourseDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [course, setCourse] = useState<Course | null>(null);
     const [creator, setCreator] = useState<Creator | null>(null);
     const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -86,14 +88,14 @@ export const CourseDetail: React.FC = () => {
                 // Free course enrollment
                 const { error } = await enrollInCourse(user.id, course.id);
                 if (error) {
-                    alert('라이브러리 추가 중 오류가 발생했습니다: ' + error.message);
+                    toastError('라이브러리 추가 중 오류가 발생했습니다: ' + error.message);
                 } else {
-                    alert('라이브러리에 추가되었습니다! 📚');
+                    success('라이브러리에 추가되었습니다! 📚');
                     setOwnsCourse(true);
                 }
             } catch (err) {
                 console.error('Enroll error:', err);
-                alert('처리 중 오류가 발생했습니다.');
+                toastError('처리 중 오류가 발생했습니다.');
             } finally {
                 setPurchasing(false);
             }
@@ -139,7 +141,7 @@ export const CourseDetail: React.FC = () => {
         if (course) {
             const { data } = await checkCourseCompletion(user.id, course.id);
             if (data && data.newly_awarded) {
-                alert(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+                success(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
             }
         }
     };
@@ -164,7 +166,7 @@ export const CourseDetail: React.FC = () => {
         if (!isCompleted && course) {
             const { data } = await checkCourseCompletion(user.id, course.id);
             if (data && data.newly_awarded) {
-                alert(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+                success(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
             }
         }
     };

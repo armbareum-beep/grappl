@@ -1,21 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getTrainingLogs, createTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
+import { useToast } from '../../contexts/ToastContext';
+import { getTrainingLogs, createTrainingLog, updateTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
 import { TrainingLog } from '../../types';
 import { TrainingLogForm } from '../journal/TrainingLogForm';
 import { Button } from '../Button';
-import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
 import { format, subDays, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
+    const [editingLog, setEditingLog] = useState<TrainingLog | null>(null);
     const [showBeltUp, setShowBeltUp] = useState(false);
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -30,6 +33,12 @@ export const JournalTab: React.FC = () => {
             }
             return;
         }
+        setEditingLog(null);
+        setIsCreating(true);
+    };
+
+    const handleEditLog = (log: TrainingLog) => {
+        setEditingLog(log);
         setIsCreating(true);
     };
 
@@ -58,33 +67,50 @@ export const JournalTab: React.FC = () => {
         setLoading(false);
     };
 
-    const handleCreateLog = async (logData: Omit<TrainingLog, 'id' | 'userId' | 'createdAt'>) => {
+    const handleSaveLog = async (logData: Omit<TrainingLog, 'id' | 'userId' | 'createdAt'>) => {
         if (!user) return;
 
-        const { data, error } = await createTrainingLog({
-            ...logData,
-            userId: user.id,
-            userName: user.user_metadata?.name || 'Unknown User'
-        });
+        if (editingLog) {
+            // Update existing log
+            const { error } = await updateTrainingLog(editingLog.id, logData);
 
-        if (error) {
-            console.error('Error creating log:', error);
-            alert('일지 작성 중 오류가 발생했습니다.');
-            return;
-        }
+            if (error) {
+                console.error('Error updating log:', error);
+                toastError('일지 수정 중 오류가 발생했습니다.');
+                return;
+            }
 
-        if (data) {
-            setLogs([data, ...logs]);
+            setLogs(logs.map(log => log.id === editingLog.id ? { ...log, ...logData } : log));
             setIsCreating(false);
+            setEditingLog(null);
+            success('일지가 수정되었습니다.');
+        } else {
+            // Create new log
+            const { data, error } = await createTrainingLog({
+                ...logData,
+                userId: user.id,
+                userName: user.user_metadata?.name || 'Unknown User'
+            });
 
-            const { leveledUp, newLevel, xpEarned } = await addXP(user.id, 20, 'training_log', data.id);
-            await updateQuestProgress(user.id, 'write_log');
+            if (error) {
+                console.error('Error creating log:', error);
+                toastError('일지 작성 중 오류가 발생했습니다.');
+                return;
+            }
 
-            if (leveledUp && newLevel) {
-                setBeltUpData({ old: newLevel - 1, new: newLevel });
-                setShowBeltUp(true);
-            } else {
-                alert(`일지가 작성되었습니다! (+${xpEarned} XP)`);
+            if (data) {
+                setLogs([data, ...logs]);
+                setIsCreating(false);
+
+                const { leveledUp, newLevel, xpEarned } = await addXP(user.id, 20, 'training_log', data.id);
+                await updateQuestProgress(user.id, 'write_log');
+
+                if (leveledUp && newLevel) {
+                    setBeltUpData({ old: newLevel - 1, new: newLevel });
+                    setShowBeltUp(true);
+                } else {
+                    success(`일지가 작성되었습니다! (+${xpEarned} XP)`);
+                }
             }
         }
     };
@@ -95,7 +121,7 @@ export const JournalTab: React.FC = () => {
         const { error } = await deleteTrainingLog(logId);
         if (error) {
             console.error('Error deleting log:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+            toastError('삭제 중 오류가 발생했습니다.');
             return;
         }
 
@@ -274,12 +300,20 @@ export const JournalTab: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => handleDeleteLog(log.id)}
-                                    className="text-slate-500 hover:text-red-500 transition-colors p-2"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => handleEditLog(log)}
+                                        className="text-slate-500 hover:text-blue-500 transition-colors p-2"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteLog(log.id)}
+                                        className="text-slate-500 hover:text-red-500 transition-colors p-2"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
 
                             <p className="text-slate-300 whitespace-pre-wrap mb-4 leading-relaxed">
@@ -314,37 +348,41 @@ export const JournalTab: React.FC = () => {
             </div>
 
             {/* Create Modal */}
-            {isCreating && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-800 shadow-2xl">
-                        <div className="p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-white">수련 일지 작성</h2>
-                                <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white">
-                                    <span className="sr-only">Close</span>
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+            {
+                isCreating && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-800 shadow-2xl">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-white">{editingLog ? '수련 일지 수정' : '수련 일지 작성'}</h2>
+                                    <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white">
+                                        <span className="sr-only">Close</span>
+                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <TrainingLogForm
+                                    userId={user.id}
+                                    onSubmit={handleSaveLog}
+                                    onCancel={() => setIsCreating(false)}
+                                    initialData={editingLog || { date: new Date().toISOString().split('T')[0] }}
+                                />
                             </div>
-                            <TrainingLogForm
-                                userId={user.id}
-                                onSubmit={handleCreateLog}
-                                onCancel={() => setIsCreating(false)}
-                                initialData={{ date: new Date().toISOString().split('T')[0] }}
-                            />
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {showBeltUp && beltUpData && (
-                <BeltUpModal
-                    oldLevel={beltUpData.old}
-                    newLevel={beltUpData.new}
-                    onClose={() => setShowBeltUp(false)}
-                />
-            )}
+            {
+                showBeltUp && beltUpData && (
+                    <BeltUpModal
+                        oldLevel={beltUpData.old}
+                        newLevel={beltUpData.new}
+                        onClose={() => setShowBeltUp(false)}
+                    />
+                )
+            }
         </div>
     );
 };

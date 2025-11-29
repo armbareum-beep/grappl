@@ -8,7 +8,12 @@ interface WeeklySchedule {
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
-export const WeeklyRoutinePlanner: React.FC = () => {
+interface WeeklyRoutinePlannerProps {
+    selectedRoutine?: DrillRoutine | null;
+    onAddToDay?: (day: string) => void;
+}
+
+export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({ selectedRoutine, onAddToDay }) => {
     const [schedule, setSchedule] = useState<WeeklySchedule>({
         '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': []
     });
@@ -24,9 +29,33 @@ export const WeeklyRoutinePlanner: React.FC = () => {
         }
     }, []);
 
+    // Listen for external updates to the schedule (e.g. from TrainingRoutinesTab)
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const saved = localStorage.getItem('weekly_routine_schedule');
+            if (saved) {
+                try {
+                    setSchedule(JSON.parse(saved));
+                } catch (e) {
+                    console.error('Failed to load schedule', e);
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        // Custom event for same-window updates
+        window.addEventListener('weekly_schedule_update', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('weekly_schedule_update', handleStorageChange);
+        };
+    }, []);
+
     const saveSchedule = (newSchedule: WeeklySchedule) => {
         setSchedule(newSchedule);
         localStorage.setItem('weekly_routine_schedule', JSON.stringify(newSchedule));
+        window.dispatchEvent(new Event('weekly_schedule_update'));
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -64,6 +93,25 @@ export const WeeklyRoutinePlanner: React.FC = () => {
         }
     };
 
+    const handleDayClick = (day: string) => {
+        if (selectedRoutine) {
+            // Check for duplicates (optional, but consistent with drag-drop)
+            // The user asked for "multiple", so we allow duplicates or just multiple different ones.
+            // We'll allow multiple. If exact duplicate check is needed, we can add it.
+            // Let's just add it.
+
+            const newSchedule = {
+                ...schedule,
+                [day]: [...schedule[day], selectedRoutine]
+            };
+            saveSchedule(newSchedule);
+
+            if (onAddToDay) {
+                onAddToDay(day);
+            }
+        }
+    };
+
     const removeRoutine = (day: string, routineId: string) => {
         const newSchedule = {
             ...schedule,
@@ -77,7 +125,12 @@ export const WeeklyRoutinePlanner: React.FC = () => {
             <div className="flex items-center gap-2 mb-6">
                 <Calendar className="w-5 h-5 text-purple-500" />
                 <h2 className="text-xl font-bold text-white">주간 루틴 계획표</h2>
-                <span className="text-xs text-slate-500 ml-2">아래 루틴 목록에서 카드를 드래그하여 요일별 계획을 세워보세요.</span>
+                <span className="text-xs text-slate-500 ml-2">
+                    {selectedRoutine
+                        ? <span className="text-blue-400 font-bold animate-pulse">'{selectedRoutine.title}' 루틴을 추가할 요일을 선택하세요.</span>
+                        : "아래 루틴 목록에서 카드를 드래그하거나 선택하여 요일별 계획을 세워보세요."
+                    }
+                </span>
             </div>
 
             <div className="grid grid-cols-7 gap-2">
@@ -90,11 +143,18 @@ export const WeeklyRoutinePlanner: React.FC = () => {
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, day)}
-                            className="flex-1 min-h-[120px] bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800 p-2 transition-all"
+                            onClick={() => handleDayClick(day)}
+                            className={`
+                                flex-1 min-h-[120px] rounded-xl border-2 border-dashed p-2 transition-all cursor-pointer
+                                ${selectedRoutine
+                                    ? 'bg-blue-900/20 border-blue-500/50 hover:bg-blue-900/40 hover:border-blue-400 animate-pulse'
+                                    : 'bg-slate-950/50 border-slate-800'
+                                }
+                            `}
                         >
                             {schedule[day].length === 0 ? (
                                 <div className="h-full flex items-center justify-center text-slate-700 text-xs">
-                                    Drop Here
+                                    {selectedRoutine ? "Click to Add" : "Drop Here"}
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -102,6 +162,7 @@ export const WeeklyRoutinePlanner: React.FC = () => {
                                         <div
                                             key={`${routine.id}-${idx}`}
                                             className="bg-slate-800 rounded-lg p-2 group relative border border-slate-700 hover:border-purple-500/50 transition-colors"
+                                            onClick={(e) => e.stopPropagation()} // Prevent triggering day click when clicking routine
                                         >
                                             <div className="flex items-start justify-between gap-1 mb-1">
                                                 <span className="text-xs font-bold text-white line-clamp-2 leading-tight">

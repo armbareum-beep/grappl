@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { getDrills } from '../lib/api';
 import { Drill } from '../types';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
@@ -7,6 +8,7 @@ import { PlaySquare } from 'lucide-react';
 
 export const Drills: React.FC = () => {
     const { user } = useAuth();
+    const { error: toastError } = useToast();
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>('reels');
@@ -132,7 +134,7 @@ export const Drills: React.FC = () => {
                                     window.location.href = `/routines/${routine.id}`;
                                 } else {
                                     // Fallback: if no routine found, show alert
-                                    alert('이 드릴은 아직 루틴에 포함되지 않았습니다.');
+                                    toastError('이 드릴은 아직 루틴에 포함되지 않았습니다.');
                                 }
                             }}
                         >
