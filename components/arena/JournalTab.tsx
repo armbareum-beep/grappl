@@ -145,6 +145,15 @@ export const JournalTab: React.FC = () => {
                         }
                     }
 
+                    // Also update daily quest progress
+                    const { updateQuestProgress } = await import('../../lib/api');
+                    const questResult = await updateQuestProgress(user.id, 'write_log');
+                    
+                    if (questResult.completed && questResult.xpEarned > 0) {
+                        earnedXp += questResult.xpEarned;
+                        success(`일일 미션 완료! +${questResult.xpEarned} XP`);
+                    }
+
                     // Prepare share modal data
                     const defaultContent = `📝 수련 일지
 
