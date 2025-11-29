@@ -1,6 +1,9 @@
--- Function to recalculate combat power based on enrollments and completions
+-- 1. 전투력 재계산 함수 (SECURITY DEFINER 추가)
 CREATE OR REPLACE FUNCTION recalculate_user_combat_power(p_user_id UUID)
-RETURNS VOID AS $$
+RETURNS VOID 
+SECURITY DEFINER -- 중요: 관리자 권한으로 실행
+SET search_path = public
+AS $$
 DECLARE
     v_standing INTEGER := 0;
     v_guard INTEGER := 0;
@@ -9,11 +12,11 @@ DECLARE
     v_mount INTEGER := 0;
     v_back INTEGER := 0;
     
-    -- Points configuration
-    v_enroll_points INTEGER := 10; -- Points for just enrolling (Training)
-    v_complete_points INTEGER := 20; -- EXTRA points for completion (Master)
+    -- 점수 설정
+    v_enroll_points INTEGER := 10;
+    v_complete_points INTEGER := 20;
 BEGIN
-    -- 1. Calculate points from Enrollments (user_courses)
+    -- 1. 수련 중 점수 계산
     SELECT 
         COALESCE(SUM(CASE WHEN c.category = 'Standing' THEN v_enroll_points ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN c.category = 'Guard' THEN v_enroll_points ELSE 0 END), 0),
@@ -26,7 +29,7 @@ BEGIN
     JOIN courses c ON uc.course_id = c.id
     WHERE uc.user_id = p_user_id;
 
-    -- 2. Add points from Completions (user_course_completions)
+    -- 2. 마스터 점수 추가
     DECLARE
         v_c_standing INTEGER;
         v_c_guard INTEGER;
@@ -55,7 +58,7 @@ BEGIN
         v_back := v_back + v_c_back;
     END;
 
-    -- 3. Update user_arena_stats
+    -- 3. user_arena_stats 테이블 업데이트
     INSERT INTO user_arena_stats (user_id, standing_power, guard_power, guard_pass_power, side_power, mount_power, back_power, updated_at)
     VALUES (p_user_id, v_standing, v_guard, v_guard_pass, v_side, v_mount, v_back, NOW())
     ON CONFLICT (user_id) 
@@ -70,9 +73,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger Function
+-- 2. 트리거 함수도 SECURITY DEFINER 추가
 CREATE OR REPLACE FUNCTION trigger_recalc_combat_power()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     v_uid UUID;
 BEGIN
@@ -86,13 +92,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers
-DROP TRIGGER IF EXISTS on_enrollment_combat_power ON user_courses;
-CREATE TRIGGER on_enrollment_combat_power
-AFTER INSERT OR DELETE ON user_courses
-FOR EACH ROW EXECUTE FUNCTION trigger_recalc_combat_power();
-
-DROP TRIGGER IF EXISTS on_completion_combat_power ON user_course_completions;
-CREATE TRIGGER on_completion_combat_power
-AFTER INSERT OR DELETE ON user_course_completions
-FOR EACH ROW EXECUTE FUNCTION trigger_recalc_combat_power();
+-- 3. 기존 데이터 강제 재계산 (한 번 실행)
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT id FROM auth.users LOOP
+        PERFORM recalculate_user_combat_power(r.id);
+    END LOOP;
+END;
+$$;

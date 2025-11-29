@@ -81,6 +81,17 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
         setShowResult(false);
         setDisplayedText('');
 
+        // 데이터 부족 시 처리
+        if (logs.length === 0) {
+            setTimeout(() => {
+                setIsAnalyzing(false);
+                setShowResult(true);
+                setResults([]);
+                typeWriterEffect('분석할 데이터가 없습니다. 스파링 복기를 먼저 작성해주세요.');
+            }, 1000);
+            return;
+        }
+
         // 1. 키워드 카운팅
         const keywords = {
             escape: 0,
@@ -283,8 +294,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                 >
                                     <div className="flex items-start gap-4 mb-4">
                                         <div className={`p-2 rounded-lg ${result.type === 'weakness' ? 'bg-red-500/10 text-red-400' :
-                                                result.type === 'strength' ? 'bg-green-500/10 text-green-400' :
-                                                    'bg-blue-500/10 text-blue-400'
+                                            result.type === 'strength' ? 'bg-green-500/10 text-green-400' :
+                                                'bg-blue-500/10 text-blue-400'
                                             }`}>
                                             {result.type === 'weakness' ? <AlertTriangle className="w-5 h-5" /> :
                                                 result.type === 'strength' ? <TrendingUpIcon /> :
@@ -292,8 +303,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                         </div>
                                         <div className="flex-1">
                                             <h4 className={`font-bold mb-1 ${result.type === 'weakness' ? 'text-red-400' :
-                                                    result.type === 'strength' ? 'text-green-400' :
-                                                        'text-blue-400'
+                                                result.type === 'strength' ? 'text-green-400' :
+                                                    'text-blue-400'
                                                 }`}>
                                                 {result.message}
                                             </h4>
