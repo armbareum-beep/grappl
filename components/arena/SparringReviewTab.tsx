@@ -230,6 +230,13 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 whatToImprove: '',
                 videoUrl: ''
             });
+
+            // Show Quest Complete Modal first (only if XP was earned)
+            if (earnedXp > 0) {
+                setXpEarned(earnedXp);
+                setShowQuestModal(true);
+            }
+            // If earnedXp === 0, useEffect will automatically show share modal when shareModalData is set
         } catch (error) {
             console.error('Error saving sparring review:', error);
             alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
