@@ -150,6 +150,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         e.preventDefault();
         if (!user) return;
 
+        setLoading(true);
         try {
             const { createSparringReview, createTrainingLog, updateQuestProgress } = await import('../../lib/api');
 
@@ -178,7 +179,15 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             }, true); // Skip daily check
 
             // 3. Update Quest (Awards XP if completed, handles daily limit)
-            const { xpEarned } = await updateQuestProgress(user.id, 'sparring_review');
+            console.log('Updating quest progress...');
+            let earnedXp = 0;
+            try {
+                const questResult = await updateQuestProgress(user.id, 'sparring_review');
+                console.log('Quest result:', questResult);
+                earnedXp = questResult.xpEarned || 0;
+            } catch (questError) {
+                console.error('Error updating quest:', questError);
+            }
 
             // 4. Prepare Share Modal Data
             const defaultContent = `🥋 스파링 복기
@@ -196,7 +205,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     opponentBelt: formData.opponentBelt,
                     result: formData.result,
                     rounds: formData.rounds,
-                    xpEarned // Pass XP to share modal for preview
+                    xpEarned: earnedXp
                 }
             });
 
@@ -216,26 +225,32 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             });
 
             // Show Quest Complete Modal first
-            setXpEarned(xpEarned);
+            setXpEarned(earnedXp);
             setShowQuestModal(true);
 
         } catch (error) {
             console.error('Error saving sparring review:', error);
-            alert('저장 중 오류가 발생했습니다.');
+            alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleShareToFeed = async (comment: string) => {
         if (!user || !shareModalData) return;
 
-        await createFeedPost({
-            userId: user.id,
-            content: comment,
-            type: 'sparring',
-            metadata: shareModalData.metadata
-        });
-
-        alert('피드에 공유되었습니다!');
+        try {
+            await createFeedPost({
+                userId: user.id,
+                content: comment,
+                type: 'sparring',
+                metadata: shareModalData.metadata
+            });
+            alert('피드에 공유되었습니다!');
+        } catch (error) {
+            console.error('Error sharing to feed:', error);
+            alert('공유 중 오류가 발생했습니다.');
+        }
     };
 
     // if (!user) {
