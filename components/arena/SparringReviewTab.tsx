@@ -106,6 +106,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const [xpEarned, setXpEarned] = useState(0);
 
     const handleStartCreating = () => {
+        console.log("VERSION 2.0 - FIX APPLIED");
         if (!user) {
             if (confirm('로그인이 필요한 서비스입니다. 로그인하시겠습니까?')) {
                 navigate('/login');
@@ -115,12 +116,12 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         setIsCreating(true);
     };
 
-    // Automatically show share modal when shareModalData is set
-    useEffect(() => {
-        if (shareModalData && !showQuestModal && !loading) {
-            setShowShareModal(true);
-        }
-    }, [shareModalData, showQuestModal, loading]);
+    // Automatically show share modal when shareModalData is set - REMOVED
+    // useEffect(() => {
+    //     if (shareModalData && !showQuestModal && !loading) {
+    //         setShowShareModal(true);
+    //     }
+    // }, [shareModalData, showQuestModal, loading]);
 
     // Load reviews
     useEffect(() => {
@@ -231,12 +232,11 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 videoUrl: ''
             });
 
-            // Show Quest Complete Modal first (only if XP was earned)
-            if (earnedXp > 0) {
-                setXpEarned(earnedXp);
-                setShowQuestModal(true);
-            }
-            // If earnedXp === 0, useEffect will automatically show share modal when shareModalData is set
+            // Show Quest Complete Modal ALWAYS (to prevent flash and ensure consistent flow)
+            setXpEarned(earnedXp);
+            setShowQuestModal(true);
+
+            // Note: Share Modal will be triggered when user clicks "Continue" in Quest Modal
         } catch (error) {
             console.error('Error saving sparring review:', error);
             alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
