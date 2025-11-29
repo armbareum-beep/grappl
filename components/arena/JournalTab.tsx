@@ -67,6 +67,7 @@ export const JournalTab: React.FC = () => {
         if (data) {
             // Double check filtering to ensure no feed posts appear here
             const cleanLogs = data.filter(log => 
+                log.durationMinutes !== -1 && // Filter by duration marker
                 (!log.location || !log.location.startsWith('__FEED__')) && 
                 !['sparring', 'routine', 'mastery'].includes((log as any).type)
             );
