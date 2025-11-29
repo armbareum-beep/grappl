@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getTrainingLogs, createTrainingLog, updateTrainingLog, deleteTrainingLog, addXP, updateQuestProgress } from '../../lib/api';
+import { getTrainingLogs, createTrainingLog, updateTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP } from '../../lib/api';
 import { TrainingLog } from '../../types';
 import { TrainingLogForm } from '../journal/TrainingLogForm';
 import { Button } from '../Button';
 import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
 import { QuestCompleteModal } from '../QuestCompleteModal';
+import { ShareToFeedModal } from '../social/ShareToFeedModal';
 import { format, subDays, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -24,7 +25,19 @@ export const JournalTab: React.FC = () => {
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
-    const [questCompleteData, setQuestCompleteData] = useState<{ questName: string; xpEarned: number } | null>(null);
+    const [questCompleteData, setQuestCompleteData] = useState<{ 
+        questName: string; 
+        xpEarned: number; 
+        streak?: number;
+        bonusReward?: { type: 'xp_boost' | 'badge' | 'unlock'; value: string };
+    } | null>(null);
+
+    // Share to Feed Modal State
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareModalData, setShareModalData] = useState<{
+        defaultContent: string;
+        metadata: Record<string, any>;
+    } | null>(null);
 
     // Heatmap Scroll Ref
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -111,14 +124,70 @@ export const JournalTab: React.FC = () => {
                 setLogs([data, ...logs]);
                 setIsCreating(false);
 
-                const { leveledUp, newLevel, xpEarned } = await addXP(user.id, 20, 'training_log', data.id);
-                await updateQuestProgress(user.id, 'write_log');
+                // Award training XP with daily limit and streak bonus
+                let earnedXp = 0;
+                let userStreak = 0;
+                let bonusXp = 0;
+                
+                try {
+                    const xpResult = await awardTrainingXP(user.id, 'training_log', 20);
+                    
+                    if (xpResult.data) {
+                        if (xpResult.data.alreadyCompletedToday) {
+                            // Already completed a training activity today
+                            toastError('오늘은 이미 수련 활동으로 경험치를 획득했습니다.');
+                            earnedXp = 0;
+                            userStreak = xpResult.data.streak;
+                        } else {
+                            earnedXp = xpResult.data.xpEarned;
+                            userStreak = xpResult.data.streak;
+                            bonusXp = xpResult.data.bonusXP;
+                        }
+                    }
 
-                if (leveledUp && newLevel) {
-                    setBeltUpData({ old: newLevel - 1, new: newLevel });
-                    setShowBeltUp(true);
-                } else {
-                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 20 });
+                    // Prepare share modal data
+                    const defaultContent = `📝 수련 일지
+
+날짜: ${logData.date}
+시간: ${logData.durationMinutes}분
+스파링: ${logData.sparringRounds}라운드
+
+${logData.notes}`;
+
+                    setShareModalData({
+                        defaultContent,
+                        metadata: {
+                            logId: data.id,
+                            durationMinutes: logData.durationMinutes,
+                            sparringRounds: logData.sparringRounds,
+                            techniques: logData.techniques,
+                            xpEarned: earnedXp
+                        }
+                    });
+
+                    // Show quest complete modal with bonus if exists
+                    const questData: any = {
+                        questName: '수련 일지 작성',
+                        xpEarned: earnedXp,
+                        streak: userStreak
+                    };
+
+                    if (bonusXp > 0) {
+                        questData.bonusReward = {
+                            type: 'xp_boost',
+                            value: `${userStreak}일 연속 보너스 +${bonusXp} XP`
+                        };
+                    }
+
+                    setQuestCompleteData(questData);
+                    setShowQuestComplete(true);
+                } catch (error) {
+                    console.error('Error processing quest/streak:', error);
+                    // Still show modal even if XP fetch fails
+                    setQuestCompleteData({ 
+                        questName: '수련 일지 작성', 
+                        xpEarned: 20
+                    });
                     setShowQuestComplete(true);
                 }
             }
@@ -136,6 +205,23 @@ export const JournalTab: React.FC = () => {
         }
 
         setLogs(logs.filter(log => log.id !== logId));
+    };
+
+    const handleShareToFeed = async (comment: string) => {
+        if (!user || !shareModalData) return;
+
+        try {
+            await createFeedPost({
+                userId: user.id,
+                content: comment,
+                type: 'general',
+                metadata: shareModalData.metadata
+            });
+            navigate('/journal');
+        } catch (error) {
+            console.error('Error sharing to feed:', error);
+            toastError('공유 중 오류가 발생했습니다.');
+        }
     };
 
     // Stats Calculation
@@ -398,8 +484,28 @@ export const JournalTab: React.FC = () => {
                 <QuestCompleteModal
                     isOpen={showQuestComplete}
                     onClose={() => setShowQuestComplete(false)}
+                    onContinue={() => {
+                        setShowQuestComplete(false);
+                        setTimeout(() => {
+                            setShowShareModal(true);
+                        }, 500);
+                    }}
                     questName={questCompleteData.questName}
                     xpEarned={questCompleteData.xpEarned}
+                    streak={questCompleteData.streak}
+                    bonusReward={questCompleteData.bonusReward}
+                />
+            )}
+
+            {/* Share to Feed Modal */}
+            {shareModalData && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={handleShareToFeed}
+                    activityType="general"
+                    defaultContent={shareModalData.defaultContent}
+                    metadata={shareModalData.metadata}
                 />
             )}
         </div>

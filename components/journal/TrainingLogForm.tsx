@@ -16,8 +16,6 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     const [sparringRounds, setSparringRounds] = useState(initialData?.sparringRounds || 3);
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [location, setLocation] = useState(initialData?.location || '');
-    const [isPublic, setIsPublic] = useState(initialData?.isPublic || false);
-    const [youtubeUrl, setYoutubeUrl] = useState(initialData?.youtubeUrl || '');
     const [techniqueInput, setTechniqueInput] = useState('');
     const [techniques, setTechniques] = useState<string[]>(initialData?.techniques || []);
     const [submitting, setSubmitting] = useState(false);
@@ -45,8 +43,7 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 notes,
                 location,
                 techniques,
-                isPublic,
-                youtubeUrl
+                isPublic: false  // Always private, sharing handled via ShareToFeedModal
             });
         } finally {
             setSubmitting(false);
@@ -147,35 +144,7 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 mb-8 p-5 bg-slate-800/50 rounded-xl border border-slate-800">
-                <div>
-                    <label className="flex items-center gap-3 mb-2 cursor-pointer group">
-                        <div className="relative flex items-center">
-                            <input
-                                type="checkbox"
-                                checked={isPublic}
-                                onChange={(e) => setIsPublic(e.target.checked)}
-                                className="peer sr-only"
-                            />
-                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </div>
-                        <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">커뮤니티에 공개</span>
-                    </label>
-                    <p className="text-xs text-slate-500 ml-14 leading-relaxed">
-                        공개하면 다른 유저들이 보고 피드백을 남길 수 있습니다.
-                    </p>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">YouTube 영상 링크 (선택)</label>
-                    <input
-                        type="url"
-                        value={youtubeUrl}
-                        onChange={(e) => setYoutubeUrl(e.target.value)}
-                        placeholder="https://youtube.com/watch?v=..."
-                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    />
-                </div>
-            </div>
+
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
                 <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white hover:bg-slate-800">취소</Button>
