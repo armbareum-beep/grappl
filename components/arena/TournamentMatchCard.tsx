@@ -8,6 +8,7 @@ interface OpponentStats {
     winRate: number;
     avatar?: string;
     style?: string;
+    level: number;
 }
 
 interface TournamentMatchCardProps {
@@ -47,13 +48,15 @@ export const TournamentMatchCard: React.FC<TournamentMatchCardProps> = ({
 
         // Simulate matchmaking process
         setTimeout(() => {
+            const power = Math.floor(myPower * (0.8 + Math.random() * 0.4));
             setOpponent({
                 name: '김주짓수',
                 belt: '퍼플벨트',
-                power: Math.floor(myPower * (0.8 + Math.random() * 0.4)),
+                power: power,
                 winRate: 60 + Math.floor(Math.random() * 30),
                 style: '가드 플레이어',
                 avatar: undefined,
+                level: Math.floor(power / 100)
             });
             setIsMatching(false);
         }, 3000);

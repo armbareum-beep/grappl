@@ -6,6 +6,7 @@ interface OpponentStats {
     belt: string;
     power: number;
     style?: string;
+    level?: number;
 }
 
 interface BattleSceneProps {

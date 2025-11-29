@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday, awardTrainingXP } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -29,6 +29,9 @@ export const RoutineDetail: React.FC = () => {
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
     const [earnedXpToday, setEarnedXpToday] = useState(false);
     const [isCompletedToday, setIsCompletedToday] = useState(false);
+    const [streak, setStreak] = useState(0);
+    const [xpEarned, setXpEarned] = useState(0);
+    const [bonusReward, setBonusReward] = useState<{ type: 'xp_boost' | 'badge' | 'unlock'; value: string } | undefined>(undefined);
 
     // Timer State
     const [isTrainingMode, setIsTrainingMode] = useState(false);
@@ -225,6 +228,9 @@ export const RoutineDetail: React.FC = () => {
 
         // Calculate XP
         let xpEarned = 0;
+        let currentStreak = 0;
+        let bonusXp = 0;
+
         if (user) {
             // 1. Create Training Log
             const { data: log } = await createTrainingLog({
@@ -243,15 +249,49 @@ export const RoutineDetail: React.FC = () => {
                 }
             });
 
-            // Only award XP if not earned today (global limit)
-            if (!earnedXpToday) {
-                // 2. Award XP
-                const xpAmount = Math.max(1, Math.floor(durationMinutes / 5));
-                const xpResult = await addXP(user.id, xpAmount, 'training_log', log?.id);
-                xpEarned = xpResult.xpEarned || 0;
+            // 2. Award XP with daily limit and streak bonus
+            let xpAmount = 50; // Base XP for routine
+            
+            try {
+                const xpResult = await awardTrainingXP(user.id, 'routine_complete', xpAmount);
+                
+                if (xpResult.data) {
+                    if (xpResult.data.alreadyCompletedToday) {
+                        console.log('Already completed training activity today');
+                        xpEarned = 0;
+                        currentStreak = xpResult.data.streak;
+                    } else {
+                        xpEarned = xpResult.data.xpEarned;
+                        currentStreak = xpResult.data.streak;
+                        bonusXp = xpResult.data.bonusXP;
+                    }
+                }
+            } catch (error) {
+                console.error('Error awarding XP:', error);
+            }
 
-                // 3. Update Quest
-                await updateQuestProgress(user.id, 'complete_routine');
+            // Also update daily quest progress
+            try {
+                const { updateQuestProgress } = await import('../lib/api');
+                const questResult = await updateQuestProgress(user.id, 'complete_routine');
+                
+                if (questResult.completed && questResult.xpEarned > 0) {
+                    xpEarned += questResult.xpEarned;
+                    // success(`일일 미션 완료! +${questResult.xpEarned} XP`); // Optional
+                }
+            } catch (error) {
+                console.error('Error updating quest:', error);
+            }
+
+            setStreak(currentStreak);
+            setXpEarned(xpEarned);
+            if (bonusXp > 0) {
+                setBonusReward({
+                    type: 'xp_boost',
+                    value: `${currentStreak}일 연속 보너스 +${bonusXp} XP`
+                });
+            } else {
+                setBonusReward(undefined);
             }
         }
 
@@ -588,8 +628,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     setShowShareModal(true);
                 }}
                 questName={routine?.title || '루틴'}
-                xpEarned={earnedXpToday ? 0 : 50}
-                streak={completedDrills.size}
+                xpEarned={xpEarned}
+                streak={streak}
+                bonusReward={bonusReward}
             />
 
             {/* Share to Feed Modal */}

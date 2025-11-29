@@ -105,6 +105,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const [showQuestModal, setShowQuestModal] = useState(false);
     const [xpEarned, setXpEarned] = useState(0);
     const [userStreak, setUserStreak] = useState(0);
+    const [bonusReward, setBonusReward] = useState<{ type: 'xp_boost' | 'badge' | 'unlock'; value: string } | undefined>(undefined);
 
     const handleStartCreating = () => {
         console.log("VERSION 2.0 - FIX APPLIED");
@@ -187,21 +188,44 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 location: 'Gym'
             }, true); // Skip daily check
 
-            // 3. Update Quest (Awards XP if completed, handles daily limit)
-            console.log('Updating quest progress...');
+            // 3. Award training XP with daily limit and streak bonus
+            console.log('Awarding training XP...');
             let earnedXp = 0;
             let streak = 0;
+            let bonusXp = 0;
+            
             try {
-                const questResult = await updateQuestProgress(user.id, 'sparring_review');
-                console.log('Quest result:', questResult);
-                earnedXp = questResult.xpEarned || 0;
+                const { awardTrainingXP } = await import('../../lib/api');
+                const xpResult = await awardTrainingXP(user.id, 'sparring_review', 20);
+                
+                if (xpResult.data) {
+                    if (xpResult.data.alreadyCompletedToday) {
+                        // Already completed a training activity today
+                        // toastError('오늘은 이미 수련 활동으로 경험치를 획득했습니다.'); // Optional: show toast
+                        console.log('Already completed training activity today');
+                        earnedXp = 0;
+                        streak = xpResult.data.streak;
+                    } else {
+                        earnedXp = xpResult.data.xpEarned;
+                        streak = xpResult.data.streak;
+                        bonusXp = xpResult.data.bonusXP;
+                    }
+                }
+            } catch (error) {
+                console.error('Error awarding XP:', error);
+            }
 
-                // Fetch user streak
-                const { getUserStreak } = await import('../../lib/api');
-                const streakResult = await getUserStreak(user.id);
-                streak = streakResult.data || 0;
-            } catch (questError) {
-                console.error('Error updating quest:', questError);
+            // Also update daily quest progress
+            try {
+                const { updateQuestProgress } = await import('../../lib/api');
+                const questResult = await updateQuestProgress(user.id, 'sparring_review');
+                
+                if (questResult.completed && questResult.xpEarned > 0) {
+                    earnedXp += questResult.xpEarned;
+                    // success(`일일 미션 완료! +${questResult.xpEarned} XP`); // Optional
+                }
+            } catch (error) {
+                console.error('Error updating quest:', error);
             }
 
             // 4. Prepare Share Modal Data
@@ -242,6 +266,16 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             // Show Quest Complete Modal ALWAYS (to prevent flash and ensure consistent flow)
             setXpEarned(earnedXp);
             setUserStreak(streak);
+            
+            if (bonusXp > 0) {
+                setBonusReward({
+                    type: 'xp_boost',
+                    value: `${streak}일 연속 보너스 +${bonusXp} XP`
+                });
+            } else {
+                setBonusReward(undefined);
+            }
+
             setShowQuestModal(true);
 
             // Note: Share Modal will be triggered automatically when user clicks "Continue" in Quest Modal
@@ -545,6 +579,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 questName="스파링 복기 완료"
                 xpEarned={xpEarned}
                 streak={userStreak}
+                bonusReward={bonusReward}
             />
 
             {/* Share Modal */}
