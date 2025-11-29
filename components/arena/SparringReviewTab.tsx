@@ -225,11 +225,15 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             });
 
             // Show Quest Complete Modal first (only if XP was earned)
+            console.log('earnedXp:', earnedXp);
+            console.log('shareModalData:', shareModalData);
+
             if (earnedXp > 0) {
                 setXpEarned(earnedXp);
                 setShowQuestModal(true);
             } else {
                 // If no XP earned (already completed today), go directly to share modal
+                console.log('Setting showShareModal to true');
                 setShowShareModal(true);
             }
 
