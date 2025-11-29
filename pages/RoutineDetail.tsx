@@ -291,8 +291,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
             metadata: shareModalData.metadata
         });
 
-        alert('피드에 공유되었습니다!');
+
         setShowShareModal(false);
+        navigate('/journal');
     };
 
     const handleDrillSelect = (index: number) => {

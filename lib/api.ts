@@ -1295,6 +1295,7 @@ export async function purchaseSubscription(userId: string, plan: 'monthly' | 'ye
  * Get training logs for a user
  */
 export async function getTrainingLogs(userId: string) {
+    // Fetch all logs first, then filter in memory to be 100% sure
     const { data, error } = await supabase
         .from('training_logs')
         .select('*')
@@ -1303,7 +1304,20 @@ export async function getTrainingLogs(userId: string) {
 
     if (error) return { data: null, error };
 
-    const logs: TrainingLog[] = data.map((log: any) => ({
+    // Robust JS filtering
+    const filteredData = data.filter((log: any) => {
+        // 1. Exclude if type is explicitly a feed type
+        if (log.type && ['sparring', 'routine', 'mastery', 'title_earned', 'level_up', 'technique', 'general'].includes(log.type)) {
+            return false;
+        }
+        // 2. Exclude if location has the special FEED tag
+        if (log.location && typeof log.location === 'string' && log.location.startsWith('__FEED__')) {
+            return false;
+        }
+        return true;
+    });
+
+    const logs: TrainingLog[] = filteredData.map((log: any) => ({
         id: log.id,
         userId: log.user_id,
         date: log.date,
@@ -3638,7 +3652,8 @@ export async function createFeedPost(post: {
             sparring_rounds: 0,
             notes: post.content,
             is_public: true,
-            type: post.type,
+            type: post.type, // Keep trying to save type
+            location: `__FEED__${post.type}`, // Fallback: use location to tag feed posts
             metadata: post.metadata || {}
         })
         .select()

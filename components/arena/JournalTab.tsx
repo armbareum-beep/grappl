@@ -65,7 +65,12 @@ export const JournalTab: React.FC = () => {
         setLoading(true);
         const { data } = await getTrainingLogs(user.id);
         if (data) {
-            setLogs(data);
+            // Double check filtering to ensure no feed posts appear here
+            const cleanLogs = data.filter(log => 
+                (!log.location || !log.location.startsWith('__FEED__')) && 
+                !['sparring', 'routine', 'mastery'].includes((log as any).type)
+            );
+            setLogs(cleanLogs);
         }
         setLoading(false);
     };
