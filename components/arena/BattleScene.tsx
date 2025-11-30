@@ -164,7 +164,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({ myStats, opponent, onB
                                 <div className="flex gap-4 justify-center">
                                     <div className="px-6 py-3 bg-slate-800 rounded-lg border border-yellow-500/30">
                                         <span className="text-slate-400 text-sm block">획득 경험치</span>
-                                        <span className="text-yellow-400 font-bold text-xl">+150 XP</span>
+                                        <span className="text-yellow-400 font-bold text-xl">+50 XP</span>
                                     </div>
                                     <div className="px-6 py-3 bg-slate-800 rounded-lg border border-yellow-500/30">
                                         <span className="text-slate-400 text-sm block">랭킹 포인트</span>
@@ -181,7 +181,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({ myStats, opponent, onB
                                 <p className="text-2xl text-slate-500 font-bold mb-8">아쉽게 패배했습니다.</p>
                                 <div className="px-6 py-3 bg-slate-800 rounded-lg border border-slate-700 inline-block">
                                     <span className="text-slate-400 text-sm block">획득 경험치</span>
-                                    <span className="text-slate-300 font-bold text-xl">+20 XP</span>
+                                    <span className="text-slate-300 font-bold text-xl">+10 XP</span>
                                 </div>
                             </>
                         )}

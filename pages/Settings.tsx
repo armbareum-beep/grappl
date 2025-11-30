@@ -81,9 +81,11 @@ export const Settings: React.FC = () => {
             const { url, error } = await uploadProfileImage(user.id, file);
             if (error) throw error;
 
-            if (url && isCreator) {
-                const { error: updateError } = await updateCreatorProfileImage(user.id, url);
+            if (url) {
+                // Update user profile with new image URL
+                const { error: updateError } = await updateUserProfile({ profileImage: url });
                 if (updateError) throw updateError;
+                
                 setProfileImageUrl(url);
             }
 

@@ -307,6 +307,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         setShareModalData({
             defaultContent,
             metadata: {
+                routineId: routine?.id,
                 routineTitle: routine?.title,
                 durationMinutes,
                 xpEarned,

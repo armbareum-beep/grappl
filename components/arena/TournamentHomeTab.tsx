@@ -10,9 +10,60 @@ export const TournamentHomeTab: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
     const [battleState, setBattleState] = useState<'idle' | 'battling'>('idle');
     const [currentOpponent, setCurrentOpponent] = useState<any>(null);
+    const [matchHistory, setMatchHistory] = useState<any[]>([]);
+    const [matchStats, setMatchStats] = useState({ wins: 0, losses: 0, draws: 0, total: 0 });
+
+    const loadMatchHistory = async () => {
+        try {
+            const { supabase } = await import('../../lib/supabase');
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('match_history')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (error) {
+                console.error('Error loading match history:', error);
+                return;
+            }
+
+            if (data) {
+                // Transform data for MatchHistoryCard
+                const transformedMatches = data.map(match => ({
+                    id: match.id,
+                    date: new Date(match.created_at).toLocaleDateString('ko-KR'),
+                    opponent: match.opponent_name,
+                    result: match.result,
+                    powerChange: match.result === 'win' ? 25 : match.result === 'loss' ? -15 : 0
+                }));
+
+                setMatchHistory(transformedMatches);
+
+                // Calculate stats
+                const wins = data.filter(m => m.result === 'win').length;
+                const losses = data.filter(m => m.result === 'loss').length;
+                const draws = data.filter(m => m.result === 'draw').length;
+                
+                setMatchStats({
+                    wins,
+                    losses,
+                    draws,
+                    total: data.length
+                });
+            }
+        } catch (error) {
+            console.error('Error in loadMatchHistory:', error);
+        }
+    };
 
     useEffect(() => {
         setIsVisible(true);
+        loadMatchHistory();
     }, []);
 
     const handleMatchStart = (opponent: any) => {
@@ -51,16 +102,19 @@ export const TournamentHomeTab: React.FC = () => {
 
             // 3. Update Quest
             const { updateQuestProgress } = await import('../../lib/api');
-            await updateQuestProgress(user.id, 'play_match'); // Assuming this quest exists
+            await updateQuestProgress(user.id, 'tournament'); // Corrected quest type
 
-            alert(result === 'win' ? '승리했습니다! (+50 XP)' : '패배했습니다. (+10 XP)');
+            // alert(result === 'win' ? '승리했습니다! (+50 XP)' : '패배했습니다. (+10 XP)'); // Removed native alert
         } catch (error) {
             console.error('Error saving match result:', error);
-            alert('결과 저장 중 오류가 발생했습니다.');
+            // alert('결과 저장 중 오류가 발생했습니다.'); // Removed native alert
         }
 
         setBattleState('idle');
         setCurrentOpponent(null);
+        
+        // Reload match history after battle
+        loadMatchHistory();
     };
 
     return (
@@ -112,7 +166,13 @@ export const TournamentHomeTab: React.FC = () => {
                     </div>
 
                     <div className="lg:col-span-7 transform transition-all duration-700 delay-300 relative z-10">
-                        <MatchHistoryCard />
+                        <MatchHistoryCard 
+                            matches={matchHistory}
+                            totalMatches={matchStats.total}
+                            wins={matchStats.wins}
+                            losses={matchStats.losses}
+                            draws={matchStats.draws}
+                        />
                     </div>
                 </div>
             </div>
