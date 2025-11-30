@@ -3,17 +3,44 @@ import { TrainingLog } from '../../types';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell, Save } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SocialPostProps {
     post: TrainingLog;
 }
 
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(post.likes || 0);
+    const [showComments, setShowComments] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
+    const [commentText, setCommentText] = useState('');
+    const [comments, setComments] = useState<any[]>([]);
+    const [loadingComments, setLoadingComments] = useState(false);
+
+    // Close menu when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = () => setShowMenu(false);
+        if (showMenu) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [showMenu]);
+
+    // Load comments when showing comment section
+    React.useEffect(() => {
+        if (showComments && comments.length === 0) {
+            loadComments();
+        }
+    }, [showComments]);
 
     const handleLike = () => {
         if (liked) {
@@ -67,17 +94,88 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     };
 
+    const handleShare = async () => {
+        const postUrl = `${window.location.origin}/journal#${post.id}`;
+        const shareData = {
+            title: `${post.userName}의 게시물`,
+            text: post.notes.substring(0, 100) + '...',
+            url: postUrl
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                console.log('Share cancelled');
+            }
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(postUrl);
+            alert('링크가 복사되었습니다!');
+        }
+    };
+
+    const loadComments = async () => {
+        try {
+            setLoadingComments(true);
+            const { getPostComments } = await import('../../lib/api');
+            const { data } = await getPostComments(post.id);
+            if (data) {
+                setComments(data);
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            toastError('댓글을 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoadingComments(false);
+        }
+    };
+
+    const handleAddComment = async () => {
+        if (!user) {
+            toastError('로그인이 필요합니다.');
+            return;
+        }
+
+        if (!commentText.trim()) return;
+
+        try {
+            const { createComment, updateQuestProgress } = await import('../../lib/api');
+            const { data, error } = await createComment(post.id, user.id, commentText.trim());
+
+            if (error) {
+                toastError('댓글 작성 중 오류가 발생했습니다.');
+                return;
+            }
+
+            if (data) {
+                // Add comment to list
+                setComments([...comments, { ...data, user: { name: user.user_metadata?.name || 'User' } }]);
+                setCommentText('');
+                success('댓글이 작성되었습니다!');
+
+                // Update quest progress
+                await updateQuestProgress(user.id, 'give_feedback');
+            }
+        } catch (err) {
+            console.error('Error adding comment:', err);
+            toastError('댓글 작성 중 오류가 발생했습니다.');
+        }
+    };
+
     return (
         <div className="py-6 px-4 sm:px-6 hover:bg-slate-900/30 transition-colors cursor-pointer border-b border-slate-800/50">
             <div className="flex gap-4">
-                {/* Avatar */}
+                    {/* Avatar */}
                 <div className="flex-shrink-0 pt-1">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 overflow-hidden ring-2 ring-slate-800">
-                        {post.user?.profileImage ? (
-                            <img src={post.user.profileImage} alt={post.user.name} className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-slate-800">
+                        {post.userAvatar ? (
+                            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">
-                                {post.user?.name?.[0] || '?'}
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                <span className="text-white font-bold text-lg">
+                                    {post.userName?.[0]?.toUpperCase() || '?'}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -89,10 +187,10 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     <div className="flex items-start justify-between mb-2">
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="font-bold text-white text-base">{post.user?.name || 'Unknown User'}</span>
-                                {post.user?.belt && (
+                                <span className="font-bold text-white text-base">{post.userName || 'Unknown User'}</span>
+                                {post.userBelt && (
                                     <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 font-medium uppercase tracking-wide">
-                                        {post.user.belt}
+                                        {post.userBelt}
                                     </span>
                                 )}
                             </div>
@@ -106,22 +204,66 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 )}
                             </span>
                         </div>
-                        <button className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors">
-                            <MoreHorizontal className="w-5 h-5" />
-                        </button>
+                        <div className="relative">
+                            <button 
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setShowMenu(!showMenu); 
+                                }}
+                                className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
+                            >
+                                <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                            {showMenu && (
+                                <div 
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-slate-700 py-1 z-50"
+                                >
+                                    <button 
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            alert('신고 기능은 곧 추가될 예정입니다.');
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                                    >
+                                        게시물 신고
+                                    </button>
+
+                                    <button 
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            if (confirm('정말 삭제하시겠습니까?')) {
+                                                alert('삭제 기능은 곧 추가될 예정입니다.');
+                                            }
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 transition-colors"
+                                    >
+                                        삭제하기
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Text Body */}
                     <div className="mb-4">
-                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 100 && !isExpanded ? 'line-clamp-4' : ''}`}>
                             {post.notes}
                         </p>
-                        {post.notes.length > 150 && !isExpanded && (
+                        {post.notes.length > 100 && !isExpanded && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                                className="text-slate-500 text-sm mt-1 hover:text-slate-300 font-medium"
+                                className="text-blue-400 text-sm mt-1 hover:text-blue-300 font-medium"
                             >
                                 더 보기
+                            </button>
+                        )}
+                        {isExpanded && post.notes.length > 100 && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                                className="text-blue-400 text-sm mt-1 hover:text-blue-300 font-medium"
+                            >
+                                접기
                             </button>
                         )}
                     </div>
@@ -178,12 +320,23 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             </div>
                         </div>
                     ) : post.type === 'routine' && post.metadata ? (
-                        <div className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                            <div className="flex gap-4 items-center mb-3">
+                        <div 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (post.metadata?.routineId) {
+                                    navigate(`/routines/${post.metadata.routineId}`);
+                                } else {
+                                    // Fallback for old posts without ID
+                                    alert('이 루틴의 상세 정보를 찾을 수 없습니다.');
+                                }
+                            }}
+                            className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4 cursor-pointer hover:border-blue-500/50 transition-colors"
+                        >
+                            <div className="flex gap-4 items-start mb-3">
                                 <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <Dumbbell className="w-8 h-8 text-blue-500" />
                                 </div>
-                                <div>
+                                <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-white text-lg leading-tight mb-1">{post.metadata.routineTitle}</h3>
                                     <div className="flex items-center gap-3 text-xs text-slate-400">
                                         <span>⏱ {post.metadata.durationMinutes}분</span>
@@ -269,14 +422,81 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             <Heart className={`w-5 h-5 ${liked ? 'fill-pink-500' : ''}`} />
                             <span>{likeCount}</span>
                         </button>
-                        <button className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }}
+                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors"
+                        >
                             <MessageCircle className="w-5 h-5" />
                             <span>{post.comments || 0}</span>
                         </button>
-                        <button className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-colors ml-auto">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-colors ml-auto"
+                        >
                             <Share2 className="w-5 h-5" />
                         </button>
                     </div>
+
+                    {/* Comments Section */}
+                    {showComments && (
+                        <div className="mt-4 pt-4 border-t border-slate-800">
+                            <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                                {loadingComments ? (
+                                    <div className="text-sm text-slate-400 text-center py-4">
+                                        로딩 중...
+                                    </div>
+                                ) : comments.length === 0 ? (
+                                    <div className="text-sm text-slate-400 text-center py-4">
+                                        아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
+                                    </div>
+                                ) : (
+                                    comments.map((comment: any) => (
+                                        <div key={comment.id} className="flex gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-white text-xs font-bold">
+                                                    {comment.user?.name?.[0]?.toUpperCase() || '?'}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 bg-slate-800/50 rounded-lg px-3 py-2">
+                                                <div className="text-xs text-slate-400 mb-1">
+                                                    {comment.user?.name || 'User'}
+                                                </div>
+                                                <div className="text-sm text-slate-200">
+                                                    {comment.content}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleAddComment();
+                                        }
+                                    }}
+                                    placeholder="댓글을 입력하세요..."
+                                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddComment();
+                                    }}
+                                    disabled={!commentText.trim()}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    게시
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

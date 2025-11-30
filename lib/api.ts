@@ -817,49 +817,6 @@ export async function updatePassword(password: string) {
 
     return { data, error };
 }
-
-/**
- * Update user profile
- */
-export async function updateUserProfile(updates: { name?: string }) {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) return { error: userError };
-    if (!user) return { error: new Error('No user logged in') };
-
-    // 1. Update auth.users metadata
-    const { error: authError } = await supabase.auth.updateUser({
-        data: { name: updates.name }
-    });
-    if (authError) return { error: authError };
-
-    // 2. Update public.users table
-    const { error: dbError } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id);
-
-    if (dbError) return { error: dbError };
-
-    // 3. If user is a creator, update creators table as well
-    // Check if user is a creator first
-    const { data: creator } = await supabase
-        .from('creators')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-    if (creator) {
-        const { error: creatorError } = await supabase
-            .from('creators')
-            .update({ name: updates.name })
-            .eq('id', user.id);
-
-        if (creatorError) console.error('Error updating creator name:', creatorError);
-    }
-
-    return { error: null };
-}
-
 // ==================== PROFILE IMAGE UPLOAD ====================
 
 /**
@@ -1600,6 +1557,37 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         });
     }
 
+    // 6. Fetch belt info and profile images from user_progress and users
+    const beltMap: Record<string, string> = {};
+    const avatarMap: Record<string, string> = {};
+    
+    const { data: progressData } = await supabase
+        .from('user_progress')
+        .select('user_id, belt_level')
+        .in('user_id', userIds);
+        
+    if (progressData) {
+        const { getBeltInfo } = await import('./belt-system');
+        progressData.forEach((p: any) => {
+            const beltInfo = getBeltInfo(p.belt_level);
+            beltMap[p.user_id] = beltInfo.name;
+        });
+    }
+
+    // Fetch profile images from users table
+    const { data: usersData } = await supabase
+        .from('users')
+        .select('id, profile_image_url')
+        .in('id', userIds);
+        
+    if (usersData) {
+        usersData.forEach((u: any) => {
+            if (u.profile_image_url) {
+                avatarMap[u.id] = u.profile_image_url;
+            }
+        });
+    }
+
     const logs: TrainingLog[] = data.map((log: any) => {
         // Restore type from location tag if needed (since we might not save type to DB)
         let type = log.type;
@@ -1611,6 +1599,8 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             id: log.id,
             userId: log.user_id,
             userName: userMap[log.user_id] || 'User',
+            userAvatar: avatarMap[log.user_id],
+            userBelt: beltMap[log.user_id],
             date: log.date,
             durationMinutes: log.duration_minutes,
             techniques: log.techniques || [],
@@ -3696,6 +3686,63 @@ export async function createFeedPost(post: {
         } as TrainingLog,
         error: null
     };
+}
+
+// ==================== COMMENTS ====================
+
+/**
+ * Create a comment on a post
+ */
+export async function createComment(postId: string, userId: string, content: string) {
+    const { data, error } = await supabase
+        .from('post_comments')
+        .insert({
+            post_id: postId,
+            user_id: userId,
+            content
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating comment:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Get comments for a post
+ */
+export async function getPostComments(postId: string) {
+    const { data, error } = await supabase
+        .from('post_comments')
+        .select(`
+            *,
+            user:users!user_id(name)
+        `)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching comments:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
+ * Delete a comment
+ */
+export async function deleteComment(commentId: string) {
+    const { error } = await supabase
+        .from('post_comments')
+        .delete()
+        .eq('id', commentId);
+
+    return { error };
 }
 
 // ==================== SUBSCRIPTION TIERS ====================
