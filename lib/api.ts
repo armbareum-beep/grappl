@@ -850,6 +850,34 @@ export async function uploadProfileImage(userId: string, file: File): Promise<{ 
 }
 
 /**
+ * Update user profile information
+ */
+export async function updateUserProfile(userId: string, updates: {
+    name?: string;
+    belt?: string;
+    profileImageUrl?: string;
+}) {
+    const dbData: any = {};
+    if (updates.name !== undefined) dbData.name = updates.name;
+    if (updates.belt !== undefined) dbData.belt = updates.belt;
+    if (updates.profileImageUrl !== undefined) dbData.profile_image_url = updates.profileImageUrl;
+
+    const { data, error } = await supabase
+        .from('users')
+        .update(dbData)
+        .eq('id', userId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating user profile:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+/**
  * Upload hero image to Supabase Storage
  */
 export async function uploadHeroImage(file: File): Promise<{ url: string | null; error: any }> {
