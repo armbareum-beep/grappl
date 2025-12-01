@@ -4,7 +4,7 @@ import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews,
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck, Save } from 'lucide-react';
+import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck, Save, Heart, Bookmark, MoreVertical } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 
@@ -37,6 +37,10 @@ export const RoutineDetail: React.FC = () => {
     const [isTrainingMode, setIsTrainingMode] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+    
+    // Saved Drills State
+    const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
+    const [likedDrills, setLikedDrills] = useState<Set<string>>(new Set());
 
     const isCustomRoutine = id?.startsWith('custom-');
 
@@ -46,6 +50,16 @@ export const RoutineDetail: React.FC = () => {
             checkUser();
         }
     }, [id]);
+    
+    // Load saved and liked drills from localStorage
+    useEffect(() => {
+        const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+        const savedIds = new Set(saved.map((d: Drill) => d.id));
+        setSavedDrills(savedIds);
+
+        const liked = JSON.parse(localStorage.getItem('liked_drills') || '[]');
+        setLikedDrills(new Set(liked as string[]));
+    }, []);
 
     useEffect(() => {
         if (routine && routine.drills && routine.drills.length > 0) {
@@ -82,6 +96,7 @@ export const RoutineDetail: React.FC = () => {
                 const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
                 const found = customRoutines.find((r: any) => r.id === id);
                 if (found) {
+                    console.log('Loaded custom routine:', found);
                     setRoutine(found);
                     setLoading(false);
                     return;
@@ -94,7 +109,12 @@ export const RoutineDetail: React.FC = () => {
         // 2. Fetch from API/DB
         try {
             const { data: routineData, error } = await getRoutineById(id);
+            console.log('Fetched routine data:', routineData);
             if (routineData) {
+                // Fix: Ensure drills property exists if items is returned
+                if (!routineData.drills && (routineData as any).items) {
+                    routineData.drills = (routineData as any).items;
+                }
                 setRoutine(routineData);
                 await incrementDrillRoutineViews(id);
             } else if (error) {
@@ -110,6 +130,7 @@ export const RoutineDetail: React.FC = () => {
     const loadDrill = async (index: number) => {
         if (!routine || !routine.drills || index >= routine.drills.length) return;
         const drill = routine.drills[index];
+        console.log('Loading drill:', drill);
 
         // If drill is just an ID, fetch full data
         if (typeof drill === 'string') {
@@ -117,9 +138,10 @@ export const RoutineDetail: React.FC = () => {
             setCurrentDrill(drillData);
         } else {
             // If drill object exists but missing vimeoUrl (incomplete data), fetch full details
-            if (!drill.vimeoUrl) {
+            if (!drill.vimeoUrl && !drill.videoUrl) {
                 const drillData = await getDrillById(drill.id);
                 if (drillData) {
+                    console.log('Fetched full drill data:', drillData);
                     setCurrentDrill(drillData);
                 } else {
                     setCurrentDrill(drill);
@@ -144,7 +166,7 @@ export const RoutineDetail: React.FC = () => {
                 setIsSubscriber(userData.is_subscriber);
                 // Store tier in user object or separate state if needed, 
                 // but for now we can just use the userData directly or update a state
-                setUser(prev => ({ ...prev, subscription_tier: userData.subscription_tier }));
+                setUser((prev: any) => ({ ...prev, subscription_tier: userData.subscription_tier }));
             }
 
             if (id) {
@@ -337,6 +359,72 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         navigate('/journal');
     };
 
+    const handleSaveDrill = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!currentDrill) return;
+
+        const newSaved = new Set(savedDrills);
+        let savedDrillsList = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+
+        if (newSaved.has(currentDrill.id)) {
+            // Remove
+            newSaved.delete(currentDrill.id);
+            savedDrillsList = savedDrillsList.filter((d: Drill) => d.id !== currentDrill.id);
+            alert('저장된 드릴에서 제거되었습니다.');
+        } else {
+            // Add
+            newSaved.add(currentDrill.id);
+            // Ensure we save a clean drill object
+            if (!savedDrillsList.find((d: Drill) => d.id === currentDrill.id)) {
+                savedDrillsList.push(currentDrill);
+            }
+            alert('드릴이 저장되었습니다! 훈련 루틴 탭에서 확인할 수 있습니다.');
+        }
+
+        localStorage.setItem('saved_drills', JSON.stringify(savedDrillsList));
+        setSavedDrills(newSaved);
+    };
+
+    const handleLikeDrill = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!currentDrill) return;
+
+        const newLiked = new Set(likedDrills);
+        let likedList = JSON.parse(localStorage.getItem('liked_drills') || '[]');
+
+        if (newLiked.has(currentDrill.id)) {
+            newLiked.delete(currentDrill.id);
+            likedList = likedList.filter((id: string) => id !== currentDrill.id);
+        } else {
+            newLiked.add(currentDrill.id);
+            if (!likedList.includes(currentDrill.id)) {
+                likedList.push(currentDrill.id);
+            }
+        }
+
+        localStorage.setItem('liked_drills', JSON.stringify(likedList));
+        setLikedDrills(newLiked);
+    };
+
+    const handleShare = async () => {
+        if (!currentDrill) return;
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: currentDrill.title,
+                    text: `Check out this drill: ${currentDrill.title}`,
+                    url: window.location.href
+                });
+            } catch (err) {
+                console.log('Share error:', err);
+            }
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            alert('링크가 복사되었습니다!');
+        }
+    };
+
     const handleDrillSelect = (index: number) => {
         setCurrentDrillIndex(index);
     };
@@ -365,8 +453,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         ? 'from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-900/20'
         : 'from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/20';
 
-    // Check if drill is playable (owned OR free OR has vimeoUrl OR premium subscriber)
-    const isPlayable = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0 || !!currentDrill.vimeoUrl;
+    // Check if drill is playable
+    // 1. Must own the routine OR be premium subscriber OR drill is free
+    // 2. Must have a valid video URL (prefer videoUrl for 9:16 format, fallback to vimeoUrl)
+    const hasValidVideoUrl = currentDrill.videoUrl || 
+        (currentDrill.vimeoUrl && 
+         !currentDrill.vimeoUrl.includes('123456789') && 
+         !currentDrill.vimeoUrl.includes('placeholder'));
+    
+    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0;
+    const isPlayable = hasAccess && hasValidVideoUrl;
 
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
@@ -393,14 +489,27 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 훈련 완료하기
                             </Button>
                         </div>
-                    ) : isPlayable && currentDrill.vimeoUrl ? (
-                        <iframe
-                            src={currentDrill.vimeoUrl}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
-                        ></iframe>
+                    ) : isPlayable && (currentDrill.videoUrl || currentDrill.vimeoUrl) ? (
+                        currentDrill.videoUrl ? (
+                            // Use direct video URL for 9:16 vertical format (same as drill reels)
+                            <video
+                                src={currentDrill.videoUrl}
+                                className="w-full h-full object-cover"
+                                controls
+                                autoPlay
+                                loop
+                                playsInline
+                            />
+                        ) : (
+                            // Fallback to Vimeo iframe
+                            <iframe
+                                src={currentDrill.vimeoUrl}
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                allowFullScreen
+                            ></iframe>
+                        )
                     ) : (
                         <div className="w-full h-full relative group">
                             <img
@@ -431,18 +540,75 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         </div>
                     )}
 
-                    {/* Floating Actions */}
-                    <div className="absolute right-4 bottom-24 flex flex-col gap-4">
-                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
-                            <ThumbsUp className="w-6 h-6" />
-                        </button>
-                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
-                            <MessageSquare className="w-6 h-6" />
-                        </button>
-                        <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors border border-white/10">
-                            <Share2 className="w-6 h-6" />
-                        </button>
-                    </div>
+                    {/* Overlay UI - Match Drill Reels Feed */}
+                    {isPlayable && !isTrainingMode && (
+                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                            <div className="flex items-end justify-between w-full pointer-events-auto">
+                                {/* Left: Info */}
+                                <div className="flex-1 pr-4">
+                                    <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
+                                        {currentDrill.title}
+                                    </h2>
+                                    <p className="text-white/80 text-sm mb-3">
+                                        @{currentDrill.creatorName || 'Instructor'}
+                                    </p>
+
+                                    {/* Tags */}
+                                    {currentDrill.tags && currentDrill.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                                <span key={idx} className="text-white/90 text-sm">
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right: Action Buttons */}
+                                <div className="flex flex-col gap-6">
+                                    {/* Like */}
+                                    <button
+                                        onClick={handleLikeDrill}
+                                        className="flex flex-col items-center gap-1 group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                            <Heart
+                                                className={`w-6 h-6 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                                            />
+                                        </div>
+                                        <span className="text-white text-xs">
+                                            {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
+                                        </span>
+                                    </button>
+
+                                    {/* Save */}
+                                    <button
+                                        onClick={handleSaveDrill}
+                                        className="flex flex-col items-center gap-1 group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                            <Bookmark
+                                                className={`w-6 h-6 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
+                                            />
+                                        </div>
+                                        <span className="text-white text-xs">저장</span>
+                                    </button>
+
+                                    {/* Share */}
+                                    <button
+                                        onClick={handleShare}
+                                        className="flex flex-col items-center gap-1 group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                            <Share2 className="w-6 h-6 text-white" />
+                                        </div>
+                                        <span className="text-white text-xs">공유</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Progress Indicator */}
                     {owns && (
@@ -526,9 +692,11 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     {/* Current Drill Info */}
                     {!isTrainingMode && (
                         <div className="p-6 border-b border-zinc-900">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className={`text-xs font-bold ${accentColor}`}>현재 재생중</span>
-                                <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-bold ${accentColor}`}>현재 재생중</span>
+                                    <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
+                                </div>
                             </div>
                             <h3 className="text-xl font-bold text-white mb-2">{currentDrill.title}</h3>
                             <p className="text-sm text-zinc-400 leading-relaxed">

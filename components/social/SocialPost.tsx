@@ -11,6 +11,40 @@ interface SocialPostProps {
     post: TrainingLog;
 }
 
+// Helper function to convert YouTube URL to embed URL
+const getYouTubeEmbedUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // Already an embed URL
+    if (url.includes('youtube.com/embed/')) {
+        return url;
+    }
+    
+    // Extract video ID from various YouTube URL formats
+    let videoId = '';
+    
+    // Format: https://www.youtube.com/watch?v=VIDEO_ID
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('watch?v=')[1]?.split('&')[0];
+    }
+    // Format: https://youtu.be/VIDEO_ID
+    else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    // Format: https://www.youtube.com/v/VIDEO_ID
+    else if (url.includes('youtube.com/v/')) {
+        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
+    }
+    
+    // Return embed URL if we found a video ID
+    if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+    }
+    
+    // Return original URL if we couldn't parse it
+    return url;
+};
+
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -376,6 +410,47 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 <span className="font-bold text-white">{post.metadata.opponentName}</span>
                                 <span className="text-xs text-slate-500">({post.metadata.opponentBelt})</span>
                             </div>
+                            
+                            {/* Video if available */}
+                            {post.metadata.videoUrl && (
+                                <div className="mt-3 rounded-lg overflow-hidden border border-slate-700">
+                                    <iframe
+                                        src={getYouTubeEmbedUrl(post.metadata.videoUrl)}
+                                        className="w-full aspect-video"
+                                        frameBorder="0"
+                                        allow="autoplay; fullscreen; picture-in-picture"
+                                        allowFullScreen
+                                    ></iframe>
+                                </div>
+                            )}
+                            
+                            {/* What Worked / To Improve */}
+                            {(post.metadata.whatWorked || post.metadata.whatToImprove) && (
+                                <div className="grid md:grid-cols-2 gap-3 mt-3">
+                                    {post.metadata.whatWorked && (
+                                        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                                </svg>
+                                                <span className="text-xs font-semibold text-green-400">효과적이었던 것</span>
+                                            </div>
+                                            <p className="text-sm text-slate-300">{post.metadata.whatWorked}</p>
+                                        </div>
+                                    )}
+                                    {post.metadata.whatToImprove && (
+                                        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className="text-xs font-semibold text-blue-400">개선할 점</span>
+                                            </div>
+                                            <p className="text-sm text-slate-300">{post.metadata.whatToImprove}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ) : (post.mediaUrl || post.youtubeUrl) && (
                         <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg max-h-[600px]">

@@ -75,6 +75,40 @@ const MOCK_REVIEWS: SparringReview[] = [
     }
 ];
 
+// Helper function to convert YouTube URL to embed URL
+const getYouTubeEmbedUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // Already an embed URL
+    if (url.includes('youtube.com/embed/')) {
+        return url;
+    }
+    
+    // Extract video ID from various YouTube URL formats
+    let videoId = '';
+    
+    // Format: https://www.youtube.com/watch?v=VIDEO_ID
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('watch?v=')[1]?.split('&')[0];
+    }
+    // Format: https://youtu.be/VIDEO_ID
+    else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    // Format: https://www.youtube.com/v/VIDEO_ID
+    else if (url.includes('youtube.com/v/')) {
+        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
+    }
+    
+    // Return embed URL if we found a video ID
+    if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+    }
+    
+    // Return original URL if we couldn't parse it
+    return url;
+};
+
 export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -244,7 +278,10 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     opponentBelt: formData.opponentBelt,
                     result: formData.result,
                     rounds: formData.rounds,
-                    xpEarned: earnedXp
+                    xpEarned: earnedXp,
+                    videoUrl: formData.videoUrl,
+                    whatWorked: formData.whatWorked,
+                    whatToImprove: formData.whatToImprove
                 }
             });
 
@@ -384,6 +421,19 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Video */}
+                            {review.videoUrl && (
+                                <div className="mb-4 rounded-lg overflow-hidden border border-slate-800">
+                                    <iframe
+                                        src={getYouTubeEmbedUrl(review.videoUrl)}
+                                        className="w-full aspect-video"
+                                        frameBorder="0"
+                                        allow="autoplay; fullscreen; picture-in-picture"
+                                        allowFullScreen
+                                    ></iframe>
+                                </div>
+                            )}
 
                             {/* Notes */}
                             {review.notes && (

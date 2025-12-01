@@ -2999,7 +2999,7 @@ export async function getRoutineById(id: string) {
     // Transform to match DrillRoutine interface with items
     const routine = {
         ...data,
-        items: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
+        drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
             ...item.drill,
             orderIndex: item.order_index
         }))
