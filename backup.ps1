@@ -1,30 +1,51 @@
-# Grapplay 프로젝트 백업 스크립트
+# Grapplay Backup Script
+$OutputEncoding = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-Write-Host "=== Grapplay 백업 시작 ===" -ForegroundColor Green
+# Auto-add Git path
+$gitPaths = @(
+    "C:\Program Files\Git\cmd",
+    "C:\Program Files\Git\bin",
+    "$env:LOCALAPPDATA\Programs\Git\cmd"
+)
 
-# 변경사항 확인
-Write-Host "`n변경된 파일:" -ForegroundColor Yellow
-git status --short
-
-# 사용자에게 커밋 메시지 입력 받기
-$commitMessage = Read-Host "`n커밋 메시지를 입력하세요 (예: 홈 화면 디자인 수정)"
-
-if ([string]::IsNullOrWhiteSpace($commitMessage)) {
-    $commitMessage = "자동 백업: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+foreach ($path in $gitPaths) {
+    if (Test-Path $path) {
+        $env:Path += ";$path"
+        break
+    }
 }
 
-# Git 명령어 실행
-Write-Host "`n파일 추가 중..." -ForegroundColor Cyan
+# Check Git
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host "❌ Git not found. Please install Git." -ForegroundColor Red
+    exit
+}
+
+Write-Host "=== Grapplay Backup Start ===" -ForegroundColor Green
+
+# Check status
+Write-Host "`nModified files:" -ForegroundColor Yellow
+git status --short
+
+# Get commit message
+$commitMessage = Read-Host "`nEnter commit message (default: Auto Backup)"
+
+if ([string]::IsNullOrWhiteSpace($commitMessage)) {
+    $commitMessage = "Auto Backup: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+}
+
+# Execute Git commands
+Write-Host "`nAdding files..." -ForegroundColor Cyan
 git add .
 
-Write-Host "커밋 생성 중..." -ForegroundColor Cyan
+Write-Host "Committing..." -ForegroundColor Cyan
 git commit -m "$commitMessage"
 
-Write-Host "GitHub에 업로드 중..." -ForegroundColor Cyan
+Write-Host "Pushing to GitHub..." -ForegroundColor Cyan
 git push origin main
 
-Write-Host "`n=== 백업 완료! ===" -ForegroundColor Green
-Write-Host "GitHub에서 확인: https://github.com/armbareum-beep/grappl" -ForegroundColor Blue
+Write-Host "`n=== Backup Complete! ===" -ForegroundColor Green
+Write-Host "Check at: https://github.com/armbareum-beep/grappl" -ForegroundColor Blue
 
-# 5초 후 자동 종료
+# Auto close after 5 seconds
 Start-Sleep -Seconds 5
