@@ -1594,12 +1594,12 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     // 6. Fetch belt info and profile images from user_progress and users
     const beltMap: Record<string, string> = {};
     const avatarMap: Record<string, string> = {};
-    
+
     const { data: progressData } = await supabase
         .from('user_progress')
         .select('user_id, belt_level')
         .in('user_id', userIds);
-        
+
     if (progressData) {
         const { getBeltInfo } = await import('./belt-system');
         progressData.forEach((p: any) => {
@@ -1613,7 +1613,7 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         .from('users')
         .select('id, profile_image_url')
         .in('id', userIds);
-        
+
     if (usersData) {
         usersData.forEach((u: any) => {
             if (u.profile_image_url) {
@@ -2842,7 +2842,7 @@ export async function getLoginStreak(userId: string) {
 export async function getDrills(creatorId?: string) {
     let query = supabase
         .from('drills')
-        .select('*, creator:creators(name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (creatorId) {
@@ -2850,6 +2850,9 @@ export async function getDrills(creatorId?: string) {
     }
 
     const { data, error } = await query;
+
+    console.log('getDrills result:', { creatorId, data, error });
+    console.log('Raw drill data (first item):', data?.[0]);
 
     if (error) {
         console.error('Error fetching drills:', error);
@@ -2869,8 +2872,7 @@ export async function createDrill(drillData: Partial<Drill>) {
         thumbnail_url: drillData.thumbnailUrl,
         vimeo_url: drillData.vimeoUrl,
         description_video_url: drillData.descriptionVideoUrl,
-        duration: drillData.duration,
-        price: drillData.price,
+        duration_minutes: drillData.durationMinutes,
     };
 
     const { data, error } = await supabase
@@ -2896,8 +2898,7 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.thumbnailUrl) dbData.thumbnail_url = drillData.thumbnailUrl;
     if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
-    if (drillData.duration) dbData.duration = drillData.duration;
-    if (drillData.price !== undefined) dbData.price = drillData.price;
+    if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
 
     const { data, error } = await supabase
         .from('drills')
@@ -2972,10 +2973,10 @@ export async function getRoutineById(id: string) {
             creatorId: mockDrill.creatorId,
             creatorName: mockDrill.creatorName,
             thumbnailUrl: mockDrill.thumbnailUrl,
-            price: mockDrill.price,
+            price: 0,
             difficulty: mockDrill.difficulty,
             category: mockDrill.category,
-            totalDurationMinutes: parseInt(mockDrill.duration.split(':')[0]) || 5,
+            totalDurationMinutes: mockDrill.durationMinutes || 5,
             drillCount: 1,
             views: mockDrill.views,
             createdAt: mockDrill.createdAt,
@@ -3151,11 +3152,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 1250,
-        duration: '5:30',
+        durationMinutes: 5,
         length: '5:30',
         tags: ['armbar', 'submission', 'closed guard'],
         likes: 150,
-        price: 0,
         createdAt: new Date().toISOString()
     },
     {
@@ -3171,11 +3171,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 890,
-        duration: '4:15',
+        durationMinutes: 4,
         length: '4:15',
         tags: ['triangle', 'choke', 'guard'],
         likes: 95,
-        price: 0,
         createdAt: new Date().toISOString()
     },
     {
@@ -3191,11 +3190,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 2100,
-        duration: '3:45',
+        durationMinutes: 3,
         length: '3:45',
         tags: ['passing', 'drills', 'speed'],
         likes: 230,
-        price: 0,
         createdAt: new Date().toISOString()
     },
     {
@@ -3211,11 +3209,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 3400,
-        duration: '6:10',
+        durationMinutes: 6,
         length: '6:10',
         tags: ['x-guard', 'sweep', 'butterfly'],
         likes: 450,
-        price: 0,
         createdAt: new Date().toISOString()
     },
     {
@@ -3231,11 +3228,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 1800,
-        duration: '7:20',
+        durationMinutes: 7,
         length: '7:20',
         tags: ['kimura', 'side control', 'submission'],
         likes: 210,
-        price: 0,
         createdAt: new Date().toISOString()
     },
     {
@@ -3251,11 +3247,10 @@ const MOCK_DRILLS: Drill[] = [
         vimeoUrl: 'https://player.vimeo.com/video/76979871',
         aspectRatio: '9:16',
         views: 2900,
-        duration: '5:45',
+        durationMinutes: 5,
         length: '5:45',
         tags: ['delariva', 'back take', 'berimbolo'],
         likes: 380,
-        price: 0,
         createdAt: new Date().toISOString()
     }
 ];
@@ -3361,7 +3356,8 @@ export async function getUserRoutines(userId: string) {
 
 // Helper for transforming drill data
 function transformDrill(data: any): Drill {
-    return {
+    console.log('transformDrill input:', data);
+    const result = {
         id: data.id,
         title: data.title,
         description: data.description,
@@ -3372,15 +3368,17 @@ function transformDrill(data: any): Drill {
         thumbnailUrl: data.thumbnail_url,
         videoUrl: data.video_url,
         vimeoUrl: data.vimeo_url,
+        descriptionVideoUrl: data.description_video_url, // Added this line
         aspectRatio: '9:16',
         views: data.views || 0,
-        duration: data.duration_minutes || data.duration || '0:30',
+        durationMinutes: data.duration_minutes || 0,
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
-        price: data.price || 0,
         createdAt: data.created_at,
     };
+    console.log('transformDrill output:', result);
+    return result;
 }
 
 // Helper for transforming routine data
@@ -3955,13 +3953,13 @@ export async function getUserStreak(userId: string): Promise<{ data: number | nu
 /**
  * Get user's training streak (daily training activities)
  */
-export async function getUserTrainingStreak(userId: string): Promise<{ 
-    data: { 
-        currentStreak: number; 
-        longestStreak: number; 
+export async function getUserTrainingStreak(userId: string): Promise<{
+    data: {
+        currentStreak: number;
+        longestStreak: number;
         lastTrainingDate: string | null;
-    } | null; 
-    error: any 
+    } | null;
+    error: any
 }> {
     const { data, error } = await supabase.rpc('get_user_training_streak', {
         p_user_id: userId
@@ -3973,9 +3971,9 @@ export async function getUserTrainingStreak(userId: string): Promise<{
     }
 
     if (!data || data.length === 0) {
-        return { 
-            data: { currentStreak: 0, longestStreak: 0, lastTrainingDate: null }, 
-            error: null 
+        return {
+            data: { currentStreak: 0, longestStreak: 0, lastTrainingDate: null },
+            error: null
         };
     }
 
@@ -4051,7 +4049,7 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
         .from('training_logs')
         .select('date')
         .eq('user_id', userId);
-    
+
     // Count unique dates
     const uniqueLogDays = new Set(logDates?.map(l => l.date)).size;
 
@@ -4078,7 +4076,7 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
 
     // 4. Get Belt Level
     const beltLevel = await getUserBeltLevel(userId);
-    
+
     // 5. Calculate Scores
     const LOG_MULTIPLIER = 10;
     const ROUTINE_MULTIPLIER = 50;

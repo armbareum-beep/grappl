@@ -43,6 +43,7 @@ import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
 import { Arena } from './pages/Arena';
 import { TechniqueRoadmapDashboard } from './components/technique/TechniqueRoadmapDashboard';
 import { TechniqueDetailPage } from './pages/TechniqueDetail';
+import { LessonDetail } from './pages/LessonDetail';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -99,6 +100,7 @@ const App: React.FC = () => {
               <Route path="/arena" element={<Arena />} />
               <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
               <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
+              <Route path="/lessons/:id" element={<LessonDetail />} />
               <Route path="/settings" element={<Settings />} />
 
               {/* Admin Routes */}

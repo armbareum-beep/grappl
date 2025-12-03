@@ -54,8 +54,11 @@ export interface Lesson {
   description: string;
   lessonNumber: number;
   vimeoUrl?: string;
+  thumbnailUrl?: string; // Added for dashboard display
+  durationMinutes?: number; // Added for dashboard display
   length: string;
   difficulty: Difficulty;
+  views?: number; // Added for dashboard display
   createdAt: string;
 }
 
@@ -335,11 +338,10 @@ export interface Drill {
   descriptionVideoUrl?: string; // 설명 영상 URL
   vimeoUrl?: string;
   aspectRatio: '9:16'; // 세로 영상
-  duration: string; // 예: "2:30"
+  durationMinutes: number;
   length?: string; // Alternative format
   tags?: string[]; // For hashtags
   likes?: number;
-  price: number;
   views: number;
   createdAt: string;
 }

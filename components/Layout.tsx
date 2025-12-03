@@ -79,12 +79,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${isActive(item.href)
+                    className={`px-2 lg:px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 lg:space-x-2 whitespace-nowrap ${isActive(item.href)
                       ? 'bg-blue-600 text-white'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                       }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 flex-shrink-0" />
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -92,31 +92,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             {/* Right side buttons */}
-            <div className="hidden md:flex items-center space-x-3">
+            <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
               {user && <NotificationDropdown />}
               {user && isAdmin && (
                 <>
                   <Link to="/admin/dashboard">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-purple-500 text-purple-400 hover:bg-purple-900/30">
-                      <Settings className="w-4 h-4" />
-                      <span>관리자 관리</span>
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-purple-500 text-purple-400 hover:bg-purple-900/30 whitespace-nowrap px-2 lg:px-3">
+                      <Settings className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden lg:inline">관리자 관리</span>
                     </Button>
                   </Link>
                 </>
               )}
               {user && !isCreator && (
                 <Link to="/become-creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <Upload className="w-4 h-4" />
-                    <span>인스트럭터 되기</span>
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3">
+                    <Upload className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden lg:inline">인스트럭터 되기</span>
                   </Button>
                 </Link>
               )}
               {user && isCreator && (
                 <Link to="/creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <Upload className="w-4 h-4" />
-                    <span>인스트럭터</span>
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3">
+                    <Upload className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden lg:inline">인스트럭터</span>
                   </Button>
                 </Link>
               )}
@@ -125,10 +125,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    className="flex items-center space-x-2 px-2 lg:px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                   >
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
+                    <User className="w-4 h-4 flex-shrink-0" />
+                    <span className="font-medium hidden lg:inline">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
                   </button>
 
                   {userMenuOpen && (

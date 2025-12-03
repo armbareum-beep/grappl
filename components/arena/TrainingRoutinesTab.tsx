@@ -22,6 +22,9 @@ export const TrainingRoutinesTab: React.FC = () => {
     // Click-to-Place State
     const [selectedRoutineForPlacement, setSelectedRoutineForPlacement] = useState<DrillRoutine | null>(null);
 
+    // Show More/Less State
+    const [showAllRoutines, setShowAllRoutines] = useState(false);
+
     useEffect(() => {
         const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
         setSavedDrills(saved);
@@ -127,7 +130,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             clone.style.zIndex = '1000';
             clone.style.pointerEvents = 'none';
 
-            // Remove transitions and transforms to ensure a static "snapshot"
+            // Remove transitions and transforms to ensure a static \"snapshot\"
             clone.style.transition = 'none';
             clone.style.transform = 'none';
 
@@ -178,129 +181,12 @@ export const TrainingRoutinesTab: React.FC = () => {
         setRoutines(prev => prev.filter(r => r.id !== routineId));
     };
 
+    const ROUTINES_DISPLAY_LIMIT = 6;
+    const displayedRoutines = showAllRoutines ? routines : routines.slice(0, ROUTINES_DISPLAY_LIMIT);
+
     return (
         <div className="space-y-8 min-h-screen">
-            {/* Weekly Planner */}
-            <WeeklyRoutinePlanner
-                selectedRoutine={selectedRoutineForPlacement}
-                onAddToDay={handleRoutineAdded}
-            />
-
-            {/* My Routines Section */}
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <PlaySquare className="w-5 h-5 text-blue-500" />
-                        나만의 루틴
-                    </h2>
-                    {selectedRoutineForPlacement && (
-                        <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2">
-                            <MousePointerClick className="w-4 h-4" />
-                            배치할 요일을 선택하세요
-                            <button
-                                onClick={() => setSelectedRoutineForPlacement(null)}
-                                className="text-slate-500 hover:text-white underline ml-2"
-                            >
-                                취소
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {loading ? (
-                    <div className="text-center py-12 text-slate-500">로딩 중...</div>
-                ) : routines.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {routines.map((routine) => {
-                            const isCompleted = completedRoutineIds.has(routine.id);
-                            const isSelected = selectedRoutineForPlacement?.id === routine.id;
-
-                            return (
-                                <div
-                                    key={routine.id}
-                                    onClick={() => handleRoutineClick(routine)}
-                                    className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative 
-                                        ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
-                                        ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
-                                    `}
-                                >
-                                    {/* Selection and Delete Button Overlay */}
-                                    <div className="absolute top-2 right-2 z-20 flex gap-2">
-                                        <button
-                                            onClick={(e) => handleSelectForPlacement(e, routine)}
-                                            className={`p-2 rounded-full backdrop-blur-md transition-all ${isSelected
-                                                ? 'bg-blue-500 text-white shadow-lg scale-110'
-                                                : 'bg-black/40 text-slate-300 hover:bg-blue-500 hover:text-white'
-                                                }`}
-                                            title="주간 계획표에 추가하기"
-                                        >
-                                            <MousePointerClick className="w-4 h-4" />
-                                        </button>
-                                        {routine.id.startsWith('custom-') && (
-                                            <button
-                                                onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                className="p-2 rounded-full backdrop-blur-md bg-black/40 text-slate-300 hover:bg-red-500 hover:text-white transition-all"
-                                                title="루틴 삭제"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {isCompleted && (
-                                        <div className="absolute top-2 left-2 z-10 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                                            <CalendarCheck className="w-3 h-3" />
-                                            오늘 완료
-                                        </div>
-                                    )}
-
-                                    <div className="aspect-video bg-slate-800 relative">
-                                        {routine.thumbnailUrl ? (
-                                            <img
-                                                draggable={false}
-                                                src={routine.thumbnailUrl}
-                                                alt={routine.title}
-                                                className={`w-full h-full object-cover transition-transform duration-500 ${isCompleted ? 'grayscale-[0.5]' : 'group-hover:scale-105'
-                                                    }`}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                                <Dumbbell className="w-8 h-8" />
-                                            </div>
-                                        )}
-                                        <div className={`absolute inset-0 transition-colors ${isCompleted ? 'bg-black/40' : 'bg-black/20 group-hover:bg-black/0'
-                                            }`} />
-
-                                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1">
-                                            <Clock className="w-3 h-3" />
-                                            {routine.totalDurationMinutes}분
-                                        </div>
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-green-400' : 'text-white group-hover:text-blue-400'
-                                            }`}>
-                                            {routine.title}
-                                        </h3>
-                                        <p className="text-slate-400 text-sm line-clamp-1 mb-3">{routine.description}</p>
-                                        <div className="flex items-center justify-between text-xs text-slate-500">
-                                            <span>{routine.drillCount}개 드릴</span>
-                                            <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                        <Dumbbell className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                        <p className="text-slate-400 mb-4">아직 생성된 루틴이 없습니다.</p>
-                        <p className="text-sm text-slate-500">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
-                    </div>
-                )}
-            </section>
-
-            {/* Create Routine Section */}
+            {/* Create Routine Section - MOVED TO TOP */}
             <section className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -378,6 +264,216 @@ export const TrainingRoutinesTab: React.FC = () => {
                     </div>
                 )}
             </section>
+
+            {/* My Routines Section */}
+            <section>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <PlaySquare className="w-5 h-5 text-blue-500" />
+                        나만의 루틴
+                    </h2>
+                    {selectedRoutineForPlacement && (
+                        <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2">
+                            <MousePointerClick className="w-4 h-4" />
+                            배치할 요일을 선택하세요
+                            <button
+                                onClick={() => setSelectedRoutineForPlacement(null)}
+                                className="text-slate-500 hover:text-white underline ml-2"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {loading ? (
+                    <div className="text-center py-12 text-slate-500">로딩 중...</div>
+                ) : routines.length > 0 ? (
+                    <>
+                        {/* Mobile List View */}
+                        <div className="md:hidden space-y-3">
+                            {displayedRoutines.map((routine) => {
+                                const isCompleted = completedRoutineIds.has(routine.id);
+                                const isSelected = selectedRoutineForPlacement?.id === routine.id;
+
+                                return (
+                                    <div
+                                        key={routine.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, routine)}
+                                        onClick={() => handleRoutineClick(routine)}
+                                        className={`bg-slate-900 rounded-xl border transition-all cursor-pointer group relative p-4
+                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
+                                            ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
+                                        `}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {/* Icon */}
+                                            <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <Dumbbell className="w-6 h-6 text-slate-600" />
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className={`font-bold text-sm truncate ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                                                        {routine.title}
+                                                    </h3>
+                                                    {isCompleted && (
+                                                        <div className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
+                                                            <CalendarCheck className="w-2.5 h-2.5" />
+                                                            완료
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-xs text-slate-400">
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        {routine.totalDurationMinutes}분
+                                                    </span>
+                                                    <span>{routine.drillCount}개 드릴</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-2 flex-shrink-0">
+                                                <button
+                                                    onClick={(e) => handleSelectForPlacement(e, routine)}
+                                                    className={`p-2 rounded-full transition-all ${isSelected
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'bg-slate-800 text-slate-400 hover:bg-blue-500 hover:text-white'
+                                                        }`}
+                                                    title="주간 계획표에 추가하기"
+                                                >
+                                                    <MousePointerClick className="w-4 h-4" />
+                                                </button>
+                                                {routine.id.startsWith('custom-') && (
+                                                    <button
+                                                        onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                        className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-all"
+                                                        title="루틴 삭제"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Card View */}
+                        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {displayedRoutines.map((routine) => {
+                                const isCompleted = completedRoutineIds.has(routine.id);
+                                const isSelected = selectedRoutineForPlacement?.id === routine.id;
+
+                                return (
+                                    <div
+                                        key={routine.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, routine)}
+                                        onClick={() => handleRoutineClick(routine)}
+                                        className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative 
+                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
+                                            ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
+                                        `}
+                                    >
+                                        {/* Selection and Delete Button Overlay */}
+                                        <div className="absolute top-2 right-2 z-20 flex gap-2">
+                                            <button
+                                                onClick={(e) => handleSelectForPlacement(e, routine)}
+                                                className={`p-2 rounded-full backdrop-blur-md transition-all ${isSelected
+                                                    ? 'bg-blue-500 text-white shadow-lg scale-110'
+                                                    : 'bg-black/40 text-slate-300 hover:bg-blue-500 hover:text-white'
+                                                    }`}
+                                                title="주간 계획표에 추가하기"
+                                            >
+                                                <MousePointerClick className="w-4 h-4" />
+                                            </button>
+                                            {routine.id.startsWith('custom-') && (
+                                                <button
+                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                    className="p-2 rounded-full backdrop-blur-md bg-black/40 text-slate-300 hover:bg-red-500 hover:text-white transition-all"
+                                                    title="루틴 삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {isCompleted && (
+                                            <div className="absolute top-2 left-2 z-10 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                                                <CalendarCheck className="w-3 h-3" />
+                                                오늘 완료
+                                            </div>
+                                        )}
+
+                                        <div className="aspect-video bg-slate-800 relative">
+                                            {routine.thumbnailUrl ? (
+                                                <img
+                                                    draggable={false}
+                                                    src={routine.thumbnailUrl}
+                                                    alt={routine.title}
+                                                    className={`w-full h-full object-cover transition-transform duration-500 ${isCompleted ? 'grayscale-[0.5]' : 'group-hover:scale-105'
+                                                        }`}
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                    <Dumbbell className="w-8 h-8" />
+                                                </div>
+                                            )}
+                                            <div className={`absolute inset-0 transition-colors ${isCompleted ? 'bg-black/40' : 'bg-black/20 group-hover:bg-black/0'
+                                                }`} />
+
+                                            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {routine.totalDurationMinutes}분
+                                            </div>
+                                        </div>
+                                        <div className="p-4">
+                                            <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-green-400' : 'text-white group-hover:text-blue-400'
+                                                }`}>
+                                                {routine.title}
+                                            </h3>
+                                            <p className="text-slate-400 text-sm line-clamp-1 mb-3">{routine.description}</p>
+                                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                                <span>{routine.drillCount}개 드릴</span>
+                                                <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {routines.length > ROUTINES_DISPLAY_LIMIT && (
+                            <div className="mt-6 text-center">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowAllRoutines(!showAllRoutines)}
+                                    className="min-w-[200px]"
+                                >
+                                    {showAllRoutines ? '접기' : `더보기 (${routines.length - ROUTINES_DISPLAY_LIMIT}개 더)`}
+                                </Button>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+                        <Dumbbell className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400 mb-4">아직 생성된 루틴이 없습니다.</p>
+                        <p className="text-sm text-slate-500">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
+                    </div>
+                )}
+            </section>
+
+            {/* Weekly Planner - MOVED TO BOTTOM */}
+            <WeeklyRoutinePlanner
+                selectedRoutine={selectedRoutineForPlacement}
+                onAddToDay={handleRoutineAdded}
+            />
         </div>
     );
 };

@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = 'http://localhost:3002';
 
 export interface UploadResponse {
     success: boolean;
@@ -17,6 +17,7 @@ export interface ProcessResponse {
     videoId: string;
     uri: string;
     vimeoUrl: string;
+    thumbnailUrl?: string;
 }
 
 export const videoProcessingApi = {
@@ -53,8 +54,8 @@ export const videoProcessingApi = {
     },
 
     processVideo: async (
-        videoId: string, 
-        filename: string, 
+        videoId: string,
+        filename: string,
         cuts: { start: number; end: number }[],
         title: string,
         description: string
@@ -64,9 +65,9 @@ export const videoProcessingApi = {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                videoId, 
-                filename, 
+            body: JSON.stringify({
+                videoId,
+                filename,
                 cuts,
                 title,
                 description
@@ -79,7 +80,7 @@ export const videoProcessingApi = {
 
         return response.json();
     },
-    
+
     getPreviewUrl: (path: string) => {
         return `${BACKEND_URL}${path}`;
     }

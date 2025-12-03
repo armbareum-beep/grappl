@@ -12,7 +12,7 @@ require('dotenv').config({ path: '../.env' }); // Load from root .env
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.BACKEND_PORT || 3002;
 
 // Middleware
 app.use(cors());
@@ -48,7 +48,7 @@ app.post('/upload', upload.single('video'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No video file uploaded' });
     }
-    
+
     const videoPath = req.file.path;
     const videoId = path.parse(req.file.filename).name; // UUID without extension
 
@@ -76,7 +76,7 @@ app.post('/preview', async (req, res) => {
 
     // If preview already exists, return it
     if (fs.existsSync(outputPath)) {
-         return res.json({
+        return res.json({
             success: true,
             previewUrl: `/temp/processed/${videoId}_preview.mp4`
         });
@@ -126,13 +126,13 @@ app.post('/process', async (req, res) => {
 
     try {
         console.log(`Starting processing for ${videoId} (Process ID: ${processId})`);
-        
+
         // Step 1: Create segments
         const segmentPaths = [];
         for (let i = 0; i < cuts.length; i++) {
             const cut = cuts[i];
             const segmentPath = path.join(processDir, `part_${i}.mp4`);
-            
+
             await new Promise((resolve, reject) => {
                 ffmpeg(inputPath)
                     .setStartTime(cut.start)
@@ -175,25 +175,28 @@ app.post('/process', async (req, res) => {
         );
 
         console.log('Uploading to Vimeo...');
-        
+
         client.upload(
             finalPath,
             {
                 'name': title || 'Edited Video',
-                'description': description || 'Edited with Grappl Editor'
+                'description': description || 'Edited with Grappl Editor',
+                'privacy': {
+                    'view': 'anybody',
+                    'embed': 'public'
+                }
             },
             function (uri) {
                 console.log('Vimeo Upload URI:', uri);
                 const vimeoId = uri.split('/').pop();
-                
-                // Cleanup
-                // fs.rmSync(processDir, { recursive: true, force: true });
-                
+
+                // Return immediate response with vumbnail URL
                 res.json({
                     success: true,
                     videoId: vimeoId,
                     uri: uri,
-                    vimeoUrl: `https://vimeo.com/${vimeoId}`
+                    vimeoUrl: `https://vimeo.com/${vimeoId}`,
+                    thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`
                 });
             },
             function (bytes_uploaded, bytes_total) {

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getCreatorCourses, calculateCreatorEarnings } from '../../lib/api';
-import { Course } from '../../types';
+import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson } from '../../lib/api';
+import { Course, Drill, Lesson } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2 } from 'lucide-react';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
@@ -16,6 +16,8 @@ import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
+    const [drills, setDrills] = useState<Drill[]>([]);
+    const [lessons, setLessons] = useState<Lesson[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>('content');
@@ -25,12 +27,18 @@ export const CreatorDashboard: React.FC = () => {
             if (!user) return;
 
             try {
-                const [coursesData, earningsData] = await Promise.all([
+                const [coursesData, drillsData, lessonsData, earningsData] = await Promise.all([
                     getCreatorCourses(user.id),
+                    getDrills(user.id),
+                    getAllCreatorLessons(user.id),
                     calculateCreatorEarnings(user.id)
                 ]);
 
+                console.log('Dashboard Data:', { coursesData, drillsData, lessonsData, earningsData });
+
                 setCourses(coursesData);
+                setDrills(drillsData.data || []);
+                setLessons(lessonsData || []);
                 if ('data' in earningsData) {
                     setEarnings(earningsData.data);
                 }
@@ -43,6 +51,32 @@ export const CreatorDashboard: React.FC = () => {
 
         fetchData();
     }, [user]);
+
+    const handleDeleteDrill = async (drillId: string, drillTitle: string) => {
+        if (!confirm(`"${drillTitle}" 드릴을 삭제하시겠습니까?`)) return;
+
+        const { error } = await deleteDrill(drillId);
+        if (error) {
+            alert('드릴 삭제 중 오류가 발생했습니다.');
+            return;
+        }
+
+        // Refresh drills list
+        setDrills(drills.filter(d => d.id !== drillId));
+    };
+
+    const handleDeleteLesson = async (lessonId: string, lessonTitle: string) => {
+        if (!confirm(`"${lessonTitle}" 레슨을 삭제하시겠습니까?`)) return;
+
+        const { error } = await deleteLesson(lessonId);
+        if (error) {
+            alert('레슨 삭제 중 오류가 발생했습니다.');
+            return;
+        }
+
+        // Refresh lessons list
+        setLessons(lessons.filter(l => l.id !== lessonId));
+    };
 
     if (loading) {
         return (
@@ -179,7 +213,7 @@ export const CreatorDashboard: React.FC = () => {
                                                 </Link>
                                             </div>
 
-                                            {course.lessonCount > 0 && (
+                                            {(course.lessonCount || 0) > 0 && (
                                                 <div className="border-t border-slate-800 bg-slate-950/30 px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-hide">
                                                     <span className="text-xs font-medium text-slate-500 flex-shrink-0">포함된 레슨:</span>
                                                     {Array.from({ length: Math.min(course.lessonCount || 0, 5) }).map((_, idx) => (
@@ -235,13 +269,57 @@ export const CreatorDashboard: React.FC = () => {
                                 </Link>
                             </div>
 
-                            <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
-                                <PlayCircle className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                                <p className="text-slate-500 mb-4">아직 업로드한 레슨이 없습니다.</p>
-                                <Link to="/creator/lessons/new">
-                                    <Button variant="outline">첫 레슨 업로드</Button>
-                                </Link>
-                            </div>
+                            {lessons.length === 0 ? (
+                                <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
+                                    <PlayCircle className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                                    <p className="text-slate-500 mb-4">아직 업로드한 레슨이 없습니다.</p>
+                                    <Link to="/creator/lessons/new">
+                                        <Button variant="outline">첫 레슨 업로드</Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="bg-slate-800/30 rounded-lg border border-slate-800 overflow-hidden">
+                                    {lessons.map((lesson, index) => (
+                                        <div
+                                            key={lesson.id}
+                                            className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors ${index !== lessons.length - 1 ? 'border-b border-slate-800' : ''
+                                                }`}
+                                        >
+                                            <Link to={`/lessons/${lesson.id}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+                                                <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
+                                                    <PlayCircle className="w-5 h-5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                                                        {lesson.title}
+                                                    </h3>
+                                                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                        <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
+                                                        <span>&bull;</span>
+                                                        <span>{lesson.durationMinutes}분</span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+
+                                            <div className="flex items-center gap-4 ml-4">
+                                                <div className="text-sm text-slate-400 w-20 text-right">
+                                                    {lesson.views?.toLocaleString() || 0} 조회
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        handleDeleteLesson(lesson.id, lesson.title);
+                                                    }}
+                                                    className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Drills Section */}
@@ -256,13 +334,57 @@ export const CreatorDashboard: React.FC = () => {
                                 </Link>
                             </div>
 
-                            <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
-                                <Grid className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                                <p className="text-slate-500 mb-4">아직 업로드한 드릴이 없습니다.</p>
-                                <Link to="/creator/drills/new">
-                                    <Button variant="outline">첫 드릴 업로드</Button>
-                                </Link>
-                            </div>
+                            {drills.length === 0 ? (
+                                <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
+                                    <Grid className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                                    <p className="text-slate-500 mb-4">아직 업로드한 드릴이 없습니다.</p>
+                                    <Link to="/creator/drills/new">
+                                        <Button variant="outline">첫 드릴 업로드</Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="bg-slate-800/30 rounded-lg border border-slate-800 overflow-hidden">
+                                    {drills.map((drill, index) => (
+                                        <div
+                                            key={drill.id}
+                                            className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group ${index !== drills.length - 1 ? 'border-b border-slate-800' : ''
+                                                }`}
+                                        >
+                                            <Link to={`/drills/${drill.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                                                <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
+                                                    <PlayCircle className="w-5 h-5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                                                        {drill.title}
+                                                    </h3>
+                                                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                        <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
+                                                        <span>&bull;</span>
+                                                        <span>{drill.durationMinutes}분</span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+
+                                            <div className="flex items-center gap-4 ml-4">
+                                                <div className="text-sm text-slate-400 w-20 text-right">
+                                                    {drill.views.toLocaleString()} 조회
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        handleDeleteDrill(drill.id, drill.title);
+                                                    }}
+                                                    className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : activeTab === 'marketing' ? (

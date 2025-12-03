@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Heart, MessageCircle,
   Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
-  Calendar, Lock, Star, TrendingUp
+  Calendar, Lock, Star, TrendingUp, X
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
@@ -13,7 +13,7 @@ import {
   getCourses, getDrills, getPublicTrainingLogs
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
-import { checkPatchUnlocks } from '../components/PatchDisplay';
+import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   watch_lesson: { icon: '📺', name: '레슨 시청' },
@@ -40,6 +40,7 @@ export const Home: React.FC = () => {
   // User progress states
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [quests, setQuests] = useState<DailyQuest[]>([]);
+  const [selectedPatch, setSelectedPatch] = useState<Patch | null>(null);
 
   // Mock User Stats
   const userStats = {
@@ -221,7 +222,10 @@ export const Home: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">Pro 전용 추천</h3>
                 <p className="text-xs text-slate-400 mb-4">나의 약점을 보완하는 맞춤 루틴</p>
-                <button className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-5 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-orange-900/20">
+                <button
+                  onClick={() => navigate('/subscription')}
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-5 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
+                >
                   업그레이드하고 잠금해제
                 </button>
               </div>
@@ -252,71 +256,107 @@ export const Home: React.FC = () => {
           아레나 성장
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Stats & Graph */}
-          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <div className="flex items-center gap-1.5 text-orange-400 font-black text-3xl mb-1">
-                    <Flame className="w-6 h-6 fill-orange-400" />
-                    {userStats.streak}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">연속 출석</div>
-                </div>
-                <div className="h-10 w-px bg-slate-800"></div>
-                <div>
-                  <div className="text-white font-black text-2xl mb-1">{progress?.totalXp || 0}</div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">총 경험치</div>
-                </div>
-              </div>
-
-              {/* Weekly Graph */}
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-1.5">
-                  {userStats.weeklyActivity.map((active, i) => (
-                    <div key={i} className="flex flex-col items-center gap-1">
-                      <div className={`w-2.5 h-10 rounded-full ${active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-slate-800'}`}></div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+          {/* Stats & Graph & Patches (Left Column) */}
+          <div className="lg:col-span-2 flex flex-col">
+            {/* Stats & Belt */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm h-full flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="flex items-center gap-1.5 text-orange-400 font-black text-3xl mb-1">
+                      <Flame className="w-6 h-6 fill-orange-400" />
+                      {userStats.streak}
                     </div>
-                  ))}
-                </div>
-                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">주간 활동</div>
-              </div>
-            </div>
-
-            {/* Belt Progress */}
-            <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl filter drop-shadow-md">{beltIcon}</span>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">연속 출석</div>
+                  </div>
+                  <div className="h-10 w-px bg-slate-800"></div>
                   <div>
-                    <div className="text-sm font-bold text-white">{currentBelt?.name}</div>
-                    <div className="text-xs text-slate-400">다음: {nextBelt?.name}</div>
+                    <div className="text-white font-black text-2xl mb-1">{progress?.totalXp || 0}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">총 경험치</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-slate-400 font-medium mb-1">{Math.round(xpProgress * 100)}%</div>
+
+                {/* Weekly Graph */}
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex gap-1.5">
+                    {userStats.weeklyActivity.map((active, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <div className={`w-2.5 h-10 rounded-full ${active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-slate-800'}`}></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">주간 활동</div>
                 </div>
               </div>
-              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-1000 ease-out relative"
-                  style={{
-                    width: `${xpProgress * 100}%`,
-                    backgroundColor: currentBelt?.color === '#FFFFFF' ? '#94A3B8' : currentBelt?.color
-                  }}
-                >
-                  <div className="absolute inset-0 bg-white/20"></div>
+
+              {/* Belt Progress */}
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl filter drop-shadow-md">{beltIcon}</span>
+                    <div>
+                      <div className="text-sm font-bold text-white">{currentBelt?.name}</div>
+                      <div className="text-xs text-slate-400">다음: {nextBelt?.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-slate-400 font-medium mb-1">{Math.round(xpProgress * 100)}%</div>
+                  </div>
                 </div>
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000 ease-out relative"
+                    style={{
+                      width: `${xpProgress * 100}%`,
+                      backgroundColor: currentBelt?.color === '#FFFFFF' ? '#94A3B8' : currentBelt?.color
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-white/20"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Patches (Moved Here) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                    <span>🎖️</span> 획득 패치
+                  </h3>
+                  <span className="text-xs text-slate-500">{unlockedPatches.length}개</span>
+                </div>
+                {unlockedPatches.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {unlockedPatches.map((patch) => {
+                      const Icon = patch.icon;
+                      return (
+                        <button
+                          key={patch.id}
+                          onClick={() => setSelectedPatch(patch)}
+                          className={`w-10 h-10 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer group relative`}
+                          title={patch.name}
+                        >
+                          <Icon className="w-5 h-5 text-white" />
+                          {/* Hover Glow */}
+                          <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/30 rounded-lg p-4 text-center border border-slate-800/50 border-dashed">
+                    <p className="text-xs text-slate-500">아직 획득한 패치가 없습니다</p>
+                    <p className="text-[10px] text-slate-600 mt-1">미션을 완료하고 패치를 모아보세요!</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Today's Mission & Patches Column */}
-          <div className="space-y-4">
-            {/* Today's Mission */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
+          {/* Today's Mission (Right Column) */}
+          <div className="flex flex-col">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-5 shadow-lg h-full flex flex-col">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
                   <span>📋</span> 오늘의 미션
                 </h3>
@@ -324,9 +364,9 @@ export const Home: React.FC = () => {
                   {quests.filter(q => q.completed).length}/{quests.length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              <div className="space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex-1">
                 {quests.map((quest) => (
-                  <div key={quest.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/50 hover:border-slate-700 transition-colors">
+                  <div key={quest.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/50 hover:border-slate-700 transition-colors">
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${quest.completed ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
                       {quest.completed ? '✓' : '○'}
                     </div>
@@ -337,32 +377,6 @@ export const Home: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Patches */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-white text-sm">🎖️ 획득 패치</h3>
-                <span className="text-xs text-slate-500">{unlockedPatches.length}</span>
-              </div>
-              {unlockedPatches.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {unlockedPatches.map((patch) => {
-                    const Icon = patch.icon;
-                    return (
-                      <div
-                        key={patch.id}
-                        className={`w-9 h-9 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer`}
-                        title={patch.name}
-                      >
-                        <Icon className="w-4 h-4 text-white" />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 text-center py-4">아직 획득한 패치가 없습니다</p>
-              )}
             </div>
           </div>
         </div>
@@ -388,7 +402,7 @@ export const Home: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/arena?tab=journal')}
+              onClick={() => navigate('/arena?tab=sparring')}
               className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-900/20"
             >
               <BookOpen className="w-4 h-4" />
@@ -404,7 +418,10 @@ export const Home: React.FC = () => {
               </div>
               <h3 className="text-sm font-bold text-white mb-1">AI 코치 분석</h3>
               <p className="text-xs text-slate-400 mb-4">내 스파링 패턴을 분석하고 개선점을 제안합니다.</p>
-              <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-5 rounded-lg transition-all shadow-lg shadow-indigo-600/20 hover:scale-105">
+              <button
+                onClick={() => navigate('/subscription')}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-5 rounded-lg transition-all shadow-lg shadow-indigo-600/20 hover:scale-105"
+              >
                 Pro로 업그레이드
               </button>
             </div>
@@ -561,6 +578,35 @@ export const Home: React.FC = () => {
           )}
         </div>
       </section>
+
+      {/* Patch Detail Modal */}
+      {selectedPatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedPatch(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full relative shadow-2xl shadow-indigo-500/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setSelectedPatch(null)}
+              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-20 h-20 rounded-full ${selectedPatch.color} flex items-center justify-center shadow-xl mb-4 border-4 border-slate-800`}>
+                {React.createElement(selectedPatch.icon, { className: "w-10 h-10 text-white" })}
+              </div>
+              <h3 className="text-xl font-black text-white mb-1">{selectedPatch.name}</h3>
+              <p className="text-slate-400 text-sm mb-4">{selectedPatch.description}</p>
+
+              <div className="w-full bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                <p className="text-xs text-slate-500 mb-1">획득일</p>
+                <p className="text-sm font-bold text-white">
+                  {selectedPatch.unlockedAt ? new Date(selectedPatch.unlockedAt).toLocaleDateString() : '알 수 없음'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

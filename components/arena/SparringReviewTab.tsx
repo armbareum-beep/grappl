@@ -115,6 +115,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const [reviews, setReviews] = useState<SparringReview[]>([]);
     const [loading, setLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [showAllReviews, setShowAllReviews] = useState(false);
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         opponentName: '',
@@ -176,6 +177,9 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         }
         setLoading(false);
     };
+
+    const REVIEWS_DISPLAY_LIMIT = 10;
+    const displayedReviews = showAllReviews ? reviews : reviews.slice(0, REVIEWS_DISPLAY_LIMIT);
 
     // Convert SparringReview[] to TrainingLog[] for AI analysis
     const trainingLogsForAI: TrainingLog[] = reviews.map(review => ({
@@ -414,79 +418,93 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                     </Button>
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {reviews.map((review) => (
-                        <div key={review.id} className="bg-slate-900 rounded-xl border border-slate-800 shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 transition-all p-5">
-                            {/* Header */}
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${review.result === 'win' ? 'bg-green-500' :
-                                        review.result === 'loss' ? 'bg-red-500' : 'bg-blue-500'
-                                        }`}>
-                                        {review.result === 'win' ? 'W' : review.result === 'loss' ? 'L' : 'D'}
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-white">vs {review.opponentName}</div>
-                                        <div className="text-xs text-slate-400">{review.date} • {review.opponentBelt} Belt • {review.rounds} 라운드</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Video */}
-                            {review.videoUrl && (
-                                <div className="mb-4 rounded-lg overflow-hidden border border-slate-800">
-                                    <iframe
-                                        src={getYouTubeEmbedUrl(review.videoUrl)}
-                                        className="w-full aspect-video"
-                                        frameBorder="0"
-                                        allow="autoplay; fullscreen; picture-in-picture"
-                                        allowFullScreen
-                                    ></iframe>
-                                </div>
-                            )}
-
-                            {/* Notes */}
-                            {review.notes && (
-                                <div className="mb-4">
-                                    <p className="text-slate-300 text-sm leading-relaxed">{review.notes}</p>
-                                </div>
-                            )}
-
-                            {/* What Worked / To Improve */}
-                            <div className="grid md:grid-cols-2 gap-4 mb-4">
-                                {review.whatWorked && (
-                                    <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <TrendingUp className="w-4 h-4 text-green-400" />
-                                            <span className="text-xs font-semibold text-green-400">효과적이었던 것</span>
+                <>
+                    <div className="space-y-4">
+                        {displayedReviews.map((review) => (
+                            <div key={review.id} className="bg-slate-900 rounded-xl border border-slate-800 shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 transition-all p-5">
+                                {/* Header */}
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${review.result === 'win' ? 'bg-green-500' :
+                                            review.result === 'loss' ? 'bg-red-500' : 'bg-blue-500'
+                                            }`}>
+                                            {review.result === 'win' ? 'W' : review.result === 'loss' ? 'L' : 'D'}
                                         </div>
-                                        <p className="text-sm text-slate-300">{review.whatWorked}</p>
+                                        <div>
+                                            <div className="font-bold text-white">vs {review.opponentName}</div>
+                                            <div className="text-xs text-slate-400">{review.date} • {review.opponentBelt} Belt • {review.rounds} 라운드</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Video */}
+                                {review.videoUrl && (
+                                    <div className="mb-4 rounded-lg overflow-hidden border border-slate-800">
+                                        <iframe
+                                            src={getYouTubeEmbedUrl(review.videoUrl)}
+                                            className="w-full aspect-video"
+                                            frameBorder="0"
+                                            allow="autoplay; fullscreen; picture-in-picture"
+                                            allowFullScreen
+                                        ></iframe>
                                     </div>
                                 )}
-                                {review.whatToImprove && (
-                                    <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Target className="w-4 h-4 text-blue-400" />
-                                            <span className="text-xs font-semibold text-blue-400">개선할 점</span>
+
+                                {/* Notes */}
+                                {review.notes && (
+                                    <div className="mb-4">
+                                        <p className="text-slate-300 text-sm leading-relaxed">{review.notes}</p>
+                                    </div>
+                                )}
+
+                                {/* What Worked / To Improve */}
+                                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                                    {review.whatWorked && (
+                                        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <TrendingUp className="w-4 h-4 text-green-400" />
+                                                <span className="text-xs font-semibold text-green-400">효과적이었던 것</span>
+                                            </div>
+                                            <p className="text-sm text-slate-300">{review.whatWorked}</p>
                                         </div>
-                                        <p className="text-sm text-slate-300">{review.whatToImprove}</p>
+                                    )}
+                                    {review.whatToImprove && (
+                                        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Target className="w-4 h-4 text-blue-400" />
+                                                <span className="text-xs font-semibold text-blue-400">개선할 점</span>
+                                            </div>
+                                            <p className="text-sm text-slate-300">{review.whatToImprove}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Techniques */}
+                                {review.techniques.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {review.techniques.map((tech, idx) => (
+                                            <span key={idx} className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-md border border-slate-700">
+                                                #{tech}
+                                            </span>
+                                        ))}
                                     </div>
                                 )}
                             </div>
+                        ))}
+                    </div>
 
-                            {/* Techniques */}
-                            {review.techniques.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {review.techniques.map((tech, idx) => (
-                                        <span key={idx} className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-md border border-slate-700">
-                                            #{tech}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                    {reviews.length > REVIEWS_DISPLAY_LIMIT && (
+                        <div className="text-center pt-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowAllReviews(!showAllReviews)}
+                                className="min-w-[200px]"
+                            >
+                                {showAllReviews ? '접기' : `더보기 (${reviews.length - REVIEWS_DISPLAY_LIMIT}개 더)`}
+                            </Button>
                         </div>
-                    ))}
-                </div>
+                    )}
+                </>
             )}
 
             {/* Create Modal */}

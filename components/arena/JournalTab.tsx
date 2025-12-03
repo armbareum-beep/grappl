@@ -24,10 +24,11 @@ export const JournalTab: React.FC = () => {
     const [showBeltUp, setShowBeltUp] = useState(false);
     const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [showAllLogs, setShowAllLogs] = useState(false);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
-    const [questCompleteData, setQuestCompleteData] = useState<{ 
-        questName: string; 
-        xpEarned: number; 
+    const [questCompleteData, setQuestCompleteData] = useState<{
+        questName: string;
+        xpEarned: number;
         streak?: number;
         bonusReward?: { type: 'xp_boost' | 'badge' | 'unlock'; value: string };
     } | null>(null);
@@ -79,9 +80,9 @@ export const JournalTab: React.FC = () => {
         const { data } = await getTrainingLogs(user.id);
         if (data) {
             // Double check filtering to ensure no feed posts appear here
-            const cleanLogs = data.filter(log => 
+            const cleanLogs = data.filter(log =>
                 log.durationMinutes !== -1 && // Filter by duration marker
-                (!log.location || !log.location.startsWith('__FEED__')) && 
+                (!log.location || !log.location.startsWith('__FEED__')) &&
                 !['sparring', 'routine', 'mastery'].includes((log as any).type)
             );
             setLogs(cleanLogs);
@@ -128,10 +129,10 @@ export const JournalTab: React.FC = () => {
                 let earnedXp = 0;
                 let userStreak = 0;
                 let bonusXp = 0;
-                
+
                 try {
                     const xpResult = await awardTrainingXP(user.id, 'training_log', 20);
-                    
+
                     if (xpResult.data) {
                         if (xpResult.data.alreadyCompletedToday) {
                             // Already completed a training activity today
@@ -148,7 +149,7 @@ export const JournalTab: React.FC = () => {
                     // Also update daily quest progress
                     const { updateQuestProgress } = await import('../../lib/api');
                     const questResult = await updateQuestProgress(user.id, 'write_log');
-                    
+
                     if (questResult.completed && questResult.xpEarned > 0) {
                         earnedXp += questResult.xpEarned;
                         success(`일일 미션 완료! +${questResult.xpEarned} XP`);
@@ -193,8 +194,8 @@ ${logData.notes}`;
                 } catch (error) {
                     console.error('Error processing quest/streak:', error);
                     // Still show modal even if XP fetch fails
-                    setQuestCompleteData({ 
-                        questName: '수련 일지 작성', 
+                    setQuestCompleteData({
+                        questName: '수련 일지 작성',
                         xpEarned: 20
                     });
                     setShowQuestComplete(true);
@@ -253,9 +254,11 @@ ${logData.notes}`;
         return 4; // 4 or more
     };
 
-    const displayedLogs = selectedDate
+    const LOGS_DISPLAY_LIMIT = 10;
+    const filteredLogs = selectedDate
         ? logs.filter(log => isSameDay(new Date(log.date), selectedDate))
         : logs;
+    const displayedLogs = showAllLogs ? filteredLogs : filteredLogs.slice(0, LOGS_DISPLAY_LIMIT);
 
     // if (!user) {
     //     return (
@@ -388,67 +391,81 @@ ${logData.notes}`;
                         </Button>
                     </div>
                 ) : (
-                    displayedLogs.map((log) => (
-                        <div key={log.id} className="bg-slate-900 rounded-2xl border border-slate-800 p-6 hover:border-slate-700 transition-colors">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-slate-500">
-                                        {format(new Date(log.date), 'd')}
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-white">
-                                            {format(new Date(log.date), 'M월 d일 EEEE', { locale: ko })}
+                    <>
+                        {displayedLogs.map((log) => (
+                            <div key={log.id} className="bg-slate-900 rounded-2xl border border-slate-800 p-6 hover:border-slate-700 transition-colors">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-slate-500">
+                                            {format(new Date(log.date), 'd')}
                                         </div>
-                                        <div className="text-xs text-slate-500 flex items-center gap-2">
-                                            {log.location}
-                                            {!log.isPublic && <Lock className="w-3 h-3" />}
+                                        <div>
+                                            <div className="font-bold text-white">
+                                                {format(new Date(log.date), 'M월 d일 EEEE', { locale: ko })}
+                                            </div>
+                                            <div className="text-xs text-slate-500 flex items-center gap-2">
+                                                {log.location}
+                                                {!log.isPublic && <Lock className="w-3 h-3" />}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => handleEditLog(log)}
+                                            className="text-slate-500 hover:text-blue-500 transition-colors p-2"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteLog(log.id)}
+                                            className="text-slate-500 hover:text-red-500 transition-colors p-2"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    <button
-                                        onClick={() => handleEditLog(log)}
-                                        className="text-slate-500 hover:text-blue-500 transition-colors p-2"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteLog(log.id)}
-                                        className="text-slate-500 hover:text-red-500 transition-colors p-2"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+
+                                <p className="text-slate-300 whitespace-pre-wrap mb-4 leading-relaxed">
+                                    {log.notes}
+                                </p>
+
+                                {/* Stats Chips */}
+                                <div className="flex flex-wrap gap-3 mb-4">
+                                    <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
+                                        <Clock className="w-3.5 h-3.5 text-blue-400" />
+                                        {log.durationMinutes}분
+                                    </div>
+                                    <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
+                                        <Swords className="w-3.5 h-3.5 text-red-400" />
+                                        {log.sparringRounds}라운드
+                                    </div>
                                 </div>
+
+                                {/* Tags */}
+                                {log.techniques && log.techniques.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {log.techniques.map((tech, idx) => (
+                                            <span key={idx} className="px-2.5 py-1 rounded-full bg-blue-900/30 text-blue-400 text-xs font-medium border border-blue-800/30">
+                                                #{tech}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
+                        ))}
 
-                            <p className="text-slate-300 whitespace-pre-wrap mb-4 leading-relaxed">
-                                {log.notes}
-                            </p>
-
-                            {/* Stats Chips */}
-                            <div className="flex flex-wrap gap-3 mb-4">
-                                <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
-                                    <Clock className="w-3.5 h-3.5 text-blue-400" />
-                                    {log.durationMinutes}분
-                                </div>
-                                <div className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-2">
-                                    <Swords className="w-3.5 h-3.5 text-red-400" />
-                                    {log.sparringRounds}라운드
-                                </div>
+                        {filteredLogs.length > LOGS_DISPLAY_LIMIT && (
+                            <div className="text-center pt-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowAllLogs(!showAllLogs)}
+                                    className="min-w-[200px]"
+                                >
+                                    {showAllLogs ? '접기' : `더보기 (${filteredLogs.length - LOGS_DISPLAY_LIMIT}개 더)`}
+                                </Button>
                             </div>
-
-                            {/* Tags */}
-                            {log.techniques && log.techniques.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {log.techniques.map((tech, idx) => (
-                                        <span key={idx} className="px-2.5 py-1 rounded-full bg-blue-900/30 text-blue-400 text-xs font-medium border border-blue-800/30">
-                                            #{tech}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))
+                        )}
+                    </>
                 )}
             </div>
 

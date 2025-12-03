@@ -30,3 +30,8 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+
+# Backend temp files
+backend/temp/
+backend/node_modules/
+backend/uploads/

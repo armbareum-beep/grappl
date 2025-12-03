@@ -44,7 +44,7 @@ export const Browse: React.FC = () => {
   const difficulties = ['All', ...Object.values(Difficulty)];
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex w-full min-h-screen bg-slate-950">
       {/* Sidebar - Dark Theme */}
       <aside
         className={`${sidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
@@ -96,22 +96,24 @@ export const Browse: React.FC = () => {
       </aside>
 
       {/* Main Content - Dark Theme */}
-      <div className="flex-1 transition-all duration-300">
-        <div className="p-6">
+      <div className="flex-1 w-full min-w-0 transition-all duration-300">
+        <div className="p-4 md:p-6">
           {/* Mobile Filter Toggle */}
-          <div className="md:hidden mb-6 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide flex gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition-all ${selectedCategory === cat
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                  }`}
-              >
-                {cat === 'All' ? '전체' : cat}
-              </button>
-            ))}
+          <div className="md:hidden mb-6">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-1.5 rounded-full text-sm border transition-all ${selectedCategory === cat
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`}
+                >
+                  {cat === 'All' ? '전체' : cat}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
