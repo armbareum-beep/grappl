@@ -78,15 +78,15 @@ const MOCK_REVIEWS: SparringReview[] = [
 // Helper function to convert YouTube URL to embed URL
 const getYouTubeEmbedUrl = (url: string): string => {
     if (!url) return url;
-    
+
     // Already an embed URL
     if (url.includes('youtube.com/embed/')) {
         return url;
     }
-    
+
     // Extract video ID from various YouTube URL formats
     let videoId = '';
-    
+
     // Format: https://www.youtube.com/watch?v=VIDEO_ID
     if (url.includes('youtube.com/watch?v=')) {
         videoId = url.split('watch?v=')[1]?.split('&')[0];
@@ -99,12 +99,12 @@ const getYouTubeEmbedUrl = (url: string): string => {
     else if (url.includes('youtube.com/v/')) {
         videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
     }
-    
+
     // Return embed URL if we found a video ID
     if (videoId) {
         return `https://www.youtube.com/embed/${videoId}`;
     }
-    
+
     // Return original URL if we couldn't parse it
     return url;
 };
@@ -183,11 +183,13 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         userId: review.userId,
         date: review.date,
         durationMinutes: review.rounds * 5,
-        type: 'gi', // Default assumption
+        type: 'sparring' as const,
         notes: `${review.notes} ${review.whatWorked} ${review.whatToImprove}`, // Combine notes for better analysis
         techniques: review.techniques,
         sparringRounds: review.rounds,
-        createdAt: review.createdAt
+        createdAt: review.createdAt,
+        isPublic: false,
+        location: 'Gym'
     }));
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -227,15 +229,14 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             let earnedXp = 0;
             let streak = 0;
             let bonusXp = 0;
-            
+
             try {
                 const { awardTrainingXP } = await import('../../lib/api');
                 const xpResult = await awardTrainingXP(user.id, 'sparring_review', 20);
-                
+
                 if (xpResult.data) {
                     if (xpResult.data.alreadyCompletedToday) {
                         // Already completed a training activity today
-                        // toastError('오늘은 이미 수련 활동으로 경험치를 획득했습니다.'); // Optional: show toast
                         console.log('Already completed training activity today');
                         earnedXp = 0;
                         streak = xpResult.data.streak;
@@ -243,6 +244,15 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                         earnedXp = xpResult.data.xpEarned;
                         streak = xpResult.data.streak;
                         bonusXp = xpResult.data.bonusXP;
+                    }
+                }
+
+                // Fallback: If streak is 0 (e.g. first day or error), fetch it directly
+                if (streak === 0) {
+                    const { getUserStreak } = await import('../../lib/api');
+                    const { data: currentStreak } = await getUserStreak(user.id);
+                    if (currentStreak) {
+                        streak = currentStreak;
                     }
                 }
             } catch (error) {
@@ -253,7 +263,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             try {
                 const { updateQuestProgress } = await import('../../lib/api');
                 const questResult = await updateQuestProgress(user.id, 'sparring_review');
-                
+
                 if (questResult.completed && questResult.xpEarned > 0) {
                     earnedXp += questResult.xpEarned;
                     // success(`일일 미션 완료! +${questResult.xpEarned} XP`); // Optional
@@ -303,7 +313,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             // Show Quest Complete Modal ALWAYS (to prevent flash and ensure consistent flow)
             setXpEarned(earnedXp);
             setUserStreak(streak);
-            
+
             if (bonusXp > 0) {
                 setBonusReward({
                     type: 'xp_boost',
@@ -371,7 +381,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             </div>
 
             {/* AI Coach Widget */}
-            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} />
+            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} isLocked={true} />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-4">
@@ -628,6 +638,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
                 }}
                 questName="스파링 복기 완료"
                 xpEarned={xpEarned}
+                combatPowerEarned={20}
                 streak={userStreak}
                 bonusReward={bonusReward}
             />

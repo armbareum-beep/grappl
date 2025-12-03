@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { StatPowerPanel } from './StatPowerPanel';
-import { TournamentMatchCard } from './TournamentMatchCard';
+import { TekkenVersusScreen } from './TekkenVersusScreen';
 import { LeaderboardCard } from './LeaderboardCard';
 import { MatchHistoryCard } from './MatchHistoryCard';
 import { AnimatedBackground } from './AnimatedBackground';
 import { BattleScene } from './BattleScene';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const TournamentHomeTab: React.FC = () => {
+    const { user } = useAuth();
     const [isVisible, setIsVisible] = useState(false);
     const [battleState, setBattleState] = useState<'idle' | 'battling'>('idle');
     const [currentOpponent, setCurrentOpponent] = useState<any>(null);
@@ -16,7 +18,6 @@ export const TournamentHomeTab: React.FC = () => {
     const loadMatchHistory = async () => {
         try {
             const { supabase } = await import('../../lib/supabase');
-            const { data: { user } } = await supabase.auth.getUser();
             
             if (!user) return;
 
@@ -26,6 +27,7 @@ export const TournamentHomeTab: React.FC = () => {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(10);
+// ... (rest of loadMatchHistory is same, but we need to close the function and component correctly)
 
             if (error) {
                 console.error('Error loading match history:', error);
@@ -155,8 +157,11 @@ export const TournamentHomeTab: React.FC = () => {
 
                     {/* Middle Row: Tournament Match (Center Focus) - Highest Z-Index */}
                     <div className="lg:col-span-12 flex justify-center py-4 relative z-30">
-                        <div className="w-full max-w-3xl transform transition-all duration-700 delay-100 hover:scale-[1.02]">
-                            <TournamentMatchCard onMatchStart={handleMatchStart} />
+                        <div className="w-full max-w-6xl transform transition-all duration-700 delay-100 hover:scale-[1.01]">
+                            <TekkenVersusScreen 
+                                user={user} 
+                                onBattleStart={handleMatchStart} 
+                            />
                         </div>
                     </div>
 

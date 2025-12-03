@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, Flame, Trophy, Zap, Star } from 'lucide-react';
+import { CheckCircle, Flame, Trophy, Zap, Star, Swords } from 'lucide-react';
 
 interface QuestCompleteModalProps {
     isOpen: boolean;
@@ -7,6 +7,7 @@ interface QuestCompleteModalProps {
     onContinue?: () => void;
     questName: string;
     xpEarned: number;
+    combatPowerEarned?: number;
     streak?: number;
     bonusReward?: {
         type: 'xp_boost' | 'badge' | 'unlock';
@@ -20,6 +21,7 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
     onContinue,
     questName,
     xpEarned,
+    combatPowerEarned,
     streak,
     bonusReward
 }) => {
@@ -78,6 +80,24 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                                 <span className="text-3xl font-black text-indigo-300">+{xpEarned}</span>
                             </div>
                         </div>
+
+                        {/* Combat Power Reward Card */}
+                        {combatPowerEarned && combatPowerEarned > 0 && (
+                            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-2 border-blue-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.4s', opacity: 0, animationFillMode: 'forwards' }}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg">
+                                            <Swords className="w-7 h-7 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-base font-bold text-white">전투력 상승</p>
+                                            <p className="text-sm text-blue-300">강해지고 있습니다!</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-3xl font-black text-blue-300">+{combatPowerEarned}</span>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Streak Bonus Card */}
                         {streak !== undefined && streak > 0 && (

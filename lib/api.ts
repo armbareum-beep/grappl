@@ -936,10 +936,16 @@ export async function updatePayoutSettings(
     creatorId: string,
     settings: {
         type: 'individual' | 'business';
+        // Wise/International fields
         wiseAccountNumber?: string;
         wiseRoutingNumber?: string;
         wiseSwiftBic?: string;
         wiseAccountName?: string;
+        // Korean Bank fields
+        bankName?: string;
+        accountNumber?: string;
+        accountHolder?: string;
+        residentRegistrationNumber?: string; // For tax withholding (3.3%)
     }
 ) {
     const { error } = await supabase
@@ -4023,5 +4029,86 @@ export async function awardTrainingXP(
             alreadyCompletedToday: data[0].already_completed_today || false
         },
         error: null
+    };
+}
+
+// ==================== COMBAT POWER API ====================
+
+export interface CombatPowerStats {
+    totalPower: number;
+    breakdown: {
+        trainingLogs: { count: number; score: number };
+        routines: { count: number; score: number };
+        sparringReviews: { count: number; score: number };
+        skills: { count: number; score: number };
+        belt: { level: string; score: number };
+    };
+}
+
+export async function getCompositeCombatPower(userId: string): Promise<CombatPowerStats> {
+    // 1. Get unique dates for Training Logs
+    const { data: logDates } = await supabase
+        .from('training_logs')
+        .select('date')
+        .eq('user_id', userId);
+    
+    // Count unique dates
+    const uniqueLogDays = new Set(logDates?.map(l => l.date)).size;
+
+    // 2. Get unique dates for Sparring Reviews
+    const { data: sparringDates } = await supabase
+        .from('sparring_reviews')
+        .select('date')
+        .eq('user_id', userId);
+
+    // Count unique dates
+    const uniqueSparringDays = new Set(sparringDates?.map(s => s.date)).size;
+
+    // 3. Get other counts (Routines and Skills are still per item)
+    const { count: routineCount } = await supabase
+        .from('user_routine_purchases')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+    const { count: skillCount } = await supabase
+        .from('user_skills')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('status', 'completed');
+
+    // 4. Get Belt Level
+    const beltLevel = await getUserBeltLevel(userId);
+    
+    // 5. Calculate Scores
+    const LOG_MULTIPLIER = 10;
+    const ROUTINE_MULTIPLIER = 50;
+    const SPARRING_MULTIPLIER = 20;
+    const SKILL_MULTIPLIER = 5;
+
+    const beltScores: Record<string, number> = {
+        'White': 0,
+        'Blue': 1000,
+        'Purple': 3000,
+        'Brown': 6000,
+        'Black': 10000
+    };
+
+    const logScore = uniqueLogDays * LOG_MULTIPLIER;
+    const routineScore = (routineCount || 0) * ROUTINE_MULTIPLIER;
+    const sparringScore = uniqueSparringDays * SPARRING_MULTIPLIER;
+    const skillScore = (skillCount || 0) * SKILL_MULTIPLIER;
+    const beltScore = beltScores[beltLevel] || 0;
+
+    const totalPower = logScore + routineScore + sparringScore + skillScore + beltScore;
+
+    return {
+        totalPower,
+        breakdown: {
+            trainingLogs: { count: uniqueLogDays, score: logScore },
+            routines: { count: routineCount || 0, score: routineScore },
+            sparringReviews: { count: uniqueSparringDays, score: sparringScore },
+            skills: { count: skillCount || 0, score: skillScore },
+            belt: { level: beltLevel, score: beltScore }
+        }
     };
 }

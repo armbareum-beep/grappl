@@ -1,143 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { Zap, TrendingUp, Info } from 'lucide-react';
-import { getUserArenaStats } from '../../lib/api';
+import React, { useEffect, useState } from 'react';
+import { Zap, TrendingUp, Info, Shield, Swords, Skull, Trophy, BookOpen, Activity, Layers } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getCompositeCombatPower, CombatPowerStats } from '../../lib/api';
 
-interface StatBarProps {
-    label: string;
-    value: number;
-    color: string;
-    description: string;
-}
-
-const StatBar: React.FC<StatBarProps> = ({ label, value, color, description }) => {
-    const [showTooltip, setShowTooltip] = useState(false);
-    const [animatedValue, setAnimatedValue] = useState(0);
+export const StatPowerPanel: React.FC = () => {
+    const { user } = useAuth();
+    const [stats, setStats] = useState<CombatPowerStats | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setAnimatedValue(value);
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [value]);
+        if (user) {
+            loadStats();
+        }
+    }, [user]);
+
+    const loadStats = async () => {
+        if (!user) return;
+        try {
+            const data = await getCompositeCombatPower(user.id);
+            setStats(data);
+        } catch (error) {
+            console.error('Error loading combat power:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="w-full bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-8 animate-pulse flex justify-center items-center">
+                <div className="text-slate-500">전투력 분석 중...</div>
+            </div>
+        );
+    }
+
+    if (!stats) return null;
 
     return (
-        <div
-            className="mb-6 relative group"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-        >
-            <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-bold text-slate-300 flex items-center gap-2 cursor-help">
-                    {label}
-                    <Info className="w-3 h-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </span>
-                <span className="text-xs font-mono text-white">{value}</span>
-            </div>
+        <div className="w-full bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-6 relative overflow-hidden group">
+            {/* Background Effects */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/10 transition-all duration-700"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 group-hover:bg-purple-500/10 transition-all duration-700"></div>
 
-            {/* Progress Bar Container */}
-            <div className="h-2 bg-slate-800 rounded-full overflow-hidden relative">
-                {/* Background Glow */}
-                <div
-                    className="absolute inset-0 opacity-20 blur-sm transition-all duration-1000"
-                    style={{ backgroundColor: color, width: `${animatedValue}%` }}
-                ></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                
+                {/* Left: Total Power Display (Hexagon) */}
+                <div className="flex-shrink-0 relative">
+                    <div className="w-48 h-48 relative flex items-center justify-center">
+                        {/* Hexagon Shape SVG */}
+                        <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                            <path d="M50 0 L93.3 25 V75 L50 100 L6.7 75 V25 Z" fill="none" stroke="url(#hexGradient)" strokeWidth="2" />
+                            <path d="M50 5 L89 27.5 V72.5 L50 95 L11 72.5 V27.5 Z" fill="rgba(15, 23, 42, 0.8)" />
+                            <defs>
+                                <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#3b82f6" />
+                                    <stop offset="100%" stopColor="#a855f7" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        
+                        {/* Power Value */}
+                        <div className="text-center z-10">
+                            <div className="text-xs text-blue-400 font-bold tracking-widest uppercase mb-1">Total Power</div>
+                            <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-blue-100 to-blue-200 tabular-nums tracking-tighter drop-shadow-lg">
+                                {stats.totalPower.toLocaleString()}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1 font-mono">CP-RANK-A</div>
+                        </div>
 
-                {/* Main Bar */}
-                <div
-                    className="h-full rounded-full relative transition-all duration-1000 ease-out"
-                    style={{ width: `${animatedValue}%`, backgroundColor: color }}
-                >
-                    {/* Shimmer Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-full -translate-x-full animate-shimmer"></div>
+                        {/* Rotating Ring */}
+                        <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full animate-[spin_10s_linear_infinite] border-t-transparent border-l-transparent"></div>
+                    </div>
+                </div>
+
+                {/* Right: Breakdown Stats */}
+                <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <StatItem 
+                        icon={<BookOpen className="w-4 h-4 text-emerald-400" />}
+                        label="수련 일지"
+                        value={stats.breakdown.trainingLogs.count}
+                        score={stats.breakdown.trainingLogs.score}
+                        color="emerald"
+                    />
+                    <StatItem 
+                        icon={<Layers className="w-4 h-4 text-purple-400" />}
+                        label="훈련 루틴"
+                        value={stats.breakdown.routines.count}
+                        score={stats.breakdown.routines.score}
+                        color="purple"
+                    />
+                    <StatItem 
+                        icon={<Swords className="w-4 h-4 text-red-400" />}
+                        label="스파링 복기"
+                        value={stats.breakdown.sparringReviews.count}
+                        score={stats.breakdown.sparringReviews.score}
+                        color="red"
+                    />
+                    <StatItem 
+                        icon={<Zap className="w-4 h-4 text-yellow-400" />}
+                        label="기술 스킬"
+                        value={stats.breakdown.skills.count}
+                        score={stats.breakdown.skills.score}
+                        color="yellow"
+                    />
+                    <StatItem 
+                        icon={<Trophy className="w-4 h-4 text-blue-400" />}
+                        label="벨트 승급"
+                        value={stats.breakdown.belt.level}
+                        score={stats.breakdown.belt.score}
+                        color="blue"
+                        isTextValue
+                    />
                 </div>
             </div>
-
-            {/* Circular Indicator at the end */}
-            <div
-                className="absolute top-6 w-4 h-4 -ml-2 rounded-full border-2 border-slate-900 shadow-lg transition-all duration-1000 ease-out flex items-center justify-center z-10"
-                style={{ left: `${animatedValue}%`, backgroundColor: color }}
-            >
-                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-            </div>
-
-            {/* Tooltip */}
-            {showTooltip && (
-                <div className="absolute bottom-full left-0 mb-2 w-48 p-3 bg-slate-800 text-xs text-slate-300 rounded-xl border border-slate-700 shadow-xl z-20 animate-fade-in pointer-events-none">
-                    <div className="absolute bottom-[-6px] left-4 w-3 h-3 bg-slate-800 border-b border-r border-slate-700 transform rotate-45"></div>
-                    <p className="font-semibold text-white mb-1">{label}</p>
-                    {description}
-                </div>
-            )}
         </div>
     );
 };
 
-export const StatPowerPanel: React.FC = () => {
-    const { user } = useAuth();
-    const [arenaStats, setArenaStats] = useState<any>(null);
+interface StatItemProps {
+    icon: React.ReactNode;
+    label: string;
+    value: number | string;
+    score: number;
+    color: string;
+    isTextValue?: boolean;
+}
 
-    useEffect(() => {
-        if (user) {
-            getUserArenaStats(user.id).then(({ data }) => {
-                if (data) setArenaStats(data);
-            });
-        }
-    }, [user]);
-
-    const stats = [
-        { label: 'Standing', value: arenaStats?.standing_power || 0, color: '#8b5cf6', description: '테이크다운 및 스탠딩 공방 능력' },
-        { label: 'Guard', value: arenaStats?.guard_power || 0, color: '#3b82f6', description: '가드 유지 및 서브미션 세팅 능력' },
-        { label: 'Guard Pass', value: arenaStats?.guard_pass_power || 0, color: '#06b6d4', description: '상대의 가드를 뚫고 포지션을 점유하는 능력' },
-        { label: 'Side', value: arenaStats?.side_power || 0, color: '#10b981', description: '사이드 포지션에서의 압박 및 공격 능력' },
-        { label: 'Mount', value: arenaStats?.mount_power || 0, color: '#f59e0b', description: '마운트 포지션 유지 및 피니시 능력' },
-        { label: 'Back', value: arenaStats?.back_power || 0, color: '#ef4444', description: '백 포지션 점유 및 초크/암바 결정력' },
-    ];
-
-    const totalPower = stats.reduce((acc, curr) => acc + curr.value, 0);
+const StatItem: React.FC<StatItemProps> = ({ icon, label, value, score, color, isTextValue }) => {
+    const colorClasses: Record<string, string> = {
+        emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+        purple: "bg-purple-500/10 border-purple-500/20 text-purple-400",
+        red: "bg-red-500/10 border-red-500/20 text-red-400",
+        yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
+        blue: "bg-blue-500/10 border-blue-500/20 text-blue-400",
+    };
 
     return (
-        <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl p-6 border border-white/5 shadow-xl relative overflow-hidden group hover:border-purple-500/20 transition-colors duration-500">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 animate-pulse" />
-                        전투력 지수
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1">카테고리별 실력 분석</p>
+        <div className={`flex flex-col p-3 rounded-lg border ${colorClasses[color]} transition-all hover:bg-opacity-20`}>
+            <div className="flex items-center gap-2 mb-2">
+                {icon}
+                <span className="text-xs font-bold uppercase tracking-wider opacity-80">{label}</span>
+            </div>
+            <div className="flex items-end justify-between">
+                <div className={`font-bold ${isTextValue ? 'text-sm' : 'text-lg'} text-white`}>
+                    {value}
+                    {!isTextValue && <span className="text-xs text-slate-500 font-normal ml-1">개</span>}
                 </div>
-                <div className="text-right">
-                    <div className="text-3xl font-black text-white tracking-tighter drop-shadow-lg">{totalPower}</div>
-                    <div className="text-xs font-bold text-green-400 flex items-center justify-end gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        일일 보너스 +0.5 XP
-                    </div>
+                <div className="text-xs font-mono opacity-70">
+                    +{score.toLocaleString()}
                 </div>
             </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                {stats.map((stat) => (
-                    <StatBar key={stat.label} {...stat} />
-                ))}
-            </div>
-
-            <style>{`
-                @keyframes shimmer {
-                    100% { transform: translateX(100%); }
-                }
-                .animate-shimmer {
-                    animation: shimmer 2s infinite;
-                }
-                @keyframes fade-in {
-                    from { opacity: 0; transform: translateY(5px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in {
-                    animation: fade-in 0.2s ease-out;
-                }
-            `}</style>
         </div>
     );
 };

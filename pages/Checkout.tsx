@@ -166,7 +166,24 @@ export const Checkout: React.FC = () => {
             <div className="max-w-2xl mx-auto px-4">
                 <h1 className="text-3xl font-bold text-white mb-8">결제</h1>
                 {clientSecret && (
-                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <Elements 
+                        stripe={stripePromise} 
+                        options={{ 
+                            clientSecret,
+                            appearance: {
+                                theme: 'night',
+                                variables: {
+                                    colorPrimary: '#3b82f6',
+                                    colorBackground: '#0f172a',
+                                    colorText: '#f1f5f9',
+                                    colorDanger: '#ef4444',
+                                    fontFamily: 'Inter, system-ui, sans-serif',
+                                    spacingUnit: '4px',
+                                    borderRadius: '8px',
+                                }
+                            }
+                        }}
+                    >
                         <CheckoutForm clientSecret={clientSecret} amount={amount} />
                     </Elements>
                 )}

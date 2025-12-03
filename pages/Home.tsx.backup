@@ -1,0 +1,495 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  Play, ChevronRight, Heart, MessageCircle,
+  Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
+  Lock, Calendar, Star, TrendingUp, ArrowRight
+} from 'lucide-react';
+import { Button } from '../components/Button';
+import { getUserProgress, getDailyQuests } from '../lib/api';
+import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
+import {
+  getCourses, getDrills, getPublicTrainingLogs
+} from '../lib/api';
+import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
+import { checkPatchUnlocks } from '../components/PatchDisplay';
+
+const QUEST_INFO: Record<string, { icon: string; name: string }> = {
+  watch_lesson: { icon: '📺', name: '레슨 시청' },
+  write_log: { icon: '📝', name: '수련일지 작성' },
+  tournament: { icon: '⚔️', name: '시합 참여' },
+  add_skill: { icon: '🎯', name: '기술 추가' },
+  give_feedback: { icon: '💬', name: '피드백 주기' },
+  sparring_review: { icon: '🥋', name: '스파링 복기' },
+  master_skill: { icon: '🏆', name: '기술 마스터' },
+  complete_routine: { icon: '🔥', name: '루틴 완료' }
+};
+
+export const Home: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  // Data states
+  const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
+  const [drills, setDrills] = useState<Drill[]>([]);
+  const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]);
+  const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
+
+  // User progress states
+  const [progress, setProgress] = useState<UserProgress | null>(null);
+  const [quests, setQuests] = useState<DailyQuest[]>([]);
+
+  // Mock User Stats
+  const userStats = {
+    streak: 12,
+    weeklyActivity: [true, true, false, true, true, false, true],
+    totalSkills: 8,
+    masteredSkills: 3,
+    tournamentWins: 2,
+    trainingLogs: 15
+  };
+
+  // Mock Recent Activity
+  const recentActivity = [
+    { id: '101', type: 'lesson', title: 'Lesson 3: 암바 디테일', courseTitle: '화이트벨트 탈출기', progress: 75, thumbnail: 'bg-blue-900', lastWatched: '2시간 전' },
+    { id: '205', type: 'drill', title: '힙 이스케이프 100회', difficulty: '초급', progress: 100, thumbnail: 'bg-emerald-900', lastWatched: '어제' },
+    { id: '102', type: 'lesson', title: 'Lesson 4: 트라이앵글 초크', courseTitle: '화이트벨트 탈출기', progress: 10, thumbnail: 'bg-indigo-900', lastWatched: '3일 전' },
+  ];
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/');
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        const userProgress = await getUserProgress(user.id);
+        setProgress(userProgress);
+
+        const dailyQuests = await getDailyQuests(user.id);
+        setQuests(dailyQuests);
+
+        const courses = await getCourses();
+        setRecommendedCourses(courses.slice(0, 4));
+
+        const { data: drillsData } = await getDrills();
+        if (drillsData) setDrills(drillsData.slice(0, 6));
+
+        const { data: logsData } = await getPublicTrainingLogs(1, 5);
+        if (logsData) setTrainingLogs(logsData);
+
+      } catch (error) {
+        console.error('Error fetching home data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  // Belt info
+  const currentBelt = progress ? getBeltInfo(progress.beltLevel) : null;
+  const nextBelt = progress ? getBeltInfo(progress.beltLevel + 1) : null;
+  const xpProgress = progress ? getXPProgress(progress.totalXp, progress.beltLevel) : 0;
+  const xpToNext = progress ? getXPToNextBelt(progress.beltLevel) : 0;
+  const beltIcon = currentBelt ? getBeltIcon(currentBelt.belt) : '🥋';
+
+  // Calculate patches
+  const patches = checkPatchUnlocks({
+    streak: userStats.streak,
+    totalSkills: userStats.totalSkills,
+    masteredSkills: userStats.masteredSkills,
+    tournamentWins: userStats.tournamentWins,
+    trainingLogs: userStats.trainingLogs,
+    level: progress?.beltLevel || 0
+  });
+  const unlockedPatches = patches.filter(p => p.unlocked);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white pb-24">
+      {/* 1. Top Section: Today's Routine */}
+      <section className="relative pt-6 pb-8 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-slate-950 border-b border-slate-800/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-400" />
+              오늘의 루틴
+            </h2>
+            <span className="text-xs font-medium text-slate-400 bg-slate-800 px-2 py-1 rounded-full">
+              {new Date().toLocaleDateString()}
+            </span>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded border border-emerald-500/30">
+                      BEGINNER
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded border border-blue-500/30">
+                      GUARD PASS
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-white mb-2">가드 패스 기본기 완성</h3>
+                  <p className="text-slate-300 text-sm mb-4 max-w-lg">
+                    기본적인 토레안도 패스와 니컷 패스를 연결하는 드릴 루틴입니다.
+                    하루 15분 투자로 가드 패스 성공률을 높이세요.
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-slate-400">
+                    <div className="flex items-center gap-1">
+                      <Activity className="w-4 h-4 text-indigo-400" />
+                      <span>15분 소요</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Flame className="w-4 h-4 text-orange-400" />
+                      <span>120 XP</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <button
+                    onClick={() => navigate('/arena?tab=routines')}
+                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Play className="w-5 h-5 fill-white" />
+                    루틴 시작하기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Recommended Routine (Pro) */}
+      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-400" />
+            추천 루틴 (Pro)
+          </h2>
+          <button className="text-xs text-indigo-400 font-bold hover:text-indigo-300">
+            더 보기
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="relative bg-slate-900/50 border border-slate-800 rounded-xl p-4 overflow-hidden">
+              {/* Lock Overlay */}
+              <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
+                <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-2 shadow-lg">
+                  <Lock className="w-5 h-5 text-amber-400" />
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">Pro 전용 추천</h3>
+                <p className="text-xs text-slate-400 mb-3">나의 약점을 보완하는 맞춤 루틴</p>
+                <button className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-1.5 px-4 rounded-lg hover:brightness-110 transition-all">
+                  업그레이드하고 잠금해제
+                </button>
+              </div>
+
+              {/* Blurred Content */}
+              <div className="opacity-30 blur-[1px]">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-lg bg-slate-800"></div>
+                  <div className="flex-1">
+                    <div className="h-4 w-3/4 bg-slate-700 rounded mb-2"></div>
+                    <div className="h-3 w-1/2 bg-slate-800 rounded"></div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-6 w-16 bg-slate-800 rounded"></div>
+                  <div className="h-6 w-16 bg-slate-800 rounded"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. Arena Growth */}
+      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+        <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+          <TrendingUp className="w-5 h-5 text-green-400" />
+          아레나 성장
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Stats & Graph */}
+          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className="flex items-center gap-1 text-orange-400 font-black text-2xl">
+                    <Flame className="w-6 h-6 fill-orange-400" />
+                    {userStats.streak}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase">연속 출석</div>
+                </div>
+                <div className="h-8 w-px bg-slate-800"></div>
+                <div>
+                  <div className="text-white font-black text-xl">{progress?.totalXp || 0}</div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase">총 경험치</div>
+                </div>
+              </div>
+
+              {/* Weekly Graph */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex gap-1">
+                  {userStats.weeklyActivity.map((active, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <div className={`w-2 h-8 rounded-full ${active ? 'bg-green-500' : 'bg-slate-800'}`}></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[10px] text-slate-500 font-bold uppercase">주간 활동</div>
+              </div>
+            </div>
+
+            {/* Belt Progress */}
+            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{beltIcon}</span>
+                  <div>
+                    <div className="text-sm font-bold text-white">{currentBelt?.name}</div>
+                    <div className="text-xs text-slate-400">다음: {nextBelt?.name}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-400">{Math.round(xpProgress * 100)}%</div>
+                </div>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-1.5">
+                <div
+                  className="h-1.5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${xpProgress * 100}%`,
+                    backgroundColor: currentBelt?.color === '#FFFFFF' ? '#94A3B8' : currentBelt?.color
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Mission */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-sm">오늘의 미션</h3>
+              <span className="text-xs font-bold text-indigo-400">{quests.filter(q => q.completed).length}/{quests.length}</span>
+            </div>
+            <div className="space-y-2">
+              {quests.map((quest) => (
+                <div key={quest.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-950/30 border border-slate-800/50">
+                  <div className={`w-5 h-5 rounded flex items-center justify-center ${quest.completed ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
+                    {quest.completed ? '✓' : '○'}
+                  </div>
+                  <span className={`text-xs flex-1 ${quest.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                    {QUEST_INFO[quest.questType]?.name || quest.questType}
+                  </span>
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Recent Review (Free) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-blue-500/30 transition-colors">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-sm">최근 복기</h3>
+              <span className="text-xs text-slate-500">어제</span>
+            </div>
+            <div className="bg-slate-950/50 rounded-lg p-3 mb-4 border border-slate-800/50">
+              <p className="text-sm text-slate-300 line-clamp-2">
+                "오늘 스파링에서는 가드 패스를 시도할 때 중심이 너무 앞으로 쏠리는 문제가 있었다. 상대방이 이를 이용해..."
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/arena?tab=journal')}
+              className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
+            >
+              <BookOpen className="w-4 h-4" />
+              복기 작성하기
+            </button>
+          </div>
+
+          {/* AI Analysis (Pro Locked) */}
+          <div className="relative bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/20 rounded-xl p-5 overflow-hidden">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
+              <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mb-2 shadow-lg shadow-indigo-500/20">
+                <Bot className="w-5 h-5 text-indigo-400" />
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1">AI 코치 분석</h3>
+              <p className="text-xs text-slate-400 mb-3">내 스파링 패턴을 분석하고 개선점을 제안합니다.</p>
+              <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg transition-all shadow-lg shadow-indigo-600/20">
+                Pro로 업그레이드
+              </button>
+            </div>
+
+            <div className="opacity-30 blur-[1px]">
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="w-4 h-4 text-indigo-400" />
+                <span className="text-sm font-bold text-indigo-300">AI Insight</span>
+              </div>
+              <div className="space-y-2">
+                <div className="h-2 w-full bg-slate-700 rounded"></div>
+                <div className="h-2 w-5/6 bg-slate-700 rounded"></div>
+                <div className="h-2 w-4/6 bg-slate-700 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+            {/* 5. Content Section */}
+            <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+              <div className="flex items-center gap-6 border-b border-slate-800 mb-6 overflow-x-auto scrollbar-hide">
+                {[
+                  { id: 'recent', label: '최근 시청', color: 'orange' },
+                  { id: 'courses', label: '추천 강의', color: 'indigo' },
+                  { id: 'drills', label: '실전 드릴', color: 'emerald' },
+                  { id: 'feed', label: '커뮤니티', color: 'blue' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === tab.id ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                  >
+                    {tab.label}
+                    {activeTab === tab.id && (
+                      <div className={`absolute bottom-0 left-0 w-full h-0.5 bg-${tab.color}-500 rounded-t-full`}></div>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="min-h-[300px]">
+                {/* Recent Activity */}
+                {activeTab === 'recent' && (
+                  <div className="space-y-3">
+                    {recentActivity.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/routines/${item.id}`)}
+                        className="group bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer"
+                      >
+                        <div className={`w-24 h-16 rounded-lg ${item.thumbnail} flex-shrink-0 flex items-center justify-center relative overflow-hidden`}>
+                          {item.type === 'lesson' ? <Play className="w-6 h-6 text-white/80" /> : <Dumbbell className="w-6 h-6 text-white/80" />}
+                          <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50">
+                            <div className="h-full bg-orange-500" style={{ width: `${item.progress}%` }}></div>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${item.type === 'lesson'
+                              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              }`}>
+                              {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
+                            </span>
+                            <span className="text-xs text-slate-500">{item.lastWatched}</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-white truncate group-hover:text-orange-400 transition-colors">{item.title}</h4>
+                          <p className="text-xs text-slate-400 truncate">{item.type === 'lesson' ? item.courseTitle : item.difficulty}</p>
+                        </div>
+                        <div className="flex items-center justify-center w-8">
+                          <Play className="w-4 h-4 text-slate-600 group-hover:text-white transition-colors" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Courses */}
+                {activeTab === 'courses' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {recommendedCourses.map(course => (
+                      <div
+                        key={course.id}
+                        onClick={() => navigate(`/courses/${course.id}`)}
+                        className="group bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-all cursor-pointer"
+                      >
+                        <div className="aspect-video relative overflow-hidden">
+                          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold text-white">
+                            {course.lessonCount} Lessons
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="font-bold text-white text-sm mb-1 line-clamp-1 group-hover:text-indigo-400 transition-colors">{course.title}</h4>
+                          <p className="text-xs text-slate-400 mb-3 line-clamp-1">{course.creatorName || 'Grappl Instructor'}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-slate-500">{course.category}</span>
+                            <Play className="w-3 h-3 text-indigo-500 fill-indigo-500" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Drills */}
+                {activeTab === 'drills' && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {drills.map(drill => (
+                      <div
+                        key={drill.id}
+                        onClick={() => navigate(`/routines/${drill.id}`)}
+                        className="aspect-[9/16] bg-slate-900/50 rounded-xl relative overflow-hidden group cursor-pointer border border-slate-800 hover:border-emerald-500/50 transition-all"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80"></div>
+                        <div className="absolute bottom-0 left-0 p-3 w-full">
+                          <h4 className="text-white text-xs font-bold line-clamp-2 mb-1 group-hover:text-emerald-400 transition-colors">{drill.title}</h4>
+                          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                            <Activity className="w-3 h-3" />
+                            <span>{drill.difficulty}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Feed */}
+                {activeTab === 'feed' && (
+                  <div className="space-y-3">
+                    {trainingLogs.map(log => (
+                      <div key={log.id} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-slate-700 transition-colors">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0 flex items-center justify-center text-sm font-bold text-slate-400">
+                          {log.userName?.[0] || 'U'}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-bold text-white">{log.userName || '익명'}</h4>
+                            <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-sm text-slate-300 mb-3 line-clamp-2">{log.notes}</p>
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {log.likes || 0}</span>
+                            <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {log.comments || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+          );
+};

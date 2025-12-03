@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { Play, Shield, Trophy, Star, ChevronRight, Zap, Users, BookOpen, Award, Target, CheckCircle } from 'lucide-react';
+import { InstructorCarousel } from '../components/InstructorCarousel';
+import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -82,7 +84,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="relative z-10 text-center px-4 max-w-5xl mx-auto py-20">
+                <div className="relative z-10 text-center px-4 max-w-5xl mx-auto py-12 md:py-20">
                     {/* Badge */}
                     <div className="inline-block px-4 py-2 mb-8 border border-blue-500/40 rounded-full bg-blue-500/10 backdrop-blur-md">
                         <span className="text-blue-300 text-sm font-semibold tracking-wider uppercase flex items-center gap-2">
@@ -92,7 +94,7 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     {/* Main Headline */}
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight mb-8 leading-[1.1]">
+                    <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tight mb-8 leading-[1.1]">
                         매트를 지배하는 <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 animate-gradient">
                             기술의 정점
@@ -149,8 +151,8 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 2. Instructor Authority Section - 짐워크 스타일 */}
-            <section id="instructors" className="py-32 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
+            {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
+            <section id="instructors" className="py-16 md:py-32 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
                 <div className="absolute inset-0 opacity-5">
                     <div className="absolute inset-0" style={{
                         backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)',
@@ -175,105 +177,11 @@ export const LandingPage: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Instructor Cards - 짐워크 스타일 */}
-                    <div className="grid md:grid-cols-3 gap-8 mb-12">
-                        {[
-                            {
-                                name: 'Marcus Almeida',
-                                nickname: '"Buchecha"',
-                                title: 'IBJJF World Champion',
-                                achievements: [
-                                    '🏆 IBJJF 월드 챔피언 13회',
-                                    '🥇 ADCC 챔피언 3회',
-                                    '⭐ 블랙벨트 5단'
-                                ],
-                                specialty: 'Guard Passing & Pressure',
-                                students: '2,500+',
-                                belt: 'from-slate-900 to-slate-700'
-                            },
-                            {
-                                name: 'Ana Silva',
-                                nickname: '"The Spider Queen"',
-                                title: 'Pan American Champion',
-                                achievements: [
-                                    '🏆 Pan American 챔피언 5회',
-                                    '🥇 IBJJF European 챔피언',
-                                    '⭐ 블랙벨트 3단'
-                                ],
-                                specialty: 'Spider Guard & Sweeps',
-                                students: '1,800+',
-                                belt: 'from-purple-600 to-purple-400'
-                            },
-                            {
-                                name: 'Carlos Mendes',
-                                nickname: '"The Leg Hunter"',
-                                title: 'ADCC Medalist',
-                                achievements: [
-                                    '🏆 ADCC 메달리스트',
-                                    '🥇 No-Gi World 챔피언',
-                                    '⭐ 블랙벨트 4단'
-                                ],
-                                specialty: 'Leg Locks & No-Gi',
-                                students: '3,200+',
-                                belt: 'from-amber-800 to-amber-600'
-                            }
-                        ].map((instructor, i) => (
-                            <div
-                                key={i}
-                                className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-3xl border border-slate-700/50 hover:border-blue-500/50 overflow-hidden transition-all duration-500 hover:transform hover:-translate-y-3 hover:shadow-2xl hover:shadow-blue-500/20"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/10 group-hover:to-transparent transition-all duration-500"></div>
-
-                                <div className="p-8 relative">
-                                    {/* Avatar with Belt Color */}
-                                    <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${instructor.belt} p-1 mb-6 mx-auto ring-4 ring-slate-700/50 group-hover:ring-blue-500/50 transition-all duration-300`}>
-                                        <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center overflow-hidden">
-                                            <Shield className="w-16 h-16 text-blue-400" />
-                                        </div>
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="text-center space-y-3">
-                                        <div>
-                                            <h3 className="text-2xl font-black text-white mb-1">{instructor.name}</h3>
-                                            <p className="text-blue-400 font-semibold italic text-sm">{instructor.nickname}</p>
-                                        </div>
-
-                                        <div className="inline-block px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
-                                            <p className="text-blue-300 text-sm font-bold">{instructor.title}</p>
-                                        </div>
-
-                                        {/* Achievements */}
-                                        <div className="pt-4 space-y-2">
-                                            {instructor.achievements.map((achievement, j) => (
-                                                <div key={j} className="flex items-center gap-2 text-slate-300 text-sm">
-                                                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                                                    <span>{achievement}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="pt-4 border-t border-slate-700/50">
-                                            <p className="text-slate-400 font-medium mb-2 text-sm">전문 분야</p>
-                                            <p className="text-white font-semibold">{instructor.specialty}</p>
-                                        </div>
-
-                                        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm pt-2">
-                                            <Users className="w-4 h-4 text-blue-400" />
-                                            <span className="text-blue-400 font-bold">{instructor.students}</span>
-                                            <span>수련생</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Hover Effect */}
-                                <div className="absolute inset-0 border-2 border-blue-500/0 group-hover:border-blue-500/50 rounded-3xl transition-all duration-300 pointer-events-none"></div>
-                            </div>
-                        ))}
-                    </div>
+                    {/* Infinite Scroll Carousel */}
+                    <InstructorCarousel />
 
                     {/* CTA */}
-                    <div className="text-center">
+                    <div className="text-center mt-12">
                         <Button
                             size="lg"
                             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-10 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"
@@ -287,7 +195,7 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* 3. Drill Video Showcase */}
-            <section className="py-32 bg-slate-900 relative overflow-hidden">
+            <section className="py-16 md:py-32 bg-slate-900 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 relative z-10">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl md:text-5xl font-black mb-6">
@@ -298,42 +206,8 @@ export const LandingPage: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Drill Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                        {[
-                            { title: 'Armbar Setup', instructor: 'Marcus A.', views: '1.2k' },
-                            { title: 'Guard Retention', instructor: 'Ana Silva', views: '890' },
-                            { title: 'Sweep Drill', instructor: 'Carlos M.', views: '2.1k' },
-                            { title: 'Passing Drill', instructor: 'Marcus A.', views: '1.5k' }
-                        ].map((drill, i) => (
-                            <div
-                                key={i}
-                                className="aspect-[9/16] bg-slate-800 rounded-2xl overflow-hidden relative group cursor-pointer border border-slate-700 hover:border-blue-500/50 transition-all duration-300"
-                                onClick={() => navigate('/pricing')}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-purple-900/40"></div>
-
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center">
-                                        <Play className="w-8 h-8 text-slate-900 fill-slate-900 ml-1" />
-                                    </div>
-                                </div>
-
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-4">
-                                    <h4 className="font-bold text-white mb-1">{drill.title}</h4>
-                                    <p className="text-xs text-slate-300 mb-2">{drill.instructor}</p>
-                                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                                        <Play className="w-3 h-3" />
-                                        <span>{drill.views}</span>
-                                    </div>
-                                </div>
-
-                                <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
-                                    <span className="text-xs text-white font-bold">PRO</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    {/* Free Drill Grid */}
+                    <FreeDrillShowcase />
 
                     <div className="text-center">
                         <Button
@@ -402,11 +276,11 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* 5. Arena System Promotion Section */}
-            <section className="py-32 bg-slate-900 relative overflow-hidden">
+            <section className="py-16 md:py-32 bg-slate-900 relative overflow-hidden">
                 {/* Background Elements */}
                 <div className="absolute inset-0">
                     <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid_pattern.png')] opacity-10"></div>
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px]"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px]"></div>
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 relative z-10">
@@ -423,15 +297,14 @@ export const LandingPage: React.FC = () => {
                             <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
                                 당신의 성장을 <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
-                                    증명하세요
+                                    게임처럼 즐기세요
                                 </span>
                             </h2>
 
                             <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed">
-                                막연한 수련은 이제 그만. <br className="md:hidden" />
-                                아레나 시스템으로 당신의 전투력을 시각화하세요. <br />
-                                일일 퀘스트, 토너먼트, 그리고 랭킹 시스템이 <br className="md:hidden" />
-                                당신의 도파민을 자극합니다.
+                                수련일지를 쓰고, 퀘스트를 완료하고, 랭킹을 올리세요. <br />
+                                아레나 시스템이 당신의 주짓수 여정을 <br className="md:hidden" />
+                                RPG 게임처럼 재미있게 만들어드립니다.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -477,8 +350,8 @@ export const LandingPage: React.FC = () => {
                                             <Trophy className="w-5 h-5 text-white" />
                                         </div>
                                         <div>
-                                            <p className="text-xs text-slate-400 font-bold uppercase">Current Rank</p>
-                                            <p className="text-white font-black">Diamond League</p>
+                                            <p className="text-xs text-slate-400 font-bold uppercase">현재 랭크</p>
+                                            <p className="text-white font-black">다이아몬드 리그</p>
                                         </div>
                                     </div>
                                 </div>
@@ -489,7 +362,7 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* 6. Final CTA Section */}
-            <section className="py-40 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
+            <section className="py-20 md:py-40 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
                 <div className="absolute inset-0">
                     <img
                         src="/cta_space.png"
@@ -519,7 +392,7 @@ export const LandingPage: React.FC = () => {
                         <span className="text-amber-400 font-bold text-lg">🎉 오픈 특가: 1년 구독 시 35% 할인</span>
                     </div>
 
-                    <h2 className="text-5xl md:text-7xl font-black mb-8 tracking-tight leading-tight">
+                    <h2 className="text-4xl md:text-7xl font-black mb-8 tracking-tight leading-tight">
                         지금 바로 <br className="md:hidden" />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
                             시작하세요

@@ -13,11 +13,11 @@ export const PayoutSettingsTab: React.FC = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Wise account fields
-    const [wiseAccountNumber, setWiseAccountNumber] = useState('');
-    const [wiseRoutingNumber, setWiseRoutingNumber] = useState('');
-    const [wiseSwiftBic, setWiseSwiftBic] = useState('');
-    const [wiseAccountName, setWiseAccountName] = useState('');
+    // Korean Bank fields
+    const [bankName, setBankName] = useState('');
+    const [accountNumber, setAccountNumber] = useState('');
+    const [accountHolder, setAccountHolder] = useState('');
+    const [residentRegistrationNumber, setResidentRegistrationNumber] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -35,12 +35,12 @@ export const PayoutSettingsTab: React.FC = () => {
                 if (data.payoutSettings?.type) {
                     setPayoutType(data.payoutSettings.type);
                 }
-                // Load Wise account info
+                // Load Korean bank info
                 if (data.payoutSettings) {
-                    setWiseAccountNumber(data.payoutSettings.wiseAccountNumber || '');
-                    setWiseRoutingNumber(data.payoutSettings.wiseRoutingNumber || '');
-                    setWiseSwiftBic(data.payoutSettings.wiseSwiftBic || '');
-                    setWiseAccountName(data.payoutSettings.wiseAccountName || '');
+                    setBankName(data.payoutSettings.bankName || '');
+                    setAccountNumber(data.payoutSettings.accountNumber || '');
+                    setAccountHolder(data.payoutSettings.accountHolder || '');
+                    setResidentRegistrationNumber(data.payoutSettings.residentRegistrationNumber || '');
                 }
             }
         } catch (err) {
@@ -60,10 +60,10 @@ export const PayoutSettingsTab: React.FC = () => {
         try {
             const { error } = await updatePayoutSettings(user.id, {
                 type: payoutType,
-                wiseAccountNumber,
-                wiseRoutingNumber,
-                wiseSwiftBic,
-                wiseAccountName
+                bankName,
+                accountNumber,
+                accountHolder,
+                residentRegistrationNumber
             });
             if (error) throw error;
             setSuccess('설정이 저장되었습니다.');
@@ -93,31 +93,7 @@ export const PayoutSettingsTab: React.FC = () => {
                 <p className="text-slate-400 mt-1">수익금을 정산받을 계좌와 세금 정보를 관리하세요.</p>
             </div>
 
-            {/* Status Card */}
-            <div className={`p-6 rounded-xl border ${stripeAccountId ? 'bg-green-900/20 border-green-500/30' : 'bg-slate-900 border-slate-800'}`}>
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-4">
-                        <div className={`p-3 rounded-full ${stripeAccountId ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
-                            <CreditCard className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-white">
-                                {stripeAccountId ? '정산 계좌가 연결되었습니다' : '정산 계좌를 연결해주세요'}
-                            </h3>
-                            <p className="text-slate-400 text-sm mt-1">
-                                {stripeAccountId
-                                    ? 'Stripe Connect를 통해 안전하게 정산받고 있습니다.'
-                                    : '수익금을 정산받으려면 Stripe 계정을 연결해야 합니다.'}
-                            </p>
-                        </div>
-                    </div>
-                    {!stripeAccountId && (
-                        <Button onClick={handleConnectStripe}>
-                            Stripe 연결하기
-                        </Button>
-                    )}
-                </div>
-            </div>
+            {/* Stripe Connect Section Removed as per user request */}
 
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">정산 유형 선택</h3>
@@ -144,62 +120,65 @@ export const PayoutSettingsTab: React.FC = () => {
                 </div>
             </div>
 
-            {/* Wise Account Information */}
+            {/* Korean Bank Account Information */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Wise 계좌 정보</h3>
-                <p className="text-sm text-slate-400">정산금을 받을 Wise 계좌 정보를 입력하세요.</p>
+                <h3 className="text-lg font-semibold text-white">입금 계좌 정보</h3>
+                <p className="text-sm text-slate-400">수익금을 정산받을 한국 계좌 정보를 입력하세요.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            계좌번호 (Account Number) *
+                            은행명 *
                         </label>
                         <input
                             type="text"
-                            value={wiseAccountNumber}
-                            onChange={(e) => setWiseAccountNumber(e.target.value)}
-                            placeholder="977226919280108"
+                            value={bankName}
+                            onChange={(e) => setBankName(e.target.value)}
+                            placeholder="예: 카카오뱅크, 신한은행"
                             className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            라우팅 번호 (Routing Number) *
+                            계좌번호 *
                         </label>
                         <input
                             type="text"
-                            value={wiseRoutingNumber}
-                            onChange={(e) => setWiseRoutingNumber(e.target.value)}
-                            placeholder="084009519"
+                            value={accountNumber}
+                            onChange={(e) => setAccountNumber(e.target.value)}
+                            placeholder="하이픈(-) 없이 입력"
                             className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            SWIFT/BIC *
+                            예금주 *
                         </label>
                         <input
                             type="text"
-                            value={wiseSwiftBic}
-                            onChange={(e) => setWiseSwiftBic(e.target.value)}
-                            placeholder="TRWIUS35XXX"
+                            value={accountHolder}
+                            onChange={(e) => setAccountHolder(e.target.value)}
+                            placeholder="본인 명의의 계좌 예금주"
                             className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            예금주명 (Account Name) *
+                            주민등록번호 (앞 6자리 + 뒤 1자리) *
                         </label>
                         <input
                             type="text"
-                            value={wiseAccountName}
-                            onChange={(e) => setWiseAccountName(e.target.value)}
-                            placeholder="그래플레이"
+                            value={residentRegistrationNumber}
+                            onChange={(e) => setResidentRegistrationNumber(e.target.value)}
+                            placeholder="예: 900101-1"
                             className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                        <p className="text-xs text-slate-500 mt-1">
+                            3.3% 사업소득세 원천징수 신고를 위해 필요합니다.
+                        </p>
                     </div>
                 </div>
             </div>

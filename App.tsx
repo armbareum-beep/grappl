@@ -8,6 +8,7 @@ import { VideoDetail } from './pages/VideoDetail';
 import { Pricing } from './pages/Pricing';
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { UploadDrill } from './pages/creator/UploadDrill';
+import { UploadLesson } from './pages/creator/UploadLesson';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
@@ -84,6 +85,7 @@ const App: React.FC = () => {
               <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
               <Route path="/creator/upload" element={<UploadVideo />} />
               <Route path="/creator/drills/new" element={<UploadDrill />} />
+              <Route path="/creator/lessons/new" element={<UploadLesson />} />
               <Route path="/creator/create-routine" element={<CreateRoutine />} />
               <Route path="/become-creator" element={<BecomeCreator />} />
               <Route path="/creator/:id" element={<CreatorProfile />} />

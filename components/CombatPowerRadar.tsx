@@ -20,12 +20,12 @@ export const CombatPowerRadar: React.FC<CombatPowerRadarProps> = ({ stats }) => 
         let power = 0;
         if (stats) {
             switch (category) {
-                case 'Standing': power = stats.standing_power; break;
-                case 'Guard': power = stats.guard_power; break;
-                case 'Guard Pass': power = stats.guard_pass_power; break;
-                case 'Side': power = stats.side_power; break;
-                case 'Mount': power = stats.mount_power; break;
-                case 'Back': power = stats.back_power; break;
+                case 'Standing': power = stats.standing_power || 0; break;
+                case 'Guard': power = stats.guard_power || 0; break;
+                case 'Guard Pass': power = stats.guard_pass_power || 0; break;
+                case 'Side': power = stats.side_power || 0; break;
+                case 'Mount': power = stats.mount_power || 0; break;
+                case 'Back': power = stats.back_power || 0; break;
             }
         }
 

@@ -171,14 +171,14 @@ Deno.serve(async (req) => {
 
             const { data: feedback } = await supabaseClient
                 .from('feedback_requests')
-                .select('*, creator:profiles!feedback_requests_creator_id_fkey(feedback_price)')
+                .select('id, price')
                 .eq('id', feedbackRequestId)
                 .single()
 
             if (!feedback) throw new Error('Feedback request not found')
 
-            // Handle case where creator might be null or price missing
-            const price = feedback.creator?.feedback_price || 10000 // Fallback
+            // Use the price from the request itself (snapshot at time of request)
+            const price = feedback.price || 10000 // Fallback only if 0 or null, though it should be set
 
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: price * 100,

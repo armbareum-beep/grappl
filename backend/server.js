@@ -208,4 +208,10 @@ app.post('/process', async (req, res) => {
 
     } catch (error) {
         console.error('Processing failed:', error);
-        res.status(500).json({ error: 'Processing failed: ' + error.message
+        res.status(500).json({ error: 'Processing failed: ' + error.message });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

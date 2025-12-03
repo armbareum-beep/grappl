@@ -6,6 +6,7 @@ import { TrainingLog } from '../../types';
 interface AICoachWidgetProps {
     logs?: TrainingLog[];
     autoRun?: boolean;
+    isLocked?: boolean;
 }
 
 interface AnalysisResult {
@@ -52,7 +53,7 @@ const ROUTINE_DATABASE = {
     ]
 };
 
-export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun = false }) => {
+export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun = false, isLocked = false }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [displayedText, setDisplayedText] = useState('');
@@ -75,7 +76,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
     // 🧠 분석 엔진 (Rule-based AI)
     const analyzeLogs = useCallback(() => {
-        if (isAnalyzing) return; // 이미 분석 중이면 중단
+        if (isAnalyzing || isLocked) return; // 이미 분석 중이거나 잠겨있으면 중단
 
         setIsAnalyzing(true);
         setShowResult(false);
@@ -204,20 +205,20 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
             setShowResult(true);
             typeWriterEffect(`최근 ${logs.length}개의 수련 일지를 분석했습니다. 현재 회원님에게 필요한 맞춤형 솔루션입니다.`);
         }, 1500);
-    }, [logs, typeWriterEffect, isAnalyzing]); // isAnalyzing 의존성 추가
+    }, [logs, typeWriterEffect, isAnalyzing, isLocked]);
 
     // Auto Run Effect
     useEffect(() => {
-        if (autoRun && logs.length > 0 && !hasRunRef.current) {
+        if (autoRun && logs.length > 0 && !hasRunRef.current && !isLocked) {
             hasRunRef.current = true;
             analyzeLogs();
         }
-    }, [autoRun, logs, analyzeLogs]);
+    }, [autoRun, logs, analyzeLogs, isLocked]);
 
     return (
-        <div className="w-full bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl mb-8">
+        <div className="w-full bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-xl mb-8 relative">
             {/* Header */}
-            <div className="bg-slate-800/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+            <div className="bg-slate-800/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center relative z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/50">
                         <Bot className="w-6 h-6 text-indigo-400" />
@@ -231,7 +232,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                     </div>
                 </div>
 
-                {!showResult && !isAnalyzing && (
+                {!showResult && !isAnalyzing && !isLocked && (
                     <button
                         onClick={analyzeLogs}
                         className="group flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all shadow-lg shadow-indigo-600/20"
@@ -244,6 +245,20 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
             {/* Content Area */}
             <div className="p-6 min-h-[200px] relative">
+                {isLocked && (
+                    <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
+                        <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-4 shadow-lg">
+                            <Lock className="w-8 h-8 text-indigo-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Pro 멤버십 전용 기능</h3>
+                        <p className="text-slate-400 mb-6 max-w-sm">
+                            AI 코치가 수련 일지를 분석하여 개인 맞춤형 피드백과 성장 솔루션을 제공합니다.
+                        </p>
+                        <button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:scale-105">
+                            Pro로 업그레이드하고 분석 받기
+                        </button>
+                    </div>
+                )}
 
                 {/* Initial State */}
                 {!isAnalyzing && !showResult && (

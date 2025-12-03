@@ -59,20 +59,20 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h2 className="text-4xl font-black text-slate-900">
+          <h2 className="text-4xl font-black text-white">
             {isLogin ? '로그인' : '회원가입'}
           </h2>
-          <p className="mt-2 text-slate-600">
+          <p className="mt-2 text-slate-400">
             {isLogin ? 'Grapplay 계정으로 로그인하세요' : '새로운 계정을 만드세요'}
           </p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
@@ -82,7 +82,7 @@ export const Login: React.FC = () => {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
                 이메일
               </label>
               <div className="relative">
@@ -93,14 +93,14 @@ export const Login: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="your@email.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
                 비밀번호
               </label>
               <div className="relative">
@@ -111,13 +111,13 @@ export const Login: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="••••••••"
                   minLength={6}
                 />
               </div>
               {!isLogin && (
-                <p className="mt-1 text-xs text-slate-500">최소 6자 이상</p>
+                <p className="mt-1 text-xs text-slate-400">최소 6자 이상</p>
               )}
             </div>
 
@@ -138,7 +138,7 @@ export const Login: React.FC = () => {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-blue-400 hover:text-blue-300 font-medium"
             >
               {isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
             </button>
@@ -148,10 +148,10 @@ export const Login: React.FC = () => {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
+                <div className="w-full border-t border-slate-700"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">또는</span>
+                <span className="px-2 bg-slate-900 text-slate-400">또는</span>
               </div>
             </div>
 
@@ -160,7 +160,7 @@ export const Login: React.FC = () => {
                 type="button"
                 onClick={() => handleSocialLogin('google')}
                 disabled={socialLoading !== null}
-                className="w-full flex items-center justify-center px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -177,7 +177,7 @@ export const Login: React.FC = () => {
 
         {/* Back to Home */}
         <div className="text-center">
-          <Link to="/" className="text-sm text-slate-600 hover:text-slate-900">
+          <Link to="/" className="text-sm text-slate-400 hover:text-white">
             ← 홈으로 돌아가기
           </Link>
         </div>
