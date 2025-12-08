@@ -303,7 +303,7 @@ export const CreateRoutine: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => navigate('/creator/dashboard')} className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                    <Button type="button" variant="outline" onClick={() => navigate('/creator')} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                         취소
                     </Button>
                     <Button type="submit" disabled={loading}>

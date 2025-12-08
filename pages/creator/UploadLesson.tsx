@@ -33,7 +33,7 @@ const initialProcessingState: ProcessingState = {
 export const UploadLesson: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    
+
     // Global Form State
     const [formData, setFormData] = useState({
         title: '',
@@ -48,10 +48,10 @@ export const UploadLesson: React.FC = () => {
 
     // Video State (Lessons typically have one main video)
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
-    
+
     // Editor State
     const [isEditing, setIsEditing] = useState(false);
-    
+
     // Overall Progress
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionProgress, setSubmissionProgress] = useState<string>('');
@@ -70,13 +70,13 @@ export const UploadLesson: React.FC = () => {
 
     const handleFileUpload = async (file: File) => {
         setVideoState(prev => ({ ...prev, file, status: 'uploading', progress: 0, error: null }));
-        
+
         try {
             // 1. Upload Raw
             const uploadRes = await videoProcessingApi.uploadVideo(file);
-            setVideoState(prev => ({ 
-                ...prev, 
-                videoId: uploadRes.videoId, 
+            setVideoState(prev => ({
+                ...prev,
+                videoId: uploadRes.videoId,
                 filename: uploadRes.filename,
                 status: 'previewing',
                 progress: 0
@@ -84,10 +84,10 @@ export const UploadLesson: React.FC = () => {
 
             // 2. Generate Preview
             const previewRes = await videoProcessingApi.generatePreview(uploadRes.videoId, uploadRes.filename);
-            
+
             if (previewRes.previewUrl && !previewRes.jobId) {
-                setVideoState(prev => ({ 
-                    ...prev, 
+                setVideoState(prev => ({
+                    ...prev,
                     previewUrl: videoProcessingApi.getPreviewUrl(previewRes.previewUrl!),
                     status: 'ready',
                     progress: 100
@@ -104,8 +104,8 @@ export const UploadLesson: React.FC = () => {
 
                     if (statusRes.status === 'completed' && statusRes.previewUrl) {
                         clearInterval(pollInterval);
-                        setVideoState(prev => ({ 
-                            ...prev, 
+                        setVideoState(prev => ({
+                            ...prev,
                             previewUrl: videoProcessingApi.getPreviewUrl(statusRes.previewUrl!),
                             status: 'ready',
                             progress: 100
@@ -117,20 +117,20 @@ export const UploadLesson: React.FC = () => {
                     }
                 } catch (err: any) {
                     clearInterval(pollInterval);
-                    setVideoState(prev => ({ 
-                        ...prev, 
-                        status: 'error', 
-                        error: '미리보기 생성 실패: ' + err.message 
+                    setVideoState(prev => ({
+                        ...prev,
+                        status: 'error',
+                        error: '미리보기 생성 실패: ' + err.message
                     }));
                 }
             }, 1000);
 
         } catch (err: any) {
             console.error(err);
-            setVideoState(prev => ({ 
-                ...prev, 
-                status: 'error', 
-                error: '업로드/변환 실패: ' + err.message 
+            setVideoState(prev => ({
+                ...prev,
+                status: 'error',
+                error: '업로드/변환 실패: ' + err.message
             }));
         }
     };
@@ -142,7 +142,7 @@ export const UploadLesson: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!user || !videoState.videoId || !formData.courseId) return;
-        
+
         if (!videoState.cuts) {
             alert('영상을 편집해주세요.');
             return;
@@ -219,7 +219,7 @@ export const UploadLesson: React.FC = () => {
         <div className="min-h-screen bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
                 <button
-                    onClick={() => navigate('/creator/dashboard')}
+                    onClick={() => navigate('/creator')}
                     className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -306,7 +306,7 @@ export const UploadLesson: React.FC = () => {
                             <label className="block text-sm font-medium text-slate-300 mb-4">
                                 레슨 영상 (편집 가능) <span className="text-red-500">*</span>
                             </label>
-                            
+
                             {videoState.status === 'idle' || videoState.status === 'error' ? (
                                 <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center hover:border-blue-500 hover:bg-slate-800/50 transition-all cursor-pointer relative group">
                                     <input
@@ -328,9 +328,9 @@ export const UploadLesson: React.FC = () => {
                                             <span>{videoState.progress}%</span>
                                         </div>
                                         <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-blue-500 transition-all duration-300" 
-                                                style={{ width: `${videoState.progress}%` }} 
+                                            <div
+                                                className="h-full bg-blue-500 transition-all duration-300"
+                                                style={{ width: `${videoState.progress}%` }}
                                             />
                                         </div>
                                     </div>
@@ -353,7 +353,7 @@ export const UploadLesson: React.FC = () => {
                                             <Scissors className="w-4 h-4 mr-2" />
                                             {videoState.cuts ? '다시 편집' : '영상 편집'}
                                         </Button>
-                                        <button 
+                                        <button
                                             onClick={() => setVideoState(initialProcessingState)}
                                             className="text-slate-400 hover:text-red-400 px-3"
                                         >
@@ -366,7 +366,7 @@ export const UploadLesson: React.FC = () => {
 
                         {/* Submit Button */}
                         <div className="pt-8 border-t border-slate-800 flex justify-end">
-                            <Button 
+                            <Button
                                 onClick={handleSubmit}
                                 disabled={!videoState.cuts || !formData.title || !formData.courseId}
                                 className="px-8 py-3 text-lg"
