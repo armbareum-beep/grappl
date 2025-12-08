@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Users, Shield, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Creator {
@@ -43,60 +44,68 @@ export const InstructorCarousel: React.FC = () => {
     return (
         <div className="relative overflow-hidden mb-12 py-8">
             {/* Gradient Fade Edges */}
-            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-slate-950 to-transparent z-20 pointer-events-none"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-slate-950 to-transparent z-20 pointer-events-none"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-slate-950 to-transparent z-20 pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-slate-950 to-transparent z-20 pointer-events-none"></div>
 
-            <div className="instructor-scroll-container flex gap-4 px-4">
-                {creators.map((creator, index) => {
-                    // Mock data for display based on the reference image
-                    const courseCount = Math.floor(Math.random() * 20) + 2;
-                    const videoCount = Math.floor(Math.random() * 200) + 20;
+            <div className="instructor-scroll-container flex gap-6 px-4">
+                {creators.map((creator, index) => (
+                    <div
+                        key={`${creator.id}-${index}`}
+                        className="group relative flex-shrink-0 w-[260px] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer"
+                    >
+                        {/* Card Header Background */}
+                        <div className="h-24 bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-50"></div>
+                        </div>
 
-                    return (
-                        <div
-                            key={`${creator.id}-${index}`}
-                            className="group relative flex-shrink-0 w-[280px] h-[400px] rounded-xl overflow-hidden cursor-pointer bg-slate-900 border border-slate-800 hover:border-slate-600 transition-all duration-300"
-                        >
-                            {/* Background Image */}
-                            <div className="absolute inset-0">
-                                <img
-                                    src={creator.profile_image}
-                                    alt={creator.name}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                {/* Dark Gradient Overlay for Text Readability */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90"></div>
-                            </div>
-
-                            {/* Content Container */}
-                            <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                                {/* Top: Name */}
-                                <div>
-                                    <h3 className="text-2xl font-bold text-white leading-tight drop-shadow-md">
-                                        {creator.name}
-                                    </h3>
-                                </div>
-
-                                {/* Bottom: Stats & Button */}
-                                <div>
-                                    <div className="mb-4">
-                                        <p className="text-xs text-slate-300 font-medium mb-1">Full access</p>
-                                        <p className="text-3xl font-bold text-white leading-none mb-1 shadow-black drop-shadow-sm">
-                                            {courseCount} courses
-                                        </p>
-                                        <p className="text-3xl font-bold text-white leading-none shadow-black drop-shadow-sm">
-                                            {videoCount} videos
-                                        </p>
-                                    </div>
-
-                                    <button className="w-full bg-white hover:bg-slate-200 text-black text-sm font-bold py-3 px-4 rounded transition-colors shadow-lg">
-                                        프로필 보기
-                                    </button>
+                        {/* Avatar */}
+                        <div className="relative -mt-12 px-6 mb-3">
+                            <div className="w-24 h-24 rounded-full p-1 bg-slate-900 ring-4 ring-slate-900 group-hover:ring-indigo-500/30 transition-all duration-300">
+                                <div className="w-full h-full rounded-full overflow-hidden bg-slate-800">
+                                    {creator.profile_image ? (
+                                        <img
+                                            src={creator.profile_image}
+                                            alt={creator.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Shield className="w-10 h-10 text-slate-600" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                    );
-                })}
+
+                        {/* Content */}
+                        <div className="px-6 pb-6">
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">
+                                    {creator.name}
+                                </h3>
+                                <CheckCircle className="w-4 h-4 text-blue-500 fill-blue-500/10" />
+                            </div>
+
+                            <p className="text-xs text-slate-400 line-clamp-2 mb-4 h-8 leading-relaxed">
+                                {creator.bio || 'Grappl 인증 인스트럭터입니다.'}
+                            </p>
+
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">수련생</span>
+                                    <div className="flex items-center gap-1.5 text-sm font-bold text-slate-300">
+                                        <Users className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span>{creator.subscriber_count.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <button className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs font-bold rounded-lg transition-colors">
+                                    프로필
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             <style>{`
