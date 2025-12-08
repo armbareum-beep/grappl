@@ -106,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
               {user && !isCreator && (
                 <Link to="/become-creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3">
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3 border-slate-600 text-slate-200 hover:bg-slate-800">
                     <Upload className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden lg:inline">인스트럭터 되기</span>
                   </Button>
@@ -114,7 +114,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
               {user && isCreator && (
                 <Link to="/creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3">
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3 border-slate-600 text-slate-200 hover:bg-slate-800">
                     <Upload className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden lg:inline">인스트럭터</span>
                   </Button>
@@ -135,7 +135,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 py-1 z-50">
                       <Link
                         to="/library"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <div className="flex items-center space-x-2">
@@ -145,7 +145,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                       <Link
                         to="/settings"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <div className="flex items-center space-x-2">
@@ -211,7 +211,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {user && !isCreator && (
                 <Link
                   to="/become-creator"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Upload className="w-5 h-5" />
@@ -221,7 +221,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {user && isCreator && (
                 <Link
                   to="/creator"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Upload className="w-5 h-5" />
@@ -232,7 +232,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <>
                   <Link
                     to="/library"
-                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <BookOpen className="w-5 h-5" />
@@ -240,7 +240,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                   <Link
                     to="/settings"
-                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center space-x-2"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Settings className="w-5 h-5" />
@@ -251,7 +251,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       signOut();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                    className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-400 hover:bg-red-900/30 flex items-center space-x-2"
                   >
                     <LogOut className="w-5 h-5" />
                     <span>로그아웃</span>

@@ -108,7 +108,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 
 // Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
-    const { data, error } = await supabase
+    const fetchPromise = supabase
         .from('courses')
         .select(`
       *,
@@ -117,6 +117,20 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
     `)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
+
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 5000)
+    );
+
+    let data, error;
+    try {
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        data = result.data;
+        error = result.error;
+    } catch (e) {
+        console.error('getCourses timed out or failed:', e);
+        throw e;
+    }
 
     if (error) {
         console.error('Error fetching courses:', error);
@@ -246,13 +260,27 @@ export async function getLessonById(id: string): Promise<Lesson | null> {
 
 // Videos API (keep for backward compatibility)
 export async function getVideos(): Promise<Video[]> {
-    const { data, error } = await supabase
+    const fetchPromise = supabase
         .from('videos')
         .select(`
       *,
       creator:creators(name)
     `)
         .order('created_at', { ascending: false });
+
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 5000)
+    );
+
+    let data, error;
+    try {
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        data = result.data;
+        error = result.error;
+    } catch (e) {
+        console.error('getVideos timed out or failed:', e);
+        throw e;
+    }
 
     if (error) {
         console.error('Error fetching videos:', error);
@@ -1539,7 +1567,7 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const to = from + limit - 1;
 
     // 1. Fetch ONLY feed posts (shared content from Arena)
-    const { data, count, error } = await supabase
+    const fetchPromise = supabase
         .from('training_logs')
         .select('*', { count: 'exact' })
         .eq('is_public', true)
@@ -1547,6 +1575,21 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         .like('location', '__FEED__%')  // Feed posts have location starting with __FEED__
         .order('created_at', { ascending: false })
         .range(from, to);
+
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 5000)
+    );
+
+    let data, count, error;
+    try {
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        data = result.data;
+        count = result.count;
+        error = result.error;
+    } catch (e) {
+        console.error('getPublicTrainingLogs timed out or failed:', e);
+        return { data: null, count: 0, error: e };
+    }
 
     if (error) {
         console.error('Error fetching public logs:', error);
@@ -2460,7 +2503,7 @@ export async function getPublicCourses() {
  * Get user's skill tree courses (equipped courses)
  */
 export async function getUserSkillCourses(userId: string) {
-    const { data, error } = await supabase
+    const fetchPromise = supabase
         .from('user_skills')
         .select(`
             *,
@@ -2474,6 +2517,20 @@ export async function getUserSkillCourses(userId: string) {
         `)
         .eq('user_id', userId)
         .not('course_id', 'is', null);
+
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 5000)
+    );
+
+    let data, error;
+    try {
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        data = result.data;
+        error = result.error;
+    } catch (e) {
+        console.error('getUserSkillCourses timed out or failed:', e);
+        return { data: null, error: e };
+    }
 
     if (error) {
         console.error('Error fetching skill courses:', error);
@@ -4222,7 +4279,7 @@ export async function fetchDrillsBase(limit: number = 20) {
             .limit(limit);
 
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Drills fetch timeout')), 10000)
+            setTimeout(() => reject(new Error('Drills fetch timeout')), 5000)
         );
 
         const { data: drills, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
