@@ -29,7 +29,7 @@ export const InstructorCarousel: React.FC = () => {
             if (error) throw error;
 
             // Duplicate for infinite scroll
-            const duplicatedData = data ? [...data, ...data, ...data] : [];
+            const duplicatedData = data ? [...data, ...data] : [];
             setCreators(duplicatedData);
             setLoading(false);
         } catch (error) {
@@ -68,6 +68,7 @@ export const InstructorCarousel: React.FC = () => {
                                             src={creator.profile_image}
                                             alt={creator.name}
                                             className="w-full h-full object-cover"
+                                            loading="lazy"
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center">

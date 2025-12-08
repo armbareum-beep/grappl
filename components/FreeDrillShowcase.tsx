@@ -110,6 +110,7 @@ export const FreeDrillShowcase: React.FC = () => {
                             src={drill.thumbnail_url}
                             alt={drill.title}
                             className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
                         />
                     ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-purple-900/40"></div>
