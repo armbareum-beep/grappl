@@ -67,7 +67,7 @@ export const AdminDashboard: React.FC = () => {
                     link: "/admin/users"
                 },
                 {
-                    title: "인스트럭터 승인",
+                    title: "인스트럭터 관리",
                     desc: `${stats.pendingCreators}건의 대기 중인 신청`,
                     icon: Shield,
                     color: "text-purple-400",

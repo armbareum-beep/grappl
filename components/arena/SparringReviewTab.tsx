@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../Button';
 import { Plus, User, Lock, Clock, Target, TrendingUp } from 'lucide-react';
 import { AICoachWidget } from '../journal/AICoachWidget';
@@ -111,6 +112,7 @@ const getYouTubeEmbedUrl = (url: string): string => {
 
 export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const [reviews, setReviews] = useState<SparringReview[]>([]);
     const [loading, setLoading] = useState(false);
@@ -143,11 +145,8 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const [bonusReward, setBonusReward] = useState<{ type: 'xp_boost' | 'badge' | 'unlock'; value: string } | undefined>(undefined);
 
     const handleStartCreating = () => {
-        console.log("VERSION 2.0 - FIX APPLIED");
         if (!user) {
-            if (confirm('로그인이 필요한 서비스입니다. 로그인하시겠습니까?')) {
-                navigate('/login');
-            }
+            navigate('/login');
             return;
         }
         setIsCreating(true);

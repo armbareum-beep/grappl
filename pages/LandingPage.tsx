@@ -103,7 +103,7 @@ export const LandingPage: React.FC = () => {
 
                     {/* Subheadline */}
                     <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-                        세계 챔피언들과 함께, 당신의 BJJ를 성장시키세요. <br className="hidden md:block" />
+                        세계적인 블랙벨트들과 함께, 당신의 BJJ를 성장시키세요. <br className="hidden md:block" />
                         체계적인 커리큘럼과 레벨업 시스템으로 블랙벨트를 향한 여정을 시작하세요.
                     </p>
 
@@ -112,10 +112,10 @@ export const LandingPage: React.FC = () => {
                         <Button
                             size="lg"
                             className="w-full sm:w-auto text-lg px-10 py-7 rounded-full shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
-                            onClick={() => navigate('/pricing')}
+                            onClick={() => navigate('/drills')}
                         >
                             <Play className="w-5 h-5 mr-2" />
-                            7일 무료 체험 시작
+                            무료 영상으로 시작
                         </Button>
                         <Button
                             variant="outline"
@@ -140,7 +140,7 @@ export const LandingPage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             <Award className="w-5 h-5 text-blue-400" />
-                            <span>세계 챔피언 인스트럭터</span>
+                            <span>세계적인 블랙벨트 인스트럭터</span>
                         </div>
                     </div>
                 </div>
@@ -214,7 +214,7 @@ export const LandingPage: React.FC = () => {
                             size="lg"
                             variant="outline"
                             className="border-slate-700 text-slate-300 hover:bg-white/5 hover:text-white rounded-full px-8"
-                            onClick={() => navigate('/pricing')}
+                            onClick={() => navigate('/drills')}
                         >
                             더 많은 드릴 보기
                             <ChevronRight className="w-5 h-5 ml-2" />
@@ -388,9 +388,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 <div className="max-w-5xl mx-auto px-4 text-center relative z-10">
-                    <div className="inline-block mb-8 px-6 py-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full">
-                        <span className="text-amber-400 font-bold text-lg">🎉 오픈 특가: 1년 구독 시 35% 할인</span>
-                    </div>
+
 
                     <h2 className="text-4xl md:text-7xl font-black mb-8 tracking-tight leading-tight">
                         지금 바로 <br className="md:hidden" />
@@ -400,17 +398,17 @@ export const LandingPage: React.FC = () => {
                     </h2>
 
                     <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-2xl mx-auto leading-relaxed">
-                        7일 무료 체험으로 시작하세요. <br />
-                        세계 챔피언들과 함께하는 당신의 주짓수 여정
+                        무료 영상으로 시작하세요. <br />
+                        세계적인 블랙벨트들과 함께하는 당신의 주짓수 여정
                     </p>
 
                     <Button
                         size="lg"
                         className="text-xl px-16 py-8 rounded-full shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-105 transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500"
-                        onClick={() => navigate('/pricing')}
+                        onClick={() => navigate('/drills')}
                     >
                         <Play className="w-6 h-6 mr-3" />
-                        7일 무료 체험 시작
+                        무료 영상으로 시작
                     </Button>
 
                     <p className="mt-8 text-sm text-slate-500">
@@ -420,7 +418,7 @@ export const LandingPage: React.FC = () => {
                     <div className="mt-16 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            <span>7일 무료 체험</span>
+                            <span>무료 영상 제공</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>

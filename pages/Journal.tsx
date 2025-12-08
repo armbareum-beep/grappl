@@ -16,12 +16,18 @@ export const Journal: React.FC = () => {
     }, []);
 
     const loadPosts = async () => {
-        setLoading(true);
-        const { data } = await getPublicTrainingLogs();
-        if (data) {
-            setPosts(data);
+        try {
+            setLoading(true);
+            const result = await getPublicTrainingLogs(1, 10);
+
+            if (result.data) {
+                setPosts(result.data);
+            }
+        } catch (error) {
+            console.error('Error loading posts:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handlePostCreated = (newPost: TrainingLog) => {

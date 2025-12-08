@@ -48,11 +48,22 @@ export const CreateRoutine: React.FC = () => {
 
     const toggleDrillSelection = (drillId: string) => {
         setSelectedDrillIds(prev => {
-            if (prev.includes(drillId)) {
-                return prev.filter(id => id !== drillId);
-            } else {
-                return [...prev, drillId];
+            const newSelection = prev.includes(drillId)
+                ? prev.filter(id => id !== drillId)
+                : [...prev, drillId];
+
+            // Auto-set thumbnail from first selected drill
+            if (newSelection.length > 0 && !formData.thumbnailUrl) {
+                const firstDrill = drills.find(d => d.id === newSelection[0]);
+                if (firstDrill?.thumbnailUrl) {
+                    setFormData(prev => ({
+                        ...prev,
+                        thumbnailUrl: firstDrill.thumbnailUrl
+                    }));
+                }
             }
+
+            return newSelection;
         });
     };
 
@@ -67,19 +78,35 @@ export const CreateRoutine: React.FC = () => {
 
         setLoading(true);
         try {
-            const { error } = await createRoutine({
+            const { data, error } = await createRoutine({
                 ...formData,
                 creatorId: user.id,
                 creatorName: user.user_metadata?.name || 'Unknown Creator'
             }, selectedDrillIds);
 
-            if (error) throw error;
+            if (error) {
+                console.error('Routine creation error:', error);
+                toastError(error.message || '루틴 생성 중 오류가 발생했습니다.');
+                return;
+            }
 
+            if (!data) {
+                console.error('No data returned from createRoutine');
+                toastError('루틴이 생성되지 않았습니다. 다시 시도해주세요.');
+                return;
+            }
+
+            console.log('Routine created successfully:', data);
             success('루틴이 성공적으로 생성되었습니다!');
-            navigate('/creator/dashboard');
-        } catch (error) {
+
+            // Wait a bit for the toast to show before navigating
+            setTimeout(() => {
+                navigate('/arena');
+            }, 1000);
+        } catch (error: any) {
             console.error('Error creating routine:', error);
-            toastError('루틴 생성 중 오류가 발생했습니다.');
+            const errorMessage = error?.message || error?.error_description || '루틴 생성 중 오류가 발생했습니다.';
+            toastError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -187,19 +214,36 @@ export const CreateRoutine: React.FC = () => {
 
                     {/* Thumbnail URL */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 이미지 URL</label>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-sm font-medium text-slate-300">썸네일 이미지 URL</label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (selectedDrillIds.length > 0) {
+                                        const firstDrill = drills.find(d => d.id === selectedDrillIds[0]);
+                                        if (firstDrill?.thumbnailUrl) {
+                                            setFormData(prev => ({ ...prev, thumbnailUrl: firstDrill.thumbnailUrl }));
+                                        }
+                                    }
+                                }}
+                                disabled={selectedDrillIds.length === 0}
+                                className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed"
+                            >
+                                첫 번째 드릴에서 가져오기
+                            </button>
+                        </div>
                         <div className="relative">
                             <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <input
                                 type="url"
                                 name="thumbnailUrl"
-                                required
                                 value={formData.thumbnailUrl}
                                 onChange={handleChange}
                                 className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="https://example.com/image.jpg"
+                                placeholder="드릴을 선택하면 자동으로 채워집니다"
                             />
                         </div>
+                        <p className="text-xs text-slate-500 mt-1">비워두면 첫 번째 드릴의 썸네일이 사용됩니다.</p>
                     </div>
                 </div>
 

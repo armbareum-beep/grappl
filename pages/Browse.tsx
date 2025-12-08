@@ -10,14 +10,17 @@ export const Browse: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCourses() {
       try {
-        const data = await getCourses();
+        const data = await getCourses(20);
         setCourses(data);
-      } catch (error) {
+        setError(null);
+      } catch (error: any) {
         console.error('Error fetching courses:', error);
+        setError(error.message || '강좌를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
       }
@@ -29,13 +32,33 @@ export const Browse: React.FC = () => {
   const filteredCourses = courses.filter((course) => {
     const categoryMatch = selectedCategory === 'All' || course.category === selectedCategory;
     const difficultyMatch = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
+
     return categoryMatch && difficultyMatch;
   });
+
+
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-white p-4">
+        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 max-w-md text-center">
+          <h3 className="text-xl font-bold text-red-400 mb-2">오류 발생</h3>
+          <p className="text-slate-300 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          >
+            새로고침
+          </button>
+        </div>
       </div>
     );
   }

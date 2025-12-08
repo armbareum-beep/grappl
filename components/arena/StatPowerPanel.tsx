@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, TrendingUp, Info, Shield, Swords, Skull, Trophy, BookOpen, Activity, Layers } from 'lucide-react';
+import { Zap, TrendingUp, Info, Shield, Swords, Skull, Trophy, BookOpen, Activity, Layers, Flame } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getCompositeCombatPower, CombatPowerStats } from '../../lib/api';
+import { getCompositeCombatPower, CombatPowerStats, getUserStreak } from '../../lib/api';
 
 export const StatPowerPanel: React.FC = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState<CombatPowerStats | null>(null);
+    const [streak, setStreak] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -19,6 +20,10 @@ export const StatPowerPanel: React.FC = () => {
         try {
             const data = await getCompositeCombatPower(user.id);
             setStats(data);
+
+            // Load streak
+            const { data: streakData } = await getUserStreak(user.id);
+            setStreak(streakData || 0);
         } catch (error) {
             console.error('Error loading combat power:', error);
         } finally {
@@ -43,7 +48,7 @@ export const StatPowerPanel: React.FC = () => {
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 group-hover:bg-purple-500/10 transition-all duration-700"></div>
 
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-                
+
                 {/* Left: Total Power Display (Hexagon) */}
                 <div className="flex-shrink-0 relative">
                     <div className="w-48 h-48 relative flex items-center justify-center">
@@ -58,7 +63,7 @@ export const StatPowerPanel: React.FC = () => {
                                 </linearGradient>
                             </defs>
                         </svg>
-                        
+
                         {/* Power Value */}
                         <div className="text-center z-10">
                             <div className="text-xs text-blue-400 font-bold tracking-widest uppercase mb-1">Total Power</div>
@@ -75,41 +80,49 @@ export const StatPowerPanel: React.FC = () => {
 
                 {/* Right: Breakdown Stats */}
                 <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <StatItem 
+                    <StatItem
                         icon={<BookOpen className="w-4 h-4 text-emerald-400" />}
                         label="수련 일지"
                         value={stats.breakdown.trainingLogs.count}
                         score={stats.breakdown.trainingLogs.score}
                         color="emerald"
                     />
-                    <StatItem 
+                    <StatItem
                         icon={<Layers className="w-4 h-4 text-purple-400" />}
                         label="훈련 루틴"
                         value={stats.breakdown.routines.count}
                         score={stats.breakdown.routines.score}
                         color="purple"
                     />
-                    <StatItem 
+                    <StatItem
                         icon={<Swords className="w-4 h-4 text-red-400" />}
                         label="스파링 복기"
                         value={stats.breakdown.sparringReviews.count}
                         score={stats.breakdown.sparringReviews.score}
                         color="red"
                     />
-                    <StatItem 
+                    <StatItem
                         icon={<Zap className="w-4 h-4 text-yellow-400" />}
                         label="기술 스킬"
                         value={stats.breakdown.skills.count}
                         score={stats.breakdown.skills.score}
                         color="yellow"
                     />
-                    <StatItem 
+                    <StatItem
                         icon={<Trophy className="w-4 h-4 text-blue-400" />}
                         label="벨트 승급"
                         value={stats.breakdown.belt.level}
                         score={stats.breakdown.belt.score}
                         color="blue"
                         isTextValue
+                    />
+                    <StatItem
+                        icon={<Flame className="w-4 h-4 text-orange-400" />}
+                        label="연속 수련일"
+                        value={streak}
+                        score={streak * 5}
+                        color="orange"
+                        suffix="일"
                     />
                 </div>
             </div>
@@ -124,15 +137,17 @@ interface StatItemProps {
     score: number;
     color: string;
     isTextValue?: boolean;
+    suffix?: string;
 }
 
-const StatItem: React.FC<StatItemProps> = ({ icon, label, value, score, color, isTextValue }) => {
+const StatItem: React.FC<StatItemProps> = ({ icon, label, value, score, color, isTextValue, suffix }) => {
     const colorClasses: Record<string, string> = {
         emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
         purple: "bg-purple-500/10 border-purple-500/20 text-purple-400",
         red: "bg-red-500/10 border-red-500/20 text-red-400",
         yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
         blue: "bg-blue-500/10 border-blue-500/20 text-blue-400",
+        orange: "bg-orange-500/10 border-orange-500/20 text-orange-400",
     };
 
     return (
@@ -144,7 +159,8 @@ const StatItem: React.FC<StatItemProps> = ({ icon, label, value, score, color, i
             <div className="flex items-end justify-between">
                 <div className={`font-bold ${isTextValue ? 'text-sm' : 'text-lg'} text-white`}>
                     {value}
-                    {!isTextValue && <span className="text-xs text-slate-500 font-normal ml-1">개</span>}
+                    {!isTextValue && !suffix && <span className="text-xs text-slate-500 font-normal ml-1">개</span>}
+                    {suffix && <span className="text-xs text-slate-500 font-normal ml-1">{suffix}</span>}
                 </div>
                 <div className="text-xs font-mono opacity-70">
                     +{score.toLocaleString()}

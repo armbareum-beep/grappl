@@ -149,28 +149,24 @@ export const MyLibrary: React.FC = () => {
                   <div key={course.id} className="relative flex flex-col h-full">
                     <CourseCard course={course} />
                     {/* Progress Overlay */}
-                    <div className="absolute bottom-[140px] left-0 right-0 px-4">
-                      <div className="bg-slate-900/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-slate-700">
-                        <div className="flex justify-between text-xs font-semibold text-slate-300 mb-1">
-                          <span>진도율</span>
-                          <span>{Math.round(course.progress || 0)}%</span>
-                        </div>
-                        <div className="w-full bg-slate-800 rounded-full h-2 mb-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${course.progress || 0}%` }}
-                          ></div>
-                        </div>
-                        <Link to={`/courses/${course.id}`}>
-                          <button className="w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-1.5 rounded transition-colors">
-                            <PlayCircle className="w-3 h-3" />
-                            {course.progress === 100 ? '다시 보기' : course.progress && course.progress > 0 ? '이어보기' : '학습 시작하기'}
-                          </button>
-                        </Link>
+                    {/* Progress Section - Moved below card */}
+                    <div className="mt-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                      <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2">
+                        <span>진도율</span>
+                        <span>{Math.round(course.progress || 0)}%</span>
                       </div>
-                    </div>
-                    <div className="absolute top-4 right-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                      ✓ 구매 완료
+                      <div className="w-full bg-slate-800 rounded-full h-2 mb-3">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${course.progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <Link to={`/courses/${course.id}`}>
+                        <button className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 rounded-lg transition-colors">
+                          <PlayCircle className="w-4 h-4" />
+                          {course.progress === 100 ? '다시 보기' : course.progress && course.progress > 0 ? '이어보기' : '학습 시작하기'}
+                        </button>
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -242,15 +238,16 @@ export const MyLibrary: React.FC = () => {
 
 function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: boolean }) {
   return (
-    <div className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 hover:border-slate-700 transition-colors group flex flex-col h-full">
+    <Link
+      to={`/my-routines/${routine.id}`}
+      className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 hover:border-slate-700 transition-colors group flex flex-col h-full"
+    >
       <div className="aspect-video bg-slate-800 relative">
         <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link to="/arena?tab=routines">
-            <button className="bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/30 transition-colors">
-              <Play className="w-8 h-8 text-white fill-current" />
-            </button>
-          </Link>
+          <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/30 transition-colors">
+            <Play className="w-8 h-8 text-white fill-current" />
+          </div>
         </div>
         {isCustom && (
           <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
@@ -272,13 +269,7 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
             {routine.drillCount || 0}개 드릴
           </div>
         </div>
-
-        <Link to="/arena?tab=routines" className="mt-4">
-          <Button className="w-full" variant="outline">
-            루틴 시작하기
-          </Button>
-        </Link>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -94,6 +94,9 @@ export const Checkout: React.FC = () => {
             if (type === 'feedback') body.feedbackRequestId = id;
             if (type === 'subscription') body.priceId = id;
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
             const response = await fetch(
                 `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`,
                 {
@@ -103,8 +106,10 @@ export const Checkout: React.FC = () => {
                         'Authorization': `Bearer ${session.access_token}`,
                     },
                     body: JSON.stringify(body),
+                    signal: controller.signal
                 }
             );
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -166,9 +171,9 @@ export const Checkout: React.FC = () => {
             <div className="max-w-2xl mx-auto px-4">
                 <h1 className="text-3xl font-bold text-white mb-8">결제</h1>
                 {clientSecret && (
-                    <Elements 
-                        stripe={stripePromise} 
-                        options={{ 
+                    <Elements
+                        stripe={stripePromise}
+                        options={{
                             clientSecret,
                             appearance: {
                                 theme: 'night',

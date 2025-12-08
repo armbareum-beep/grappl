@@ -3,8 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
     getUserTechniqueMastery,
-    getUserTechniqueSummary,
-    getTechniques
+    getUserTechniqueSummary
 } from '../../lib/api-technique-mastery';
 import {
     UserTechniqueMastery,
@@ -32,7 +31,6 @@ export const TechniqueRoadmapDashboard: React.FC = () => {
     const [selectedCategory, setSelectedCategory] = useState<TechniqueCategory>('Standing');
     const [masteries, setMasteries] = useState<UserTechniqueMastery[]>([]);
     const [summary, setSummary] = useState<TechniqueSummary[]>([]);
-    const [allTechniques, setAllTechniques] = useState<Technique[]>([]);
 
     useEffect(() => {
         if (user) {
@@ -46,15 +44,13 @@ export const TechniqueRoadmapDashboard: React.FC = () => {
         if (!user) return;
         setLoading(true);
 
-        const [masteriesRes, summaryRes, techniquesRes] = await Promise.all([
+        const [masteriesRes, summaryRes] = await Promise.all([
             getUserTechniqueMastery(user.id),
-            getUserTechniqueSummary(user.id),
-            getTechniques()
+            getUserTechniqueSummary(user.id)
         ]);
 
         if (masteriesRes.data) setMasteries(masteriesRes.data);
         if (summaryRes.data) setSummary(summaryRes.data);
-        if (techniquesRes.data) setAllTechniques(techniquesRes.data);
 
         setLoading(false);
     };
@@ -232,8 +228,8 @@ export const TechniqueRoadmapDashboard: React.FC = () => {
                                 key={cat.name}
                                 onClick={() => setSelectedCategory(cat.name)}
                                 className={`p-4 rounded-xl border-2 transition-all ${isSelected
-                                        ? `${cat.bgColor} border-transparent shadow-lg`
-                                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                                    ? `${cat.bgColor} border-transparent shadow-lg`
+                                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
                                     }`}
                             >
                                 <Icon className={`w-8 h-8 mx-auto mb-2 ${isSelected ? cat.color : 'text-slate-500'}`} />

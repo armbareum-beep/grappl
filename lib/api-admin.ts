@@ -163,3 +163,54 @@ export async function respondToTicket(ticketId: string, response: string, status
         .eq('id', ticketId);
     return { error };
 }
+
+export async function deleteCreator(creatorId: string) {
+    try {
+        // 1. Delete courses (and related lessons)
+        const { data: courses } = await supabase.from('courses').select('id').eq('creator_id', creatorId);
+        if (courses && courses.length > 0) {
+            const courseIds = courses.map(c => c.id);
+            // Delete lessons first
+            await supabase.from('lessons').delete().in('course_id', courseIds);
+            // Delete user_courses (purchases)
+            await supabase.from('user_courses').delete().in('course_id', courseIds);
+            // Delete courses
+            await supabase.from('courses').delete().in('id', courseIds);
+        }
+
+        // 2. Delete videos (and purchases)
+        const { data: videos } = await supabase.from('videos').select('id').eq('creator_id', creatorId);
+        if (videos && videos.length > 0) {
+            const videoIds = videos.map(v => v.id);
+            await supabase.from('user_videos').delete().in('video_id', videoIds);
+            await supabase.from('videos').delete().in('id', videoIds);
+        }
+
+        // 3. Delete drills
+        const { data: drills } = await supabase.from('drills').select('id').eq('creator_id', creatorId);
+        if (drills && drills.length > 0) {
+            const drillIds = drills.map(d => d.id);
+            // Remove from routines and user interactions first
+            await supabase.from('routine_drills').delete().in('drill_id', drillIds);
+            await supabase.from('user_drill_likes').delete().in('drill_id', drillIds);
+            await supabase.from('user_saved_drills').delete().in('drill_id', drillIds);
+            await supabase.from('drills').delete().in('id', drillIds);
+        }
+
+        // 4. Finally delete creator
+        const { error } = await supabase
+            .from('creators')
+            .delete()
+            .eq('id', creatorId);
+
+        if (error) throw error;
+
+        // 5. Update user status
+        await supabase.from('users').update({ is_creator: false }).eq('id', creatorId);
+
+        return { error: null };
+    } catch (error) {
+        console.error('Error deleting creator cascade:', error);
+        return { error };
+    }
+}

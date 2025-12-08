@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday, awardTrainingXP } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, getUserLikedDrills, getUserSavedDrills } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck, Save, Heart, Bookmark, MoreVertical } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
+import { useAuth } from '../contexts/AuthContext';
 
 export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user: contextUser, loading: authLoading } = useAuth();
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
     const [currentDrillIndex, setCurrentDrillIndex] = useState(0);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
@@ -37,29 +39,62 @@ export const RoutineDetail: React.FC = () => {
     const [isTrainingMode, setIsTrainingMode] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
-    
+
     // Saved Drills State
     const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
     const [likedDrills, setLikedDrills] = useState<Set<string>>(new Set());
 
+    // Video type state
+    const [videoType, setVideoType] = useState<'main' | 'description'>('main');
+
+    // Reset video type when drill changes
+    useEffect(() => {
+        setVideoType('main');
+    }, [currentDrillIndex]);
+
     const isCustomRoutine = id?.startsWith('custom-');
 
     useEffect(() => {
+        if (authLoading) return;
         if (id) {
             fetchRoutine();
             checkUser();
         }
-    }, [id]);
-    
-    // Load saved and liked drills from localStorage
-    useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-        const savedIds = new Set(saved.map((d: Drill) => d.id));
-        setSavedDrills(savedIds);
+    }, [id, authLoading]);
 
-        const liked = JSON.parse(localStorage.getItem('liked_drills') || '[]');
-        setLikedDrills(new Set(liked as string[]));
-    }, []);
+    // Load saved and liked drills from database
+    useEffect(() => {
+        const loadUserInteractions = async () => {
+            if (user) {
+                try {
+                    const [saved, liked] = await Promise.all([
+                        getUserSavedDrills(user.id),
+                        getUserLikedDrills(user.id)
+                    ]);
+
+                    setSavedDrills(new Set(saved.map(d => d.id)));
+                    setLikedDrills(new Set(liked.map(d => d.id)));
+
+                    // Sync to localStorage
+                    localStorage.setItem('saved_drills', JSON.stringify(saved));
+                    localStorage.setItem('liked_drills', JSON.stringify(liked.map(d => d.id)));
+                } catch (error) {
+                    console.error('Error loading user interactions:', error);
+                    // Fallback
+                    const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                    setSavedDrills(new Set(saved.map((d: Drill) => d.id)));
+                    const liked = JSON.parse(localStorage.getItem('liked_drills') || '[]');
+                    setLikedDrills(new Set(liked));
+                }
+            } else {
+                const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                setSavedDrills(new Set(saved.map((d: Drill) => d.id)));
+                const liked = JSON.parse(localStorage.getItem('liked_drills') || '[]');
+                setLikedDrills(new Set(liked));
+            }
+        };
+        loadUserInteractions();
+    }, [user]);
 
     useEffect(() => {
         if (routine && routine.drills && routine.drills.length > 0) {
@@ -90,20 +125,19 @@ export const RoutineDetail: React.FC = () => {
     const fetchRoutine = async () => {
         if (!id) return;
 
-        // 1. Check for custom routine in localStorage first
-        if (id.startsWith('custom-')) {
-            try {
-                const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-                const found = customRoutines.find((r: any) => r.id === id);
-                if (found) {
-                    console.log('Loaded custom routine:', found);
-                    setRoutine(found);
-                    setLoading(false);
-                    return;
-                }
-            } catch (e) {
-                console.error('Error loading custom routine:', e);
+        // 1. Check for custom routine in localStorage first (Always check, regardless of prefix)
+        try {
+            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+            const found = customRoutines.find((r: any) => r.id === id);
+            if (found) {
+                console.log('Loaded custom routine:', found);
+                setRoutine(found);
+                setOwns(true); // User owns custom routines
+                setLoading(false);
+                return;
             }
+        } catch (e) {
+            console.error('Error loading custom routine:', e);
         }
 
         // 2. Fetch from API/DB
@@ -132,34 +166,33 @@ export const RoutineDetail: React.FC = () => {
         const drill = routine.drills[index];
         console.log('Loading drill:', drill);
 
-        // If drill is just an ID, fetch full data
-        if (typeof drill === 'string') {
-            const drillData = await getDrillById(drill);
-            setCurrentDrill(drillData);
-        } else {
-            // If drill object exists but missing vimeoUrl (incomplete data), fetch full details
-            if (!drill.vimeoUrl && !drill.videoUrl) {
-                const drillData = await getDrillById(drill.id);
-                if (drillData) {
-                    console.log('Fetched full drill data:', drillData);
-                    setCurrentDrill(drillData);
-                } else {
-                    setCurrentDrill(drill);
-                }
-            } else {
-                setCurrentDrill(drill);
+        const drillId = typeof drill === 'string' ? drill : drill.id;
+
+        // Always try to fetch fresh data from DB to ensure sync
+        try {
+            const drillData = await getDrillById(drillId);
+            if (drillData) {
+                console.log('Fetched fresh drill data:', drillData);
+                setCurrentDrill(drillData);
+                return;
             }
+        } catch (e) {
+            console.warn('Failed to fetch drill from DB, falling back to local:', e);
+        }
+
+        // Fallback to local object if DB fetch fails or returns null
+        if (typeof drill !== 'string') {
+            setCurrentDrill(drill);
         }
     };
 
     const checkUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setUser(user);
+        if (contextUser) {
+            setUser(contextUser);
             const { data: userData } = await supabase
                 .from('users')
                 .select('is_subscriber, subscription_tier')
-                .eq('id', user.id)
+                .eq('id', contextUser.id)
                 .single();
 
             if (userData) {
@@ -173,19 +206,19 @@ export const RoutineDetail: React.FC = () => {
                 if (id.startsWith('custom-')) {
                     setOwns(true);
                 } else {
-                    const ownership = await checkDrillRoutineOwnership(user.id, id);
+                    const ownership = await checkDrillRoutineOwnership(contextUser.id, id);
                     setOwns(ownership);
                 }
 
                 // Check if this specific routine is completed today
-                const completedIds = await getCompletedRoutinesToday(user.id);
+                const completedIds = await getCompletedRoutinesToday(contextUser.id);
                 if (completedIds.includes(id)) {
                     setIsCompletedToday(true);
                 }
             }
 
             // Check if user already earned XP today
-            const alreadyEarned = await checkDailyRoutineXP(user.id);
+            const alreadyEarned = await checkDailyRoutineXP(contextUser.id);
             setEarnedXpToday(alreadyEarned);
         }
     };
@@ -273,10 +306,10 @@ export const RoutineDetail: React.FC = () => {
 
             // 2. Award XP with daily limit and streak bonus
             let xpAmount = 50; // Base XP for routine
-            
+
             try {
                 const xpResult = await awardTrainingXP(user.id, 'routine_complete', xpAmount);
-                
+
                 if (xpResult.data) {
                     if (xpResult.data.alreadyCompletedToday) {
                         console.log('Already completed training activity today');
@@ -296,7 +329,7 @@ export const RoutineDetail: React.FC = () => {
             try {
                 const { updateQuestProgress } = await import('../lib/api');
                 const questResult = await updateQuestProgress(user.id, 'complete_routine');
-                
+
                 if (questResult.completed && questResult.xpEarned > 0) {
                     xpEarned += questResult.xpEarned;
                     // success(`일일 미션 완료! +${questResult.xpEarned} XP`); // Optional
@@ -359,56 +392,86 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         navigate('/journal');
     };
 
-    const handleSaveDrill = (e: React.MouseEvent) => {
+    const handleSaveDrill = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!currentDrill) return;
-
-        const newSaved = new Set(savedDrills);
-        let savedDrillsList = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-
-        if (newSaved.has(currentDrill.id)) {
-            // Remove
-            newSaved.delete(currentDrill.id);
-            savedDrillsList = savedDrillsList.filter((d: Drill) => d.id !== currentDrill.id);
-            alert('저장된 드릴에서 제거되었습니다.');
-        } else {
-            // Add
-            newSaved.add(currentDrill.id);
-            // Ensure we save a clean drill object
-            if (!savedDrillsList.find((d: Drill) => d.id === currentDrill.id)) {
-                savedDrillsList.push(currentDrill);
-            }
-            alert('드릴이 저장되었습니다! 훈련 루틴 탭에서 확인할 수 있습니다.');
+        if (!user) {
+            navigate('/login');
+            return;
         }
 
-        localStorage.setItem('saved_drills', JSON.stringify(savedDrillsList));
-        setSavedDrills(newSaved);
+        const isSaved = savedDrills.has(currentDrill.id);
+        const newSaved = new Set(savedDrills);
+
+        if (isSaved) {
+            newSaved.delete(currentDrill.id);
+        } else {
+            newSaved.add(currentDrill.id);
+        }
+        setSavedDrills(newSaved); // Optimistic
+
+        const { saved: savedState, error } = await toggleDrillSave(user.id, currentDrill.id);
+
+        if (error) {
+            console.error('Error toggling save:', error);
+            setSavedDrills(savedDrills); // Revert
+            alert('저장에 실패했습니다.');
+        } else {
+            // Sync localStorage
+            let savedDrillsList = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+            if (savedState) {
+                if (!savedDrillsList.find((d: Drill) => d.id === currentDrill.id)) {
+                    savedDrillsList.push(currentDrill);
+                }
+                alert('드릴이 저장되었습니다! 훈련 루틴 탭에서 확인할 수 있습니다.');
+            } else {
+                savedDrillsList = savedDrillsList.filter((d: Drill) => d.id !== currentDrill.id);
+                alert('저장된 드릴에서 제거되었습니다.');
+            }
+            localStorage.setItem('saved_drills', JSON.stringify(savedDrillsList));
+        }
     };
 
-    const handleLikeDrill = (e: React.MouseEvent) => {
+    const handleLikeDrill = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!currentDrill) return;
-
-        const newLiked = new Set(likedDrills);
-        let likedList = JSON.parse(localStorage.getItem('liked_drills') || '[]');
-
-        if (newLiked.has(currentDrill.id)) {
-            newLiked.delete(currentDrill.id);
-            likedList = likedList.filter((id: string) => id !== currentDrill.id);
-        } else {
-            newLiked.add(currentDrill.id);
-            if (!likedList.includes(currentDrill.id)) {
-                likedList.push(currentDrill.id);
-            }
+        if (!user) {
+            navigate('/login');
+            return;
         }
 
-        localStorage.setItem('liked_drills', JSON.stringify(likedList));
-        setLikedDrills(newLiked);
+        const isLiked = likedDrills.has(currentDrill.id);
+        const newLiked = new Set(likedDrills);
+
+        if (isLiked) {
+            newLiked.delete(currentDrill.id);
+        } else {
+            newLiked.add(currentDrill.id);
+        }
+        setLikedDrills(newLiked); // Optimistic
+
+        const { liked: likedState, error } = await toggleDrillLike(user.id, currentDrill.id);
+
+        if (error) {
+            console.error('Error toggling like:', error);
+            setLikedDrills(likedDrills); // Revert
+        } else {
+            // Sync localStorage
+            let likedList = JSON.parse(localStorage.getItem('liked_drills') || '[]');
+            if (likedState) {
+                if (!likedList.includes(currentDrill.id)) {
+                    likedList.push(currentDrill.id);
+                }
+            } else {
+                likedList = likedList.filter((id: string) => id !== currentDrill.id);
+            }
+            localStorage.setItem('liked_drills', JSON.stringify(likedList));
+        }
     };
 
     const handleShare = async () => {
         if (!currentDrill) return;
-        
+
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -437,7 +500,15 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         );
     }
 
-    if (!routine) return <div className="text-white text-center pt-20">Routine not found</div>;
+    if (!routine) return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4">
+            <h2 className="text-xl font-bold mb-2">루틴을 찾을 수 없습니다</h2>
+            <p className="text-zinc-400 mb-6">삭제되었거나 존재하지 않는 루틴입니다.</p>
+            <Button onClick={() => navigate('/arena')} variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800">
+                아레나로 돌아가기
+            </Button>
+        </div>
+    );
     if (!currentDrill) return <div className="text-white text-center pt-20">Loading drill...</div>;
 
     const progress = (completedDrills.size / (routine.drills?.length || 1)) * 100;
@@ -453,15 +524,51 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
         ? 'from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-900/20'
         : 'from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/20';
 
+
     // Check if drill is playable
     // 1. Must own the routine OR be premium subscriber OR drill is free
     // 2. Must have a valid video URL (prefer videoUrl for 9:16 format, fallback to vimeoUrl)
-    const hasValidVideoUrl = currentDrill.videoUrl || 
-        (currentDrill.vimeoUrl && 
-         !currentDrill.vimeoUrl.includes('123456789') && 
-         !currentDrill.vimeoUrl.includes('placeholder'));
-    
-    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0;
+    // Helper to extract Vimeo ID
+    const extractVimeoId = (url?: string) => {
+        if (!url) return undefined;
+        if (/^\d+$/.test(url)) return url;
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : undefined;
+    };
+
+    // Helper to check if URL is Vimeo
+    const isVimeoUrl = (url?: string) => {
+        if (!url) return false;
+        return url.includes('vimeo.com') || /^\d+$/.test(url);
+    };
+
+    const isActionVideo = videoType === 'main';
+
+    // Determine the effective URL to play
+    // Priority: 
+    // 1. Action: videoUrl (Direct) -> vimeoUrl (Vimeo)
+    // 2. Description: descriptionVideoUrl -> videoUrl -> vimeoUrl
+    const effectiveUrl = isActionVideo
+        ? (currentDrill.videoUrl || currentDrill.vimeoUrl)
+        : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
+
+    // Determine type based on the effective URL
+    const isVimeo = isVimeoUrl(effectiveUrl);
+
+    const vimeoId = isVimeo ? extractVimeoId(effectiveUrl) : undefined;
+    const directVideoUrl = !isVimeo ? effectiveUrl : undefined;
+
+    const hasVimeo = !!vimeoId;
+    const hasDirectVideo = !!directVideoUrl;
+    const hasValidVideoUrl = hasDirectVideo || hasVimeo;
+
+    // Allow access if:
+    // 1. User owns the routine
+    // 2. User is a premium subscriber
+    // 3. Drill price is 0 (free)
+    // 4. It is the FIRST drill in the routine (preview)
+    const isFirstDrill = currentDrillIndex === 0;
+    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0 || isFirstDrill;
     const isPlayable = hasAccess && hasValidVideoUrl;
 
     return (
@@ -475,6 +582,30 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
                 {/* Video Player - Full Height 9:16 */}
                 <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10">
+                    {/* Video Type Toggle */}
+                    {isPlayable && !isTrainingMode && (
+                        <div className="absolute top-6 left-6 z-30 flex gap-2">
+                            <button
+                                onClick={() => setVideoType('main')}
+                                className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'main'
+                                    ? 'bg-white text-black'
+                                    : 'bg-black/40 text-white hover:bg-black/60'
+                                    }`}
+                            >
+                                동작
+                            </button>
+                            <button
+                                onClick={() => setVideoType('description')}
+                                className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'description'
+                                    ? 'bg-white text-black'
+                                    : 'bg-black/40 text-white hover:bg-black/60'
+                                    }`}
+                            >
+                                설명
+                            </button>
+                        </div>
+                    )}
+
                     {isTrainingMode ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
                             <div className="text-slate-400 mb-4 text-lg animate-pulse">Training in Progress...</div>
@@ -489,11 +620,12 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 훈련 완료하기
                             </Button>
                         </div>
-                    ) : isPlayable && (currentDrill.videoUrl || currentDrill.vimeoUrl) ? (
-                        currentDrill.videoUrl ? (
+                    ) : isPlayable && (hasDirectVideo || hasVimeo) ? (
+                        hasDirectVideo ? (
                             // Use direct video URL for 9:16 vertical format (same as drill reels)
                             <video
-                                src={currentDrill.videoUrl}
+                                key={`${currentDrill.id}-${videoType}`}
+                                src={directVideoUrl}
                                 className="w-full h-full object-cover"
                                 controls
                                 autoPlay
@@ -503,7 +635,8 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         ) : (
                             // Fallback to Vimeo iframe
                             <iframe
-                                src={currentDrill.vimeoUrl}
+                                key={`${currentDrill.id}-${videoType}`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1`}
                                 className="w-full h-full"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"
@@ -522,12 +655,14 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                     <Lock className="w-10 h-10 text-white" />
                                 </div>
                                 <h3 className="text-2xl font-bold mb-3 tracking-tight">
-                                    루틴 구매 필요
+                                    {isFirstDrill ? '비디오 없음' : '루틴 구매 필요'}
                                 </h3>
                                 <p className="text-zinc-300 mb-8 max-w-xs text-sm">
-                                    이 루틴의 모든 드릴을 마스터하세요. <br />지금 바로 시작하세요.
+                                    {isFirstDrill
+                                        ? '이 드릴의 재생 가능한 비디오가 없습니다.'
+                                        : '이 루틴의 모든 드릴을 마스터하세요. \n지금 바로 시작하세요.'}
                                 </p>
-                                {!owns && (
+                                {!owns && !isFirstDrill && (
                                     <Button
                                         onClick={handlePurchase}
                                         size="lg"
@@ -713,7 +848,8 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 const drillData = typeof drill === 'string' ? null : drill;
                                 const isCompleted = drillData && completedDrills.has(drillData.id);
                                 const isCurrent = index === currentDrillIndex;
-                                const isDrillPlayable = isPlayable; // Simplify for now, can be per-drill logic
+                                // Allow playing if: owned, premium, free, or FIRST drill
+                                const isDrillPlayable = owns || (isSubscriber && user?.subscription_tier === 'premium') || drillData?.price === 0 || index === 0;
 
                                 return (
                                     <button

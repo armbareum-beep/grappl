@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson } from '../../lib/api';
-import { Course, Drill, Lesson } from '../../types';
+import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine } from '../../lib/api';
+import { Course, Drill, Lesson, DrillRoutine } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2 } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2, Layers } from 'lucide-react';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
@@ -18,6 +18,7 @@ export const CreatorDashboard: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [drills, setDrills] = useState<Drill[]>([]);
     const [lessons, setLessons] = useState<Lesson[]>([]);
+    const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>('content');
@@ -27,18 +28,20 @@ export const CreatorDashboard: React.FC = () => {
             if (!user) return;
 
             try {
-                const [coursesData, drillsData, lessonsData, earningsData] = await Promise.all([
+                const [coursesData, drillsData, lessonsData, routinesData, earningsData] = await Promise.all([
                     getCreatorCourses(user.id),
                     getDrills(user.id),
                     getAllCreatorLessons(user.id),
+                    getUserCreatedRoutines(user.id),
                     calculateCreatorEarnings(user.id)
                 ]);
 
-                console.log('Dashboard Data:', { coursesData, drillsData, lessonsData, earningsData });
+                console.log('Dashboard Data:', { coursesData, drillsData, lessonsData, routinesData, earningsData });
 
                 setCourses(coursesData);
                 setDrills(drillsData.data || []);
                 setLessons(lessonsData || []);
+                setRoutines(routinesData.data || []);
                 if ('data' in earningsData) {
                     setEarnings(earningsData.data);
                 }
@@ -76,6 +79,19 @@ export const CreatorDashboard: React.FC = () => {
 
         // Refresh lessons list
         setLessons(lessons.filter(l => l.id !== lessonId));
+    };
+
+    const handleDeleteRoutine = async (routineId: string, routineTitle: string) => {
+        if (!confirm(`"${routineTitle}" 루틴을 삭제하시겠습니까?`)) return;
+
+        const { error } = await deleteRoutine(routineId);
+        if (error) {
+            alert('루틴 삭제 중 오류가 발생했습니다.');
+            return;
+        }
+
+        // Refresh routines list
+        setRoutines(routines.filter(r => r.id !== routineId));
     };
 
     if (loading) {
@@ -246,13 +262,63 @@ export const CreatorDashboard: React.FC = () => {
                                 </Link>
                             </div>
 
-                            <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
-                                <Package className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                                <p className="text-slate-500 mb-4">아직 개설한 루틴이 없습니다.</p>
-                                <Link to="/creator/create-routine">
-                                    <Button variant="outline">첫 루틴 만들기</Button>
-                                </Link>
-                            </div>
+                            {routines.length === 0 ? (
+                                <div className="text-center py-12 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed">
+                                    <Layers className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                                    <p className="text-slate-500 mb-4">아직 개설한 루틴이 없습니다.</p>
+                                    <Link to="/creator/create-routine">
+                                        <Button variant="outline">첫 루틴 만들기</Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {routines.map((routine) => (
+                                        <div key={routine.id} className="border border-slate-800 rounded-lg overflow-hidden hover:border-blue-500/50 transition-all bg-slate-800/50">
+                                            <div className="p-4 flex items-center gap-4">
+                                                <div className="w-32 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 relative group">
+                                                    {routine.thumbnailUrl ? (
+                                                        <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                                                            <Layers className="w-8 h-8 text-slate-600" />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-bold text-lg text-white truncate">{routine.title}</h3>
+                                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                                                        <span className="flex items-center gap-1">
+                                                            <Grid className="w-4 h-4" />
+                                                            {routine.drillCount || 0} 드릴
+                                                        </span>
+                                                        <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Eye className="w-4 h-4" />
+                                                            {routine.views.toLocaleString()} 조회
+                                                        </span>
+                                                        <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                                        <span className="text-blue-400 font-medium">
+                                                            {routine.price === 0 ? '무료' : `₩${routine.price.toLocaleString()}`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteRoutine(routine.id, routine.title)}
+                                                        className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : activeTab === 'materials' ? (
@@ -409,6 +475,6 @@ export const CreatorDashboard: React.FC = () => {
                     <PayoutSettingsTab />
                 )}
             </div>
-        </div>
+        </div >
     );
 };

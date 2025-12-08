@@ -66,6 +66,13 @@ const RootRedirect: React.FC = () => {
   return <LandingPage />;
 };
 
+import { useParams } from 'react-router-dom';
+
+const CourseRedirect: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/courses/${id}`} replace />;
+};
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
@@ -76,7 +83,9 @@ const App: React.FC = () => {
               <Route path="/" element={<RootRedirect />} />
               <Route path="/home" element={<Home />} />
               <Route path="/browse" element={<Browse />} />
+              <Route path="/courses" element={<Browse />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route path="/course/:id" element={<CourseRedirect />} />
               <Route path="/videos/:id" element={<VideoDetail />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/creator" element={<CreatorDashboard />} />

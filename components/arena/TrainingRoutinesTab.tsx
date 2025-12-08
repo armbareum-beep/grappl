@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { PlaySquare, Clock, ChevronRight, Dumbbell, Play, Lock, Check, CalendarCheck, MousePointerClick, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserRoutines, getCompletedRoutinesToday } from '../../lib/api';
+import { useToast } from '../../contexts/ToastContext';
+import { getUserRoutines, getCompletedRoutinesToday, getUserSavedDrills, toggleDrillSave } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
+import { supabase } from '../../lib/supabase';
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
@@ -26,9 +28,26 @@ export const TrainingRoutinesTab: React.FC = () => {
     const [showAllRoutines, setShowAllRoutines] = useState(false);
 
     useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-        setSavedDrills(saved);
-    }, []);
+        const loadSavedDrills = async () => {
+            if (user) {
+                try {
+                    const drills = await getUserSavedDrills(user.id);
+                    setSavedDrills(drills);
+                    // Sync to localStorage for other components that might still use it
+                    localStorage.setItem('saved_drills', JSON.stringify(drills));
+                } catch (error) {
+                    console.error('Error loading saved drills:', error);
+                    // Fallback
+                    const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                    setSavedDrills(saved);
+                }
+            } else {
+                const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                setSavedDrills(saved);
+            }
+        };
+        loadSavedDrills();
+    }, [user]);
 
     const toggleDrillSelection = (drillId: string) => {
         const newSelected = new Set(selectedDrills);
@@ -44,7 +63,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         if (!user) return;
         setLoading(true);
 
-        // Load purchased routines from API
+        // Load all user routines (purchased + created)
         const { data } = await getUserRoutines(user.id);
 
         // Load custom routines from LocalStorage
@@ -64,7 +83,14 @@ export const TrainingRoutinesTab: React.FC = () => {
         setLoading(false);
     };
 
+    const { success, error: toastError } = useToast();
+
     const handleCreateRoutine = () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
         const routineName = prompt('새로운 루틴의 이름을 입력하세요:');
         if (!routineName) return;
 
@@ -90,7 +116,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         const existingCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
         localStorage.setItem('my_custom_routines', JSON.stringify([...existingCustomRoutines, newRoutine]));
 
-        alert('루틴이 생성되었습니다!');
+        success('루틴이 생성되었습니다!');
         setIsSelectionMode(false);
         setSelectedDrills(new Set());
         loadRoutines(); // Reload to show the new routine immediately
@@ -165,17 +191,35 @@ export const TrainingRoutinesTab: React.FC = () => {
         // We keep the selection active for multiple placements
     };
 
-    const handleDeleteRoutine = (e: React.MouseEvent, routineId: string) => {
+    const handleDeleteRoutine = async (e: React.MouseEvent, routineId: string) => {
         e.stopPropagation(); // Prevent navigation
 
         if (!confirm('이 루틴을 삭제하시겠습니까?')) {
             return;
         }
 
-        // Remove from localStorage
-        const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-        const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
-        localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
+        // Check if it's a custom routine
+        if (routineId.startsWith('custom-')) {
+            // Remove from localStorage
+            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+            const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
+            localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
+        } else {
+            // For purchased routines, remove from user_routines table
+            if (user) {
+                const { error } = await supabase
+                    .from('user_routines')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('routine_id', routineId);
+
+                if (error) {
+                    console.error('Error deleting routine:', error);
+                    alert('루틴 삭제에 실패했습니다.');
+                    return;
+                }
+            }
+        }
 
         // Update state
         setRoutines(prev => prev.filter(r => r.id !== routineId));
@@ -183,6 +227,8 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     const ROUTINES_DISPLAY_LIMIT = 6;
     const displayedRoutines = showAllRoutines ? routines : routines.slice(0, ROUTINES_DISPLAY_LIMIT);
+
+
 
     return (
         <div className="space-y-8 min-h-screen">
@@ -224,39 +270,79 @@ export const TrainingRoutinesTab: React.FC = () => {
 
                 {savedDrills.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {savedDrills.map((drill) => (
-                            <div
-                                key={drill.id}
-                                onClick={() => isSelectionMode && toggleDrillSelection(drill.id)}
-                                className={`
-                                    relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
-                                    ${isSelectionMode
-                                        ? selectedDrills.has(drill.id)
+                        {savedDrills.map((drill) => {
+                            const cardContent = (
+                                <>
+                                    <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                        <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                        {isSelectionMode && selectedDrills.has(drill.id) && (
+                                            <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
+                                                <Check className="w-6 h-6 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
+                                        <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
+                                    </div>
+                                </>
+                            );
+
+                            const handleDeleteDrill = async (e: React.MouseEvent, drillId: string) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
+                                    // Optimistic update
+                                    const updatedDrills = savedDrills.filter(d => d.id !== drillId);
+                                    setSavedDrills(updatedDrills);
+                                    localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
+
+                                    if (user) {
+                                        const { error } = await toggleDrillSave(user.id, drillId);
+                                        if (error) {
+                                            console.error('Error removing saved drill:', error);
+                                            alert('삭제에 실패했습니다.');
+                                            // Revert
+                                            setSavedDrills(savedDrills);
+                                            localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+                                        }
+                                    }
+                                }
+                            };
+
+                            return isSelectionMode ? (
+                                <div
+                                    key={drill.id}
+                                    onClick={() => toggleDrillSelection(drill.id)}
+                                    className={`
+                                        relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
+                                        ${selectedDrills.has(drill.id)
                                             ? 'bg-blue-900/20 border-blue-500'
                                             : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                                        : 'bg-slate-800/50 border-slate-800'
-                                    }
-                                `}
-                            >
-                                <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
-                                    <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
-                                    {isSelectionMode && selectedDrills.has(drill.id) && (
-                                        <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
-                                            <Check className="w-6 h-6 text-white" />
-                                        </div>
-                                    )}
+                                        }
+                                    `}
+                                >
+                                    {cardContent}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
-                                    <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
-                                </div>
-                                {!isSelectionMode && (
-                                    <Link to={`/drills/${drill.id}`} className="p-2 hover:bg-slate-700 rounded-full transition-colors">
-                                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                            ) : (
+                                <div key={drill.id} className="relative group">
+                                    <Link
+                                        to={`/drills/${drill.id}`}
+                                        className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-slate-800/50 border-slate-800 hover:border-slate-600"
+                                    >
+                                        {cardContent}
                                     </Link>
-                                )}
-                            </div>
-                        ))}
+
+                                    <button
+                                        onClick={(e) => handleDeleteDrill(e, drill.id)}
+                                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="삭제"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-slate-500">
@@ -347,15 +433,13 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 >
                                                     <MousePointerClick className="w-4 h-4" />
                                                 </button>
-                                                {routine.id.startsWith('custom-') && (
-                                                    <button
-                                                        onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                        className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-all"
-                                                        title="루틴 삭제"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                    className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-all"
+                                                    title="루틴 삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -392,15 +476,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             >
                                                 <MousePointerClick className="w-4 h-4" />
                                             </button>
-                                            {routine.id.startsWith('custom-') && (
-                                                <button
-                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                    className="p-2 rounded-full backdrop-blur-md bg-black/40 text-slate-300 hover:bg-red-500 hover:text-white transition-all"
-                                                    title="루틴 삭제"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
                                         </div>
 
                                         {isCompleted && (
@@ -409,6 +484,15 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 오늘 완료
                                             </div>
                                         )}
+
+                                        {/* Delete Button - Always visible, turns red on hover */}
+                                        <button
+                                            onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                            className="absolute top-3 left-3 z-20 p-2 bg-slate-800/80 hover:bg-red-600 text-slate-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm"
+                                            title="루틴 삭제"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
 
                                         <div className="aspect-video bg-slate-800 relative">
                                             {routine.thumbnailUrl ? (

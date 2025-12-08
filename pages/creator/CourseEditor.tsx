@@ -44,7 +44,7 @@ export const CourseEditor: React.FC = () => {
     // Import Lesson State
     const [showImportModal, setShowImportModal] = useState(false);
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
-    const [selectedImportLesson, setSelectedImportLesson] = useState<Lesson | null>(null);
+    const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (!isNew && id) {
@@ -97,9 +97,20 @@ export const CourseEditor: React.FC = () => {
     };
 
     const toggleDrillBundle = async (drill: Drill) => {
-        if (!id) return;
-
         const isCurrentlyBundled = bundledDrills.some(d => d.id === drill.id);
+
+        if (isNew) {
+            // Local state update for new course
+            if (isCurrentlyBundled) {
+                setBundledDrills(prev => prev.filter(d => d.id !== drill.id));
+            } else {
+                setBundledDrills(prev => [...prev, drill]);
+            }
+            return;
+        }
+
+        // API update for existing course
+        if (!id) return;
 
         try {
             if (isCurrentlyBundled) {
@@ -119,6 +130,13 @@ export const CourseEditor: React.FC = () => {
 
     const handleSaveCourse = async () => {
         if (!user) return;
+
+        // Validation: Course must have at least one lesson to be created
+        if (isNew && lessons.length === 0) {
+            toastError('강좌를 개설하려면 최소 1개의 레슨이 필요합니다.');
+            return;
+        }
+
         setSaving(true);
 
         try {
@@ -129,8 +147,30 @@ export const CourseEditor: React.FC = () => {
                 });
                 if (error) throw error;
                 if (data) {
+                    // Create lessons for the new course
+                    for (let i = 0; i < lessons.length; i++) {
+                        const lesson = lessons[i];
+                        await createLesson({
+                            courseId: data.id,
+                            title: lesson.title,
+                            description: lesson.description,
+                            lessonNumber: i + 1,
+                            vimeoUrl: lesson.vimeoUrl,
+                            length: lesson.length,
+                            difficulty: lesson.difficulty,
+                        });
+                    }
+
+                    // Link bundled drills for the new course
+                    if (bundledDrills.length > 0) {
+                        for (const drill of bundledDrills) {
+                            await addCourseDrillBundle(data.id, drill.id);
+                        }
+                    }
+
                     navigate(`/creator/courses/${data.id}/edit`, { replace: true });
                     setActiveTab('curriculum');
+                    success('강좌가 개설되었습니다!');
                 }
             } else if (id) {
                 const { error } = await updateCourse(id, courseData);
@@ -190,28 +230,46 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const handleImportLesson = async () => {
-        if (!selectedImportLesson || !id) return;
+    const handleImportLessons = async () => {
+        if (selectedImportIds.size === 0) return;
+
+        const selectedLessons = creatorLessons.filter(l => selectedImportIds.has(l.id));
 
         try {
-            // Clone the lesson
-            await createLesson({
-                courseId: id,
-                title: selectedImportLesson.title,
-                description: selectedImportLesson.description,
-                lessonNumber: lessons.length + 1,
-                vimeoUrl: selectedImportLesson.vimeoUrl,
-                length: selectedImportLesson.length,
-                difficulty: selectedImportLesson.difficulty,
-            });
+            if (isNew) {
+                // For new course, just add to local state
+                const newLessons = selectedLessons.map((l, index) => ({
+                    ...l,
+                    id: `temp-${Date.now()}-${index}`, // Temporary ID
+                    lessonNumber: lessons.length + index + 1
+                }));
+                setLessons([...lessons, ...newLessons]);
+                setShowImportModal(false);
+                setSelectedImportIds(new Set());
+                success(`${newLessons.length}개의 레슨을 추가했습니다.`);
+            } else if (id) {
+                // For existing course, create immediately
+                for (let i = 0; i < selectedLessons.length; i++) {
+                    const lesson = selectedLessons[i];
+                    await createLesson({
+                        courseId: id,
+                        title: lesson.title,
+                        description: lesson.description,
+                        lessonNumber: lessons.length + i + 1,
+                        vimeoUrl: lesson.vimeoUrl,
+                        length: lesson.length,
+                        difficulty: lesson.difficulty,
+                    });
+                }
 
-            const updatedLessons = await getLessonsByCourse(id);
-            setLessons(updatedLessons);
-            setShowImportModal(false);
-            setSelectedImportLesson(null);
-            success('레슨을 가져왔습니다!');
+                const updatedLessons = await getLessonsByCourse(id);
+                setLessons(updatedLessons);
+                setShowImportModal(false);
+                setSelectedImportIds(new Set());
+                success('레슨을 가져왔습니다!');
+            }
         } catch (error) {
-            console.error('Error importing lesson:', error);
+            console.error('Error importing lessons:', error);
             toastError('레슨 가져오기 중 오류가 발생했습니다.');
         }
     };
@@ -285,16 +343,14 @@ export const CourseEditor: React.FC = () => {
                     </h1>
                 </div>
                 <div className="flex gap-2">
-                    {activeTab === 'basic' && (
-                        <button
-                            onClick={handleSaveCourse}
-                            disabled={saving}
-                            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
-                        >
-                            <Save className="w-4 h-4" />
-                            {saving ? '저장 중...' : '저장하기'}
-                        </button>
-                    )}
+                    <button
+                        onClick={handleSaveCourse}
+                        disabled={saving}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                    >
+                        <Save className="w-4 h-4" />
+                        {saving ? '저장 중...' : (isNew ? '강좌 개설하기' : '저장하기')}
+                    </button>
                 </div>
             </div>
 
@@ -310,13 +366,7 @@ export const CourseEditor: React.FC = () => {
                         기본 정보
                     </button>
                     <button
-                        onClick={() => {
-                            if (isNew) {
-                                toastError('먼저 강좌를 저장해주세요.');
-                                return;
-                            }
-                            setActiveTab('curriculum');
-                        }}
+                        onClick={() => setActiveTab('curriculum')}
                         className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'curriculum'
                             ? 'border-blue-500 text-blue-400'
                             : 'border-transparent text-slate-400 hover:text-white'
@@ -325,13 +375,7 @@ export const CourseEditor: React.FC = () => {
                         커리큘럼
                     </button>
                     <button
-                        onClick={() => {
-                            if (isNew) {
-                                toastError('먼저 강좌를 저장해주세요.');
-                                return;
-                            }
-                            setActiveTab('drills');
-                        }}
+                        onClick={() => setActiveTab('drills')}
                         className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'drills'
                             ? 'border-blue-500 text-blue-400'
                             : 'border-transparent text-slate-400 hover:text-white'
@@ -443,13 +487,7 @@ export const CourseEditor: React.FC = () => {
                         <div>
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-lg text-white">레슨 목록</h3>
-                                <button
-                                    onClick={() => setEditingLesson({ title: '', description: '', length: '10:00', difficulty: Difficulty.Beginner })}
-                                    className="flex items-center gap-2 text-blue-400 hover:bg-blue-900/20 px-4 py-2 rounded-lg transition-colors font-medium"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    레슨 추가
-                                </button>
+
                                 <button
                                     onClick={handleOpenImportModal}
                                     className="flex items-center gap-2 text-slate-300 hover:bg-slate-800 px-4 py-2 rounded-lg transition-colors font-medium border border-slate-700 ml-2"
@@ -592,29 +630,39 @@ export const CourseEditor: React.FC = () => {
                                             {creatorLessons.length === 0 ? (
                                                 <p className="text-slate-500 text-center py-8">가져올 수 있는 레슨이 없습니다.</p>
                                             ) : (
-                                                creatorLessons.map(lesson => (
-                                                    <div
-                                                        key={lesson.id}
-                                                        onClick={() => setSelectedImportLesson(lesson)}
-                                                        className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${selectedImportLesson?.id === lesson.id
-                                                            ? 'bg-blue-900/30 border-blue-500'
-                                                            : 'bg-slate-950 border-slate-800 hover:border-slate-600'
-                                                            }`}
-                                                    >
-                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedImportLesson?.id === lesson.id ? 'border-blue-500' : 'border-slate-600'
-                                                            }`}>
-                                                            {selectedImportLesson?.id === lesson.id && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <h4 className="text-white font-medium">{lesson.title}</h4>
-                                                            <div className="flex gap-2 text-xs text-slate-400">
-                                                                <span>{lesson.length}</span>
-                                                                <span>•</span>
-                                                                <span>{lesson.difficulty}</span>
+                                                Array.from(new Map(creatorLessons.map(item => [item.vimeoUrl || item.title, item])).values())
+                                                    .filter(cl => !lessons.some(l => l.vimeoUrl === cl.vimeoUrl)) // Filter duplicates by Vimeo URL
+                                                    .map(lesson => (
+                                                        <div
+                                                            key={lesson.id}
+                                                            onClick={() => {
+                                                                const newSelected = new Set(selectedImportIds);
+                                                                if (newSelected.has(lesson.id)) {
+                                                                    newSelected.delete(lesson.id);
+                                                                } else {
+                                                                    newSelected.add(lesson.id);
+                                                                }
+                                                                setSelectedImportIds(newSelected);
+                                                            }}
+                                                            className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${selectedImportIds.has(lesson.id)
+                                                                ? 'bg-blue-900/30 border-blue-500'
+                                                                : 'bg-slate-950 border-slate-800 hover:border-slate-600'
+                                                                }`}
+                                                        >
+                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedImportIds.has(lesson.id) ? 'border-blue-500 bg-blue-500' : 'border-slate-600'
+                                                                }`}>
+                                                                {selectedImportIds.has(lesson.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <h4 className="text-white font-medium">{lesson.title}</h4>
+                                                                <div className="flex gap-2 text-xs text-slate-400">
+                                                                    <span>{lesson.length}</span>
+                                                                    <span>•</span>
+                                                                    <span>{lesson.difficulty}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    ))
                                             )}
                                         </div>
 
@@ -626,11 +674,11 @@ export const CourseEditor: React.FC = () => {
                                                 취소
                                             </button>
                                             <button
-                                                onClick={handleImportLesson}
-                                                disabled={!selectedImportLesson}
+                                                onClick={handleImportLessons}
+                                                disabled={selectedImportIds.size === 0}
                                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                선택한 레슨 가져오기
+                                                {selectedImportIds.size}개 레슨 가져오기
                                             </button>
                                         </div>
                                     </div>

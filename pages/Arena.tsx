@@ -13,15 +13,25 @@ type ArenaTab = 'routines' | 'sparring' | 'skills' | 'tournament' | 'journal';
 
 export const Arena: React.FC = () => {
     const { user } = useAuth();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<ArenaTab>('journal');
 
     useEffect(() => {
         const tabParam = searchParams.get('tab');
         if (tabParam && ['routines', 'sparring', 'skills', 'tournament', 'journal'].includes(tabParam)) {
             setActiveTab(tabParam as ArenaTab);
+        } else if (!tabParam) {
+            // If no tab param, default to journal but don't force URL update yet to avoid replace loop
+            // unless we want to canonicalize the URL.
+            // For now, just let the state handle it.
+            setActiveTab('journal');
         }
     }, [searchParams]);
+
+    const handleTabChange = (tabId: string) => {
+        setActiveTab(tabId as ArenaTab);
+        setSearchParams({ tab: tabId });
+    };
 
     const ARENA_TABS = [
         { id: 'journal', label: '수련일지', icon: BookOpen, color: 'blue', desc: '성장 기록' },
@@ -111,7 +121,7 @@ export const Arena: React.FC = () => {
                             return (
                                 <button
                                     key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as ArenaTab)}
+                                    onClick={() => handleTabChange(tab.id)}
                                     className={`
                                         relative group flex items-center gap-3 p-3 rounded-xl transition-all duration-300 border text-left
                                         ${isActive

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice } from '../lib/api';
+import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -8,12 +8,15 @@ import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, CheckCirc
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 
+import { useAuth } from '../contexts/AuthContext';
+
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user: contextUser, loading: authLoading } = useAuth();
     const [drill, setDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
-    const [owns, setOwns] = useState(true);
+    const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
@@ -28,24 +31,41 @@ export const DrillDetail: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
+        if (authLoading) return;
+
         if (id) {
             fetchDrill();
             checkUser();
         }
-    }, [id]);
+    }, [id, authLoading]);
 
     const fetchDrill = async () => {
         if (!id) return;
         try {
-            const drillData = await getDrillById(id);
+            let drillData = await getDrillById(id);
+            let isFromLocalStorage = false;
+
+            // If not found in database, check localStorage
+            if (!drillData) {
+                const savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+                drillData = savedDrills.find((d: Drill) => d.id === id);
+                isFromLocalStorage = !!drillData;
+            }
+
             if (drillData) {
                 setDrill(drillData);
-                await incrementDrillViews(id);
 
-                // Check ownership after drill is loaded
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user && drillData.creatorId === user.id) {
+                // If from localStorage, user can always view it
+                if (isFromLocalStorage) {
                     setOwns(true);
+                } else {
+                    // Only increment views if from database
+                    await incrementDrillViews(id);
+
+                    // Check ownership for database drills
+                    if (contextUser && drillData.creatorId === contextUser.id) {
+                        setOwns(true);
+                    }
                 }
 
                 // Check if saved
@@ -60,22 +80,81 @@ export const DrillDetail: React.FC = () => {
     };
 
     const checkUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setUser(user);
+        if (contextUser) {
+            setUser(contextUser);
             const { data: userData } = await supabase
                 .from('users')
                 .select('is_subscriber')
-                .eq('id', user.id)
+                .eq('id', contextUser.id)
                 .single();
-            if (userData) setIsSubscriber(userData.is_subscriber);
-            if (id) {
-                const ownership = await checkDrillOwnership(user.id, id);
-                setOwns(ownership);
 
-                // Also check if user is the creator
-                if (drill && drill.creatorId === user.id) {
-                    setOwns(true);
+            const isSub = userData?.is_subscriber || false;
+            setIsSubscriber(isSub);
+
+            if (id) {
+                // Simple logic:
+                // 1. Subscribers can watch everything
+                // 2. First drill in routine is free
+                // 3. Creator can watch their own drills
+
+                let hasAccess = false;
+
+                // Check if creator
+                if (drill && drill.creatorId === contextUser.id) {
+                    hasAccess = true;
+                }
+                // Check if subscriber
+                else if (isSub) {
+                    hasAccess = true;
+                }
+                // Check if first drill in routine (free preview)
+                // Check if first drill in routine (free preview)
+                else {
+                    // try {
+                    //     const { getRoutineByDrillId } = await import('../lib/api');
+                    //     const { data: routineData } = await getRoutineByDrillId(id);
+
+                    //     if (routineData && routineData.drills && routineData.drills.length > 0) {
+                    //         // First drill is free
+                    //         if (routineData.drills[0].id === id) {
+                    //             hasAccess = true;
+                    //         }
+                    //     }
+                    // } catch (error) {
+                    //     console.warn('Could not check routine status:', error);
+                    //     // If we can't check, don't block access
+                    // }
+                }
+
+                setOwns(hasAccess);
+
+                // Check liked and saved status
+                try {
+                    const [isLiked, isSaved] = await Promise.all([
+                        checkDrillLiked(contextUser.id, id),
+                        checkDrillSaved(contextUser.id, id)
+                    ]);
+                    setLiked(isLiked);
+                    setSaved(isSaved);
+                } catch (e) {
+                    console.warn('Error checking interactions:', e);
+                }
+            }
+        } else {
+            // Not logged in - check if first drill in routine
+            if (id) {
+                try {
+                    const { getRoutineByDrillId } = await import('../lib/api');
+                    const { data: routineData } = await getRoutineByDrillId(id);
+
+                    if (routineData && routineData.drills && routineData.drills.length > 0) {
+                        // First drill is free for everyone
+                        if (routineData.drills[0].id === id) {
+                            setOwns(true);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not check routine status:', error);
                 }
             }
         }
@@ -138,34 +217,57 @@ export const DrillDetail: React.FC = () => {
         setShowQuestComplete(true);
     };
 
-    const handleLike = () => {
-        if (!user) {
+    const handleLike = async () => {
+        if (!user || !id) {
             navigate('/login');
             return;
         }
+
+        // Optimistic update
         setLiked(!liked);
+
+        const { liked: newLiked, error } = await toggleDrillLike(user.id, id);
+        if (error) {
+            // Revert on error
+            setLiked(liked);
+            console.error('Error toggling like:', error);
+        } else {
+            setLiked(newLiked);
+        }
     };
 
-    const handleSave = () => {
-        if (!user) {
+    const handleSave = async () => {
+        if (!user || !id) {
             navigate('/login');
             return;
         }
 
-        let savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-
-        if (saved) {
-            savedDrills = savedDrills.filter((d: Drill) => d.id !== drill?.id);
-            alert('저장된 드릴에서 제거되었습니다.');
-        } else {
-            if (drill && !savedDrills.find((d: Drill) => d.id === drill.id)) {
-                savedDrills.push(drill);
-            }
-            alert('드릴이 저장되었습니다!');
-        }
-
-        localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+        // Optimistic update
         setSaved(!saved);
+
+        const { saved: newSaved, error } = await toggleDrillSave(user.id, id);
+
+        if (error) {
+            // Revert on error
+            setSaved(saved);
+            console.error('Error toggling save:', error);
+            alert('저장에 실패했습니다.');
+        } else {
+            setSaved(newSaved);
+
+            // Sync with localStorage for backward compatibility / offline-ish feel
+            let savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+            if (newSaved) {
+                if (drill && !savedDrills.find((d: Drill) => d.id === drill.id)) {
+                    savedDrills.push(drill);
+                }
+                alert('드릴이 저장되었습니다!');
+            } else {
+                savedDrills = savedDrills.filter((d: Drill) => d.id !== drill?.id);
+                alert('저장된 드릴에서 제거되었습니다.');
+            }
+            localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+        }
     };
 
     const handleShare = async () => {
@@ -199,10 +301,25 @@ export const DrillDetail: React.FC = () => {
 
     // Determine video source - both action and description can be Vimeo
     const isActionVideo = currentVideoType === 'action';
-    const vimeoId = isActionVideo ? drill.vimeoUrl : drill.descriptionVideoUrl;
-    const fallbackUrl = isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl || drill.videoUrl);
 
-    const useVimeo = vimeoId && owns;
+    // Helper to extract Vimeo ID
+    const extractVimeoId = (url?: string) => {
+        if (!url) return undefined;
+        // If it's just numbers, assume it's an ID
+        if (/^\d+$/.test(url)) return url;
+        // Try to extract from URL
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : undefined;
+    };
+
+    const rawVimeoUrl = isActionVideo ? drill.vimeoUrl : drill.descriptionVideoUrl;
+    const vimeoId = extractVimeoId(rawVimeoUrl);
+
+    // For fallback, we prefer the direct video URL (mp4)
+    // If description mode but no description video, fallback to action video
+    const fallbackUrl = isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl && !vimeoId ? drill.descriptionVideoUrl : drill.videoUrl);
+
+    const useVimeo = !!vimeoId && owns;
     const videoSrc = useVimeo ? `https://player.vimeo.com/video/${vimeoId}` : fallbackUrl;
 
     return (

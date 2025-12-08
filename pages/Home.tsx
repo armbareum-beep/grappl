@@ -537,7 +537,11 @@ export const Home: React.FC = () => {
               {drills.map(drill => (
                 <div
                   key={drill.id}
-                  onClick={() => navigate(`/routines/${drill.id}`)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate(`/drills/${drill.id}`);
+                  }}
                   className="aspect-[9/16] bg-slate-900/50 rounded-xl relative overflow-hidden group cursor-pointer border border-slate-800 hover:border-emerald-500/50 transition-all shadow-sm"
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90"></div>

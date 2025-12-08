@@ -26,21 +26,32 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         return match ? match[1] : url;
     };
 
-    const vimeoId = getVimeoId(course.previewVideoUrl);
+    const [vimeoId, setVimeoId] = useState<string | null>(getVimeoId(course.previewVideoUrl));
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
-        if (isHovering && vimeoId) {
-            timer = setTimeout(() => {
-                setShowVideo(true);
-            }, 300);
+        if (isHovering) {
+            // Fetch video ID if missing
+            if (!vimeoId) {
+                import('../lib/api').then(({ getCoursePreviewVideo }) => {
+                    getCoursePreviewVideo(course.id).then(url => {
+                        if (url) setVimeoId(getVimeoId(url));
+                    });
+                });
+            }
+
+            if (vimeoId) {
+                timer = setTimeout(() => {
+                    setShowVideo(true);
+                }, 300);
+            }
         } else {
             setShowVideo(false);
             playerRef.current = null;
             setProgress(0);
         }
         return () => clearTimeout(timer);
-    }, [isHovering, vimeoId]);
+    }, [isHovering, vimeoId, course.id]);
 
     // Initialize Vimeo player when iframe loads
     useEffect(() => {

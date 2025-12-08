@@ -32,16 +32,19 @@ export const FreeDrillShowcase: React.FC = () => {
                         id,
                         title,
                         thumbnail_url,
-                        creator_id,
-                        creators (name)
+                        creator_id
                     )
                 `)
                 .eq('order_index', 0)
                 .limit(20);
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error fetching free drills:', error);
+                setLoading(false);
+                return;
+            }
 
-            // Extract drill data and shuffle
+            // Extract drill data
             const drillsData = (routineDrills || [])
                 .filter((rd: any) => rd.drills)
                 .map((rd: any) => ({
@@ -49,7 +52,7 @@ export const FreeDrillShowcase: React.FC = () => {
                     title: rd.drills.title,
                     thumbnail_url: rd.drills.thumbnail_url,
                     creator_id: rd.drills.creator_id,
-                    creator_name: rd.drills.creators?.name || '익명'
+                    creator_name: '익명'
                 }));
 
             // Remove duplicates (same drill might be first in multiple routines)
@@ -63,6 +66,7 @@ export const FreeDrillShowcase: React.FC = () => {
                 .slice(0, 4);
 
             setDrills(shuffled);
+            console.log('FreeDrillShowcase: Loaded', shuffled.length, 'drills');
             setLoading(false);
         } catch (error) {
             console.error('Error fetching free drills:', error);
@@ -85,8 +89,9 @@ export const FreeDrillShowcase: React.FC = () => {
 
     if (drills.length === 0) {
         return (
-            <div className="text-center text-slate-400 py-12">
-                무료 드릴이 아직 없습니다
+            <div className="text-center py-12">
+                <p className="text-slate-400 text-lg mb-4">무료 드릴이 아직 없습니다</p>
+                <p className="text-slate-500 text-sm">루틴의 첫 번째 드릴이 자동으로 무료로 제공됩니다.</p>
             </div>
         );
     }

@@ -31,70 +31,151 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
 
-    // Check user status from database - only called once on initial load
+    // Check user status from database
+    // Check user status from database
     const checkUserStatus = async (userId: string) => {
-        const { data: userData } = await supabase
-            .from('users')
-            .select('is_admin, is_subscriber, subscription_tier')
-            .eq('id', userId)
-            .single();
+        const cacheKey = `user_status_${userId}`;
+        const cached = localStorage.getItem(cacheKey);
 
-        if (userData) {
-            setIsAdmin(userData.is_admin === true);
-            setIsSubscribed(userData.is_subscriber === true);
+        // Use cache immediately if available
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                setIsAdmin(parsed.isAdmin);
+                setIsSubscribed(parsed.isSubscribed);
+                setIsCreator(parsed.isCreator);
+                // Don't return here, we still want to revalidate in background
+            } catch (e) {
+                console.error('Error parsing user cache', e);
+            }
         }
 
-        // Check creator status (non-blocking)
-        supabase
-            .from('creators')
-            .select('approved')
-            .eq('id', userId)
-            .single()
-            .then(({ data }) => {
-                if (data) setIsCreator(data.approved === true);
-            })
-            .catch(() => setIsCreator(false));
+        try {
+            // Run queries in parallel for performance
+            const [userResult, creatorResult] = await Promise.all([
+                supabase.from('users').select('is_admin, is_subscriber, subscription_tier').eq('id', userId).single(),
+                supabase.from('creators').select('approved').eq('id', userId).single()
+            ]);
 
-        return userData?.is_subscriber === true;
+            const userData = userResult.data;
+            const creatorData = creatorResult.data;
+
+            const newStatus = {
+                isAdmin: userData?.is_admin === true,
+                isSubscribed: userData?.is_subscriber === true,
+                isCreator: creatorData?.approved === true
+            };
+
+            // Update state
+            setIsAdmin(newStatus.isAdmin);
+            setIsSubscribed(newStatus.isSubscribed);
+            setIsCreator(newStatus.isCreator);
+
+            // Update cache
+            localStorage.setItem(cacheKey, JSON.stringify(newStatus));
+
+            return newStatus.isSubscribed;
+        } catch (error) {
+            console.error('Error checking user status:', error);
+            // If network fails but we had cache, keep using cache
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                return parsed.isSubscribed;
+            }
+            return false;
+        }
     };
 
+    // Safety timeout to prevent infinite loading
     useEffect(() => {
-        // Check active sessions and sets the user
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            const baseUser = session?.user ?? null;
-            if (baseUser) {
-                const subscribed = await checkUserStatus(baseUser.id);
-                const userWithSubscription: User = {
-                    ...baseUser,
-                    isSubscriber: subscribed
-                };
-                setUser(userWithSubscription);
-            } else {
-                setUser(null);
+        const timer = setTimeout(() => {
+            setLoading((prev) => {
+                if (prev) {
+                    console.warn('Auth loading timed out, forcing completion');
+                    return false;
+                }
+                return prev;
+            });
+        }, 10000); // Increased to 10s
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const initAuth = async () => {
+            try {
+                // Get initial session
+                const { data: sessionData } = await supabase.auth.getSession();
+                const { session } = sessionData;
+
+                if (!mounted) return;
+
+                const baseUser = session?.user ?? null;
+                if (baseUser) {
+                    // Check cache first to unblock UI immediately
+                    const cacheKey = `user_status_${baseUser.id}`;
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            setUser({ ...baseUser, isSubscriber: parsed.isSubscribed });
+                            // Set loading false immediately if we have cache
+                            setLoading(false);
+                        } catch (e) {
+                            console.error('Error parsing user cache', e);
+                        }
+                    }
+
+                    const subscribed = await checkUserStatus(baseUser.id);
+                    if (mounted) {
+                        setUser({ ...baseUser, isSubscriber: subscribed });
+                    }
+                } else {
+                    if (mounted) {
+                        setUser(null);
+                        setIsCreator(false);
+                        setIsAdmin(false);
+                        setIsSubscribed(false);
+                    }
+                }
+            } catch (error) {
+                console.error('Error initializing auth:', error);
+                if (mounted) setUser(null);
+            } finally {
+                if (mounted) setLoading(false);
             }
-            setLoading(false);
+        };
+
+        initAuth();
+
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth state changed:', event, session?.user?.email);
+
+            if (!mounted) return;
+
+            // Only handle specific events or if we need to refresh
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                const baseUser = session?.user ?? null;
+                if (baseUser) {
+                    const subscribed = await checkUserStatus(baseUser.id);
+                    if (mounted) {
+                        setUser({ ...baseUser, isSubscriber: subscribed });
+                        setLoading(false);
+                    }
+                }
+            } else if (event === 'SIGNED_OUT') {
+                // setUser(null); // Ignored for debugging
+                // setLoading(false);
+                console.warn('SIGNED_OUT event received but ignored to prevent crash.');
+            }
         });
 
-        // Listen for changes on auth state (sign in, sign out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            const baseUser = session?.user ?? null;
-            if (baseUser) {
-                // Don't re-check DB on every state change - just use existing state
-                const userWithSubscription: User = {
-                    ...baseUser,
-                    isSubscriber: isSubscribed
-                };
-                setUser(userWithSubscription);
-            } else {
-                setUser(null);
-                setIsCreator(false);
-                setIsAdmin(false);
-                setIsSubscribed(false);
-            }
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signIn = async (email: string, password: string) => {
@@ -117,7 +198,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/`
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
             }
         });
         return { error };

@@ -107,16 +107,16 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 }
 
 // Courses API
-export async function getCourses(): Promise<Course[]> {
+export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
     const { data, error } = await supabase
         .from('courses')
         .select(`
       *,
       creator:creators(name),
-      lessons:lessons(count),
-      preview_lessons:lessons(vimeo_url, lesson_number)
+      lessons:lessons(count)
     `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
     if (error) {
         console.error('Error fetching courses:', error);
@@ -124,13 +124,9 @@ export async function getCourses(): Promise<Course[]> {
     }
 
     return (data || []).map(course => {
-        // Find first lesson for preview
-        const firstLesson = course.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
-
         return {
             ...transformCourse(course),
             lessonCount: course.lessons?.[0]?.count || 0,
-            previewVideoUrl: firstLesson?.vimeo_url
         };
     });
 }
@@ -1565,10 +1561,23 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
 
     // 3. Fetch user names manually (robust against missing FKs)
-    const { data: users } = await supabase
-        .from('users')
-        .select('id, name')
-        .in('id', userIds);
+    let users = null;
+    try {
+        if (userIds.length > 0) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id, name')
+                .in('id', userIds);
+
+            if (!error) {
+                users = data;
+            } else {
+                console.warn('Failed to fetch users for feed:', error);
+            }
+        }
+    } catch (e) {
+        console.warn('Exception fetching users for feed:', e);
+    }
 
     // 4. Create a map of userId -> name
     const userMap: Record<string, string> = {};
@@ -1579,10 +1588,18 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     }
 
     // 5. Also try to fetch creator names if they are instructors (fallback)
-    const { data: creators } = await supabase
-        .from('creators')
-        .select('id, name')
-        .in('id', userIds);
+    let creators = null;
+    try {
+        if (userIds.length > 0) {
+            const { data } = await supabase
+                .from('creators')
+                .select('id, name')
+                .in('id', userIds);
+            creators = data;
+        }
+    } catch (e) {
+        console.warn('Exception fetching creators:', e);
+    }
 
     if (creators) {
         creators.forEach((c: any) => {
@@ -1595,31 +1612,44 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const beltMap: Record<string, string> = {};
     const avatarMap: Record<string, string> = {};
 
-    const { data: progressData } = await supabase
-        .from('user_progress')
-        .select('user_id, belt_level')
-        .in('user_id', userIds);
+    try {
+        if (userIds.length > 0) {
+            const { data: progressData } = await supabase
+                .from('user_progress')
+                .select('user_id, belt_level')
+                .in('user_id', userIds);
 
-    if (progressData) {
-        const { getBeltInfo } = await import('./belt-system');
-        progressData.forEach((p: any) => {
-            const beltInfo = getBeltInfo(p.belt_level);
-            beltMap[p.user_id] = beltInfo.name;
-        });
-    }
-
-    // Fetch profile images from users table
-    const { data: usersData } = await supabase
-        .from('users')
-        .select('id, profile_image_url')
-        .in('id', userIds);
-
-    if (usersData) {
-        usersData.forEach((u: any) => {
-            if (u.profile_image_url) {
-                avatarMap[u.id] = u.profile_image_url;
+            if (progressData) {
+                const { getBeltInfo } = await import('./belt-system');
+                progressData.forEach((p: any) => {
+                    const belt = getBeltInfo(p.belt_level);
+                    beltMap[p.user_id] = belt.name;
+                });
             }
-        });
+        }
+    } catch (e) {
+        console.warn('Error fetching belt info:', e);
+    }
+    // Fetch profile images from users table
+    try {
+        if (userIds.length > 0) {
+            const { data: usersData } = await supabase
+                .from('users')
+                .select('id, user_metadata')
+                .in('id', userIds);
+
+            if (usersData) {
+                usersData.forEach((u: any) => {
+                    // Try to get avatar from user_metadata
+                    const avatar = u.user_metadata?.avatar_url;
+                    if (avatar) {
+                        avatarMap[u.id] = avatar;
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('Error fetching user avatars:', e);
     }
 
     const logs: TrainingLog[] = data.map((log: any) => {
@@ -2557,7 +2587,12 @@ export async function addXP(
  * Get or create today's daily quests
  */
 export async function getDailyQuests(userId: string): Promise<DailyQuest[]> {
-    const today = new Date().toISOString().split('T')[0];
+    // Use local date to reset at midnight local time
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
 
     // Check if quests exist for today
     let { data, error } = await supabase
@@ -2624,7 +2659,12 @@ export async function updateQuestProgress(
     userId: string,
     questType: QuestType
 ): Promise<{ completed: boolean; xpEarned: number }> {
-    const today = new Date().toISOString().split('T')[0];
+    // Use local date to reset at midnight local time
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
 
     // Get quest
     const { data: quest, error: fetchError } = await supabase
@@ -2834,22 +2874,35 @@ export async function getLoginStreak(userId: string) {
 
     return { data, error: null };
 }
-
 // ============================================================================
 // Drill & Routine System
 // ============================================================================
 
-export async function getDrills(creatorId?: string) {
+export async function getDrills(creatorId?: string, limit: number = 50) {
     let query = supabase
         .from('drills')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
     if (creatorId) {
         query = query.eq('creator_id', creatorId);
     }
 
-    const { data, error } = await query;
+    // Add 5s timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), 5000)
+    );
+
+    let data, error;
+    try {
+        const result = await Promise.race([query, timeoutPromise]) as any;
+        data = result.data;
+        error = result.error;
+    } catch (e) {
+        console.error('getDrills timed out or failed:', e);
+        return { data: null, error: e };
+    }
 
     console.log('getDrills result:', { creatorId, data, error });
     console.log('Raw drill data (first item):', data?.[0]);
@@ -2930,10 +2983,6 @@ export async function deleteDrill(drillId: string) {
 }
 
 export async function getRoutines(creatorId?: string) {
-    // Return mocks immediately for now
-    return { data: MOCK_ROUTINES, error: null };
-
-    /*
     let query = supabase
         .from('routines')
         .select('*')
@@ -2951,40 +3000,12 @@ export async function getRoutines(creatorId?: string) {
     }
 
     return { data: data as DrillRoutine[], error: null };
-    */
 }
 
 // Alias for backward compatibility
 export const getDrillRoutines = getRoutines;
 
 export async function getRoutineById(id: string) {
-    // First check mock routines
-    const mockRoutine = MOCK_ROUTINES.find(r => r.id === id);
-    if (mockRoutine) return { data: mockRoutine, error: null };
-
-    // Check if this is actually a drill ID (for backward compatibility)
-    const mockDrill = MOCK_DRILLS.find(d => d.id === id);
-    if (mockDrill) {
-        // Create a temporary single-drill routine
-        const tempRoutine: DrillRoutine = {
-            id: `temp-routine-${id}`,
-            title: mockDrill.title,
-            description: mockDrill.description,
-            creatorId: mockDrill.creatorId,
-            creatorName: mockDrill.creatorName,
-            thumbnailUrl: mockDrill.thumbnailUrl,
-            price: 0,
-            difficulty: mockDrill.difficulty,
-            category: mockDrill.category,
-            totalDurationMinutes: mockDrill.durationMinutes || 5,
-            drillCount: 1,
-            views: mockDrill.views,
-            createdAt: mockDrill.createdAt,
-            drills: [mockDrill]
-        };
-        return { data: tempRoutine, error: null };
-    }
-
     const { data, error } = await supabase
         .from('routines')
         .select(`
@@ -3016,12 +3037,28 @@ export async function getRoutineById(id: string) {
 }
 
 export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds: string[]) {
+    // If no thumbnail provided, get it from the first drill
+    let thumbnailUrl = routineData.thumbnailUrl;
+    if (!thumbnailUrl && drillIds.length > 0) {
+        const { data: firstDrill } = await supabase
+            .from('drills')
+            .select('thumbnail_url')
+            .eq('id', drillIds[0])
+            .single();
+
+        if (firstDrill?.thumbnail_url) {
+            thumbnailUrl = firstDrill.thumbnail_url;
+        }
+    }
+
     const dbData = {
         title: routineData.title,
         description: routineData.description,
         creator_id: routineData.creatorId,
-        thumbnail_url: routineData.thumbnailUrl,
+        thumbnail_url: thumbnailUrl,
         price: routineData.price,
+        category: routineData.category,
+        difficulty: routineData.difficulty,
     };
 
     const { data: routine, error: routineError } = await supabase
@@ -3138,196 +3175,13 @@ export async function purchaseRoutine(userId: string, routineId: string) {
 // Mock Data
 // ============================================================================
 
-const MOCK_DRILLS: Drill[] = [
-    {
-        id: 'mock-1',
-        title: 'Basic Armbar from Guard',
-        description: 'Learn the fundamental mechanics of the armbar from the closed guard position. Key details include hip elevation, angle creation, and breaking mechanics.',
-        creatorId: 'mock-creator-1',
-        creatorName: 'John Danaher',
-        category: VideoCategory.Submission,
-        difficulty: Difficulty.Beginner,
-        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 1250,
-        durationMinutes: 5,
-        length: '5:30',
-        tags: ['armbar', 'submission', 'closed guard'],
-        likes: 150,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'mock-2',
-        title: 'Triangle Choke Setup',
-        description: 'A detailed breakdown of setting up the triangle choke from open guard. Focus on controlling the posture and isolating the arm.',
-        creatorId: 'mock-creator-2',
-        creatorName: 'Gordon Ryan',
-        category: VideoCategory.Submission,
-        difficulty: Difficulty.Intermediate,
-        thumbnailUrl: 'https://i.ytimg.com/vi/8Xj_k_k_k_k/maxresdefault.jpg', // Placeholder
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 890,
-        durationMinutes: 4,
-        length: '4:15',
-        tags: ['triangle', 'choke', 'guard'],
-        likes: 95,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'mock-3',
-        title: 'Torreando Pass Drills',
-        description: 'Speed and agility drills for the Torreando pass. Improve your footwork and reaction time.',
-        creatorId: 'mock-creator-3',
-        creatorName: 'Andre Galvao',
-        category: VideoCategory.GuardPass,
-        difficulty: Difficulty.Advanced,
-        thumbnailUrl: 'https://i.ytimg.com/vi/9_9_9_9_9/maxresdefault.jpg', // Placeholder
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 2100,
-        durationMinutes: 3,
-        length: '3:45',
-        tags: ['passing', 'drills', 'speed'],
-        likes: 230,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'mock-4',
-        title: 'X-Guard Sweep Mechanics',
-        description: 'Master the off-balancing mechanics of the X-Guard. Learn how to elevate your opponent and transition to sweeps.',
-        creatorId: 'mock-creator-4',
-        creatorName: 'Marcelo Garcia',
-        category: VideoCategory.Guard,
-        difficulty: Difficulty.Advanced,
-        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 3400,
-        durationMinutes: 6,
-        length: '6:10',
-        tags: ['x-guard', 'sweep', 'butterfly'],
-        likes: 450,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'mock-5',
-        title: 'Kimura Trap System',
-        description: 'A comprehensive look at the Kimura trap system from side control. Control, isolate, and submit.',
-        creatorId: 'mock-creator-1',
-        creatorName: 'John Danaher',
-        category: VideoCategory.Submission,
-        difficulty: Difficulty.Intermediate,
-        thumbnailUrl: 'https://i.ytimg.com/vi/8Xj_k_k_k_k/maxresdefault.jpg',
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 1800,
-        durationMinutes: 7,
-        length: '7:20',
-        tags: ['kimura', 'side control', 'submission'],
-        likes: 210,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: 'mock-6',
-        title: 'De La Riva to Back Take',
-        description: 'Smooth transition from De La Riva guard to taking the back. Uses the berimbolo concept simplified.',
-        creatorId: 'mock-creator-5',
-        creatorName: 'Rafa Mendes',
-        category: VideoCategory.Back,
-        difficulty: Difficulty.Advanced,
-        thumbnailUrl: 'https://i.ytimg.com/vi/9_9_9_9_9/maxresdefault.jpg',
-        videoUrl: 'https://player.vimeo.com/video/76979871',
-        vimeoUrl: 'https://player.vimeo.com/video/76979871',
-        aspectRatio: '9:16',
-        views: 2900,
-        durationMinutes: 5,
-        length: '5:45',
-        tags: ['delariva', 'back take', 'berimbolo'],
-        likes: 380,
-        createdAt: new Date().toISOString()
-    }
-];
+const MOCK_DRILLS: Drill[] = [];
 
-const MOCK_ROUTINES: DrillRoutine[] = [
-    {
-        id: 'mock-routine-1',
-        title: 'Submission Mastery: Armbar',
-        description: 'A complete routine to master the armbar from various positions. Includes entry drills, finishing mechanics, and troubleshooting.',
-        creatorId: 'mock-creator-1',
-        creatorName: 'John Danaher',
-        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
-        price: 29000,
-        difficulty: Difficulty.Intermediate,
-        category: VideoCategory.Submission,
-        totalDurationMinutes: 45,
-        drillCount: 3,
-        views: 500,
-        createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[0], MOCK_DRILLS[1], MOCK_DRILLS[4]]
-    },
-    {
-        id: 'mock-routine-2',
-        title: 'Guard Passing Fundamentals',
-        description: 'Essential drills for passing the guard. Focus on pressure, mobility, and angle changes.',
-        creatorId: 'mock-creator-3',
-        creatorName: 'Andre Galvao',
-        thumbnailUrl: 'https://i.ytimg.com/vi/9_9_9_9_9/maxresdefault.jpg',
-        price: 19000,
-        difficulty: Difficulty.Beginner,
-        category: VideoCategory.GuardPass,
-        totalDurationMinutes: 30,
-        drillCount: 2,
-        views: 320,
-        createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[2], MOCK_DRILLS[3]]
-    },
-    {
-        id: 'mock-routine-3',
-        title: 'Advanced Guard Sweeps',
-        description: 'High-level sweeps for competitive grapplers. Includes X-Guard and De La Riva variations.',
-        creatorId: 'mock-creator-4',
-        creatorName: 'Marcelo Garcia',
-        thumbnailUrl: 'https://i.ytimg.com/vi/Xk0gJ_y_y_U/maxresdefault.jpg',
-        price: 35000,
-        difficulty: Difficulty.Advanced,
-        category: VideoCategory.Guard,
-        totalDurationMinutes: 50,
-        drillCount: 3,
-        views: 890,
-        createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[3], MOCK_DRILLS[5], MOCK_DRILLS[1]]
-    },
-    {
-        id: 'mock-routine-4',
-        title: 'Side Control Attacks',
-        description: 'Dominate from side control with this attack system. Focuses on the Kimura and armbar transitions.',
-        creatorId: 'mock-creator-1',
-        creatorName: 'John Danaher',
-        thumbnailUrl: 'https://i.ytimg.com/vi/8Xj_k_k_k_k/maxresdefault.jpg',
-        price: 25000,
-        difficulty: Difficulty.Intermediate,
-        category: VideoCategory.Submission,
-        totalDurationMinutes: 40,
-        drillCount: 2,
-        views: 600,
-        createdAt: new Date().toISOString(),
-        drills: [MOCK_DRILLS[4], MOCK_DRILLS[0]]
-    }
-];
+const MOCK_ROUTINES: DrillRoutine[] = [];
 
 export async function getUserRoutines(userId: string) {
-    // Return mocks immediately for now to unblock the user
-    // In a real scenario, we would merge these or fetch properly
-    // But since the API is erroring 400, let's fallback to mocks
-
-    const { data, error } = await supabase
+    // Fetch purchased routines
+    const { data: purchasedData, error: purchasedError } = await supabase
         .from('user_routine_purchases')
         .select(`
             routine:routines(
@@ -3336,22 +3190,64 @@ export async function getUserRoutines(userId: string) {
         `)
         .eq('user_id', userId);
 
-    if (error) {
-        console.warn('Error fetching user routines, returning mocks:', error);
-        return { data: MOCK_ROUTINES, error: null };
+    // Fetch user-created routines
+    const { data: createdData, error: createdError } = await supabase
+        .from('routines')
+        .select('*')
+        .eq('creator_id', userId);
+
+    if (purchasedError && createdError) {
+        console.error('Error fetching user routines:', { purchasedError, createdError });
+        return { data: [], error: purchasedError || createdError };
     }
 
-    // Flatten structure and transform
-    const routines = data.map((item: any) => {
-        const routine = item.routine;
-        return {
-            ...transformDrillRoutine(routine),
-            creatorName: 'Unknown Creator', // Fallback since relation is broken
-            purchasedAt: item.purchased_at
-        };
-    });
+    const routines: DrillRoutine[] = [];
 
-    return { data: [...MOCK_ROUTINES, ...routines] as DrillRoutine[], error: null };
+    // Add purchased routines
+    if (purchasedData) {
+        const purchased = purchasedData.map((item: any) => {
+            const routine = item.routine;
+            return {
+                ...transformDrillRoutine(routine),
+                creatorName: 'Unknown Creator',
+                purchasedAt: item.purchased_at
+            };
+        });
+        routines.push(...purchased);
+    }
+
+    // Add created routines
+    if (createdData) {
+        const created = createdData.map((routine: any) => ({
+            ...transformDrillRoutine(routine),
+            creatorName: 'Me',
+            isOwned: true
+        }));
+        routines.push(...created);
+    }
+
+    return { data: routines as DrillRoutine[], error: null };
+}
+
+// Get only user-created routines (for Arena page)
+export async function getUserCreatedRoutines(userId: string) {
+    const { data, error } = await supabase
+        .from('routines')
+        .select('*')
+        .eq('creator_id', userId);
+
+    if (error) {
+        console.warn('Error fetching user-created routines:', error);
+        return { data: [], error };
+    }
+
+    const routines = data.map((routine: any) => ({
+        ...transformDrillRoutine(routine),
+        creatorName: 'Me',
+        isOwned: true
+    }));
+
+    return { data: routines as DrillRoutine[], error: null };
 }
 
 // Helper for transforming drill data
@@ -3369,7 +3265,7 @@ function transformDrill(data: any): Drill {
         videoUrl: data.video_url,
         vimeoUrl: data.vimeo_url,
         descriptionVideoUrl: data.description_video_url, // Added this line
-        aspectRatio: '9:16',
+        aspectRatio: '9:16' as const,
         views: data.views || 0,
         durationMinutes: data.duration_minutes || 0,
         length: data.length || data.duration,
@@ -3429,44 +3325,69 @@ export async function getDrillById(id: string) {
  * Returns the first routine found that contains this drill
  */
 export async function getRoutineByDrillId(drillId: string): Promise<{ data: DrillRoutine | null; error: any }> {
-    // Check mock data first
-    const mockRoutine = MOCK_ROUTINES.find(r =>
-        r.drills?.some(d => d.id === drillId)
-    );
-    if (mockRoutine) {
-        return { data: mockRoutine, error: null };
+    try {
+        // Query database for routine containing this drill
+        const { data, error } = await supabase
+            .from('routine_drills')
+            .select(`
+                routine_id,
+                routines (
+                    *
+                )
+            `)
+            .eq('drill_id', drillId)
+            .limit(1)
+            .single();
+
+        if (error) {
+            // Not an error if drill is not in a routine
+            if (error.code === 'PGRST116') {
+                return { data: null, error: null };
+            }
+            console.warn('Error fetching routine by drill:', error);
+            return { data: null, error: null }; // Return null instead of error to not block UI
+        }
+
+        if (!data || !data.routines) {
+            return { data: null, error: null };
+        }
+
+        // Fetch drills for this routine
+        const { data: routineDrills } = await supabase
+            .from('routine_drills')
+            .select(`
+                drill_id,
+                order_index,
+                drills (*)
+            `)
+            .eq('routine_id', data.routine_id)
+            .order('order_index', { ascending: true });
+
+        const routine = data.routines as any;
+        const drills = routineDrills?.map((rd: any) => transformDrill(rd.drills)) || [];
+
+        return {
+            data: {
+                id: routine.id,
+                title: routine.title,
+                description: routine.description,
+                thumbnailUrl: routine.thumbnail_url,
+                difficulty: routine.difficulty,
+                category: routine.category,
+                totalDurationMinutes: routine.duration_minutes || 0,
+                drills: drills,
+                creatorId: routine.creator_id,
+                creatorName: 'Unknown',
+                price: routine.price || 0,
+                views: routine.views || 0,
+                createdAt: routine.created_at
+            },
+            error: null
+        };
+    } catch (error) {
+        console.warn('Exception in getRoutineByDrillId:', error);
+        return { data: null, error: null }; // Return null to not block UI
     }
-
-    // Query database for routine containing this drill
-    const { data, error } = await supabase
-        .from('drill_routine_items')
-        .select(`
-            routine_id,
-            routine:drill_routines(
-                *,
-                creator:creators(name)
-            )
-        `)
-        .eq('drill_id', drillId)
-        .limit(1)
-        .single();
-
-    if (error) {
-        console.error('Error fetching routine by drill:', error);
-        return { data: null, error };
-    }
-
-    if (!data || !data.routine) {
-        return { data: null, error: new Error('No routine found for this drill') };
-    }
-
-    return {
-        data: {
-            ...transformDrillRoutine(data.routine),
-            creatorName: data.routine.creator?.name || 'Unknown'
-        },
-        error: null
-    };
 }
 
 export async function checkDrillOwnership(userId: string, drillId: string) {
@@ -4109,4 +4030,276 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
             belt: { level: beltLevel, score: beltScore }
         }
     };
+}
+
+// ============================================
+// Drill Interactions (Likes & Saves)
+// ============================================
+
+/**
+ * Toggle like on a drill
+ */
+export async function toggleDrillLike(userId: string, drillId: string): Promise<{ liked: boolean; error?: any }> {
+    try {
+        // Check if already liked
+        const { data: existing } = await supabase
+            .from('user_drill_likes')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('drill_id', drillId)
+            .single();
+
+        if (existing) {
+            // Unlike
+            const { error } = await supabase
+                .from('user_drill_likes')
+                .delete()
+                .eq('user_id', userId)
+                .eq('drill_id', drillId);
+
+            return { liked: false, error };
+        } else {
+            // Like
+            const { error } = await supabase
+                .from('user_drill_likes')
+                .insert({ user_id: userId, drill_id: drillId });
+
+            return { liked: true, error };
+        }
+    } catch (error) {
+        console.error('Error toggling drill like:', error);
+        return { liked: false, error };
+    }
+}
+
+/**
+ * Check if user has liked a drill
+ */
+export async function checkDrillLiked(userId: string, drillId: string): Promise<boolean> {
+    const { data } = await supabase
+        .from('user_drill_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('drill_id', drillId)
+        .single();
+
+    return !!data;
+}
+
+/**
+ * Get drill like count
+ */
+export async function getDrillLikeCount(drillId: string): Promise<number> {
+    const { count } = await supabase
+        .from('user_drill_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('drill_id', drillId);
+
+    return count || 0;
+}
+
+/**
+ * Toggle save/bookmark on a drill
+ */
+export async function toggleDrillSave(userId: string, drillId: string): Promise<{ saved: boolean; error?: any }> {
+    try {
+        // Check if already saved
+        const { data: existing } = await supabase
+            .from('user_saved_drills')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('drill_id', drillId)
+            .single();
+
+        if (existing) {
+            // Unsave
+            const { error } = await supabase
+                .from('user_saved_drills')
+                .delete()
+                .eq('user_id', userId)
+                .eq('drill_id', drillId);
+
+            return { saved: false, error };
+        } else {
+            // Save
+            const { error } = await supabase
+                .from('user_saved_drills')
+                .insert({ user_id: userId, drill_id: drillId });
+
+            return { saved: true, error };
+        }
+    } catch (error) {
+        console.error('Error toggling drill save:', error);
+        return { saved: false, error };
+    }
+}
+
+/**
+ * Check if user has saved a drill
+ */
+export async function checkDrillSaved(userId: string, drillId: string): Promise<boolean> {
+    const { data } = await supabase
+        .from('user_saved_drills')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('drill_id', drillId)
+        .single();
+
+    return !!data;
+}
+
+/**
+ * Get user's saved drills
+ */
+export async function getUserSavedDrills(userId: string): Promise<Drill[]> {
+    const { data } = await supabase
+        .from('user_saved_drills')
+        .select('drill_id')
+        .eq('user_id', userId);
+
+    if (!data || data.length === 0) return [];
+
+    // Fetch full drill data for saved drill IDs
+    const drillIds = data.map(item => item.drill_id);
+    const drills: Drill[] = [];
+
+    for (const drillId of drillIds) {
+        const drill = await getDrillById(drillId);
+        if (drill) drills.push(drill);
+    }
+
+    return drills;
+}
+
+/**
+ * Get user's liked drills
+ */
+export async function getUserLikedDrills(userId: string): Promise<Drill[]> {
+    const { data } = await supabase
+        .from('user_drill_likes')
+        .select('drill_id')
+        .eq('user_id', userId);
+
+    if (!data || data.length === 0) return [];
+
+    // Fetch full drill data for liked drill IDs
+    const drillIds = data.map(item => item.drill_id);
+    const drills: Drill[] = [];
+
+    for (const drillId of drillIds) {
+        const drill = await getDrillById(drillId);
+        if (drill) drills.push(drill);
+    }
+
+    return drills;
+}
+
+export async function getCoursePreviewVideo(courseId: string) {
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('vimeo_url')
+        .eq('course_id', courseId)
+        .order('lesson_number', { ascending: true })
+        .limit(1)
+        .single();
+
+    return data?.vimeo_url;
+}
+
+
+
+
+
+/**
+ * Fetch raw drills data without joins for fast initial loading
+ */
+export async function fetchDrillsBase(limit: number = 20) {
+    try {
+        const fetchPromise = supabase
+            .from('drills')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Drills fetch timeout')), 10000)
+        );
+
+        const { data: drills, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+        if (error) throw error;
+        if (!drills) return { data: [], error: null };
+
+
+        // Basic transformation without creator names
+        const result = drills.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            creatorId: d.creator_id,
+            creatorName: 'Loading...', // Placeholder
+            category: d.category,
+            difficulty: d.difficulty,
+            thumbnailUrl: d.thumbnail_url,
+            videoUrl: d.video_url,
+            vimeoUrl: d.vimeo_url,
+            descriptionVideoUrl: d.description_video_url,
+            aspectRatio: '9:16' as const,
+            views: d.views || 0,
+            durationMinutes: d.duration_minutes || 0,
+            length: d.length || d.duration,
+            tags: d.tags || [],
+            likes: d.likes || 0,
+            createdAt: d.created_at,
+        }));
+
+        return { data: result, error: null };
+    } catch (error) {
+        console.error('Error in fetchDrillsBase:', error);
+        return { data: null, error };
+    }
+}
+
+/**
+ * Fetch creators by IDs
+ */
+export async function fetchCreatorsByIds(creatorIds: string[]) {
+    if (!creatorIds || creatorIds.length === 0) return {};
+
+    try {
+        const uniqueIds = [...new Set(creatorIds)];
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name')
+            .in('id', uniqueIds);
+
+        const creatorsMap: Record<string, string> = {};
+        if (creators) {
+            creators.forEach((c: any) => {
+                creatorsMap[c.id] = c.name;
+            });
+        }
+        return creatorsMap;
+    } catch (error) {
+        console.warn('Error fetching creators:', error);
+        return {};
+    }
+}
+
+/**
+ * Safe fetch drills avoiding RLS join issues (Legacy wrapper)
+ */
+export async function fetchDrillsSafe(limit: number = 20) {
+    const { data: drills, error } = await fetchDrillsBase(limit);
+    if (error || !drills) return { data: drills, error };
+
+    const creatorIds = drills.map(d => d.creatorId);
+    const creatorsMap = await fetchCreatorsByIds(creatorIds);
+
+    const result = drills.map(d => ({
+        ...d,
+        creatorName: creatorsMap[d.creatorId] || 'Unknown'
+    }));
+
+    return { data: result, error: null };
 }

@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
 import { Heart, Bookmark, Share2, MoreVertical, Grid, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 
 interface DrillReelsFeedProps {
     drills: Drill[];
@@ -98,6 +99,27 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     }, [currentIndex, currentVideoType]);
 
     // Mouse wheel navigation
+
+    // Fetch initial liked/saved state
+    useEffect(() => {
+        const fetchUserInteractions = async () => {
+            if (!user) return;
+
+            try {
+                const [likedDrills, savedDrills] = await Promise.all([
+                    getUserLikedDrills(user.id),
+                    getUserSavedDrills(user.id)
+                ]);
+
+                setLiked(new Set(likedDrills.map(d => d.id)));
+                setSaved(new Set(savedDrills.map(d => d.id)));
+            } catch (error) {
+                console.error('Error fetching user interactions:', error);
+            }
+        };
+
+        fetchUserInteractions();
+    }, [user]);
     useEffect(() => {
         let wheelTimeout: NodeJS.Timeout;
 
@@ -189,69 +211,85 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         setTouchEnd(null);
     };
 
-    const handleLike = () => {
+    const handleLike = async () => {
         if (!user) {
             navigate('/login');
             return;
         }
 
+        const isLiked = liked.has(currentDrill.id);
         const newLiked = new Set(liked);
-        if (newLiked.has(currentDrill.id)) {
+        if (isLiked) {
             newLiked.delete(currentDrill.id);
         } else {
             newLiked.add(currentDrill.id);
         }
-        setLiked(newLiked);
+        setLiked(newLiked); // Optimistic update
+
+        const { error } = await toggleDrillLike(user.id, currentDrill.id);
+        if (error) {
+            console.error('Error toggling like:', error);
+            // Revert
+            setLiked(liked);
+        }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!user) {
             navigate('/login');
             return;
         }
 
+        const isSaved = saved.has(currentDrill.id);
         const newSaved = new Set(saved);
-        let savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
 
-        if (newSaved.has(currentDrill.id)) {
+        if (isSaved) {
             newSaved.delete(currentDrill.id);
-            savedDrills = savedDrills.filter((d: Drill) => d.id !== currentDrill.id);
-            alert('저장된 드릴에서 제거되었습니다.');
         } else {
             newSaved.add(currentDrill.id);
-
-            // Create a clean drill object to avoid saving nested routine data
-            const drillToSave: Drill = {
-                id: currentDrill.id,
-                title: currentDrill.title,
-                description: currentDrill.description,
-                creatorId: currentDrill.creatorId,
-                creatorName: currentDrill.creatorName,
-                category: currentDrill.category,
-                difficulty: currentDrill.difficulty,
-                thumbnailUrl: currentDrill.thumbnailUrl,
-                videoUrl: currentDrill.videoUrl,
-                aspectRatio: currentDrill.aspectRatio,
-                duration: currentDrill.duration,
-                length: currentDrill.length,
-                tags: currentDrill.tags,
-                price: currentDrill.price,
-                views: currentDrill.views,
-                createdAt: currentDrill.createdAt
-            };
-
-            // Save clean drill object to localStorage for display
-            if (!savedDrills.find((d: Drill) => d.id === drillToSave.id)) {
-                savedDrills.push(drillToSave);
-            }
-
-            alert('드릴이 개별 드릴로 저장되었습니다!\n아레나 > 훈련 루틴에서 나만의 맞춤형 루틴을 만들 수 있습니다.');
-            navigate('/arena?tab=routines');
         }
+        setSaved(newSaved); // Optimistic update
 
-        localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
-        setSaved(newSaved);
+        const { saved: savedState, error } = await toggleDrillSave(user.id, currentDrill.id);
+
+        if (error) {
+            console.error('Error toggling save:', error);
+            setSaved(saved); // Revert
+            alert('저장에 실패했습니다.');
+        } else {
+            // Sync with localStorage for backward compatibility
+            let savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+
+            if (savedState) {
+                // Create a clean drill object
+                const drillToSave: Drill = {
+                    ...currentDrill
+                };
+
+                if (!savedDrills.find((d: Drill) => d.id === drillToSave.id)) {
+                    savedDrills.push(drillToSave);
+                }
+                alert('드릴이 저장되었습니다!');
+            } else {
+                savedDrills = savedDrills.filter((d: Drill) => d.id !== currentDrill.id);
+                alert('저장된 드릴에서 제거되었습니다.');
+            }
+            localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+
+            if (savedState) {
+                // Only navigate if saving (adding), not removing
+                // Actually, maybe don't navigate away? The user might want to keep watching.
+                // The original code navigated to arena. Let's ask user preference or keep it?
+                // Original code: navigate('/arena?tab=routines');
+                // I'll keep it for now but maybe it's annoying?
+                // "드릴이 개별 드릴로 저장되었습니다!\n아레나 > 훈련 루틴에서 나만의 맞춤형 루틴을 만들 수 있습니다."
+                if (confirm('드릴이 저장되었습니다! 보관함으로 이동하시겠습니까?')) {
+                    navigate('/arena?tab=routines');
+                }
+            }
+        }
     };
+
 
     const handleShare = async () => {
         if (navigator.share) {
@@ -272,15 +310,47 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
     if (!currentDrill) {
         return (
-            <div className="h-screen bg-black flex items-center justify-center">
-                <p className="text-white">드릴이 없습니다</p>
+            <div className="h-screen bg-black flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-white text-xl font-bold mb-2">드릴이 없습니다</p>
+                {!user && (
+                    <p className="text-slate-400 mb-4">
+                        로그인하면 더 많은 드릴을 볼 수 있습니다.
+                    </p>
+                )}
+                {!user && (
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                    >
+                        로그인하기
+                    </button>
+                )}
             </div>
         );
     }
 
-    // Determine video source based on type
-    // Fallback to main video if description video is missing, or placeholder
-    const videoSrc = currentVideoType === 'main'
+    // Helper to extract Vimeo ID
+    const extractVimeoId = (url?: string) => {
+        if (!url) return undefined;
+        if (/^\d+$/.test(url)) return url;
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : undefined;
+    };
+
+    // Determine video source
+    const isActionVideo = currentVideoType === 'main';
+
+    // Logic for Vimeo URL:
+    // If Action mode: use vimeoUrl
+    // If Description mode: use descriptionVideoUrl, fallback to vimeoUrl if description is missing
+    const rawVimeoUrl = isActionVideo
+        ? currentDrill.vimeoUrl
+        : (currentDrill.descriptionVideoUrl || currentDrill.vimeoUrl);
+
+    const vimeoId = extractVimeoId(rawVimeoUrl);
+    const useVimeo = !!vimeoId;
+
+    const videoSrc = isActionVideo
         ? (currentDrill.videoUrl || '/placeholder-drill.mp4')
         : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || '/placeholder-drill-desc.mp4');
 
@@ -305,12 +375,18 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 <div className="w-full p-6">
                     <div className="max-w-7xl mx-auto flex justify-between items-center">
                         <div className="flex items-center gap-3 pointer-events-auto">
-                            <span className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}>
+                            <button
+                                onClick={() => setCurrentVideoType('main')}
+                                className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}
+                            >
                                 동작
-                            </span>
-                            <span className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}>
+                            </button>
+                            <button
+                                onClick={() => setCurrentVideoType('description')}
+                                className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}
+                            >
                                 설명
-                            </span>
+                            </button>
                         </div>
                         <button
                             onClick={onChangeView}
@@ -326,17 +402,29 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             {/* Video Container - 9:16 aspect ratio */}
             <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
-                    <video
-                        key={`${currentDrill.id}-${currentVideoType}`} // Force re-render on change
-                        ref={videoRef}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loop
-                        playsInline
-                        muted={false}
-                        autoPlay={isPlaying}
-                        onClick={togglePlayPause}
-                        src={videoSrc}
-                    />
+                    {useVimeo ? (
+                        <iframe
+                            key={`${currentDrill.id}-${currentVideoType}`}
+                            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1&controls=0`}
+                            className="absolute inset-0 w-full h-full"
+                            frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                        />
+                    ) : (
+                        <video
+                            key={`${currentDrill.id}-${currentVideoType}`} // Force re-render on change
+                            ref={videoRef}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loop
+                            playsInline
+                            muted={false}
+                            autoPlay={isPlaying}
+                            onClick={togglePlayPause}
+                            src={videoSrc}
+                            poster={currentDrill.thumbnailUrl}
+                        />
+                    )}
 
                     {/* Play/Pause Overlay */}
                     {!isPlaying && (
