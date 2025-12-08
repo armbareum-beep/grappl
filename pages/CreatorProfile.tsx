@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
 import { Creator, Course, FeedbackSettings } from '../types';
@@ -119,10 +119,10 @@ export const CreatorProfile: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-slate-950">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">로딩 중...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+                    <p className="text-slate-400">로딩 중...</p>
                 </div>
             </div>
         );
@@ -130,9 +130,9 @@ export const CreatorProfile: React.FC = () => {
 
     if (!creator) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-slate-950">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-4">인스트럭터를 찾을 수 없습니다</h2>
+                    <h2 className="text-2xl font-bold text-white mb-4">인스트럭터를 찾을 수 없습니다</h2>
                     <Link to="/">
                         <Button>홈으로 돌아가기</Button>
                     </Link>
@@ -144,11 +144,11 @@ export const CreatorProfile: React.FC = () => {
     const totalViews = courses.reduce((sum, course) => sum + course.views, 0);
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-950 text-white pb-20">
             {/* Back Button */}
-            <div className="bg-white border-b border-slate-200">
+            <div className="bg-slate-900/50 border-b border-slate-800 backdrop-blur-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link to="/" className="inline-flex items-center text-slate-600 hover:text-slate-900 transition-colors">
+                    <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5 mr-2" />
                         <span className="font-medium">홈으로</span>
                     </Link>
@@ -156,20 +156,40 @@ export const CreatorProfile: React.FC = () => {
             </div>
 
             {/* Creator Header */}
-            <div className="bg-white border-b border-slate-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12">
+            <div className="relative bg-slate-900 border-b border-slate-800 overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/10 to-slate-900 pointer-events-none"></div>
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                         {/* Profile Image */}
-                        <img
-                            src={creator.profileImage}
-                            alt={creator.name}
-                            className="w-40 h-40 rounded-full object-cover border-4 border-blue-100 shadow-lg"
-                        />
+                        <div className="relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            {creator.profileImage ? (
+                                <img
+                                    src={creator.profileImage}
+                                    alt={creator.name}
+                                    className="relative w-40 h-40 rounded-full object-cover border-4 border-slate-800 shadow-2xl"
+                                />
+                            ) : (
+                                <div className="relative w-40 h-40 rounded-full bg-slate-800 border-4 border-slate-700 flex items-center justify-center">
+                                    <Shield className="w-16 h-16 text-slate-600" />
+                                </div>
+                            )}
+                        </div>
 
                         {/* Creator Info */}
                         <div className="flex-1 text-center md:text-left">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
-                                <h1 className="text-4xl font-black text-slate-900">{creator.name}</h1>
+                                <div>
+                                    <h1 className="text-4xl font-black text-white mb-2">{creator.name}</h1>
+                                    <div className="flex items-center justify-center md:justify-start gap-2">
+                                        <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded border border-indigo-500/20">INSTRUCTOR</span>
+                                        {isSubscribed && <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-xs font-bold rounded border border-green-500/20">SUBSCRIBED</span>}
+                                    </div>
+                                </div>
+
                                 {user?.id === creator.id && (
                                     <div className="flex gap-2">
                                         <Link to="/settings">
@@ -181,38 +201,47 @@ export const CreatorProfile: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <p className="text-lg text-slate-600 mb-6 max-w-2xl">{creator.bio}</p>
+
+                            <p className="text-lg text-slate-400 mb-8 max-w-2xl leading-relaxed">{creator.bio || '소개가 없습니다.'}</p>
 
                             {/* Stats */}
-                            <div className="flex flex-wrap justify-center md:justify-start gap-6 mb-6">
-                                <div className="flex items-center space-x-2 bg-slate-50 px-4 py-2 rounded-lg">
-                                    <Users className="w-5 h-5 text-blue-600" />
+                            <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-8">
+                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div className="p-2 bg-indigo-500/10 rounded-lg">
+                                        <Users className="w-5 h-5 text-indigo-400" />
+                                    </div>
                                     <div>
-                                        <div className="text-sm text-slate-500">구독자</div>
-                                        <div className="font-bold text-slate-900">{creator.subscriberCount.toLocaleString()}</div>
+                                        <div className="text-xs text-slate-500 font-bold uppercase">구독자</div>
+                                        <div className="font-bold text-white text-lg">{creator.subscriberCount.toLocaleString()}</div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-2 bg-slate-50 px-4 py-2 rounded-lg">
-                                    <BookOpen className="w-5 h-5 text-blue-600" />
+                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                                        <BookOpen className="w-5 h-5 text-blue-400" />
+                                    </div>
                                     <div>
-                                        <div className="text-sm text-slate-500">강좌</div>
-                                        <div className="font-bold text-slate-900">{courses.length}개</div>
+                                        <div className="text-xs text-slate-500 font-bold uppercase">강좌</div>
+                                        <div className="font-bold text-white text-lg">{courses.length}개</div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-2 bg-slate-50 px-4 py-2 rounded-lg">
-                                    <Award className="w-5 h-5 text-blue-600" />
+                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div className="p-2 bg-amber-500/10 rounded-lg">
+                                        <Award className="w-5 h-5 text-amber-400" />
+                                    </div>
                                     <div>
-                                        <div className="text-sm text-slate-500">총 조회수</div>
-                                        <div className="font-bold text-slate-900">{totalViews.toLocaleString()}</div>
+                                        <div className="text-xs text-slate-500 font-bold uppercase">총 조회수</div>
+                                        <div className="font-bold text-white text-lg">{totalViews.toLocaleString()}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <Button
                                 size="lg"
-                                className={`shadow-lg transition-all ${isSubscribed ? 'bg-slate-200 text-slate-800 hover:bg-slate-300' : ''}`}
+                                className={`shadow-lg transition-all min-w-[140px] ${isSubscribed
+                                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}`}
                                 onClick={handleSubscribe}
                                 disabled={subscribeLoading}
                             >
@@ -226,30 +255,33 @@ export const CreatorProfile: React.FC = () => {
             {/* 1:1 Feedback Section */}
             {feedbackSettings?.enabled && user?.id !== creator.id && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-8 text-white">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-2xl p-8 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-indigo-500/5 group-hover:bg-indigo-500/10 transition-colors"></div>
+                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
-                                    <MessageSquare className="w-8 h-8" />
-                                    <h3 className="text-2xl font-bold">1:1 피드백 받기</h3>
+                                    <div className="p-2 bg-indigo-500/20 rounded-lg">
+                                        <MessageSquare className="w-6 h-6 text-indigo-400" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white">1:1 피드백 받기</h3>
                                 </div>
-                                <p className="text-purple-100 mb-4">
-                                    {creator.name} 인스트럭터에게 직접 피드백을 받아보세요
+                                <p className="text-slate-300 mb-4">
+                                    <span className="text-indigo-400 font-bold">{creator.name}</span> 인스트럭터에게 내 스파링/드릴 영상을 보내고 직접 피드백을 받아보세요.
                                 </p>
                                 <div className="flex flex-wrap gap-4 text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <DollarSign className="w-4 h-4" />
-                                        <span>₩{feedbackSettings.price.toLocaleString()}</span>
+                                    <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                                        <DollarSign className="w-4 h-4 text-green-400" />
+                                        <span className="text-slate-300">₩{feedbackSettings.price.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        <span>{feedbackSettings.turnaroundDays}일 이내 응답</span>
+                                    <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                                        <Clock className="w-4 h-4 text-blue-400" />
+                                        <span className="text-slate-300">{feedbackSettings.turnaroundDays}일 이내 응답</span>
                                     </div>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowFeedbackModal(true)}
-                                className="px-8 py-3 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-colors shadow-lg"
+                                className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 hover:scale-105"
                             >
                                 피드백 요청하기
                             </button>
@@ -260,13 +292,13 @@ export const CreatorProfile: React.FC = () => {
 
             {/* Feedback Request Modal */}
             {showFeedbackModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-2xl w-full p-8">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-6">피드백 요청하기</h2>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h2 className="text-2xl font-bold text-white mb-6">피드백 요청하기</h2>
 
                         <div className="space-y-4 mb-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-400 mb-2">
                                     YouTube 영상 URL *
                                 </label>
                                 <input
@@ -274,15 +306,15 @@ export const CreatorProfile: React.FC = () => {
                                     value={videoUrl}
                                     onChange={(e) => setVideoUrl(e.target.value)}
                                     placeholder="https://youtube.com/watch?v=..."
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-500"
                                 />
-                                <p className="text-xs text-slate-500 mt-1">
+                                <p className="text-xs text-slate-500 mt-2">
                                     YouTube에 업로드한 영상의 링크를 입력해주세요 (비공개/unlisted 가능)
                                 </p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-400 mb-2">
                                     질문 / 설명 (선택사항)
                                 </label>
                                 <textarea
@@ -290,18 +322,18 @@ export const CreatorProfile: React.FC = () => {
                                     onChange={(e) => setDescription(e.target.value)}
                                     rows={4}
                                     placeholder="어떤 부분에 대한 피드백을 원하시나요?"
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-500 resize-none"
                                 />
                             </div>
 
-                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                            <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-xl p-4">
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="font-semibold text-slate-900">결제 금액</span>
-                                    <span className="text-2xl font-bold text-purple-600">
+                                    <span className="font-semibold text-indigo-300">결제 금액</span>
+                                    <span className="text-2xl font-bold text-white">
                                         ₩{feedbackSettings?.price.toLocaleString()}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-600">
+                                <p className="text-xs text-indigo-400/70">
                                     {feedbackSettings?.turnaroundDays}일 이내에 텍스트 피드백을 받으실 수 있습니다
                                 </p>
                             </div>
@@ -314,14 +346,14 @@ export const CreatorProfile: React.FC = () => {
                                     setVideoUrl('');
                                     setDescription('');
                                 }}
-                                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                className="flex-1 px-4 py-3 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-800 transition-colors font-bold"
                             >
                                 취소
                             </button>
                             <button
                                 onClick={handleSubmitFeedbackRequest}
                                 disabled={!videoUrl.trim() || submitting}
-                                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-indigo-900/20"
                             >
                                 {submitting ? '요청 중...' : '결제 및 요청하기'}
                             </button>
@@ -332,9 +364,12 @@ export const CreatorProfile: React.FC = () => {
 
             {/* Creator Courses */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                    {creator.name}의 강좌 ({courses.length})
-                </h2>
+                <div className="flex items-center gap-3 mb-6">
+                    <BookOpen className="w-6 h-6 text-indigo-500" />
+                    <h2 className="text-2xl font-bold text-white">
+                        개설 강좌 <span className="text-slate-500 text-lg font-medium ml-1">({courses.length})</span>
+                    </h2>
+                </div>
 
                 {courses.length > 0 ? (
                     <div className="grid md:grid-cols-3 gap-6">
@@ -343,9 +378,12 @@ export const CreatorProfile: React.FC = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-                        <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-500">아직 개설된 강좌가 없습니다.</p>
+                    <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <BookOpen className="w-8 h-8 text-slate-600" />
+                        </div>
+                        <p className="text-slate-400 font-medium">아직 개설된 강좌가 없습니다.</p>
+                        <p className="text-slate-600 text-sm mt-1">새로운 강좌가 곧 올라올 예정입니다.</p>
                     </div>
                 )}
             </div>
