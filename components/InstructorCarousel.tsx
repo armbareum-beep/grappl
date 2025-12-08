@@ -99,7 +99,13 @@ export const InstructorCarousel: React.FC = () => {
                                         <span>{creator.subscriber_count.toLocaleString()}</span>
                                     </div>
                                 </div>
-                                <button className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs font-bold rounded-lg transition-colors">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.location.href = `/creator/${creator.id}`;
+                                    }}
+                                    className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs font-bold rounded-lg transition-colors"
+                                >
                                     프로필
                                 </button>
                             </div>
