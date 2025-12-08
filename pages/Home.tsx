@@ -121,9 +121,6 @@ export const Home: React.FC = () => {
   const xpToNext = progress ? getXPToNextBelt(progress.beltLevel) : 0;
   const beltIcon = currentBelt ? getBeltIcon(currentBelt.belt) : '🥋';
 
-  const totalQuestXP = quests.reduce((sum, q) => sum + q.xpReward, 0);
-  const earnedQuestXP = quests.filter(q => q.completed).reduce((sum, q) => sum + q.xpReward, 0);
-
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-24">
       {/* 1. Top Section: Today's Routine */}
@@ -259,81 +256,67 @@ export const Home: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           {/* Stats & Graph & Patches (Left Column) */}
           <div className="lg:col-span-2 flex flex-col">
-            {/* Stats & Belt (Arena Card Style) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative group h-full">
-              {/* Background Effects */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-900 to-slate-950"></div>
-              <div className="absolute inset-0 overflow-hidden opacity-30">
-                <div className="absolute top-0 left-[20%] w-0.5 h-[150%] bg-red-500/50 transform -rotate-12 origin-top"></div>
-                <div className="absolute top-0 left-[60%] w-0.5 h-[150%] bg-blue-500/50 transform -rotate-12 origin-top"></div>
+            {/* Stats & Belt (Restored) */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm h-full flex flex-col justify-between hover:border-slate-700 transition-colors">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="flex items-center gap-1.5 text-orange-400 font-black text-3xl mb-1">
+                      <Flame className="w-6 h-6 fill-orange-400" />
+                      {userStats.streak}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">연속 출석</div>
+                  </div>
+                  <div className="h-10 w-px bg-slate-800"></div>
+                  <div>
+                    <div className="text-white font-black text-2xl mb-1">{progress?.totalXp?.toLocaleString() || 0}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">총 경험치</div>
+                  </div>
+                </div>
+
+                {/* Weekly Graph */}
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex gap-1.5">
+                    {userStats.weeklyActivity.map((active, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <div className={`w-2.5 h-10 rounded-full ${active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-slate-800'}`}></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">주간 활동</div>
+                </div>
               </div>
 
-              <div className="relative z-10 p-6 flex flex-col h-full justify-between">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 transform -skew-x-12 inline-block shadow-lg shadow-blue-900/50">
-                        PLAYER 1
-                      </span>
-                      <span className="text-slate-500 text-[10px] font-bold tracking-[0.2em] animate-pulse">READY</span>
+              {/* Belt Progress */}
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 mb-6 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-3xl shadow-lg">
+                        {beltIcon}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">{currentBelt?.name}</div>
+                        <div className="text-xs text-slate-400">다음: {nextBelt?.name}</div>
+                      </div>
                     </div>
-                    <h2 className="text-4xl font-black text-white italic tracking-tighter drop-shadow-lg">
-                      FIGHTER
-                    </h2>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-400 font-medium mb-1">{Math.round(xpProgress * 100)}%</div>
+                    </div>
                   </div>
-
-                  {/* Avatar Frame */}
-                  <div className="w-20 h-24 bg-slate-800/80 border-2 border-slate-700 rounded flex items-center justify-center relative overflow-hidden shadow-xl transform rotate-2 group-hover:rotate-0 transition-transform duration-300">
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50"></div>
-                    <span className="text-4xl filter drop-shadow-lg transform scale-125">{beltIcon}</span>
-                    {/* Scanline effect */}
-                    <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.2)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50"></div>
-                  </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-0.5">RANK</p>
-                    <p className="text-xl font-black text-white italic truncate">{currentBelt?.name || 'WHITE'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider mb-0.5">POWER</p>
-                    <p className="text-xl font-black text-white italic">{progress?.totalXp?.toLocaleString() || 0}</p>
-                  </div>
-                </div>
-
-                {/* XP Bar */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
-                    <span>XP PROGRESS</span>
-                    <span>{Math.round(xpProgress * 100)}%</span>
-                  </div>
-                  <div className="h-3 bg-slate-950 border border-slate-800 rounded-sm overflow-hidden transform -skew-x-12">
+                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 relative"
+                      className="h-full rounded-full transition-all duration-1000 ease-out relative bg-gradient-to-r from-blue-500 to-indigo-500"
                       style={{ width: `${xpProgress * 100}%` }}
                     >
-                      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:10px_10px]"></div>
+                      <div className="absolute inset-0 bg-white/20"></div>
                     </div>
                   </div>
                 </div>
-
-                {/* Action Button */}
-                <button
-                  onClick={() => navigate('/arena')}
-                  className="w-full group/btn relative overflow-hidden bg-gradient-to-r from-red-600 to-orange-600 text-white font-black italic text-lg py-3 rounded transform -skew-x-6 hover:skew-x-0 transition-all shadow-lg shadow-red-900/20 active:scale-95"
-                >
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-                  <span className="relative z-10 flex items-center justify-center gap-2">
-                    <Sword className="w-5 h-5" />
-                    ENTER ARENA
-                  </span>
-                </button>
               </div>
 
-              {/* Patches (Moved Here) */}
+              {/* Patches */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-white text-sm flex items-center gap-2">
