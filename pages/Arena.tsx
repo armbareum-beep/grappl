@@ -67,7 +67,8 @@ export const Arena: React.FC = () => {
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="flex flex-wrap gap-3">
+                    {/* Tab Navigation - Desktop */}
+                    <div className="hidden md:flex flex-wrap gap-3">
                         {ARENA_TABS.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -151,6 +152,26 @@ export const Arena: React.FC = () => {
                                 </button>
                             );
                         })}
+                    </div>
+
+                    {/* Mobile Dropdown Navigation */}
+                    <div className="md:hidden relative">
+                        <select
+                            value={activeTab}
+                            onChange={(e) => handleTabChange(e.target.value)}
+                            className="w-full appearance-none bg-slate-800 border border-slate-700 text-white py-3 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        >
+                            {ARENA_TABS.map((tab) => (
+                                <option key={tab.id} value={tab.id}>
+                                    {tab.label} - {tab.desc}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>

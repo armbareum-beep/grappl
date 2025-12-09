@@ -123,6 +123,11 @@ export const InstructorCarousel: React.FC = () => {
                 .instructor-scroll-container {
                     animation: scroll-left 40s linear infinite;
                 }
+                @media (max-width: 768px) {
+                    .instructor-scroll-container {
+                        animation: scroll-left 20s linear infinite;
+                    }
+                }
                 .instructor-scroll-container:hover {
                     animation-play-state: paused;
                 }

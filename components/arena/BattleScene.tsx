@@ -78,16 +78,16 @@ export const BattleScene: React.FC<BattleSceneProps> = ({ myStats, opponent, onB
             <div className="relative z-10 w-full max-w-5xl px-4">
 
                 {/* VS Header */}
-                <div className="flex justify-between items-center mb-12">
+                <div className="flex justify-between items-center mb-6 md:mb-12">
                     {/* Player (Left) */}
                     <div className="flex-1 flex flex-col items-start">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="w-16 h-16 rounded-full bg-blue-600 border-4 border-blue-400 flex items-center justify-center text-2xl font-bold shadow-[0_0_20px_rgba(37,99,235,0.5)]">
+                        <div className="flex items-center gap-2 md:gap-4 mb-2">
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-600 border-4 border-blue-400 flex items-center justify-center text-lg md:text-2xl font-bold shadow-[0_0_20px_rgba(37,99,235,0.5)]">
                                 나
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-white">{myStats.name}</h2>
-                                <span className="text-blue-400 font-mono">{myStats.belt}</span>
+                                <h2 className="text-lg md:text-2xl font-bold text-white">{myStats.name}</h2>
+                                <span className="text-xs md:text-base text-blue-400 font-mono">{myStats.belt}</span>
                             </div>
                         </div>
                         {/* HP Bar */}
@@ -101,21 +101,21 @@ export const BattleScene: React.FC<BattleSceneProps> = ({ myStats, opponent, onB
                     </div>
 
                     {/* VS Logo */}
-                    <div className="mx-8">
-                        <div className="text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
+                    <div className="mx-2 md:mx-8">
+                        <div className="text-4xl md:text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
                             VS
                         </div>
                     </div>
 
                     {/* Opponent (Right) */}
                     <div className="flex-1 flex flex-col items-end text-right">
-                        <div className="flex items-center gap-4 mb-2 flex-row-reverse">
-                            <div className="w-16 h-16 rounded-full bg-red-600 border-4 border-red-400 flex items-center justify-center text-2xl font-bold shadow-[0_0_20px_rgba(220,38,38,0.5)]">
+                        <div className="flex items-center gap-2 md:gap-4 mb-2 flex-row-reverse">
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-red-600 border-4 border-red-400 flex items-center justify-center text-lg md:text-2xl font-bold shadow-[0_0_20px_rgba(220,38,38,0.5)]">
                                 {opponent.name[0]}
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-white">{opponent.name}</h2>
-                                <span className="text-red-400 font-mono">{opponent.belt}</span>
+                                <h2 className="text-lg md:text-2xl font-bold text-white">{opponent.name}</h2>
+                                <span className="text-xs md:text-base text-red-400 font-mono">{opponent.belt}</span>
                             </div>
                         </div>
                         {/* HP Bar */}

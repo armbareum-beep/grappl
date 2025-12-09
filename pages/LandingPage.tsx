@@ -36,7 +36,7 @@ export const LandingPage: React.FC = () => {
             <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
-                        <img src="/logo_v2.png" alt="Grapplay" className="h-14 w-auto object-contain mix-blend-screen" />
+                        <img src="/logo.png" alt="Grapplay" className="h-14 w-auto object-contain" />
                     </div>
                     <div className="flex items-center gap-4">
                         <Button
@@ -47,7 +47,7 @@ export const LandingPage: React.FC = () => {
                             로그인
                         </Button>
                         <Button
-                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-6 transition-colors"
                             onClick={() => navigate('/pricing')}
                         >
                             시작하기
@@ -111,16 +111,16 @@ export const LandingPage: React.FC = () => {
                     <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
                         <Button
                             size="lg"
-                            className="w-full sm:w-auto text-lg px-10 py-7 rounded-full shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
-                            onClick={() => navigate('/drills')}
+                            className="w-full sm:w-auto text-lg px-10 py-7 rounded-full shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105 bg-indigo-600 hover:bg-indigo-500 text-white"
+                            onClick={() => navigate('/courses')}
                         >
-                            <Play className="w-5 h-5 mr-2" />
+                            <Play className="w-5 h-5 mr-2 fill-white" />
                             무료 영상으로 시작
                         </Button>
                         <Button
                             variant="outline"
                             size="lg"
-                            className="w-full sm:w-auto text-lg px-10 py-7 rounded-full border-2 border-slate-600 text-slate-200 hover:bg-white/10 hover:border-slate-400 transition-all backdrop-blur-sm"
+                            className="w-full sm:w-auto text-lg px-10 py-7 rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all"
                             onClick={() => document.getElementById('instructors')?.scrollIntoView({ behavior: 'smooth' })}
                         >
                             인스트럭터 보기
@@ -184,8 +184,8 @@ export const LandingPage: React.FC = () => {
                     <div className="text-center mt-12">
                         <Button
                             size="lg"
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-10 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"
-                            onClick={() => navigate('/pricing')}
+                            className="bg-indigo-600 hover:bg-indigo-500 px-10 py-6 text-lg rounded-full shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all hover:scale-105"
+                            onClick={() => navigate('/instructors')}
                         >
                             이 인스트럭터들에게 배우기
                             <ChevronRight className="w-5 h-5 ml-2" />
@@ -213,7 +213,7 @@ export const LandingPage: React.FC = () => {
                         <Button
                             size="lg"
                             variant="outline"
-                            className="border-slate-700 text-slate-300 hover:bg-white/5 hover:text-white rounded-full px-8"
+                            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white rounded-full px-8 transition-all"
                             onClick={() => navigate('/drills')}
                         >
                             더 많은 드릴 보기
@@ -325,7 +325,7 @@ export const LandingPage: React.FC = () => {
                             <div className="mt-10">
                                 <Button
                                     size="lg"
-                                    className="bg-white text-black hover:bg-slate-200 px-8 py-6 rounded-full font-bold text-lg transition-all hover:scale-105"
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-6 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-indigo-500/20"
                                     onClick={() => navigate('/pricing')}
                                 >
                                     아레나 입장하기
@@ -404,10 +404,10 @@ export const LandingPage: React.FC = () => {
 
                     <Button
                         size="lg"
-                        className="text-xl px-16 py-8 rounded-full shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-105 transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500"
-                        onClick={() => navigate('/drills')}
+                        className="text-xl px-16 py-8 rounded-full shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all duration-300 bg-indigo-600 hover:bg-indigo-500 text-white"
+                        onClick={() => navigate('/courses')}
                     >
-                        <Play className="w-6 h-6 mr-3" />
+                        <Play className="w-6 h-6 mr-3 fill-white" />
                         무료 영상으로 시작
                     </Button>
 

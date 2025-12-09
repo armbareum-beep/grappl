@@ -340,6 +340,8 @@ export interface Drill {
   aspectRatio: '9:16'; // 세로 영상
   durationMinutes: number;
   length?: string; // Alternative format
+  duration?: string; // Display duration
+  price: number;
   tags?: string[]; // For hashtags
   likes?: number;
   views: number;

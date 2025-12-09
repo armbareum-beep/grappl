@@ -68,9 +68,12 @@ Deno.serve(async (req) => {
                 throw new Error('Course not found')
             }
 
+            // Convert KRW to USD (Approximate fixed rate: 1500 KRW = 1 USD)
+            const usdAmount = Math.round((course.price / 1500) * 100); // in cents
+
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: course.price * 100,
-                currency: 'krw',
+                amount: usdAmount,
+                currency: 'usd',
                 automatic_payment_methods: {
                     enabled: true,
                 },
@@ -105,9 +108,12 @@ Deno.serve(async (req) => {
                 throw new Error('Routine not found')
             }
 
+            // Convert KRW to USD
+            const usdAmount = Math.round((routine.price / 1500) * 100);
+
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: routine.price * 100,
-                currency: 'krw',
+                amount: usdAmount,
+                currency: 'usd',
                 automatic_payment_methods: {
                     enabled: true,
                 },
@@ -142,9 +148,12 @@ Deno.serve(async (req) => {
                 throw new Error('Drill not found')
             }
 
+            // Convert KRW to USD
+            const usdAmount = Math.round((drill.price / 1500) * 100);
+
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: drill.price * 100,
-                currency: 'krw',
+                amount: usdAmount,
+                currency: 'usd',
                 automatic_payment_methods: {
                     enabled: true,
                 },
@@ -180,9 +189,12 @@ Deno.serve(async (req) => {
             // Use the price from the request itself (snapshot at time of request)
             const price = feedback.price || 10000 // Fallback only if 0 or null, though it should be set
 
+            // Convert KRW to USD
+            const usdAmount = Math.round((price / 1500) * 100);
+
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: price * 100,
-                currency: 'krw',
+                amount: usdAmount,
+                currency: 'usd',
                 automatic_payment_methods: {
                     enabled: true,
                 },

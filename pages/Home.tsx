@@ -221,7 +221,7 @@ export const Home: React.FC = () => {
                 <p className="text-xs text-slate-400 mb-4">나의 약점을 보완하는 맞춤 루틴</p>
                 <button
                   onClick={() => navigate('/subscription')}
-                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-5 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
                 >
                   업그레이드하고 잠금해제
                 </button>
@@ -345,7 +345,7 @@ export const Home: React.FC = () => {
                 ) : (
                   <div className="bg-slate-950/30 rounded-lg p-4 text-center border border-slate-800/50 border-dashed">
                     <p className="text-xs text-slate-500">아직 획득한 패치가 없습니다</p>
-                    <p className="text-[10px] text-slate-600 mt-1">미션을 완료하고 패치를 모아보세요!</p>
+                    <p className="text-xs text-slate-600 mt-1">미션을 완료하고 패치를 모아보세요!</p>
                   </div>
                 )}
               </div>
@@ -402,7 +402,7 @@ export const Home: React.FC = () => {
             </div>
             <button
               onClick={() => navigate('/arena?tab=sparring')}
-              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-900/20"
+              className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-900/20"
             >
               <BookOpen className="w-4 h-4" />
               복기 작성하기
@@ -419,7 +419,7 @@ export const Home: React.FC = () => {
               <p className="text-xs text-slate-400 mb-4">내 스파링 패턴을 분석하고 개선점을 제안합니다.</p>
               <button
                 onClick={() => navigate('/subscription')}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-5 rounded-lg transition-all shadow-lg shadow-indigo-600/20 hover:scale-105"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all shadow-lg shadow-indigo-600/20 hover:scale-105"
               >
                 Pro로 업그레이드
               </button>

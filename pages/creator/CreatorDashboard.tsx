@@ -178,7 +178,7 @@ export const CreatorDashboard: React.FC = () => {
                     <div className="space-y-8">
                         {/* Courses Section */}
                         <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-6">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                                 <div>
                                     <h2 className="text-2xl font-bold text-white">내 강좌</h2>
                                     <p className="text-slate-400 text-sm mt-1">학생들에게 판매할 강좌를 관리하세요</p>
@@ -252,7 +252,7 @@ export const CreatorDashboard: React.FC = () => {
 
                         {/* Routines Section */}
                         <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-6">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                                 <div>
                                     <h2 className="text-2xl font-bold text-white">내 루틴</h2>
                                     <p className="text-slate-400 text-sm mt-1">드릴을 조합한 훈련 루틴을 관리하세요</p>
@@ -325,7 +325,7 @@ export const CreatorDashboard: React.FC = () => {
                     <div className="space-y-8">
                         {/* Lessons Section */}
                         <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-6">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                                 <div>
                                     <h2 className="text-2xl font-bold text-white">내 레슨</h2>
                                     <p className="text-slate-400 text-sm mt-1">강좌를 구성하는 개별 레슨 영상입니다</p>
@@ -390,7 +390,7 @@ export const CreatorDashboard: React.FC = () => {
 
                         {/* Drills Section */}
                         <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-6">
-                            <div className="flex justify-between items-center mb-6">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                                 <div>
                                     <h2 className="text-2xl font-bold text-white">내 드릴</h2>
                                     <p className="text-slate-400 text-sm mt-1">루틴을 구성하는 짧은 훈련 영상입니다</p>
