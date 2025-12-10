@@ -7,6 +7,7 @@ import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 
 export const LandingPage: React.FC = () => {
+    // Force redeploy check
     const navigate = useNavigate();
     const { user, loading } = useAuth();
 
@@ -36,7 +37,7 @@ export const LandingPage: React.FC = () => {
             <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
-                        <img src="/logo.png" alt="Grapplay" className="h-14 w-auto object-contain" />
+                        <img src="/logo_transparent.png" alt="Grapplay" className="h-14 w-auto object-contain" />
                     </div>
                     <div className="flex items-center gap-4">
                         <Button
@@ -121,7 +122,7 @@ export const LandingPage: React.FC = () => {
                             variant="outline"
                             size="lg"
                             className="w-full sm:w-auto text-lg px-10 py-7 rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all"
-                            onClick={() => document.getElementById('instructors')?.scrollIntoView({ behavior: 'smooth' })}
+                            onClick={() => navigate('/instructors')}
                         >
                             인스트럭터 보기
                             <ChevronRight className="w-5 h-5 ml-2" />
