@@ -153,12 +153,12 @@ export const Pricing: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div className="flex items-baseline gap-3">
+                  <div className="flex items-baseline gap-1">
                     <span className="text-4xl md:text-5xl font-black text-white">
                       ₩{getMonthlyEquivalent(pricing.basic.yearly.price).toLocaleString()}
                     </span>
+                    <span className="text-lg font-medium text-slate-400">/월</span>
                   </div>
-                  <span className="text-lg font-medium text-slate-400">/월</span>
                   <p className="text-sm text-blue-400 font-medium mt-2">
                     🔥 연간 결제 시 {getDiscountPercent(pricing.basic.monthly.price, pricing.basic.yearly.price)}% 할인 (총 ₩{pricing.basic.yearly.price.toLocaleString()})
                   </p>
@@ -231,12 +231,12 @@ export const Pricing: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div className="flex items-baseline gap-3">
+                  <div className="flex items-baseline gap-1">
                     <span className="text-4xl md:text-5xl font-black text-white">
                       ₩{getMonthlyEquivalent(pricing.premium.yearly.price).toLocaleString()}
                     </span>
+                    <span className="text-lg font-medium text-blue-100">/월</span>
                   </div>
-                  <span className="text-lg font-medium text-blue-100">/월</span>
                   <p className="text-sm text-amber-300 font-medium mt-2">
                     🔥 연간 결제 시 {getDiscountPercent(pricing.premium.monthly.price, pricing.premium.yearly.price)}% 할인 (총 ₩{pricing.premium.yearly.price.toLocaleString()})
                   </p>
