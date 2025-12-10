@@ -22,8 +22,8 @@ def remove_background(input_path, output_path):
     except Exception as e:
         print(f"Error: {e}")
 
-input_path = "public/logo.png"
-output_path = "public/logo_transparent.png"
+input_path = "public/logo_v2.png"
+output_path = "public/logo_v2_transparent.png"
 
 if os.path.exists(input_path):
     remove_background(input_path, output_path)
