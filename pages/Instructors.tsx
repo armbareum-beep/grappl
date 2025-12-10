@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, CheckCircle, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 interface Creator {
     id: string;
@@ -44,11 +45,7 @@ export const Instructors: React.FC = () => {
     );
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+        return <LoadingScreen message="인스트럭터 목록 불러오는 중..." />;
     }
 
     return (

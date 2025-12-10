@@ -3,6 +3,7 @@ import { getCourses } from '../lib/api';
 import { CourseCard } from '../components/CourseCard';
 import { Course, VideoCategory, Difficulty } from '../types';
 import { Filter, Search, Menu, Activity } from 'lucide-react';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 export const Browse: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -36,14 +37,8 @@ export const Browse: React.FC = () => {
     return categoryMatch && difficultyMatch;
   });
 
-
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-      </div>
-    );
+    return <LoadingScreen message="콘텐츠 불러오는 중..." />;
   }
 
   if (error) {

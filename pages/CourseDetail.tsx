@@ -7,6 +7,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 
 
@@ -184,14 +185,7 @@ export const CourseDetail: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">로딩 중...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="강좌 정보 불러오는 중..." />;
     }
 
     if (!course) {

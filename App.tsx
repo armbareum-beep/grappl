@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LoadingScreen } from './components/LoadingScreen';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
 import { VideoDetail } from './pages/VideoDetail';
@@ -53,41 +54,9 @@ import { ToastProvider } from './contexts/ToastContext';
 
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
-  const [showReset, setShowReset] = React.useState(false);
-
-  React.useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (loading) {
-      timer = setTimeout(() => {
-        setShowReset(true);
-      }, 5000);
-    }
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  const handleReset = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.reload();
-  };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 gap-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        {showReset && (
-          <div className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <p className="text-slate-400 text-sm">로딩이 지연되고 있나요?</p>
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg transition-colors border border-slate-700"
-            >
-              앱 초기화하기
-            </button>
-          </div>
-        )}
-      </div>
-    );
+    return <LoadingScreen message="로그인 정보 확인 중..." />;
   }
 
   if (user) {

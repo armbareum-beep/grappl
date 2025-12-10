@@ -118,17 +118,13 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 5000)
-    );
-
     let data, error;
     try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const result = await fetchPromise;
         data = result.data;
         error = result.error;
     } catch (e) {
-        console.error('getCourses timed out or failed:', e);
+        console.error('getCourses failed:', e);
         throw e;
     }
 
@@ -268,17 +264,13 @@ export async function getVideos(): Promise<Video[]> {
     `)
         .order('created_at', { ascending: false });
 
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 5000)
-    );
-
     let data, error;
     try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const result = await fetchPromise;
         data = result.data;
         error = result.error;
     } catch (e) {
-        console.error('getVideos timed out or failed:', e);
+        console.error('getVideos failed:', e);
         throw e;
     }
 
@@ -1576,18 +1568,14 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         .order('created_at', { ascending: false })
         .range(from, to);
 
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 5000)
-    );
-
     let data, count, error;
     try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const result = await fetchPromise;
         data = result.data;
         count = result.count;
         error = result.error;
     } catch (e) {
-        console.error('getPublicTrainingLogs timed out or failed:', e);
+        console.error('getPublicTrainingLogs failed:', e);
         return { data: null, count: 0, error: e };
     }
 
@@ -2518,17 +2506,13 @@ export async function getUserSkillCourses(userId: string) {
         .eq('user_id', userId)
         .not('course_id', 'is', null);
 
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 5000)
-    );
-
     let data, error;
     try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const result = await fetchPromise;
         data = result.data;
         error = result.error;
     } catch (e) {
-        console.error('getUserSkillCourses timed out or failed:', e);
+        console.error('getUserSkillCourses failed:', e);
         return { data: null, error: e };
     }
 
@@ -2947,17 +2931,13 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
     }
 
     // Add 5s timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 5000)
-    );
-
     let data, error;
     try {
-        const result = await Promise.race([query, timeoutPromise]) as any;
+        const result = await query;
         data = result.data;
         error = result.error;
     } catch (e) {
-        console.error('getDrills timed out or failed:', e);
+        console.error('getDrills failed:', e);
         return { data: null, error: e };
     }
 

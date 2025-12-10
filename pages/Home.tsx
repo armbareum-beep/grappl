@@ -14,6 +14,7 @@ import {
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   watch_lesson: { icon: '📺', name: '레슨 시청' },
@@ -107,11 +108,7 @@ export const Home: React.FC = () => {
   }, [user, navigate]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-      </div>
-    );
+    return <LoadingScreen message="홈 데이터 불러오는 중..." />;
   }
 
   // Belt info

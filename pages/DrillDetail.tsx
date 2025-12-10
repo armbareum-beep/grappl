@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, CheckCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -288,11 +289,7 @@ export const DrillDetail: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-black">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-            </div>
-        );
+        return <LoadingScreen message="드릴 정보 불러오는 중..." />;
     }
 
     if (!drill) return <div className="text-white text-center pt-20">Drill not found</div>;
