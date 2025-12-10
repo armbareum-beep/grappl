@@ -19,6 +19,13 @@ export const PayoutSettingsTab: React.FC = () => {
     const [accountHolder, setAccountHolder] = useState('');
     const [residentRegistrationNumber, setResidentRegistrationNumber] = useState('');
 
+    // Wise / USD fields
+    const [wiseEmail, setWiseEmail] = useState('');
+    const [wiseAccountNumber, setWiseAccountNumber] = useState('');
+    const [wiseRoutingNumber, setWiseRoutingNumber] = useState('');
+    const [wiseSwiftBic, setWiseSwiftBic] = useState('');
+    const [isKoreanResident, setIsKoreanResident] = useState(false);
+
     useEffect(() => {
         if (user) {
             loadSettings();
@@ -41,6 +48,13 @@ export const PayoutSettingsTab: React.FC = () => {
                     setAccountNumber(data.payoutSettings.accountNumber || '');
                     setAccountHolder(data.payoutSettings.accountHolder || '');
                     setResidentRegistrationNumber(data.payoutSettings.residentRegistrationNumber || '');
+
+                    // Load Wise info
+                    setWiseEmail(data.payoutSettings.wiseEmail || '');
+                    setWiseAccountNumber(data.payoutSettings.wiseAccountNumber || '');
+                    setWiseRoutingNumber(data.payoutSettings.wiseRoutingNumber || '');
+                    setWiseSwiftBic(data.payoutSettings.wiseSwiftBic || '');
+                    setIsKoreanResident(data.payoutSettings.isKoreanResident || false);
                 }
             }
         } catch (err) {
@@ -63,7 +77,13 @@ export const PayoutSettingsTab: React.FC = () => {
                 bankName,
                 accountNumber,
                 accountHolder,
-                residentRegistrationNumber
+                residentRegistrationNumber,
+                // Wise fields
+                wiseEmail,
+                wiseAccountNumber,
+                wiseRoutingNumber,
+                wiseSwiftBic,
+                isKoreanResident
             });
             if (error) throw error;
             setSuccess('설정이 저장되었습니다.');
@@ -73,13 +93,6 @@ export const PayoutSettingsTab: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    };
-
-    const handleConnectStripe = () => {
-        // In a real implementation, this would redirect to your backend endpoint
-        // which then redirects to Stripe OAuth.
-        // window.location.href = `${import.meta.env.VITE_API_URL}/connect-stripe?user_id=${user?.id}`;
-        alert('Stripe Connect 연동 기능은 백엔드(Edge Function) 구현이 필요합니다.\n\n실제 구현 시:\n1. Stripe OAuth로 리다이렉트\n2. 계좌 정보 입력\n3. stripe_account_id 저장');
     };
 
     if (loading) {
@@ -108,80 +121,196 @@ export const PayoutSettingsTab: React.FC = () => {
                         <div className="flex items-center space-x-3 mb-2">
                             <User className={`w-5 h-5 ${payoutType === 'individual' ? 'text-blue-400' : 'text-slate-400'}`} />
                             <span className={`font-semibold ${payoutType === 'individual' ? 'text-blue-400' : 'text-white'}`}>
-                                개인 (프리랜서)
+                                한국 계좌 (KRW)
                             </span>
                         </div>
                         <p className="text-sm text-slate-400">
-                            3.3% 사업소득세를 원천징수하고 정산받습니다.
+                            국내 은행 계좌로 원화 입금 (3.3% 원천징수)
                         </p>
                     </button>
 
-                    {/* Business option removed as per user request */}
-                </div>
-            </div>
-
-            {/* Korean Bank Account Information */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">입금 계좌 정보</h3>
-                <p className="text-sm text-slate-400">수익금을 정산받을 한국 계좌 정보를 입력하세요.</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            은행명 *
-                        </label>
-                        <input
-                            type="text"
-                            value={bankName}
-                            onChange={(e) => setBankName(e.target.value)}
-                            placeholder="예: 카카오뱅크, 신한은행"
-                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            계좌번호 *
-                        </label>
-                        <input
-                            type="text"
-                            value={accountNumber}
-                            onChange={(e) => setAccountNumber(e.target.value)}
-                            placeholder="하이픈(-) 없이 입력"
-                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            예금주 *
-                        </label>
-                        <input
-                            type="text"
-                            value={accountHolder}
-                            onChange={(e) => setAccountHolder(e.target.value)}
-                            placeholder="본인 명의의 계좌 예금주"
-                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                            주민등록번호 (앞 6자리 + 뒤 1자리) *
-                        </label>
-                        <input
-                            type="text"
-                            value={residentRegistrationNumber}
-                            onChange={(e) => setResidentRegistrationNumber(e.target.value)}
-                            placeholder="예: 900101-1"
-                            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <p className="text-xs text-slate-500 mt-1">
-                            3.3% 사업소득세 원천징수 신고를 위해 필요합니다.
+                    <button
+                        onClick={() => setPayoutType('business')}
+                        className={`p-4 rounded-lg border-2 text-left transition-all ${payoutType === 'business'
+                            ? 'border-blue-500 bg-blue-900/20'
+                            : 'border-slate-700 bg-slate-900 hover:border-slate-600'
+                            }`}
+                    >
+                        <div className="flex items-center space-x-3 mb-2">
+                            <Building className={`w-5 h-5 ${payoutType === 'business' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <span className={`font-semibold ${payoutType === 'business' ? 'text-blue-400' : 'text-white'}`}>
+                                Wise (USD)
+                            </span>
+                        </div>
+                        <p className="text-sm text-slate-400">
+                            Wise를 통한 달러 송금 (해외 거주자/외화 계좌)
                         </p>
-                    </div>
+                    </button>
                 </div>
             </div>
+
+            {payoutType === 'individual' ? (
+                /* Korean Bank Account Information */
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white">입금 계좌 정보 (KRW)</h3>
+                    <p className="text-sm text-slate-400">수익금을 정산받을 한국 계좌 정보를 입력하세요.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                은행명 *
+                            </label>
+                            <input
+                                type="text"
+                                value={bankName}
+                                onChange={(e) => setBankName(e.target.value)}
+                                placeholder="예: 카카오뱅크, 신한은행"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                계좌번호 *
+                            </label>
+                            <input
+                                type="text"
+                                value={accountNumber}
+                                onChange={(e) => setAccountNumber(e.target.value)}
+                                placeholder="하이픈(-) 없이 입력"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                예금주 *
+                            </label>
+                            <input
+                                type="text"
+                                value={accountHolder}
+                                onChange={(e) => setAccountHolder(e.target.value)}
+                                placeholder="본인 명의의 계좌 예금주"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                주민등록번호 (앞 6자리 + 뒤 1자리) *
+                            </label>
+                            <input
+                                type="text"
+                                value={residentRegistrationNumber}
+                                onChange={(e) => setResidentRegistrationNumber(e.target.value)}
+                                placeholder="예: 900101-1"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">
+                                3.3% 사업소득세 원천징수 신고를 위해 필요합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* Wise / USD Information */
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white">Wise 계좌 정보 (USD)</h3>
+                    <p className="text-sm text-slate-400">달러(USD)를 송금받을 Wise 계좌 정보를 입력하세요.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                            <label className="flex items-center space-x-2 p-3 bg-slate-800 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-700 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={isKoreanResident}
+                                    onChange={(e) => setIsKoreanResident(e.target.checked)}
+                                    className="w-5 h-5 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-900"
+                                />
+                                <span className="text-sm text-white">
+                                    저는 한국 거주자입니다 (3.3% 세금 원천징수 대상)
+                                </span>
+                            </label>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                Wise 이메일 주소 (권장)
+                            </label>
+                            <input
+                                type="email"
+                                value={wiseEmail}
+                                onChange={(e) => setWiseEmail(e.target.value)}
+                                placeholder="example@email.com"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">
+                                Wise 계정에 등록된 이메일 주소를 입력하면 가장 빠르고 정확하게 송금됩니다.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                ACH Routing Number (선택)
+                            </label>
+                            <input
+                                type="text"
+                                value={wiseRoutingNumber}
+                                onChange={(e) => setWiseRoutingNumber(e.target.value)}
+                                placeholder="000000000"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                Account Number (선택)
+                            </label>
+                            <input
+                                type="text"
+                                value={wiseAccountNumber}
+                                onChange={(e) => setWiseAccountNumber(e.target.value)}
+                                placeholder="0000000000"
+                                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        {isKoreanResident && (
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    주민등록번호 (앞 6자리 + 뒤 1자리) *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={residentRegistrationNumber}
+                                    onChange={(e) => setResidentRegistrationNumber(e.target.value)}
+                                    placeholder="예: 900101-1"
+                                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    한국 거주자의 경우 3.3% 사업소득세 원천징수 신고를 위해 필요합니다.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="md:col-span-2">
+                            <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg flex items-start">
+                                <AlertCircle className="w-5 h-5 mr-2 text-blue-400 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-blue-300">
+                                    <p className="font-semibold mb-1">안내사항</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        <li>Wise 이메일만 입력하셔도 송금이 가능합니다.</li>
+                                        <li>달러(USD) 송금 시 발생하는 수수료는 수취인 부담일 수 있습니다.</li>
+                                        {!isKoreanResident && (
+                                            <li>해외 거주자의 경우 한국 세금(3.3%)이 원천징수되지 않습니다. (거주국가 세법 적용)</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div className="mb-4 p-4 bg-red-900/20 text-red-400 border border-red-500/30 rounded-lg flex items-center">

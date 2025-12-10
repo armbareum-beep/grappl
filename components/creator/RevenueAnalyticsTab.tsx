@@ -55,12 +55,12 @@ export const RevenueAnalyticsTab: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-white">수익 분석</h2>
                     <p className="text-slate-400 mt-1">기간별 수익 현황과 정산 내역을 확인하세요.</p>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex items-center gap-2">
                     <select
                         value={period}
                         onChange={(e) => setPeriod(e.target.value as any)}
@@ -70,7 +70,7 @@ export const RevenueAnalyticsTab: React.FC = () => {
                         <option value="1y">최근 1년</option>
                         <option value="all">전체 기간</option>
                     </select>
-                    <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                    <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800 whitespace-nowrap">
                         <Download className="w-4 h-4 mr-2" />
                         엑셀 다운로드
                     </Button>

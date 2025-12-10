@@ -991,7 +991,9 @@ export async function updatePayoutSettings(
     creatorId: string,
     settings: {
         type: 'individual' | 'business';
+        isKoreanResident?: boolean;
         // Wise/International fields
+        wiseEmail?: string;
         wiseAccountNumber?: string;
         wiseRoutingNumber?: string;
         wiseSwiftBic?: string;
@@ -3078,6 +3080,36 @@ export async function getRoutines(creatorId?: string) {
     return { data: data as DrillRoutine[], error: null };
 }
 
+/**
+ * Get a routine for the day (changes daily based on date)
+ */
+export async function getDailyRoutine() {
+    // 1. Fetch all public routines (or a reasonable limit)
+    const { data, error } = await supabase
+        .from('routines')
+        .select('*')
+        .limit(50); // Fetch enough to rotate
+
+    if (error) {
+        console.error('Error fetching routines for daily:', error);
+        return { data: null, error };
+    }
+
+    if (!data || data.length === 0) {
+        return { data: null, error: null };
+    }
+
+    // 2. Select one based on date (Deterministic)
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+
+    // Use dayOfYear to pick an index
+    const index = dayOfYear % data.length;
+    const selectedRoutine = data[index];
+
+    return { data: transformDrillRoutine(selectedRoutine), error: null };
+}
+
 // Alias for backward compatibility
 export const getDrillRoutines = getRoutines;
 
@@ -3135,6 +3167,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         price: routineData.price,
         category: routineData.category,
         difficulty: routineData.difficulty,
+        total_duration_minutes: routineData.totalDurationMinutes || 0,
     };
 
     const { data: routine, error: routineError } = await supabase
@@ -4380,4 +4413,21 @@ export async function fetchDrillsSafe(limit: number = 20) {
     }));
 
     return { data: result, error: null };
+}
+
+/**
+ * Get all creators with their payout settings for admin
+ */
+export async function getCreatorPayoutsAdmin() {
+    const { data, error } = await supabase
+        .from('creators')
+        .select('id, name, email, payout_settings')
+        .order('name');
+
+    if (error) {
+        console.error('Error fetching creator payouts:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
 }

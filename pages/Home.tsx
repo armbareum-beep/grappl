@@ -10,9 +10,9 @@ import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
 import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
 import {
-  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity
+  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine
 } from '../lib/api';
-import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
+import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
 import { LoadingScreen } from '../components/LoadingScreen';
 
@@ -37,6 +37,7 @@ export const Home: React.FC = () => {
   const [drills, setDrills] = useState<Drill[]>([]);
   const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
   const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
 
   // User progress states
@@ -97,6 +98,10 @@ export const Home: React.FC = () => {
         const recent = await getRecentActivity(user.id);
         setRecentActivity(recent);
 
+        // Fetch daily routine
+        const { data: routineData } = await getDailyRoutine();
+        setDailyRoutine(routineData);
+
       } catch (error) {
         console.error('Error fetching home data:', error);
       } finally {
@@ -148,49 +153,57 @@ export const Home: React.FC = () => {
             </span>
           </div>
 
-          <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 relative overflow-hidden group hover:border-indigo-500/50 transition-all duration-300 shadow-lg shadow-indigo-900/10">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-600/20 transition-all duration-500"></div>
+          {dailyRoutine ? (
+            <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 relative overflow-hidden group hover:border-indigo-500/50 transition-all duration-300 shadow-lg shadow-indigo-900/10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-600/20 transition-all duration-500"></div>
 
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded border border-emerald-500/20">
-                      BEGINNER
-                    </span>
-                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded border border-blue-500/20">
-                      GUARD PASS
-                    </span>
-                  </div>
-                  <h3 className="text-2xl font-black text-white mb-2">가드 패스 기본기 완성</h3>
-                  <p className="text-slate-300 text-sm mb-5 max-w-lg leading-relaxed">
-                    기본적인 토레안도 패스와 니컷 패스를 연결하는 드릴 루틴입니다.
-                    하루 15분 투자로 가드 패스 성공률을 높이세요.
-                  </p>
-                  <div className="flex items-center gap-5 text-sm text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <Activity className="w-4 h-4 text-indigo-400" />
-                      <span className="font-medium">15분 소요</span>
+              <div className="relative z-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded border border-emerald-500/20">
+                        {dailyRoutine.difficulty || 'BEGINNER'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded border border-blue-500/20">
+                        {dailyRoutine.category || 'GENERAL'}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-orange-400" />
-                      <span className="font-medium">120 XP</span>
+                    <h3 className="text-2xl font-black text-white mb-2">{dailyRoutine.title}</h3>
+                    <p className="text-slate-300 text-sm mb-5 max-w-lg leading-relaxed line-clamp-2">
+                      {dailyRoutine.description}
+                    </p>
+                    <div className="flex items-center gap-5 text-sm text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-indigo-400" />
+                        <span className="font-medium">{dailyRoutine.totalDurationMinutes || 15}분 소요</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Flame className="w-4 h-4 text-orange-400" />
+                        <span className="font-medium">{(dailyRoutine.drillCount || 5) * 20} XP</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex-shrink-0">
-                  <button
-                    onClick={() => navigate('/arena?tab=routines')}
-                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group/btn"
-                  >
-                    <Play className="w-5 h-5 fill-white group-hover/btn:scale-110 transition-transform" />
-                    루틴 시작하기
-                  </button>
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={() => navigate(`/routines/${dailyRoutine.id}`)}
+                      className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group/btn"
+                    >
+                      <Play className="w-5 h-5 fill-white group-hover/btn:scale-110 transition-transform" />
+                      루틴 시작하기
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center">
+              <p className="text-slate-400 mb-2">오늘의 추천 루틴을 준비 중입니다.</p>
+              <Button onClick={() => navigate('/arena?tab=routines')} variant="outline">
+                전체 루틴 보기
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

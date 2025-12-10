@@ -162,7 +162,7 @@ export const FeedbackSettingsTab: React.FC = () => {
             {/* Info Box */}
             <div className="mt-6 bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-400 mb-2">💡 피드백 서비스 안내</h4>
-                <ul className="text-sm text-blue-300 space-y-1">
+                <ul className="text-sm text-blue-300 space-y-1 break-keep">
                     <li>• 학생들이 YouTube 영상 링크를 제공하고 피드백을 요청합니다</li>
                     <li>• 텍스트로 상세한 피드백을 작성해주세요</li>
                     <li>• 수익의 80%가 크리에이터에게, 20%가 플랫폼에 분배됩니다</li>

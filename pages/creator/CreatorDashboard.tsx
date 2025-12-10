@@ -12,6 +12,7 @@ import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTa
 import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
 import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
+import { LoadingScreen } from '../../components/LoadingScreen';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -95,14 +96,7 @@ export const CreatorDashboard: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-950">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-slate-400">로딩 중...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="크리에이터 대시보드를 불러오는 중..." />;
     }
 
     const totalViews = courses.reduce((sum, course) => sum + course.views, 0);
@@ -207,7 +201,7 @@ export const CreatorDashboard: React.FC = () => {
 
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="font-bold text-lg text-white truncate">{course.title}</h3>
-                                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                                                    <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 whitespace-nowrap flex-wrap">
                                                         <span className="flex items-center gap-1">
                                                             <BookOpen className="w-4 h-4" />
                                                             {course.lessonCount || 0} 레슨
@@ -287,7 +281,7 @@ export const CreatorDashboard: React.FC = () => {
 
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="font-bold text-lg text-white truncate">{routine.title}</h3>
-                                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                                                    <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 whitespace-nowrap flex-wrap">
                                                         <span className="flex items-center gap-1">
                                                             <Grid className="w-4 h-4" />
                                                             {routine.drillCount || 0} 드릴

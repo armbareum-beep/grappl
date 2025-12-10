@@ -28,8 +28,8 @@ export const InstructorCarousel: React.FC = () => {
 
             if (error) throw error;
 
-            // Duplicate for infinite scroll
-            const duplicatedData = data ? [...data, ...data] : [];
+            // Duplicate for infinite scroll (Triple for smoother 33% scroll)
+            const duplicatedData = data ? [...data, ...data, ...data] : [];
             setCreators(duplicatedData);
             setLoading(false);
         } catch (error) {
@@ -125,7 +125,7 @@ export const InstructorCarousel: React.FC = () => {
                 }
                 @media (max-width: 768px) {
                     .instructor-scroll-container {
-                        animation: scroll-left 20s linear infinite;
+                        animation: scroll-left 10s linear infinite;
                     }
                 }
                 .instructor-scroll-container:hover {

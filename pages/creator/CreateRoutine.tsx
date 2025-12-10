@@ -21,7 +21,8 @@ export const CreateRoutine: React.FC = () => {
         price: 0,
         thumbnailUrl: '',
         difficulty: Difficulty.Beginner,
-        category: VideoCategory.Standing
+        category: VideoCategory.Standing,
+        totalDurationMinutes: 0
     });
 
     useEffect(() => {
@@ -47,8 +48,10 @@ export const CreateRoutine: React.FC = () => {
     };
 
     const toggleDrillSelection = (drillId: string) => {
+        let newSelection: string[] = [];
+
         setSelectedDrillIds(prev => {
-            const newSelection = prev.includes(drillId)
+            newSelection = prev.includes(drillId)
                 ? prev.filter(id => id !== drillId)
                 : [...prev, drillId];
 
@@ -62,6 +65,15 @@ export const CreateRoutine: React.FC = () => {
                     }));
                 }
             }
+
+            // Calculate total duration
+            const selectedDrills = drills.filter(d => newSelection.includes(d.id));
+            const totalDuration = selectedDrills.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
+
+            setFormData(prev => ({
+                ...prev,
+                totalDurationMinutes: totalDuration
+            }));
 
             return newSelection;
         });
@@ -190,6 +202,15 @@ export const CreateRoutine: React.FC = () => {
                                 ))}
                             </select>
                         </div>
+                    </div>
+
+                    {/* Duration Display */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">총 소요 시간 (자동 계산)</label>
+                        <div className="text-white text-lg font-bold">
+                            {formData.totalDurationMinutes}분
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">선택한 드릴들의 시간 합계입니다.</p>
                     </div>
 
                     {/* Price */}
