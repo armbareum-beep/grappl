@@ -44,12 +44,12 @@ export const Home: React.FC = () => {
 
   // Mock User Stats
   const userStats = {
-    streak: 12,
-    weeklyActivity: [true, true, false, true, true, false, true],
-    totalSkills: 8,
-    masteredSkills: 3,
-    tournamentWins: 2,
-    trainingLogs: 15
+    streak: 0,
+    weeklyActivity: [false, false, false, false, false, false, false],
+    totalSkills: 0,
+    masteredSkills: 0,
+    tournamentWins: 0,
+    trainingLogs: 0
   };
 
   // Calculate patches
