@@ -14,11 +14,12 @@ export const TournamentHomeTab: React.FC = () => {
     const [currentOpponent, setCurrentOpponent] = useState<any>(null);
     const [matchHistory, setMatchHistory] = useState<any[]>([]);
     const [matchStats, setMatchStats] = useState({ wins: 0, losses: 0, draws: 0, total: 0 });
+    const [userStats, setUserStats] = useState({ power: 0, rank: 'White Belt' });
 
     const loadMatchHistory = async () => {
         try {
             const { supabase } = await import('../../lib/supabase');
-            
+
             if (!user) return;
 
             const { data, error } = await supabase
@@ -27,7 +28,6 @@ export const TournamentHomeTab: React.FC = () => {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(10);
-// ... (rest of loadMatchHistory is same, but we need to close the function and component correctly)
 
             if (error) {
                 console.error('Error loading match history:', error);
@@ -50,7 +50,7 @@ export const TournamentHomeTab: React.FC = () => {
                 const wins = data.filter(m => m.result === 'win').length;
                 const losses = data.filter(m => m.result === 'loss').length;
                 const draws = data.filter(m => m.result === 'draw').length;
-                
+
                 setMatchStats({
                     wins,
                     losses,
@@ -63,10 +63,27 @@ export const TournamentHomeTab: React.FC = () => {
         }
     };
 
+    const loadUserStats = async () => {
+        if (!user) return;
+        try {
+            const { getCompositeCombatPower } = await import('../../lib/api');
+            const stats = await getCompositeCombatPower(user.id);
+            setUserStats({
+                power: stats.totalPower,
+                rank: stats.breakdown.belt.level // Assuming this returns the string like 'Blue'
+            });
+        } catch (error) {
+            console.error('Error loading user stats:', error);
+        }
+    };
+
     useEffect(() => {
         setIsVisible(true);
-        loadMatchHistory();
-    }, []);
+        if (user) {
+            loadMatchHistory();
+            loadUserStats();
+        }
+    }, [user]);
 
     const handleMatchStart = (opponent: any) => {
         setCurrentOpponent(opponent);
@@ -76,12 +93,19 @@ export const TournamentHomeTab: React.FC = () => {
     const handleBattleEnd = async (result: 'win' | 'loss') => {
         console.log(`Battle ended with result: ${result}`);
 
+        // Close the battle screen immediately for better UX
+        setBattleState('idle');
+        setCurrentOpponent(null);
+
         try {
             const { supabase } = await import('../../lib/supabase');
             // Get user directly from supabase
             const { data: { user } } = await supabase.auth.getUser();
 
-            if (!user) return;
+            if (!user) {
+                console.error('User not found for saving match result');
+                return;
+            }
 
             // 1. Save match history
             const { error: matchError } = await supabase
@@ -106,17 +130,13 @@ export const TournamentHomeTab: React.FC = () => {
             const { updateQuestProgress } = await import('../../lib/api');
             await updateQuestProgress(user.id, 'tournament'); // Corrected quest type
 
-            // alert(result === 'win' ? '승리했습니다! (+50 XP)' : '패배했습니다. (+10 XP)'); // Removed native alert
         } catch (error) {
             console.error('Error saving match result:', error);
-            // alert('결과 저장 중 오류가 발생했습니다.'); // Removed native alert
+        } finally {
+            // Reload match history after battle
+            loadMatchHistory();
+            loadUserStats(); // Reload stats to update power
         }
-
-        setBattleState('idle');
-        setCurrentOpponent(null);
-        
-        // Reload match history after battle
-        loadMatchHistory();
     };
 
     return (
@@ -127,7 +147,11 @@ export const TournamentHomeTab: React.FC = () => {
             {/* Battle Scene Overlay */}
             {battleState === 'battling' && currentOpponent && (
                 <BattleScene
-                    myStats={{ name: '나의 전사', power: 375, belt: '블루벨트' }}
+                    myStats={{
+                        name: user?.user_metadata?.name || user?.email?.split('@')[0] || '나의 전사',
+                        power: userStats.power,
+                        belt: userStats.rank
+                    }}
                     opponent={currentOpponent}
                     onBattleEnd={handleBattleEnd}
                 />
@@ -158,9 +182,10 @@ export const TournamentHomeTab: React.FC = () => {
                     {/* Middle Row: Tournament Match (Center Focus) - Highest Z-Index */}
                     <div className="lg:col-span-12 flex justify-center py-4 relative z-30">
                         <div className="w-full max-w-6xl transform transition-all duration-700 delay-100 hover:scale-[1.01]">
-                            <TekkenVersusScreen 
-                                user={user} 
-                                onBattleStart={handleMatchStart} 
+                            <TekkenVersusScreen
+                                user={user}
+                                userStats={userStats}
+                                onBattleStart={handleMatchStart}
                             />
                         </div>
                     </div>
@@ -171,7 +196,7 @@ export const TournamentHomeTab: React.FC = () => {
                     </div>
 
                     <div className="lg:col-span-7 transform transition-all duration-700 delay-300 relative z-10">
-                        <MatchHistoryCard 
+                        <MatchHistoryCard
                             matches={matchHistory}
                             totalMatches={matchStats.total}
                             wins={matchStats.wins}

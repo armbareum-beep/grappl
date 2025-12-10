@@ -3,10 +3,11 @@ import { Shield, Swords, Zap, Trophy, Skull } from 'lucide-react';
 
 interface TekkenVersusScreenProps {
     user: any;
+    userStats?: { power: number; rank: string };
     onBattleStart: (opponent: any) => void;
 }
 
-export const TekkenVersusScreen: React.FC<TekkenVersusScreenProps> = ({ user, onBattleStart }) => {
+export const TekkenVersusScreen: React.FC<TekkenVersusScreenProps> = ({ user, userStats, onBattleStart }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [opponent, setOpponent] = useState<any>(null);
     const [showVS, setShowVS] = useState(false);
@@ -76,12 +77,12 @@ export const TekkenVersusScreen: React.FC<TekkenVersusScreenProps> = ({ user, on
                         <div className="flex items-center gap-4">
                             <div className="flex flex-col">
                                 <span className="text-xs text-blue-300 font-bold uppercase">Rank</span>
-                                <span className="text-2xl font-black text-white italic">DIAMOND</span>
+                                <span className="text-2xl font-black text-white italic">{userStats?.rank || 'White Belt'}</span>
                             </div>
                             <div className="w-px h-10 bg-blue-500/50"></div>
                             <div className="flex flex-col">
                                 <span className="text-xs text-blue-300 font-bold uppercase">Power</span>
-                                <span className="text-2xl font-black text-white italic">1,250</span>
+                                <span className="text-2xl font-black text-white italic">{userStats?.power?.toLocaleString() || 0}</span>
                             </div>
                         </div>
                     </div>
