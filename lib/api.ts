@@ -1,7 +1,7 @@
 
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview, Testimonial } from '../types';
 
 
 // Revenue split constants
@@ -4430,4 +4430,45 @@ export async function getCreatorPayoutsAdmin() {
     }
 
     return { data, error: null };
+}
+
+// ==================== Testimonials ====================
+
+export async function getTestimonials() {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    return { data, error };
+}
+
+export async function createTestimonial(testimonial: Omit<Testimonial, 'id' | 'createdAt'>) {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .insert([testimonial])
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+export async function updateTestimonial(id: string, updates: Partial<Testimonial>) {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+export async function deleteTestimonial(id: string) {
+    const { error } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', id);
+
+    return { error };
 }

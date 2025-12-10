@@ -29,6 +29,7 @@ import { AdminRoutineList } from './pages/admin/AdminRoutineList';
 import { AdminReportList } from './pages/admin/AdminReportList';
 import { AdminTournamentList } from './pages/admin/AdminTournamentList';
 import { AdminSupportList } from './pages/admin/AdminSupportList';
+import { AdminTestimonials } from './pages/admin/AdminTestimonials';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -179,6 +180,11 @@ const App: React.FC = () => {
               <Route path="/admin/users" element={
                 <AdminRoute>
                   <AdminUserList />
+                </AdminRoute>
+              } />
+              <Route path="/admin/testimonials" element={
+                <AdminRoute>
+                  <AdminTestimonials />
                 </AdminRoute>
               } />
 

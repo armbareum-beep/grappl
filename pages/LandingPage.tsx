@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { Play, Shield, Trophy, Star, ChevronRight, Zap, Users, BookOpen, Award, Target, CheckCircle } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
+import { getTestimonials } from '../lib/api';
+import { Testimonial } from '../types';
 
 export const LandingPage: React.FC = () => {
     // Force redeploy check
@@ -17,6 +19,47 @@ export const LandingPage: React.FC = () => {
             navigate('/browse');
         }
     }, [user, loading, navigate]);
+
+    const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+
+    useEffect(() => {
+        loadTestimonials();
+    }, []);
+
+    const loadTestimonials = async () => {
+        const { data } = await getTestimonials();
+        if (data && data.length > 0) {
+            setTestimonials(data);
+        } else {
+            // Fallback to default testimonials
+            setTestimonials([
+                {
+                    id: '1',
+                    name: '김민수',
+                    belt: 'Blue Belt',
+                    comment: 'Marcus 인스트럭터의 가드 패스 강의 덕분에 3개월 만에 블루벨트를 땄습니다. 세계 챔피언한테 직접 배우는 느낌이 정말 좋아요!',
+                    rating: 5,
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: '2',
+                    name: '박지영',
+                    belt: 'Purple Belt',
+                    comment: 'Ana 인스트럭터의 스파이더 가드 시리즈가 최고입니다. 실전에서 바로 써먹을 수 있는 디테일이 가득해요.',
+                    rating: 5,
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: '3',
+                    name: '이준호',
+                    belt: 'White Belt',
+                    comment: '초보자도 쉽게 따라할 수 있어요. 7일 무료 체험으로 시작했는데 바로 1년 구독했습니다. 35% 할인 혜택도 좋았어요!',
+                    rating: 5,
+                    createdAt: new Date().toISOString()
+                }
+            ]);
+        }
+    };
 
     if (loading) {
         return (
@@ -234,26 +277,7 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-6">
-                        {[
-                            {
-                                name: '김민수',
-                                belt: 'Blue Belt',
-                                comment: 'Marcus 인스트럭터의 가드 패스 강의 덕분에 3개월 만에 블루벨트를 땄습니다. 세계 챔피언한테 직접 배우는 느낌이 정말 좋아요!',
-                                rating: 5
-                            },
-                            {
-                                name: '박지영',
-                                belt: 'Purple Belt',
-                                comment: 'Ana 인스트럭터의 스파이더 가드 시리즈가 최고입니다. 실전에서 바로 써먹을 수 있는 디테일이 가득해요.',
-                                rating: 5
-                            },
-                            {
-                                name: '이준호',
-                                belt: 'White Belt',
-                                comment: '초보자도 쉽게 따라할 수 있어요. 7일 무료 체험으로 시작했는데 바로 1년 구독했습니다. 35% 할인 혜택도 좋았어요!',
-                                rating: 5
-                            }
-                        ].map((review, i) => (
+                        {testimonials.map((review, i) => (
                             <div key={i} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 p-8 hover:border-blue-500/30 transition-all">
                                 <div className="flex gap-1 mb-4">
                                     {[...Array(review.rating)].map((_, j) => (
@@ -302,8 +326,8 @@ export const LandingPage: React.FC = () => {
                                 </span>
                             </h2>
 
-                            <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed">
-                                수련일지를 쓰고, 퀘스트를 완료하고, 랭킹을 올리세요. <br />
+                            <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed break-keep">
+                                수련일지를 쓰고, 퀘스트를 완료하고, 랭킹을 올리세요. <br className="hidden md:block" />
                                 아레나 시스템이 당신의 주짓수 여정을 <br className="md:hidden" />
                                 RPG 게임처럼 재미있게 만들어드립니다.
                             </p>

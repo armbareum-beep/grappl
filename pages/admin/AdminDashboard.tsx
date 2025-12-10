@@ -52,6 +52,14 @@ export const AdminDashboard: React.FC = () => {
                     color: "text-cyan-400",
                     bg: "bg-cyan-400/10",
                     link: "/admin/routines"
+                },
+                {
+                    title: "고객 후기 관리",
+                    desc: "랜딩 페이지 후기 관리",
+                    icon: Star,
+                    color: "text-yellow-400",
+                    bg: "bg-yellow-400/10",
+                    link: "/admin/testimonials"
                 }
             ]
         },

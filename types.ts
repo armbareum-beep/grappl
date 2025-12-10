@@ -633,3 +633,14 @@ export interface SparringReview {
   videoUrl?: string;
   createdAt: string;
 }
+
+// ==================== Testimonials ====================
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  belt: string;
+  comment: string;
+  rating: number;
+  createdAt: string;
+}
