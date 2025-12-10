@@ -592,6 +592,45 @@ export async function updateLastWatched(userId: string, lessonId: string) {
     return { error };
 }
 
+export async function getRecentActivity(userId: string) {
+    const { data, error } = await supabase
+        .from('lesson_progress')
+        .select(`
+            *,
+            lesson:lessons (
+                id,
+                title,
+                lesson_number,
+                course:courses (
+                    title,
+                    thumbnail_url,
+                    category
+                )
+            )
+        `)
+        .eq('user_id', userId)
+        .order('last_watched_at', { ascending: false })
+        .limit(3);
+
+    if (error) {
+        // If table doesn't exist or other error, return empty
+        if (error.code === 'PGRST116' || error.code === '42P01') return [];
+        console.error('Error fetching recent activity:', error);
+        return [];
+    }
+
+    return data.map((item: any) => ({
+        id: item.lesson?.id,
+        type: 'lesson',
+        title: item.lesson?.title,
+        courseTitle: item.lesson?.course?.title,
+        progress: item.completed ? 100 : 50,
+        thumbnail: item.lesson?.course?.thumbnail_url,
+        lastWatched: new Date(item.last_watched_at).toLocaleDateString(),
+        lessonNumber: item.lesson?.lesson_number
+    }));
+}
+
 // Creator Dashboard API
 export async function getCreatorCourses(creatorId: string) {
     const { data, error } = await supabase
@@ -3308,6 +3347,7 @@ function transformDrill(data: any): Drill {
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
+        price: data.price || 0,
         createdAt: data.created_at,
     };
     console.log('transformDrill output:', result);
@@ -4287,6 +4327,7 @@ export async function fetchDrillsBase(limit: number = 20) {
             length: d.length || d.duration,
             tags: d.tags || [],
             likes: d.likes || 0,
+            price: d.price || 0,
             createdAt: d.created_at,
         }));
 
@@ -4330,10 +4371,10 @@ export async function fetchDrillsSafe(limit: number = 20) {
     const { data: drills, error } = await fetchDrillsBase(limit);
     if (error || !drills) return { data: drills, error };
 
-    const creatorIds = drills.map(d => d.creatorId);
+    const creatorIds = drills.map((d: any) => d.creatorId);
     const creatorsMap = await fetchCreatorsByIds(creatorIds);
 
-    const result = drills.map(d => ({
+    const result = drills.map((d: any) => ({
         ...d,
         creatorName: creatorsMap[d.creatorId] || 'Unknown'
     }));

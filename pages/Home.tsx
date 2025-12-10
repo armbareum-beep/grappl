@@ -10,7 +10,7 @@ import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
 import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
 import {
-  getCourses, getDrills, getPublicTrainingLogs
+  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
@@ -36,6 +36,7 @@ export const Home: React.FC = () => {
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [drills, setDrills] = useState<Drill[]>([]);
   const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
 
   // User progress states
@@ -64,12 +65,7 @@ export const Home: React.FC = () => {
   });
   const unlockedPatches = patches.filter(p => p.unlocked);
 
-  // Mock Recent Activity
-  const recentActivity = [
-    { id: '101', type: 'lesson', title: 'Lesson 3: 암바 디테일', courseTitle: '화이트벨트 탈출기', progress: 75, thumbnail: 'bg-blue-900', lastWatched: '2시간 전' },
-    { id: '205', type: 'drill', title: '힙 이스케이프 100회', difficulty: '초급', progress: 100, thumbnail: 'bg-emerald-900', lastWatched: '어제' },
-    { id: '102', type: 'lesson', title: 'Lesson 4: 트라이앵글 초크', courseTitle: '화이트벨트 탈출기', progress: 10, thumbnail: 'bg-indigo-900', lastWatched: '3일 전' },
-  ];
+
 
   useEffect(() => {
     if (!user) {
@@ -96,6 +92,10 @@ export const Home: React.FC = () => {
 
         const { data: logsData } = await getPublicTrainingLogs(1, 5);
         if (logsData) setTrainingLogs(logsData);
+
+        // Fetch recent activity
+        const recent = await getRecentActivity(user.id);
+        setRecentActivity(recent);
 
       } catch (error) {
         console.error('Error fetching home data:', error);
@@ -465,36 +465,52 @@ export const Home: React.FC = () => {
           {/* Recent Activity */}
           {activeTab === 'recent' && (
             <div className="space-y-3">
-              {recentActivity.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/routines/${item.id}`)}
-                  className="group bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer hover:bg-slate-900"
-                >
-                  <div className={`w-28 h-20 rounded-lg ${item.thumbnail} flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-md`}>
-                    {item.type === 'lesson' ? <Play className="w-8 h-8 text-white/80 drop-shadow-md" /> : <Dumbbell className="w-8 h-8 text-white/80 drop-shadow-md" />}
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50">
-                      <div className="h-full bg-orange-500" style={{ width: `${item.progress}%` }}></div>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/routines/${item.id}`)}
+                    className="group bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer hover:bg-slate-900"
+                  >
+                    <div className={`w-28 h-20 rounded-lg ${item.thumbnail ? '' : 'bg-slate-800'} flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-md`}>
+                      {item.thumbnail ? (
+                        <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        item.type === 'lesson' ? <Play className="w-8 h-8 text-white/80 drop-shadow-md" /> : <Dumbbell className="w-8 h-8 text-white/80 drop-shadow-md" />
+                      )}
+                      <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50">
+                        <div className="h-full bg-orange-500" style={{ width: `${item.progress}%` }}></div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${item.type === 'lesson'
+                          ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          }`}>
+                          {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
+                        </span>
+                        <span className="text-xs text-slate-500">{item.lastWatched}</span>
+                      </div>
+                      <h4 className="text-base font-bold text-white truncate group-hover:text-orange-400 transition-colors mb-0.5">{item.title}</h4>
+                      <p className="text-xs text-slate-400 truncate">{item.type === 'lesson' ? item.courseTitle : item.difficulty}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-8">
+                      <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-white transition-colors" />
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${item.type === 'lesson'
-                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        }`}>
-                        {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
-                      </span>
-                      <span className="text-xs text-slate-500">{item.lastWatched}</span>
-                    </div>
-                    <h4 className="text-base font-bold text-white truncate group-hover:text-orange-400 transition-colors mb-0.5">{item.title}</h4>
-                    <p className="text-xs text-slate-400 truncate">{item.type === 'lesson' ? item.courseTitle : item.difficulty}</p>
+                ))
+              ) : (
+                <div className="text-center py-12 bg-slate-900/30 rounded-xl border border-slate-800/50 border-dashed">
+                  <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-6 h-6 text-slate-600" />
                   </div>
-                  <div className="flex items-center justify-center w-8">
-                    <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-white transition-colors" />
-                  </div>
+                  <p className="text-slate-400 mb-4">아직 시청한 내역이 없습니다</p>
+                  <Button onClick={() => setActiveTab('courses')} variant="outline" size="sm">
+                    강의 보러가기
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           )}
 
