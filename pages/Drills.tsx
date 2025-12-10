@@ -6,6 +6,7 @@ import { fetchDrillsBase, fetchCreatorsByIds } from '../lib/api';
 import { Drill } from '../types';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { PlaySquare } from 'lucide-react';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 export const Drills: React.FC = () => {
     const navigate = useNavigate();
@@ -36,7 +37,7 @@ export const Drills: React.FC = () => {
                 setLoading(false);
 
                 // 2. Fetch creators in background
-                const creatorIds = drillsData.map(d => d.creatorId);
+                const creatorIds = drillsData.map((d: Drill) => d.creatorId);
                 if (creatorIds.length > 0) {
                     const creatorsMap = await fetchCreatorsByIds(creatorIds);
 
@@ -57,14 +58,7 @@ export const Drills: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-black">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                    <p className="text-white">로딩 중...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="드릴을 불러오는 중..." />;
     }
 
     if (error) {
