@@ -154,11 +154,11 @@ export const Pricing: React.FC = () => {
               ) : (
                 <>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold text-slate-500 line-through">
-                      ₩{pricing.basic.monthly.price.toLocaleString()}
-                    </span>
                     <span className="text-4xl md:text-5xl font-black text-white">
                       ₩{getMonthlyEquivalent(pricing.basic.yearly.price).toLocaleString()}
+                    </span>
+                    <span className="text-2xl font-bold text-slate-500 line-through">
+                      ₩{pricing.basic.monthly.price.toLocaleString()}
                     </span>
                   </div>
                   <span className="text-lg font-medium text-slate-400">/월</span>
@@ -235,11 +235,11 @@ export const Pricing: React.FC = () => {
               ) : (
                 <>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold text-blue-300 line-through">
-                      ₩{pricing.premium.monthly.price.toLocaleString()}
-                    </span>
                     <span className="text-4xl md:text-5xl font-black text-white">
                       ₩{getMonthlyEquivalent(pricing.premium.yearly.price).toLocaleString()}
+                    </span>
+                    <span className="text-2xl font-bold text-blue-300 line-through">
+                      ₩{pricing.premium.monthly.price.toLocaleString()}
                     </span>
                   </div>
                   <span className="text-lg font-medium text-blue-100">/월</span>
