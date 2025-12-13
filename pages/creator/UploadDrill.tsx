@@ -447,10 +447,10 @@ export const UploadDrill: React.FC = () => {
 
                     <h2 className="text-xl font-bold text-white mb-3">{submissionProgress}</h2>
 
-                    <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left">
+                    <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left border border-blue-500/30">
                         <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                            <span className="text-blue-400 font-bold block mb-1">📢 잠시만 기다려주세요!</span>
-                            영상 원본을 서버로 안전하게 전송하고 있습니다. 전송이 완료되면 자동으로 대시보드로 이동하며, 복잡한 처리는 서버가 알아서 진행합니다.
+                            <span className="text-blue-400 font-bold block mb-1 text-lg">🚀 초고속 전송 모드 가동 중!</span>
+                            현재 가장 빠른 속도로 영상을 보내고 있습니다. (새로운 방식 적용됨)
                         </p>
 
                         {/* Explicit Progress Bars in Blocking Wait State */}
@@ -545,7 +545,12 @@ export const UploadDrill: React.FC = () => {
 
                 <div className="space-y-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">새 드릴 만들기</h1>
+                        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                            새 드릴 만들기
+                            <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-[10px] rounded-full uppercase tracking-wider shadow-lg">
+                                ⚡️ Super Speed
+                            </span>
+                        </h1>
                         <p className="text-slate-400 mt-1">동작과 설명을 각각 업로드하여 드릴을 완성하세요.</p>
                     </div>
 
