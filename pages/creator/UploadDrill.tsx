@@ -62,24 +62,39 @@ export const UploadDrill: React.FC = () => {
         let wakeLock: WakeLockSentinel | null = null;
 
         const requestWakeLock = async () => {
-            if ('wakeLock' in navigator && (isSubmitting || actionVideo.status === 'uploading' || descVideo.status === 'uploading')) {
+            // Check if we need a lock: Submitting OR Background Uploading
+            const needLock = isSubmitting || actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading;
+
+            if ('wakeLock' in navigator && needLock) {
                 try {
                     wakeLock = await (navigator as any).wakeLock.request('screen');
                     console.log('Wake Lock active');
+
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock released');
+                    });
                 } catch (err) {
                     console.error('Wake Lock error:', err);
                 }
             }
         };
 
-        requestWakeLock();
-
-        return () => {
-            if (wakeLock) {
-                wakeLock.release().then(() => console.log('Wake Lock released'));
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                requestWakeLock();
             }
         };
-    }, [isSubmitting, actionVideo.status, descVideo.status]);
+
+        requestWakeLock();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (wakeLock) {
+                wakeLock.release().catch(console.error);
+            }
+        };
+    }, [isSubmitting, actionVideo.isBackgroundUploading, descVideo.isBackgroundUploading]);
 
     const handleFileUpload = async (
         file: File,
