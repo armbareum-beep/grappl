@@ -21,20 +21,26 @@ export interface ProcessResponse {
 }
 
 export const videoProcessingApi = {
-    uploadVideo: async (file: File): Promise<UploadResponse> => {
+    uploadVideo: async (file: File, onProgress?: (percent: number) => void): Promise<UploadResponse> => {
         const formData = new FormData();
         formData.append('video', file);
 
-        const response = await fetch(`${BACKEND_URL}/upload`, {
-            method: 'POST',
-            body: formData,
+        // Dynamic import to avoid SSR issues if used elsewhere, though not needed for client-side
+        const axios = await import('axios');
+
+        const response = await axios.default.post(`${BACKEND_URL}/upload`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: (progressEvent) => {
+                if (progressEvent.total) {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    if (onProgress) onProgress(percentCompleted);
+                }
+            },
         });
 
-        if (!response.ok) {
-            throw new Error('Upload failed');
-        }
-
-        return response.json();
+        return response.data;
     },
 
     generatePreview: async (videoId: string, filename: string): Promise<PreviewResponse> => {
@@ -88,7 +94,9 @@ export const videoProcessingApi = {
         filename: string,
         cuts: { start: number; end: number }[],
         title: string,
-        description: string
+        description: string,
+        drillId: string,
+        videoType: 'action' | 'desc'
     ): Promise<ProcessResponse> => {
         const response = await fetch(`${BACKEND_URL}/process`, {
             method: 'POST',
@@ -100,7 +108,9 @@ export const videoProcessingApi = {
                 filename,
                 cuts,
                 title,
-                description
+                description,
+                drillId,
+                videoType
             }),
         });
 

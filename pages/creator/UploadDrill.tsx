@@ -17,6 +17,7 @@ type ProcessingState = {
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'complete' | 'error';
     error: string | null;
     isBackgroundUploading?: boolean;
+    uploadProgress?: number;
 };
 
 const initialProcessingState: ProcessingState = {
@@ -103,7 +104,19 @@ export const UploadDrill: React.FC = () => {
         // 2. Background Upload
         try {
             console.log(`Starting background upload for ${type}...`);
-            const uploadRes = await videoProcessingApi.uploadVideo(file);
+
+            // Set status to uploading specifically for UI feedback if we wanted to show it (but we show "ready" currently)
+            // Actually, we want to show 'uploading' visual if we want the bar. 
+            // But currently the logic sets it to 'ready' immediately for local preview.
+            // Let's keep it 'ready' but show a small progress indicator in the 'ready' card?
+            // OR the user asked "Why do I have to wait?". 
+            // In the current flow (Fire-forget), we let them edit WHILE uploading.
+            // So the "Waiting" happens at the END (handleSubmit).
+            // So we need the progress bar THERE if it's still uploading.
+
+            const uploadRes = await videoProcessingApi.uploadVideo(file, (percent) => {
+                setVideoState(prev => ({ ...prev, uploadProgress: percent }));
+            });
 
             setVideoState(prev => ({
                 ...prev,
@@ -269,13 +282,34 @@ export const UploadDrill: React.FC = () => {
         if (state.status === 'uploading' || state.status === 'previewing') {
             return (
                 <div className="h-full flex flex-col">
-                    <div className="border-2 border-slate-800 bg-slate-900 rounded-xl p-6 flex-1 flex flex-col items-center justify-center min-h-[300px]">
-                        <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mb-6"></div>
-                        <p className="text-white font-bold text-lg">
-                            {state.status === 'uploading' ? '영상 업로드 중...' : '미리보기 생성 중...'}
-                        </p>
-                        <p className="text-slate-400 text-sm mt-2">잠시만 기다려주세요</p>
-                        <p className="text-red-400 text-xs font-bold mt-2 animate-pulse">화면을 끄지 마세요!</p>
+                    <div className="border-2 border-slate-800 bg-slate-900 rounded-xl p-6 flex-1 flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
+                        {/* Progress Bar Background (Optional) */}
+                        {state.status === 'uploading' && (
+                            <div className="w-full max-w-[200px] bg-slate-800 rounded-full h-2 mb-6 overflow-hidden">
+                                <div
+                                    className="bg-blue-500 h-full transition-all duration-300 ease-out"
+                                    style={{ width: `${state.uploadProgress || 0}%` }}
+                                ></div>
+                            </div>
+                        )}
+
+                        {state.status === 'uploading' ? (
+                            <>
+                                <p className="text-white font-bold text-lg mb-1">
+                                    영상 전송 중... {state.uploadProgress}%
+                                </p>
+                                <p className="text-slate-500 text-xs text-center px-4">
+                                    유튜브처럼 이 창을 닫으면 전송이 멈춥니다.<br />
+                                    100%가 되면 대시보드로 이동하셔도 됩니다!
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mb-6"></div>
+                                <p className="text-white font-bold text-lg">미리보기 생성 중...</p>
+                                <p className="text-slate-400 text-sm mt-2">잠시만 기다려주세요</p>
+                            </>
+                        )}
                     </div>
                 </div>
             );
@@ -306,10 +340,21 @@ export const UploadDrill: React.FC = () => {
                     {/* Content Overlay */}
                     <div className="relative z-10 flex-1 flex flex-col justify-between p-6">
                         <div className="flex justify-between items-start">
-                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 flex flex-col items-start gap-1">
+                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 flex flex-col items-start gap-1 min-w-[120px]">
                                 <p className="text-sm font-medium text-white truncate max-w-[200px]">{state.file?.name}</p>
                                 {state.isBackgroundUploading && (
-                                    <span className="text-xs text-blue-400 animate-pulse">☁️ 원본 업로드 중...</span>
+                                    <div className="w-full">
+                                        <div className="flex justify-between text-xs text-blue-400 mb-1">
+                                            <span>☁️ 전송 중...</span>
+                                            <span>{state.uploadProgress || 0}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-700 rounded-full h-1">
+                                            <div
+                                                className="bg-blue-400 h-full rounded-full transition-all duration-300"
+                                                style={{ width: `${state.uploadProgress || 0}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                             <button
