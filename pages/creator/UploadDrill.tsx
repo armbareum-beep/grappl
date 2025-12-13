@@ -172,6 +172,39 @@ export const UploadDrill: React.FC = () => {
         setActiveEditor(null);
     };
 
+    // Watch for background upload completion while submitting
+    useEffect(() => {
+        if (isSubmitting) {
+            // Check success
+            if (!actionVideo.isBackgroundUploading && !descVideo.isBackgroundUploading) {
+                if (actionVideo.error || descVideo.error) {
+                    setIsSubmitting(false);
+                    alert('영상 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    return;
+                }
+
+                // Both done and no error -> Proceed
+                // Only call if we haven't started processing yet (check progress text or add a new state?)
+                // Actually startProcessing checks for IDs.
+                // We need to avoid double-calling. 
+                // Let's rely on the fact that startProcessing sets submissionProgress to something else.
+                if (submissionProgress === '영상 원본 업로드를 마무리하는 중입니다...' ||
+                    submissionProgress === '동작 영상 업로드를 확인 중입니다... (거의 다 됐습니다!)' ||
+                    submissionProgress === '설명 영상 업로드를 확인 중입니다... (잠시만요!)'
+                ) {
+                    startProcessing();
+                }
+            } else {
+                // Update dynamic messages
+                if (actionVideo.uploadProgress === 100 && actionVideo.isBackgroundUploading) {
+                    setSubmissionProgress('동작 영상 업로드를 확인 중입니다... (거의 다 됐습니다!)');
+                } else if (descVideo.uploadProgress === 100 && descVideo.isBackgroundUploading) {
+                    setSubmissionProgress('설명 영상 업로드를 확인 중입니다... (잠시만요!)');
+                }
+            }
+        }
+    }, [isSubmitting, actionVideo.isBackgroundUploading, descVideo.isBackgroundUploading, actionVideo.error, descVideo.error, actionVideo.uploadProgress, descVideo.uploadProgress]);
+
     const handleSubmit = async () => {
         if (!user) return;
 
@@ -189,19 +222,6 @@ export const UploadDrill: React.FC = () => {
         if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
             setSubmissionProgress('영상 원본 업로드를 마무리하는 중입니다...');
             setIsSubmitting(true);
-
-            // Wait loop
-            const checkUploads = setInterval(() => {
-                if (!actionVideo.isBackgroundUploading && !descVideo.isBackgroundUploading) {
-                    clearInterval(checkUploads);
-                    if (actionVideo.error || descVideo.error) {
-                        setIsSubmitting(false);
-                        alert('영상 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
-                    } else {
-                        startProcessing(); // Proceed
-                    }
-                }
-            }, 1000);
             return;
         }
 
