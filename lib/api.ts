@@ -4372,6 +4372,59 @@ export async function fetchDrillsBase(limit: number = 20) {
 }
 
 /**
+ * Fetch filtered drills for public feed:
+ * 1. Must be part of a routine
+ * 2. Must be the FIRST drill (display_order = 1) -> "Free Drill"
+ * 3. Must have valid video URL (not processing)
+ */
+export async function fetchPublicFeedDrills(limit: number = 20) {
+    try {
+        const { data, error } = await supabase
+            .from('drills')
+            .select(`
+                *,
+                drill_routine_items!inner(display_order)
+            `)
+            .eq('drill_routine_items.display_order', 1)
+            .neq('vimeo_url', '')
+            .not('vimeo_url', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        if (!data) return { data: [], error: null };
+
+        // Basic transformation
+        const result = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            creatorId: d.creator_id,
+            creatorName: 'Loading...', // Will be populated by Drills.tsx
+            category: d.category,
+            difficulty: d.difficulty,
+            thumbnailUrl: d.thumbnail_url,
+            videoUrl: d.video_url,
+            vimeoUrl: d.vimeo_url,
+            descriptionVideoUrl: d.description_video_url,
+            aspectRatio: '9:16' as const,
+            views: d.views || 0,
+            durationMinutes: d.duration_minutes || 0,
+            length: d.length || d.duration,
+            tags: d.tags || [],
+            likes: d.likes || 0,
+            price: d.price || 0,
+            createdAt: d.created_at,
+        }));
+
+        return { data: result, error: null };
+    } catch (error) {
+        console.error('Error in fetchPublicFeedDrills:', error);
+        return { data: null, error };
+    }
+}
+
+/**
  * Fetch creators by IDs
  */
 export async function fetchCreatorsByIds(creatorIds: string[]) {

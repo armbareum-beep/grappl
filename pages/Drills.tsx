@@ -36,8 +36,9 @@ export const Drills: React.FC = () => {
             setLoading(true);
             setError(null);
 
-            // 1. Fetch drills only first (Fast)
-            const { data: drillsData, error: apiError } = await fetchDrillsBase(20);
+            // 1. Fetch filtered drills (Free/First only, No processing)
+            const { fetchPublicFeedDrills } = await import('../lib/api');
+            const { data: drillsData, error: apiError } = await fetchPublicFeedDrills(20);
 
             if (apiError) throw apiError;
 
