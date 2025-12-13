@@ -448,10 +448,42 @@ export const UploadDrill: React.FC = () => {
                     <h2 className="text-xl font-bold text-white mb-3">{submissionProgress}</h2>
 
                     <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left">
-                        <p className="text-slate-400 text-sm leading-relaxed">
+                        <p className="text-slate-400 text-sm leading-relaxed mb-4">
                             <span className="text-blue-400 font-bold block mb-1">📢 잠시만 기다려주세요!</span>
                             영상 원본을 서버로 안전하게 전송하고 있습니다. 전송이 완료되면 자동으로 대시보드로 이동하며, 복잡한 처리는 서버가 알아서 진행합니다.
                         </p>
+
+                        {/* Explicit Progress Bars in Blocking Wait State */}
+                        <div className="space-y-3">
+                            {actionVideo.isBackgroundUploading && (
+                                <div>
+                                    <div className="flex justify-between text-xs text-blue-300 mb-1">
+                                        <span>동작 영상 전송 중...</span>
+                                        <span>{actionVideo.uploadProgress || 0}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className="bg-blue-500 h-full transition-all duration-300"
+                                            style={{ width: `${actionVideo.uploadProgress || 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {descVideo.isBackgroundUploading && (
+                                <div>
+                                    <div className="flex justify-between text-xs text-purple-300 mb-1">
+                                        <span>설명 영상 전송 중...</span>
+                                        <span>{descVideo.uploadProgress || 0}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className="bg-purple-500 h-full transition-all duration-300"
+                                            style={{ width: `${descVideo.uploadProgress || 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <p className="text-red-400 text-xs font-bold animate-pulse bg-red-400/10 py-2 rounded">
