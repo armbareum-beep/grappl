@@ -366,20 +366,25 @@ export const UploadDrill: React.FC = () => {
                     {/* Content Overlay */}
                     <div className="relative z-10 flex-1 flex flex-col justify-between p-6">
                         <div className="flex justify-between items-start">
-                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 flex flex-col items-start gap-1 min-w-[120px]">
-                                <p className="text-sm font-medium text-white truncate max-w-[200px]">{state.file?.name}</p>
-                                {state.isBackgroundUploading && (
+                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-2 flex flex-col items-start gap-2 w-full max-w-[200px] shadow-lg border border-white/10">
+                                <p className="text-sm font-medium text-white truncate w-full">{state.file?.name}</p>
+                                {state.isBackgroundUploading ? (
                                     <div className="w-full">
-                                        <div className="flex justify-between text-xs text-blue-400 mb-1">
-                                            <span>☁️ 전송 중...</span>
+                                        <div className="flex justify-between text-xs text-blue-400 mb-1 font-bold animate-pulse">
+                                            <span>🚀 전송 중...</span>
                                             <span>{state.uploadProgress || 0}%</span>
                                         </div>
-                                        <div className="w-full bg-slate-700 rounded-full h-1">
+                                        <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden border border-slate-600/50">
                                             <div
-                                                className="bg-blue-400 h-full rounded-full transition-all duration-300"
+                                                className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                                                 style={{ width: `${state.uploadProgress || 0}%` }}
                                             ></div>
                                         </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 text-xs text-green-400 font-medium">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span>업로드 완료</span>
                                     </div>
                                 )}
                             </div>
