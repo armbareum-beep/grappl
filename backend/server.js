@@ -86,6 +86,7 @@ app.post('/preview', async (req, res) => {
 
     ffmpeg(inputPath)
         .size('?x480') // Resize to 480p height, auto width
+        .outputOptions('-preset ultrafast') // Optimize for speed
         .videoBitrate('800k')
         .output(outputPath)
         .on('end', () => {
