@@ -229,6 +229,7 @@ export const UploadDrill: React.FC = () => {
                             {state.status === 'uploading' ? '영상 업로드 중...' : '미리보기 생성 중...'}
                         </p>
                         <p className="text-slate-400 text-sm mt-2">잠시만 기다려주세요</p>
+                        <p className="text-red-400 text-xs font-bold mt-2 animate-pulse">화면을 끄지 마세요!</p>
                     </div>
                 </div>
             );
