@@ -19,6 +19,16 @@ export const Drills: React.FC = () => {
 
     useEffect(() => {
         loadDrills();
+
+        // Safety timeout for infinite loading
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                setLoading(false);
+                setError('로딩이 너무 오래 걸립니다. 네트워크 상태를 확인하거나 앱을 초기화해주세요.');
+            }
+        }, 10000); // 10 seconds timeout
+
+        return () => clearTimeout(timeoutId);
     }, []);
 
     const loadDrills = async () => {
@@ -66,13 +76,30 @@ export const Drills: React.FC = () => {
             <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4">
                 <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-6 max-w-md text-center">
                     <h3 className="text-xl font-bold text-red-400 mb-2">오류 발생</h3>
-                    <p className="text-slate-300 mb-4">{error}</p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                    >
-                        새로고침
-                    </button>
+                    <p className="text-slate-300 mb-6">{error}</p>
+
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                        >
+                            단순 새로고침
+                        </button>
+                        <button
+                            onClick={() => {
+                                // Clear critical local storage
+                                localStorage.clear(); // Or selective clear if needed
+                                // Reload
+                                window.location.href = '/';
+                            }}
+                            className="px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-bold shadow-lg shadow-red-500/20"
+                        >
+                            앱 초기화하기 (문제 해결)
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-4">
+                        * 앱 초기화 시 저장된 로그인 정보가 만료될 수 있습니다.
+                    </p>
                 </div>
             </div>
         );
