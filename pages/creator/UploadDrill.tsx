@@ -387,6 +387,7 @@ export const UploadDrill: React.FC = () => {
                             videoUrl={activeState.previewUrl}
                             onSave={handleCutsSave}
                             onCancel={() => setActiveEditor(null)}
+                            aspectRatio="9:16"
                         />
                     )}
                 </div>

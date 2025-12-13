@@ -12,15 +12,16 @@ interface VideoEditorProps {
     videoUrl: string;
     onSave: (cuts: { start: number; end: number }[]) => void;
     onCancel: () => void;
+    aspectRatio?: '16:9' | '9:16';
 }
 
-export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel }) => {
+export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9' }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [cuts, setCuts] = useState<Cut[]>([]);
-    
+
     // Selection state
     const [selectionStart, setSelectionStart] = useState<number | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
@@ -102,16 +103,18 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
         onSave(finalCuts.map(({ start, end }) => ({ start, end })));
     };
 
+    const isVertical = aspectRatio === '9:16';
+
     return (
         <div className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800">
-            <div className="relative aspect-video bg-black">
+            <div className={`relative bg-black mx-auto ${isVertical ? 'aspect-[9/16] max-w-[400px]' : 'aspect-video w-full'}`}>
                 <video
                     ref={videoRef}
                     src={videoUrl}
                     className="w-full h-full object-contain"
                     onClick={togglePlay}
                 />
-                
+
                 {/* Controls Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -124,38 +127,38 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                             </button>
                         </div>
                     </div>
-                    
+
                     {/* Timeline */}
                     <div className="relative h-2 bg-slate-700 rounded-full cursor-pointer group"
-                         onClick={(e) => {
-                             const rect = e.currentTarget.getBoundingClientRect();
-                             const percent = (e.clientX - rect.left) / rect.width;
-                             if (videoRef.current) {
-                                 videoRef.current.currentTime = percent * duration;
-                             }
-                         }}>
-                        <div 
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const percent = (e.clientX - rect.left) / rect.width;
+                            if (videoRef.current) {
+                                videoRef.current.currentTime = percent * duration;
+                            }
+                        }}>
+                        <div
                             className="absolute top-0 left-0 h-full bg-blue-500 rounded-full"
                             style={{ width: `${(currentTime / duration) * 100}%` }}
                         />
                         {/* Selection Markers */}
                         {selectionStart !== null && (
-                            <div 
+                            <div
                                 className="absolute top-0 h-full bg-green-500/50"
-                                style={{ 
+                                style={{
                                     left: `${(selectionStart / duration) * 100}%`,
-                                    width: selectionEnd 
-                                        ? `${((selectionEnd - selectionStart) / duration) * 100}%` 
+                                    width: selectionEnd
+                                        ? `${((selectionEnd - selectionStart) / duration) * 100}%`
                                         : `${((currentTime - selectionStart) / duration) * 100}%`
                                 }}
                             />
                         )}
                         {/* Existing Cuts Markers */}
                         {cuts.map(cut => (
-                            <div 
+                            <div
                                 key={cut.id}
                                 className="absolute top-0 h-full bg-yellow-500/50 pointer-events-none"
-                                style={{ 
+                                style={{
                                     left: `${(cut.start / duration) * 100}%`,
                                     width: `${((cut.end - cut.start) / duration) * 100}%`
                                 }}
@@ -169,22 +172,22 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
             <div className="p-6 space-y-6">
                 <div className="flex flex-wrap gap-4 items-center justify-between border-b border-slate-800 pb-6">
                     <div className="flex gap-2">
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             onClick={handleSetStart}
                             disabled={selectionStart !== null && selectionEnd === null} // Disable start if waiting for end
                             className={selectionStart !== null ? "bg-green-500/20 text-green-400 border-green-500/50" : ""}
                         >
                             <span className="mr-2">[</span> 시작점 설정
                         </Button>
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             onClick={handleSetEnd}
                             disabled={selectionStart === null || selectionEnd !== null}
                         >
                             <span className="mr-2">]</span> 종료점 설정
                         </Button>
-                        <Button 
+                        <Button
                             onClick={handleAddCut}
                             disabled={selectionStart === null || selectionEnd === null}
                             className="bg-blue-600 hover:bg-blue-700"
@@ -193,8 +196,8 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                             컷 추가
                         </Button>
                         {(selectionStart !== null || selectionEnd !== null) && (
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 onClick={() => { setSelectionStart(null); setSelectionEnd(null); }}
                                 className="text-slate-400"
                             >
@@ -202,7 +205,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                             </Button>
                         )}
                     </div>
-                    
+
                     <div className="text-sm text-slate-400">
                         {selectionStart !== null && (
                             <span>
@@ -234,7 +237,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                                             ({(cut.end - cut.start).toFixed(1)}초)
                                         </span>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => removeCut(cut.id)}
                                         className="text-slate-400 hover:text-red-400 p-1 transition-colors"
                                     >
