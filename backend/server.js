@@ -218,6 +218,7 @@ app.post('/process', async (req, res) => {
             }
 
             // Step 1: Create segments
+            const segmentPaths = [];
             const inputPath = localInputPath; // Use the downloaded path
             for (let i = 0; i < cuts.length; i++) {
                 const cut = cuts[i];
