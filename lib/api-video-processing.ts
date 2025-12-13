@@ -1,9 +1,11 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export interface UploadResponse {
     success: boolean;
-    videoId: string;
-    originalPath: string;
+    videoId: string; // Keeps compatibility, will be the filename in storage
+    originalPath: string; // Storage path
     filename: string;
 }
 
@@ -22,25 +24,41 @@ export interface ProcessResponse {
 
 export const videoProcessingApi = {
     uploadVideo: async (file: File, onProgress?: (percent: number) => void): Promise<UploadResponse> => {
-        const formData = new FormData();
-        formData.append('video', file);
+        // Generate unique filename
+        const uniqueId = crypto.randomUUID();
+        const extension = file.name.split('.').pop();
+        const filename = `${uniqueId}.${extension}`;
+        const storagePath = `raw_videos/${filename}`;
 
-        // Dynamic import to avoid SSR issues if used elsewhere, though not needed for client-side
+        // Dynamic import axios
         const axios = await import('axios');
 
-        const response = await axios.default.post(`${BACKEND_URL}/upload`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: (progressEvent) => {
-                if (progressEvent.total) {
-                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    if (onProgress) onProgress(percentCompleted);
-                }
-            },
-        });
+        // Direct Upload to Supabase Storage (REST API)
+        // This bypasses the backend and uses the CDN integration
+        const response = await axios.default.post(
+            `${SUPABASE_URL}/storage/v1/object/${storagePath}`,
+            file,
+            {
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': file.type,
+                    'x-upsert': 'false'
+                },
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        if (onProgress) onProgress(percentCompleted);
+                    }
+                },
+            }
+        );
 
-        return response.data;
+        return {
+            success: true,
+            videoId: uniqueId,
+            filename: filename,
+            originalPath: storagePath
+        };
     },
 
     generatePreview: async (videoId: string, filename: string): Promise<PreviewResponse> => {
