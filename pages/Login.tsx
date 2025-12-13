@@ -24,9 +24,18 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const { error } = isLogin
-        ? await signIn(email, password)
-        : await signUp(email, password);
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요.')), 10000)
+      );
+
+      // Race between the actual auth call and the timeout
+      const authPromise = isLogin
+        ? signIn(email, password)
+        : signUp(email, password);
+
+      const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
+      const { error } = result;
 
       if (error) {
         setError(error.message);
@@ -34,6 +43,7 @@ export const Login: React.FC = () => {
         navigate(from, { replace: true });
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
