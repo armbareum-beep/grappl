@@ -81,10 +81,10 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img
-                            src="/logo_v2_transparent.png?v=2"
+                            src="/logo_v2.png?v=3"
                             alt="Grapplay"
                             className="h-14 w-auto object-contain"
-                            style={{ mixBlendMode: 'screen' }}
+                            style={{ mixBlendMode: 'plus-lighter' }} // Trying plus-lighter for better black removal
                         />
                     </div>
                     <div className="flex items-center gap-4">

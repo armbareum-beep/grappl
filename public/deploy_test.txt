@@ -1,3 +1,3 @@
-Deployment Version: 2.2 (Logo Fix Request)
-Timestamp: 2025-12-14T08:54:00+09:00
-Changes: Logo mixed-blend-mode, Login timeout, Drill infinite loop fix.
+Deployment Version: 2.3 (Logo V2 Alternative Fix)
+Timestamp: 2025-12-14T08:58:00+09:00
+Changes: Switched to logo_v2.png, mix-blend-mode screen, cache-bust v3.
