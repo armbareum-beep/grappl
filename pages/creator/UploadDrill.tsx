@@ -171,7 +171,7 @@ export const UploadDrill: React.FC = () => {
     };
 
     const startProcessing = async () => {
-        if (!user || !actionVideo.videoId || !actionVideo.filename || !descVideo.videoId || !descVideo.filename) {
+        if (!user || !actionVideo.videoId || !actionVideo.filename || !descVideo.videoId || !descVideo.filename || !actionVideo.cuts || !descVideo.cuts) {
             alert('업로드 정보가 불완전합니다. 잠시 후 다시 시도해주세요.');
             return;
         }
