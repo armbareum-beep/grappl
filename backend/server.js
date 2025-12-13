@@ -191,8 +191,34 @@ app.post('/process', async (req, res) => {
         }
 
         try {
+            // Step 0: Download from Supabase Storage (if needed)
+            let localInputPath = path.join(UPLOADS_DIR, filename);
+
+            if (filename.includes('raw_videos/')) {
+                console.log(`Downloading from Supabase Storage: ${filename}`);
+                const storagePath = filename.replace('raw_videos/', ''); // bucket name logic might vary depending on how we constructed it
+                // Actually filename is "raw_videos/uuid.ext".
+                // Download needs bucket name 'raw_videos' and path 'uuid.ext'.
+                const { data, error } = await supabase.storage
+                    .from('raw_videos')
+                    .download(storagePath.split('/')[1]); // crude split
+
+                if (error) throw new Error(`Download failed: ${error.message}`);
+
+                // Save to local
+                const arrayBuffer = await data.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                // Ensure unique local name
+                localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
+                fs.writeFileSync(localInputPath, buffer);
+                console.log(`Downloaded to ${localInputPath}`);
+            } else if (!fs.existsSync(localInputPath)) {
+                // Fallback for old method
+                throw new Error('Original file not found locally or in storage');
+            }
+
             // Step 1: Create segments
-            const segmentPaths = [];
+            const inputPath = localInputPath; // Use the downloaded path
             for (let i = 0; i < cuts.length; i++) {
                 const cut = cuts[i];
                 const segmentPath = path.join(processDir, `part_${i}.mp4`);
