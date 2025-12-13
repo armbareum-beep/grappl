@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
                 return prev;
             });
-        }, 10000); // Increased to 10s
+        }, 3000); // Reduced to 3s to prevent sticking on loading screen
         return () => clearTimeout(timer);
     }, []);
 
