@@ -19,16 +19,6 @@ export const Drills: React.FC = () => {
 
     useEffect(() => {
         loadDrills();
-
-        // Safety timeout for infinite loading
-        const timeoutId = setTimeout(() => {
-            if (loading) {
-                setLoading(false);
-                setError('로딩이 너무 오래 걸립니다. 네트워크 상태를 확인하거나 앱을 초기화해주세요.');
-            }
-        }, 10000); // 10 seconds timeout
-
-        return () => clearTimeout(timeoutId);
     }, []);
 
     const loadDrills = async () => {
