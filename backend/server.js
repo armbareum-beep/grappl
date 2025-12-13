@@ -272,12 +272,33 @@ app.post('/process', async (req, res) => {
                 },
                 function (error) {
                     console.error('Vimeo Upload Error:', error);
-                    // Start Log Supabase Error here if needed
+                    // Update Supabase with Error
+                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                    supabase.from('drills')
+                        .update({
+                            [columnToUpdate]: 'error', // Or keep empty but change thumbnail
+                            ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' } : {})
+                        })
+                        .eq('id', drillId)
+                        .then(() => console.log('Marked as error in DB'));
                 }
             );
 
         } catch (error) {
             console.error('Processing failed:', error);
+            // Catch-all Error Update
+            const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+            try {
+                await supabase.from('drills')
+                    .update({
+                        // We set a special flag or just a visual error thumbnail
+                        ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Processing+Error' } : {})
+                    })
+                    .eq('id', drillId);
+                console.log('Marked as critical error in DB');
+            } catch (dbErr) {
+                console.error('Failed to update DB with error:', dbErr);
+            }
         }
     })();
 });
