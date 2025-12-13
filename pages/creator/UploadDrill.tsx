@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty } from '../../types';
@@ -53,6 +53,30 @@ export const UploadDrill: React.FC = () => {
 
     // Tab State for "Swipe" view
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
+
+    // Wake Lock
+    useEffect(() => {
+        let wakeLock: WakeLockSentinel | null = null;
+
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator && (isSubmitting || actionVideo.status === 'uploading' || descVideo.status === 'uploading')) {
+                try {
+                    wakeLock = await (navigator as any).wakeLock.request('screen');
+                    console.log('Wake Lock active');
+                } catch (err) {
+                    console.error('Wake Lock error:', err);
+                }
+            }
+        };
+
+        requestWakeLock();
+
+        return () => {
+            if (wakeLock) {
+                wakeLock.release().then(() => console.log('Wake Lock released'));
+            }
+        };
+    }, [isSubmitting, actionVideo.status, descVideo.status]);
 
     const handleFileUpload = async (
         file: File,
@@ -285,7 +309,10 @@ export const UploadDrill: React.FC = () => {
                 <div className="bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-800 text-center max-w-md w-full">
                     <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
                     <h2 className="text-xl font-bold text-white mb-2">{submissionProgress}</h2>
-                    <p className="text-slate-400">잠시만 기다려주세요. 창을 닫지 마세요.</p>
+                    <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
+                    <h2 className="text-xl font-bold text-white mb-2">{submissionProgress}</h2>
+                    <p className="text-slate-400">잠시만 기다려주세요.</p>
+                    <p className="text-red-400 font-bold mt-2 animate-pulse">화면을 끄거나 창을 닫지 마세요!</p>
                 </div>
             </div>
         );
