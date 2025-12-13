@@ -177,52 +177,60 @@ export const UploadDrill: React.FC = () => {
         }
 
         setIsSubmitting(true);
+        setSubmissionProgress('드릴 정보를 등록 중입니다...');
 
         try {
-            // 1. Process Action Video
-            setSubmissionProgress('동작 영상 처리 중...');
-            const actionRes = await videoProcessingApi.processVideo(
-                actionVideo.videoId,
-                actionVideo.filename,
-                actionVideo.cuts,
-                `[Drill] ${formData.title}`,
-                formData.description
-            );
-
-            // 2. Process Description Video
-            setSubmissionProgress('설명 영상 처리 중...');
-            const descRes = await videoProcessingApi.processVideo(
-                descVideo.videoId,
-                descVideo.filename,
-                descVideo.cuts,
-                `[Drill Explanation] ${formData.title}`,
-                `Explanation for ${formData.title}`
-            );
-
-            // 3. Save to DB
-            setSubmissionProgress('저장 중...');
-            const { error: dbError } = await createDrill({
+            // 1. Create Drill Record First (Database)
+            // Use placeholder for videos, they will be updated by backend
+            const { data: drill, error: dbError } = await createDrill({
                 title: formData.title,
                 description: formData.description,
                 creatorId: user.id,
                 category: formData.category,
                 difficulty: formData.difficulty,
-                vimeoUrl: actionRes.videoId,
-                descriptionVideoUrl: descRes.videoId,
-                thumbnailUrl: actionRes.thumbnailUrl || `https://vumbnail.com/${actionRes.videoId}.jpg`,
-                durationMinutes: 0, // Will be updated later
+                vimeoUrl: '', // Will be updated by backend
+                descriptionVideoUrl: '', // Will be updated by backend
+                thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...', // Temporary thumbnail
+                durationMinutes: 0,
             });
 
-            if (dbError) throw dbError;
+            if (dbError || !drill) throw dbError;
 
-            setSubmissionProgress('완료!');
+            console.log('Drill created:', drill.id);
+
+            // 2. Trigger Background Processing (Fire & Forget)
+            setSubmissionProgress('영상 처리를 요청하는 중...');
+
+            // We await the *request* (which returns 202 instant), but the actual processing happens in background
+            await videoProcessingApi.processVideo(
+                actionVideo.videoId,
+                actionVideo.filename,
+                actionVideo.cuts,
+                `[Drill] ${formData.title}`,
+                formData.description,
+                drill.id,
+                'action'
+            );
+
+            await videoProcessingApi.processVideo(
+                descVideo.videoId,
+                descVideo.filename,
+                descVideo.cuts,
+                `[Drill Explanation] ${formData.title}`,
+                `Explanation for ${formData.title}`,
+                drill.id,
+                'desc'
+            );
+
+            // 3. Navigate Immediately
+            setSubmissionProgress('완료! 대시보드로 이동합니다.');
             setTimeout(() => {
                 navigate('/creator');
-            }, 1000);
+            }, 500);
 
         } catch (err: any) {
             console.error(err);
-            alert('최종 처리 중 오류가 발생했습니다: ' + err.message);
+            alert('처리 중 오류가 발생했습니다: ' + err.message);
             setIsSubmitting(false);
         }
     };
