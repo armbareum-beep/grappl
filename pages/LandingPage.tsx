@@ -80,7 +80,12 @@ export const LandingPage: React.FC = () => {
             <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
-                        <img src="/logo_transparent.png" alt="Grapplay" className="h-14 w-auto object-contain" />
+                        <img
+                            src="/logo_v2_transparent.png"
+                            alt="Grapplay"
+                            className="h-14 w-auto object-contain"
+                            style={{ mixBlendMode: 'screen' }}
+                        />
                     </div>
                     <div className="flex items-center gap-4">
                         <Button
