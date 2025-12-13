@@ -149,7 +149,7 @@ export const UploadDrill: React.FC = () => {
 
         // Check if background uploads are finished
         if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
-            setSubmissionProgress('영상 원본을 서버로 전송 중입니다... 잠시만 기다려주세요.');
+            setSubmissionProgress('영상 원본 업로드를 마무리하는 중입니다...');
             setIsSubmitting(true);
 
             // Wait loop
@@ -355,14 +355,32 @@ export const UploadDrill: React.FC = () => {
 
     if (isSubmitting) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-                <div className="bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-800 text-center max-w-md w-full">
-                    <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
-                    <h2 className="text-xl font-bold text-white mb-2">{submissionProgress}</h2>
-                    <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
-                    <h2 className="text-xl font-bold text-white mb-2">{submissionProgress}</h2>
-                    <p className="text-slate-400">잠시만 기다려주세요.</p>
-                    <p className="text-red-400 font-bold mt-2 animate-pulse">화면을 끄거나 창을 닫지 마세요!</p>
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+                <div className="bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 text-center max-w-md w-full relative overflow-hidden">
+                    {/* Background Glow */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 animate-gradient"></div>
+
+                    <div className="mb-8 relative">
+                        <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                            <Upload className="w-10 h-10 text-blue-500" />
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-20 h-20 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+                        </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-white mb-3">{submissionProgress}</h2>
+
+                    <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left">
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            <span className="text-blue-400 font-bold block mb-1">📢 잠시만 기다려주세요!</span>
+                            영상 원본을 서버로 안전하게 전송하고 있습니다. 전송이 완료되면 자동으로 대시보드로 이동하며, 복잡한 처리는 서버가 알아서 진행합니다.
+                        </p>
+                    </div>
+
+                    <p className="text-red-400 text-xs font-bold animate-pulse bg-red-400/10 py-2 rounded">
+                        ⚠️ 화면을 끄거나 창을 닫지 마세요!
+                    </p>
                 </div>
             </div>
         );
