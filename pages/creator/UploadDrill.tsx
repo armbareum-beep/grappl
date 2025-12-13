@@ -171,6 +171,11 @@ export const UploadDrill: React.FC = () => {
     };
 
     const startProcessing = async () => {
+        if (!user || !actionVideo.videoId || !actionVideo.filename || !descVideo.videoId || !descVideo.filename) {
+            alert('업로드 정보가 불완전합니다. 잠시 후 다시 시도해주세요.');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -178,7 +183,7 @@ export const UploadDrill: React.FC = () => {
             setSubmissionProgress('동작 영상 처리 중...');
             const actionRes = await videoProcessingApi.processVideo(
                 actionVideo.videoId,
-                actionVideo.filename!,
+                actionVideo.filename,
                 actionVideo.cuts,
                 `[Drill] ${formData.title}`,
                 formData.description
@@ -188,7 +193,7 @@ export const UploadDrill: React.FC = () => {
             setSubmissionProgress('설명 영상 처리 중...');
             const descRes = await videoProcessingApi.processVideo(
                 descVideo.videoId,
-                descVideo.filename!,
+                descVideo.filename,
                 descVideo.cuts,
                 `[Drill Explanation] ${formData.title}`,
                 `Explanation for ${formData.title}`
