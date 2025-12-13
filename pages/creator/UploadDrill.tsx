@@ -16,6 +16,7 @@ type ProcessingState = {
     cuts: { start: number; end: number }[] | null;
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'complete' | 'error';
     error: string | null;
+    isBackgroundUploading?: boolean;
 };
 
 const initialProcessingState: ProcessingState = {
@@ -25,7 +26,8 @@ const initialProcessingState: ProcessingState = {
     previewUrl: null,
     cuts: null,
     status: 'idle',
-    error: null
+    error: null,
+    isBackgroundUploading: false
 };
 
 export const UploadDrill: React.FC = () => {
@@ -83,35 +85,42 @@ export const UploadDrill: React.FC = () => {
         type: 'action' | 'desc',
         setVideoState: React.Dispatch<React.SetStateAction<ProcessingState>>
     ) => {
-        setVideoState(prev => ({ ...prev, file, status: 'uploading', error: null }));
+        // 1. Instant Local Preview
+        const objectUrl = URL.createObjectURL(file);
 
+        setVideoState(prev => ({
+            ...prev,
+            file,
+            previewUrl: objectUrl,
+            status: 'ready', // Immediately ready for editing
+            isBackgroundUploading: true,
+            error: null
+        }));
+
+        // Auto-open editor immediately
+        setActiveEditor(type);
+
+        // 2. Background Upload
         try {
-            // 1. Upload Raw
+            console.log(`Starting background upload for ${type}...`);
             const uploadRes = await videoProcessingApi.uploadVideo(file);
+
             setVideoState(prev => ({
                 ...prev,
                 videoId: uploadRes.videoId,
                 filename: uploadRes.filename,
-                status: 'previewing'
+                isBackgroundUploading: false
             }));
+            console.log(`Background upload complete for ${type}`);
 
-            // 2. Generate Preview
-            const previewRes = await videoProcessingApi.generatePreview(uploadRes.videoId, uploadRes.filename);
-            setVideoState(prev => ({
-                ...prev,
-                previewUrl: videoProcessingApi.getPreviewUrl(previewRes.previewUrl),
-                status: 'ready'
-            }));
-
-            // Auto-open editor for the uploaded video
-            setActiveEditor(type);
+            // Note: We skip generatePreview entirely as we use the local file
 
         } catch (err: any) {
             console.error(err);
             setVideoState(prev => ({
                 ...prev,
-                status: 'error',
-                error: '업로드/변환 실패: ' + err.message
+                isBackgroundUploading: false,
+                error: '백그라운드 업로드 실패: ' + err.message
             }));
         }
     };
@@ -126,7 +135,7 @@ export const UploadDrill: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if (!user || !actionVideo.videoId || !descVideo.videoId) return;
+        if (!user) return;
 
         // Validation
         if (!actionVideo.cuts) {
@@ -138,6 +147,30 @@ export const UploadDrill: React.FC = () => {
             return;
         }
 
+        // Check if background uploads are finished
+        if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
+            setSubmissionProgress('영상 원본을 서버로 전송 중입니다... 잠시만 기다려주세요.');
+            setIsSubmitting(true);
+
+            // Wait loop
+            const checkUploads = setInterval(() => {
+                if (!actionVideo.isBackgroundUploading && !descVideo.isBackgroundUploading) {
+                    clearInterval(checkUploads);
+                    if (actionVideo.error || descVideo.error) {
+                        setIsSubmitting(false);
+                        alert('영상 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    } else {
+                        startProcessing(); // Proceed
+                    }
+                }
+            }, 1000);
+            return;
+        }
+
+        startProcessing();
+    };
+
+    const startProcessing = async () => {
         setIsSubmitting(true);
 
         try {
@@ -260,8 +293,11 @@ export const UploadDrill: React.FC = () => {
                     {/* Content Overlay */}
                     <div className="relative z-10 flex-1 flex flex-col justify-between p-6">
                         <div className="flex justify-between items-start">
-                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5">
+                            <div className="bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 flex flex-col items-start gap-1">
                                 <p className="text-sm font-medium text-white truncate max-w-[200px]">{state.file?.name}</p>
+                                {state.isBackgroundUploading && (
+                                    <span className="text-xs text-blue-400 animate-pulse">☁️ 원본 업로드 중...</span>
+                                )}
                             </div>
                             <button
                                 onClick={() => {
