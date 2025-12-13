@@ -81,7 +81,7 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img
-                            src="/logo_v2_transparent.png"
+                            src="/logo_v2_transparent.png?v=2"
                             alt="Grapplay"
                             className="h-14 w-auto object-contain"
                             style={{ mixBlendMode: 'screen' }}
