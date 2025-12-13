@@ -114,6 +114,11 @@ export const UploadDrill: React.FC = () => {
         // 1. Instant Local Preview
         const objectUrl = URL.createObjectURL(file);
 
+        // Performance Tip
+        if (file.size > 50 * 1024 * 1024) { // 50MB
+            alert('💡 꿀팁: 원본 영상 용량이 큽니다! (50MB+)\n\n업로드 시간이 오래 걸릴 수 있습니다.\n갤러리에서 미리 필요한 부분만 잘라서 올리시면 훨씬 빨라집니다!');
+        }
+
         setVideoState(prev => ({
             ...prev,
             file,
