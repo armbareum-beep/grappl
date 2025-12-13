@@ -21,7 +21,16 @@
         "noFallthroughCasesInSwitch": true
     },
     "include": [
-        "src"
+        "src",
+        "components",
+        "pages",
+        "lib",
+        "contexts",
+        "types.ts",
+        "constants.ts",
+        "App.tsx",
+        "index.tsx",
+        "vite-env.d.ts"
     ],
     "exclude": [
         "vite.config.ts"
