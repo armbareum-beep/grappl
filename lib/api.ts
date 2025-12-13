@@ -4381,9 +4381,9 @@ export async function fetchPublicFeedDrills(limit: number = 20) {
     try {
         // Step 1: Get drill IDs that are the first item in a routine (Free Drills)
         const { data: requestItems, error: itemsError } = await supabase
-            .from('drill_routine_items')
+            .from('routine_drills')
             .select('drill_id')
-            .eq('display_order', 1)
+            .eq('order_index', 0) // First item is index 0
             .limit(100); // Fetch enough candidates
 
         if (itemsError) throw itemsError;
