@@ -441,6 +441,17 @@ export const UploadDrill: React.FC = () => {
                     <p className="text-red-400 text-xs font-bold animate-pulse bg-red-400/10 py-2 rounded">
                         ⚠️ 화면을 끄거나 창을 닫지 마세요!
                     </p>
+
+                    {/* Hidden NoSleep Video */}
+                    <video
+                        ref={noSleepVideoRef}
+                        className="hidden"
+                        playsInline
+                        muted
+                        loop
+                        // Minimal 1s black MP4 (Base64)
+                        src="data:video/mp4;base64,AAAAHGZ0eXBNNEVAAAAAAAEAAQAAAAAAAAAAAAAAAgAAAAA="
+                    />
                 </div>
             </div>
         );
