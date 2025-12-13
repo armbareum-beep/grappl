@@ -146,7 +146,7 @@ export const UploadDrill: React.FC = () => {
             setVideoState(prev => ({
                 ...prev,
                 videoId: uploadRes.videoId,
-                filename: uploadRes.filename,
+                filename: uploadRes.originalPath, // Store the full storage path here!
                 isBackgroundUploading: false
             }));
             console.log(`Background upload complete for ${type}`);
@@ -240,6 +240,7 @@ export const UploadDrill: React.FC = () => {
             setSubmissionProgress('영상 처리를 요청하는 중...');
 
             // We await the *request* (which returns 202 instant), but the actual processing happens in background
+            // Note: actionVideo.filename and descVideo.filename now contain the Supabase Storage Path (e.g., "raw_videos/uuid.mp4")
             await videoProcessingApi.processVideo(
                 actionVideo.videoId,
                 actionVideo.filename,
