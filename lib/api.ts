@@ -4379,13 +4379,23 @@ export async function fetchDrillsBase(limit: number = 20) {
  */
 export async function fetchPublicFeedDrills(limit: number = 20) {
     try {
+        // Step 1: Get drill IDs that are the first item in a routine (Free Drills)
+        const { data: requestItems, error: itemsError } = await supabase
+            .from('drill_routine_items')
+            .select('drill_id')
+            .eq('display_order', 1)
+            .limit(100); // Fetch enough candidates
+
+        if (itemsError) throw itemsError;
+        if (!requestItems || requestItems.length === 0) return { data: [], error: null };
+
+        const drillIds = requestItems.map((item: any) => item.drill_id);
+
+        // Step 2: Fetch the actual drills that match these IDs and have videos ready
         const { data, error } = await supabase
             .from('drills')
-            .select(`
-                *,
-                drill_routine_items!inner(display_order)
-            `)
-            .eq('drill_routine_items.display_order', 1)
+            .select('*')
+            .in('id', drillIds)
             .neq('vimeo_url', '')
             .not('vimeo_url', 'is', null)
             .order('created_at', { ascending: false })
