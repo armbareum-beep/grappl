@@ -11,6 +11,12 @@ require('dotenv').config({ path: '../.env' }); // Load from root .env
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// Supabase Setup
+const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY; // Prefer Service Key for backend
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3002;
 
@@ -153,9 +159,9 @@ app.use('/temp/processed', express.static(PROCESSED_DIR));
 
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
-    const { videoId, filename, cuts, title, description } = req.body;
+    const { videoId, filename, cuts, title, description, drillId, videoType } = req.body;
 
-    if (!videoId || !filename || !cuts || !Array.isArray(cuts) || cuts.length === 0) {
+    if (!videoId || !filename || !cuts || !drillId) {
         return res.status(400).json({ error: 'Invalid input data' });
     }
 
@@ -164,101 +170,116 @@ app.post('/process', async (req, res) => {
         return res.status(404).json({ error: 'Original file not found' });
     }
 
+    // Return immediate response (Fire and Forget)
     const processId = uuidv4();
-    const processDir = path.join(TEMP_DIR, 'processing', processId);
-    if (!fs.existsSync(processDir)) {
-        fs.mkdirSync(processDir, { recursive: true });
-    }
+    res.status(202).json({
+        success: true,
+        message: 'Video processing started in background',
+        processId
+    });
 
-    try {
-        console.log(`Starting processing for ${videoId} (Process ID: ${processId})`);
+    console.log(`Starting background processing for ${videoId} (Process ID: ${processId})`);
 
-        // Step 1: Create segments
-        const segmentPaths = [];
-        for (let i = 0; i < cuts.length; i++) {
-            const cut = cuts[i];
-            const segmentPath = path.join(processDir, `part_${i}.mp4`);
+    // Run in background (do not await)
+    (async () => {
+        const processDir = path.join(TEMP_DIR, 'processing', processId);
+        if (!fs.existsSync(processDir)) {
+            fs.mkdirSync(processDir, { recursive: true });
+        }
 
+        try {
+            // Step 1: Create segments
+            const segmentPaths = [];
+            for (let i = 0; i < cuts.length; i++) {
+                const cut = cuts[i];
+                const segmentPath = path.join(processDir, `part_${i}.mp4`);
+
+                await new Promise((resolve, reject) => {
+                    ffmpeg(inputPath)
+                        .setStartTime(cut.start)
+                        .setDuration(cut.end - cut.start)
+                        .outputOptions(['-c copy', '-avoid_negative_ts 1'])
+                        .output(segmentPath)
+                        .on('end', resolve)
+                        .on('error', reject)
+                        .run();
+                });
+                segmentPaths.push(segmentPath);
+            }
+
+            // Step 2: Create concat list
+            const concatListPath = path.join(processDir, 'concat_list.txt');
+            const concatFileContent = segmentPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n');
+            fs.writeFileSync(concatListPath, concatFileContent);
+
+            // Step 3: Concat segments
+            const finalPath = path.join(processDir, 'final.mp4');
             await new Promise((resolve, reject) => {
-                ffmpeg(inputPath)
-                    .setStartTime(cut.start)
-                    .setDuration(cut.end - cut.start)
-                    .outputOptions(['-c copy', '-avoid_negative_ts 1'])
-                    .output(segmentPath)
+                ffmpeg()
+                    .input(concatListPath)
+                    .inputOptions(['-f concat', '-safe 0'])
+                    .outputOptions(['-c copy'])
+                    .output(finalPath)
                     .on('end', resolve)
                     .on('error', reject)
                     .run();
             });
-            segmentPaths.push(segmentPath);
-        }
 
-        // Step 2: Create concat list
-        const concatListPath = path.join(processDir, 'concat_list.txt');
-        const concatFileContent = segmentPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n');
-        fs.writeFileSync(concatListPath, concatFileContent);
+            console.log(`Video processing complete: ${finalPath}`);
 
-        // Step 3: Concat segments
-        const finalPath = path.join(processDir, 'final.mp4');
-        await new Promise((resolve, reject) => {
-            ffmpeg()
-                .input(concatListPath)
-                .inputOptions(['-f concat', '-safe 0'])
-                .outputOptions(['-c copy'])
-                .output(finalPath)
-                .on('end', resolve)
-                .on('error', reject)
-                .run();
-        });
+            // Step 4: Upload to Vimeo
+            const Vimeo = require('vimeo').Vimeo;
+            const client = new Vimeo(
+                process.env.VITE_VIMEO_CLIENT_ID,
+                process.env.VITE_VIMEO_CLIENT_SECRET,
+                process.env.VITE_VIMEO_ACCESS_TOKEN
+            );
 
-        console.log(`Video processing complete: ${finalPath}`);
+            console.log('Uploading to Vimeo...');
 
-        // Step 4: Upload to Vimeo
-        const Vimeo = require('vimeo').Vimeo;
-        const client = new Vimeo(
-            process.env.VITE_VIMEO_CLIENT_ID,
-            process.env.VITE_VIMEO_CLIENT_SECRET,
-            process.env.VITE_VIMEO_ACCESS_TOKEN
-        );
+            client.upload(
+                finalPath,
+                {
+                    'name': title || 'Edited Video',
+                    'description': description || 'Edited with Grappl Editor',
+                    'privacy': {
+                        'view': 'anybody',
+                        'embed': 'public'
+                    }
+                },
+                function (uri) {
+                    console.log('Vimeo Upload URI:', uri);
+                    const vimeoId = uri.split('/').pop();
 
-        console.log('Uploading to Vimeo...');
+                    // Update Supabase
+                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                    const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
 
-        client.upload(
-            finalPath,
-            {
-                'name': title || 'Edited Video',
-                'description': description || 'Edited with Grappl Editor',
-                'privacy': {
-                    'view': 'anybody',
-                    'embed': 'public'
+                    supabase.from('drills')
+                        .update({
+                            [columnToUpdate]: vimeoId,
+                            ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
+                        })
+                        .eq('id', drillId)
+                        .then(({ error }) => {
+                            if (error) console.error('Supabase Update Error:', error);
+                            else console.log(`Supabase updated for drill ${drillId} (${columnToUpdate})`);
+                        });
+                },
+                function (bytes_uploaded, bytes_total) {
+                    const percentage = (bytes_uploaded / bytes_total * 100).toFixed(2);
+                    console.log(`Upload progress: ${percentage}%`);
+                },
+                function (error) {
+                    console.error('Vimeo Upload Error:', error);
+                    // Start Log Supabase Error here if needed
                 }
-            },
-            function (uri) {
-                console.log('Vimeo Upload URI:', uri);
-                const vimeoId = uri.split('/').pop();
+            );
 
-                // Return immediate response with vumbnail URL
-                res.json({
-                    success: true,
-                    videoId: vimeoId,
-                    uri: uri,
-                    vimeoUrl: `https://vimeo.com/${vimeoId}`,
-                    thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`
-                });
-            },
-            function (bytes_uploaded, bytes_total) {
-                const percentage = (bytes_uploaded / bytes_total * 100).toFixed(2);
-                console.log(`Upload progress: ${percentage}%`);
-            },
-            function (error) {
-                console.error('Vimeo Upload Error:', error);
-                res.status(500).json({ error: 'Vimeo upload failed: ' + error });
-            }
-        );
-
-    } catch (error) {
-        console.error('Processing failed:', error);
-        res.status(500).json({ error: 'Processing failed: ' + error.message });
-    }
+        } catch (error) {
+            console.error('Processing failed:', error);
+        }
+    })();
 });
 
 app.listen(PORT, () => {
