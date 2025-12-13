@@ -38,19 +38,49 @@ export const videoProcessingApi = {
     },
 
     generatePreview: async (videoId: string, filename: string): Promise<PreviewResponse> => {
-        const response = await fetch(`${BACKEND_URL}/preview`, {
+        // 1. Start the Job
+        const startRes = await fetch(`${BACKEND_URL}/preview`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ videoId, filename }),
         });
 
-        if (!response.ok) {
-            throw new Error('Preview generation failed');
+        if (!startRes.ok) throw new Error('Failed to start preview generation');
+
+        const startData = await startRes.json();
+
+        // If it was already existing or completed instantly
+        if (startData.status === 'completed') {
+            return startData;
         }
 
-        return response.json();
+        const jobId = startData.jobId;
+
+        // 2. Poll for Status
+        return new Promise((resolve, reject) => {
+            const checkStatus = async () => {
+                try {
+                    const statusRes = await fetch(`${BACKEND_URL}/status/${jobId}`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === 'completed') {
+                        resolve({
+                            success: true,
+                            previewUrl: videoProcessingApi.getPreviewUrl(statusData.previewUrl)
+                        });
+                    } else if (statusData.status === 'error') {
+                        reject(new Error(statusData.error));
+                    } else {
+                        // Keep polling
+                        setTimeout(checkStatus, 3000); // Check every 3 seconds
+                    }
+                } catch (err) {
+                    reject(err);
+                }
+            };
+
+            checkStatus();
+        });
     },
 
     processVideo: async (

@@ -14,6 +14,9 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3002;
 
+// In-memory job status storage
+const jobStatus = {};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -60,7 +63,7 @@ app.post('/upload', upload.single('video'), (req, res) => {
     });
 });
 
-// 2. Generate Preview (480p)
+// 2. Generate Preview (Async)
 app.post('/preview', async (req, res) => {
     const { videoId, filename } = req.body;
     if (!videoId || !filename) {
@@ -69,21 +72,33 @@ app.post('/preview', async (req, res) => {
 
     const inputPath = path.join(UPLOADS_DIR, filename);
     const outputPath = path.join(PROCESSED_DIR, `${videoId}_preview.mp4`);
+    const jobId = uuidv4();
 
     if (!fs.existsSync(inputPath)) {
         return res.status(404).json({ error: 'Original file not found' });
     }
 
-    // If preview already exists, return it
+    // If preview already exists, return immediate success
     if (fs.existsSync(outputPath)) {
         return res.json({
             success: true,
+            jobId: 'existing',
+            status: 'completed',
             previewUrl: `/temp/processed/${videoId}_preview.mp4`
         });
     }
 
-    console.log(`Generating preview for ${videoId}...`);
+    // Initialize Job
+    jobStatus[jobId] = {
+        status: 'processing',
+        submittedAt: new Date(),
+        type: 'preview',
+        videoId
+    };
 
+    console.log(`Starting background preview generation for ${videoId} (Job: ${jobId})`);
+
+    // Start FFmpeg in background (do not await)
     ffmpeg(inputPath)
         .size('?x480') // Resize to 480p height, auto width
         .outputOptions('-preset ultrafast') // Optimize for speed
@@ -93,16 +108,44 @@ app.post('/preview', async (req, res) => {
         .output(outputPath)
         .on('end', () => {
             console.log(`Preview generated: ${outputPath}`);
-            res.json({
-                success: true,
+            jobStatus[jobId] = {
+                status: 'completed',
+                completedAt: new Date(),
                 previewUrl: `/temp/processed/${videoId}_preview.mp4`
-            });
+            };
         })
         .on('error', (err) => {
             console.error('FFmpeg error:', err);
-            res.status(500).json({ error: 'Preview generation failed' });
+            jobStatus[jobId] = {
+                status: 'error',
+                error: err.message
+            };
         })
         .run();
+
+    // Return Job ID immediately
+    res.status(202).json({
+        success: true,
+        message: 'Preview generation started',
+        jobId
+    });
+});
+
+// Check Job Status
+app.get('/status/:jobId', (req, res) => {
+    const { jobId } = req.params;
+
+    if (jobId === 'existing') {
+        return res.json({ status: 'completed' });
+    }
+
+    const job = jobStatus[jobId];
+
+    if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.json(job);
 });
 
 // Serve static files from temp/processed for preview playback
