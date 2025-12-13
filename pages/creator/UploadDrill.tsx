@@ -57,6 +57,16 @@ export const UploadDrill: React.FC = () => {
     // Tab State for "Swipe" view
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
 
+    // NoSleep Video Ref
+    const noSleepVideoRef = React.useRef<HTMLVideoElement>(null);
+
+    // Helper: Enable NoSleep Video
+    const enableNoSleep = () => {
+        if (noSleepVideoRef.current) {
+            noSleepVideoRef.current.play().catch(err => console.log('NoSleep video play failed:', err));
+        }
+    };
+
     // Wake Lock
     useEffect(() => {
         let wakeLock: WakeLockSentinel | null = null;
