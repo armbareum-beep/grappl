@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
 
 export interface UploadResponse {
     success: boolean;
@@ -31,28 +30,35 @@ export const videoProcessingApi = {
         const filename = `${uniqueId}.${extension}`;
         const storagePath = `raw_videos/${filename}`;
 
-        // Dynamic import axios
-        const axios = await import('axios');
+        // Import supabase client
+        const { supabase } = await import('./supabase');
 
-        // Direct Upload to Supabase Storage (REST API)
-        // This bypasses the backend and uses the CDN integration
-        const response = await axios.default.post(
-            `${SUPABASE_URL}/storage/v1/object/${storagePath}`,
-            file,
-            {
-                headers: {
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': file.type,
-                    'x-upsert': 'false'
-                },
-                onUploadProgress: (progressEvent) => {
-                    if (progressEvent.total) {
-                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        if (onProgress) onProgress(percentCompleted);
-                    }
-                },
-            }
-        );
+        // Use custom fetch for progress tracking with Supabase JS?
+        // Actually, Supabase JS v2 doesn't support progress callback in upload() easily.
+        // BUT, XMLHttpRequest does. 
+        // To fix the 400 error reliably while keeping progress, we should use TUS (supabase-js uses it under hood for large files)
+        // OR fix the Axios request.
+        // The safest fix for 400 'Bad Request' is relying on the official client.
+        // We will lose granular progress (it will jump 0 -> 100) unless we use TUS directly or XHR.
+        // Given the user issues, STABILITY > Progress Bar accuracy right now.
+        // We can simulate progress or just set it to 50%...
+        // Let's use the official client first to ensure IT WORKS.
+
+        if (onProgress) onProgress(10); // Start
+
+        const { data, error } = await supabase.storage
+            .from('raw_videos')
+            .upload(filename, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            console.error('Supabase upload error:', error);
+            throw error;
+        }
+
+        if (onProgress) onProgress(100); // Done
 
         return {
             success: true,
