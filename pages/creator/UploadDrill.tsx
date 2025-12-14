@@ -230,8 +230,24 @@ export const UploadDrill: React.FC = () => {
     };
 
     const startProcessing = async () => {
-        if (!user || !actionVideo.videoId || !actionVideo.filename || !descVideo.videoId || !descVideo.filename || !actionVideo.cuts || !descVideo.cuts) {
-            alert('업로드 정보가 불완전합니다. 잠시 후 다시 시도해주세요.');
+        // Validation with specific error messages
+        const missingFields = [];
+        if (!user) missingFields.push('로그인 필요');
+        if (!actionVideo.videoId) missingFields.push('동작 영상 ID 누락');
+        if (!actionVideo.filename) missingFields.push('동작 영상 파일명 누락');
+        if (!descVideo.videoId) missingFields.push('설명 영상 ID 누락');
+        if (!descVideo.filename) missingFields.push('설명 영상 파일명 누락');
+        if (!actionVideo.cuts) missingFields.push('동작 편집 정보 누락');
+        if (!descVideo.cuts) missingFields.push('설명 편집 정보 누락');
+
+        if (missingFields.length > 0) {
+            console.error('Missing fields:', missingFields);
+            // Check for upload errors first
+            if (actionVideo.error || descVideo.error) {
+                alert(`업로드 실패: ${actionVideo.error || descVideo.error}`);
+            } else {
+                alert(`업로드 정보가 불완전합니다 (${missingFields.join(', ')}). \n잠시 후 다시 시도하거나 영상을 다시 선택해주세요.`);
+            }
             return;
         }
 
@@ -402,10 +418,23 @@ export const UploadDrill: React.FC = () => {
                                             ></div>
                                         </div>
                                     </div>
-                                ) : (
+                                ) : state.error ? (
+                                    <div className="w-full">
+                                        <div className="flex items-center gap-1 text-xs text-red-500 font-medium mb-1">
+                                            <AlertCircle className="w-3 h-3" />
+                                            <span>업로드 실패</span>
+                                        </div>
+                                        <p className="text-[10px] text-red-400 leading-tight">{state.error}</p>
+                                    </div>
+                                ) : state.videoId ? (
                                     <div className="flex items-center gap-1 text-xs text-green-400 font-medium">
                                         <CheckCircle className="w-3 h-3" />
                                         <span>업로드 완료</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 text-xs text-yellow-400 font-medium">
+                                        <div className="animate-spin w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
+                                        <span>처리 대기 중...</span>
                                     </div>
                                 )}
                             </div>

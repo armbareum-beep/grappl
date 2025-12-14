@@ -81,10 +81,9 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img
-                            src="/logo_v2.png?v=3"
+                            src="/logo_v2_transparent.png"
                             alt="Grapplay"
                             className="h-14 w-auto object-contain"
-                            style={{ mixBlendMode: 'plus-lighter' }} // Trying plus-lighter for better black removal
                         />
                     </div>
                     <div className="flex items-center gap-4">
@@ -229,17 +228,7 @@ export const LandingPage: React.FC = () => {
                     {/* Infinite Scroll Carousel */}
                     <InstructorCarousel />
 
-                    {/* CTA */}
-                    <div className="text-center mt-12">
-                        <Button
-                            size="lg"
-                            className="bg-indigo-600 hover:bg-indigo-500 px-10 py-6 text-lg rounded-full shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all hover:scale-105"
-                            onClick={() => navigate('/instructors')}
-                        >
-                            이 인스트럭터들에게 배우기
-                            <ChevronRight className="w-5 h-5 ml-2" />
-                        </Button>
-                    </div>
+
                 </div>
             </section>
 

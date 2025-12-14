@@ -80,9 +80,7 @@ const App: React.FC = () => {
       <ToastProvider>
         <Router>
           <Layout>
-            <div className="fixed bottom-1 right-1 bg-red-600 text-white text-[10px] px-1 z-[9999] pointer-events-none opacity-50">
-              V2.0 LIVE (Fast Upload)
-            </div>
+
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/home" element={<Home />} />
