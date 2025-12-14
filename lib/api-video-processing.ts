@@ -22,7 +22,7 @@ export interface ProcessResponse {
 }
 
 export const videoProcessingApi = {
-    uploadVideo: async (file: File, onProgress?: (percent: number) => void): Promise<UploadResponse> => {
+    uploadVideo: async (file: File, onProgress?: (percent: number) => void, accessToken?: string): Promise<UploadResponse> => {
         // Generate unique filename
         const uniqueId = crypto.randomUUID();
         const extension = file.name.split('.').pop();
@@ -41,7 +41,7 @@ export const videoProcessingApi = {
                 endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
                 retryDelays: [0, 3000, 5000, 10000, 20000],
                 headers: {
-                    authorization: `Bearer ${SUPABASE_KEY}`,
+                    authorization: accessToken ? `Bearer ${accessToken}` : `Bearer ${SUPABASE_KEY}`,
                     'x-upsert': 'true', // Optional
                 },
                 uploadDataDuringCreation: true,

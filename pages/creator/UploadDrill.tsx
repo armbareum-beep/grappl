@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { VideoCategory, Difficulty } from '../../types';
 import { createDrill } from '../../lib/api';
 import { Button } from '../../components/Button';
@@ -130,6 +131,10 @@ export const UploadDrill: React.FC = () => {
         try {
             console.log(`Starting background upload for ${type}...`);
 
+            // Get Access Token for TUS
+            const { data } = await supabase.auth.getSession();
+            const accessToken = data.session?.access_token;
+
             // Set status to uploading specifically for UI feedback if we wanted to show it (but we show "ready" currently)
             // Actually, we want to show 'uploading' visual if we want the bar. 
             // But currently the logic sets it to 'ready' immediately for local preview.
@@ -141,7 +146,7 @@ export const UploadDrill: React.FC = () => {
 
             const uploadRes = await videoProcessingApi.uploadVideo(file, (percent) => {
                 setVideoState(prev => ({ ...prev, uploadProgress: percent }));
-            });
+            }, accessToken);
 
             setVideoState(prev => ({
                 ...prev,
