@@ -179,7 +179,8 @@ export const UploadDrill: React.FC = () => {
             if (!actionVideo.isBackgroundUploading && !descVideo.isBackgroundUploading) {
                 if (actionVideo.error || descVideo.error) {
                     setIsSubmitting(false);
-                    alert('영상 업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    const errorMsg = actionVideo.error || descVideo.error || 'Unknown error';
+                    alert(`영상 업로드 중 오류가 발생했습니다: ${errorMsg}`);
                     return;
                 }
 
