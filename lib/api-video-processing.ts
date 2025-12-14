@@ -27,44 +27,61 @@ export const videoProcessingApi = {
         const uniqueId = crypto.randomUUID();
         const extension = file.name.split('.').pop();
         const filename = `${uniqueId}.${extension}`;
-        const storagePath = `raw_videos/${filename}`;
 
-        // Import supabase client
-        const { supabase } = await import('./supabase');
+        // Dynamic import Supabase credentials
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+        const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const BUCKET_NAME = 'raw_videos';
 
-        // Use custom fetch for progress tracking with Supabase JS?
-        // Actually, Supabase JS v2 doesn't support progress callback in upload() easily.
-        // BUT, XMLHttpRequest does. 
-        // To fix the 400 error reliably while keeping progress, we should use TUS (supabase-js uses it under hood for large files)
-        // OR fix the Axios request.
-        // The safest fix for 400 'Bad Request' is relying on the official client.
-        // We will lose granular progress (it will jump 0 -> 100) unless we use TUS directly or XHR.
-        // Given the user issues, STABILITY > Progress Bar accuracy right now.
-        // We can simulate progress or just set it to 50%...
-        // Let's use the official client first to ensure IT WORKS.
+        // Dynamic import tus-js-client
+        const tus = await import('tus-js-client');
 
-        if (onProgress) onProgress(10); // Start
-
-        const { data, error } = await supabase.storage
-            .from('raw_videos')
-            .upload(filename, file, {
-                cacheControl: '3600',
-                upsert: false
+        return new Promise((resolve, reject) => {
+            const upload = new tus.Upload(file, {
+                endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+                retryDelays: [0, 3000, 5000, 10000, 20000],
+                headers: {
+                    authorization: `Bearer ${SUPABASE_KEY}`,
+                    'x-upsert': 'true', // Optional
+                },
+                uploadDataDuringCreation: true,
+                removeFingerprintOnSuccess: true, // Needed for repeated uploads of same file
+                metadata: {
+                    bucketName: BUCKET_NAME,
+                    objectName: filename,
+                    contentType: file.type,
+                    cacheControl: '3600',
+                },
+                chunkSize: 6 * 1024 * 1024, // 6MB chunk size
+                onError: (error) => {
+                    console.error('TUS upload failed:', error);
+                    reject(error);
+                },
+                onProgress: (bytesUploaded, bytesTotal) => {
+                    const percentage = (bytesUploaded / bytesTotal * 100).toFixed(2);
+                    if (onProgress) onProgress(parseFloat(percentage));
+                },
+                onSuccess: () => {
+                    if (onProgress) onProgress(100);
+                    resolve({
+                        success: true,
+                        videoId: uniqueId,
+                        filename: filename,
+                        originalPath: `${BUCKET_NAME}/${filename}`
+                    });
+                },
             });
 
-        if (error) {
-            console.error('Supabase upload error:', error);
-            throw error;
-        }
-
-        if (onProgress) onProgress(100); // Done
-
-        return {
-            success: true,
-            videoId: uniqueId,
-            filename: filename,
-            originalPath: storagePath
-        };
+            // Start the upload
+            upload.findPreviousUploads().then((previousUploads) => {
+                // Ask the user to resume the upload if we found a previous upload?
+                // For now, simplify and just start.
+                if (previousUploads.length) {
+                    upload.resumeFromPreviousUpload(previousUploads[0]);
+                }
+                upload.start();
+            });
+        });
     },
 
     generatePreview: async (videoId: string, filename: string): Promise<PreviewResponse> => {
