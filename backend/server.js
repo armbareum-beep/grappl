@@ -169,7 +169,7 @@ app.post('/process', async (req, res) => {
     }
 
     const inputPath = path.join(UPLOADS_DIR, filename);
-    const isRemote = filename.includes('raw_videos/');
+    const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/');
 
     if (!isRemote && !fs.existsSync(inputPath)) {
         return res.status(404).json({ error: 'Original file not found' });
