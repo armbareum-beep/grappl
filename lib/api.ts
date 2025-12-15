@@ -2993,6 +2993,14 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
     return { data: data?.map(transformDrill) || [], error: null };
 }
 
+// Helper for timeout
+const withTimeout = (promise: Promise<any>, ms: number) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
+    ]);
+};
+
 export async function createDrill(drillData: Partial<Drill>) {
     const dbData = {
         title: drillData.title,
@@ -3006,18 +3014,36 @@ export async function createDrill(drillData: Partial<Drill>) {
         duration_minutes: drillData.durationMinutes,
     };
 
-    const { data, error } = await supabase
-        .from('drills')
-        .insert(dbData)
-        .select()
-        .single();
+    let attempts = 0;
+    while (attempts < 3) {
+        try {
+            // Attempt with 10s timeout
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('drills')
+                    .insert(dbData)
+                    .select()
+                    .single(),
+                10000
+            );
 
-    if (error) {
-        console.error('Error creating drill:', error);
-        return { data: null, error };
+            if (error) {
+                console.error(`Attempt ${attempts + 1} failed:`, error);
+                throw error;
+            }
+
+            return { data: transformDrill(data), error: null };
+        } catch (err) {
+            attempts++;
+            console.warn(`Create Drill Attempt ${attempts} failed:`, err);
+            if (attempts >= 3) {
+                return { data: null, error: err };
+            }
+            // Wait 1s before retry
+            await new Promise(r => setTimeout(r, 1000));
+        }
     }
-
-    return { data: transformDrill(data), error: null };
+    return { data: null, error: new Error('Failed to create drill after 3 attempts') };
 }
 
 export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
