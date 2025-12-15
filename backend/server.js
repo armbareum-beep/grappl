@@ -52,7 +52,12 @@ app.get('/version', (req, res) => {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id']
+}));
+app.options('*', cors()); // Enable pre-flight for all routes
 app.use(express.json());
 
 // Ensure temp directories exist
