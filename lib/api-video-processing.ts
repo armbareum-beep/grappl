@@ -44,7 +44,7 @@ export const videoProcessingApi = {
                     authorization: accessToken ? `Bearer ${accessToken}` : `Bearer ${SUPABASE_KEY}`,
                     'x-upsert': 'true', // Optional
                 },
-                uploadDataDuringCreation: true,
+                uploadDataDuringCreation: false,
                 removeFingerprintOnSuccess: true, // Needed for repeated uploads of same file
                 metadata: {
                     bucketName: BUCKET_NAME,
