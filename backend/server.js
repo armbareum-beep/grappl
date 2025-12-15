@@ -37,12 +37,17 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 3002;
 // In-memory job status storage
 const jobStatus = {};
 
+// Basic Health Check (Root)
+app.get('/', (req, res) => {
+    res.send('Grappl Backend is Running!');
+});
+
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.2.0',
+        version: '1.3.0', // Bump version to verify new deploy
         deployedAt: new Date().toISOString(),
-        note: 'Smart Download Logic Enabled'
+        note: 'Port Fix + Dependency Fix + Crash Fix'
     });
 });
 
