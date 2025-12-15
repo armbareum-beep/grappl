@@ -254,16 +254,7 @@ app.post('/process', async (req, res) => {
 
                 // Let's modify the check to try downloading from 'raw_videos_v2' if file missing locally.
 
-                const bucketName = filename.startsWith('raw_videos_v2/') ? 'raw_videos_v2' : 'raw_videos';
-                const fileKey = filename.replace(`${bucketName}/`, '');
-
-                // If filename does NOT have prefix, we assume 'raw_videos_v2' for new system?
-                // Or we try both?
-                // Let's change backend to assume 'raw_videos_v2' if not found locally.
-
-                let { data, error } = await supabase.storage
-                    .from(bucketName)
-                    .download(fileKey);
+                // (Duplicate logic removed)
 
                 // Fallback mechanism: If v2 fails, try v1 (only if we started with v2)
                 if (error && bucketName === 'raw_videos_v2') {
