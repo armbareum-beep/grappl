@@ -169,7 +169,9 @@ app.post('/process', async (req, res) => {
     }
 
     const inputPath = path.join(UPLOADS_DIR, filename);
-    if (!fs.existsSync(inputPath)) {
+    const isRemote = filename.includes('raw_videos/');
+
+    if (!isRemote && !fs.existsSync(inputPath)) {
         return res.status(404).json({ error: 'Original file not found' });
     }
 
@@ -194,14 +196,13 @@ app.post('/process', async (req, res) => {
             // Step 0: Download from Supabase Storage (if needed)
             let localInputPath = path.join(UPLOADS_DIR, filename);
 
-            if (filename.includes('raw_videos/')) {
+            if (isRemote) {
                 console.log(`Downloading from Supabase Storage: ${filename}`);
-                const storagePath = filename.replace('raw_videos/', ''); // bucket name logic might vary depending on how we constructed it
-                // Actually filename is "raw_videos/uuid.ext".
-                // Download needs bucket name 'raw_videos' and path 'uuid.ext'.
+                const storagePath = filename.replace('raw_videos/', ''); // result: uuid.mp4
+                // Download needs bucket name 'raw_videos' and path 'uuid.mp4'.
                 const { data, error } = await supabase.storage
                     .from('raw_videos')
-                    .download(storagePath.split('/')[1]); // crude split
+                    .download(storagePath);
 
                 if (error) throw new Error(`Download failed: ${error.message}`);
 
