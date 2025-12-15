@@ -3462,13 +3462,7 @@ export async function getDrillById(id: string) {
     }
 }
 
-if (error) {
-    console.error('Error fetching drill:', error);
-    return null;
-}
 
-return transformDrill(data);
-}
 
 /**
  * Find the routine that contains a specific drill
