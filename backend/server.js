@@ -58,10 +58,15 @@ app.get('/version', (req, res) => {
         deployedAt: new Date().toISOString(),
         note: 'Diagnostic: Checking Service Key',
         supabaseConnected: !!supabase,
-        isServiceRole: !!process.env.SUPABASE_SERVICE_KEY, // CRITICAL CHECK
+        isServiceRole: !!process.env.SUPABASE_SERVICE_KEY,
         envCheck: {
             hasUrl: !!supabaseUrl,
             hasKey: !!supabaseKey
+        },
+        vimeoCheck: {
+            hasClientId: !!process.env.VITE_VIMEO_CLIENT_ID,
+            hasSecret: !!process.env.VITE_VIMEO_CLIENT_SECRET,
+            hasToken: !!process.env.VITE_VIMEO_ACCESS_TOKEN
         }
     });
 });
