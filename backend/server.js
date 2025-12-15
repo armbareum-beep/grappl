@@ -239,39 +239,32 @@ app.post('/process', async (req, res) => {
                 // Or we try both?
                 // Let's change backend to assume 'raw_videos_v2' if not found locally.
 
-                const { data, error } = await supabase.storage
+                let { data, error } = await supabase.storage
                     .from(bucketName)
                     .download(fileKey);
 
-                if (error) {
-                    // Fallback to v1 bucket if v2 fails (migration support)
-                    if (bucketName === 'raw_videos_v2') {
-                        console.log("Not found in v2, trying v1...");
-                        const { data: v1Data, error: v1Error } = await supabase.storage.from('raw_videos').download(fileKey);
-                        if (v1Error) throw new Error(`Download failed from both buckets: ${error.message} / ${v1Error.message}`);
-                        // Save v1 data
-                        const arrayBuffer = await v1Data.arrayBuffer();
-                        const buffer = Buffer.from(arrayBuffer);
-                        localInputPath = path.join(UPLOADS_DIR, path.basename(filename)); // ensure flat filename
-                        fs.writeFileSync(localInputPath, buffer);
-                    } else {
-                        throw new Error(`Download failed (v1): ${error.message}`);
+                // Fallback mechanism: If v2 fails, try v1 (only if we started with v2)
+                if (error && bucketName === 'raw_videos_v2') {
+                    console.warn(`Download failed from ${bucketName}, trying fallback to raw_videos...`);
+                    const fallback = await supabase.storage.from('raw_videos').download(fileKey);
+
+                    if (fallback.error) {
+                        throw new Error(`Download failed from both buckets: ${error.message} / ${fallback.error.message}`);
                     }
-                } else {
-                    // Save v2 data
-                    const arrayBuffer = await data.arrayBuffer();
-                    const buffer = Buffer.from(arrayBuffer);
-                    localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
-                    fs.writeFileSync(localInputPath, buffer);
+                    data = fallback.data;
+                    error = null;
+                } else if (error) {
+                    throw new Error(`Download failed from ${bucketName}: ${error.message}`);
                 }
 
                 // Save to local
                 const arrayBuffer = await data.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                // Ensure unique local name
+
+                // Save flatly to UPLOADS_DIR using basename to avoid subdirectories
                 localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
                 fs.writeFileSync(localInputPath, buffer);
-                console.log(`Downloaded to ${localInputPath}`);
+                console.log(`Downloaded to [${bucketName}] ${localInputPath}`);
             } else if (!fs.existsSync(localInputPath)) {
                 // Fallback for old method
                 throw new Error('Original file not found locally or in storage');
