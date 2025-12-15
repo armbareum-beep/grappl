@@ -18,13 +18,18 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-console.error('CRITICAL WARNING: Missing Supabase Environment Variables');
-console.warn('Server starting in RESTRICTED MODE. Database operations will fail.');
-    // Do not throw, allow server to boot for health check
-    // throw new Error('Missing Supabase URL or Key');
-}
+let supabase = null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+    console.warn('CRITICAL WARNING: Missing Supabase Environment Variables');
+    console.warn('Server starting in RESTRICTED MODE. Database operations will fail.');
+} else {
+    try {
+        supabase = createClient(supabaseUrl, supabaseKey);
+    } catch (err) {
+        console.error('Failed to initialize Supabase client:', err.message);
+    }
+}
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3002;
