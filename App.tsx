@@ -68,6 +68,7 @@ const RootRedirect: React.FC = () => {
 };
 
 import { useParams } from 'react-router-dom';
+import { VersionChecker } from './components/VersionChecker';
 
 const CourseRedirect: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -77,6 +78,7 @@ const CourseRedirect: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
+      <VersionChecker />
       <ToastProvider>
         <Router>
           <Layout>
