@@ -221,41 +221,6 @@ app.post('/process', async (req, res) => {
                     .from(bucketName)
                     .download(fileKey);
 
-                // Extract bucket and path. Filename format: "bucket_name/uuid.ext"
-                // but currently we constructed filename as just uuid in frontend? 
-                // Wait, UploadResponse in frontend says: originalPath: `${BUCKET_NAME}/${filename}`
-                // And server receives this as 'filename'? 
-                // Let's check api-video-processing.ts: processVideo sends 'filename' which is likely just uniqueId.ext?
-                // NO! `api-video-processing.ts` -> `processVideo` -> sends `filename`.
-                // In uploadVideo success: `filename: filename` (just uuid.ext).
-                // But wait, the backend receives `filename`.
-
-                // If the user sends `filename` as "raw_videos_v2/abcdef.mp4", we need to split it.
-                // Currently backend check: `filename.includes('raw_videos/')`.
-
-                // Let's assume filename MIGHT contain bucket prefix or might not.
-                // But the frontend uploadVideo returns `filename` as just the name (line 69), 
-                // and `originalPath` as bucket/name.
-                // The `processVideo` call (line 135) takes `filename`.
-                // Does it take just the name or the full path?
-                // If it takes just the name, then it's NOT remote by the logic `includes('raw_videos/')`.
-
-                // Wait, earlier I added logic: `const isRemote = filename.includes('raw_videos/');`
-                // If `api-video-processing.ts` sends just "uuid.mp4", then `isRemote` is FALSE.
-                // And `fs.existsSync` fails.
-
-                // ERROR DIAGNOSIS: The frontend sends just the filename "uuid.mp4".
-                // But the backend expects checking for 'raw_videos/' to know it's remote?
-                // This implies the frontend SHOULD pass the full path or the backend should know it's remote.
-
-                // CORRECTION: Since we are using Supabase Storage, ALL uploads from frontend are remote.
-                // But the backend also supports local uploads via `/upload`.
-                // We need a flag or we check if it exists locally.
-
-                // Let's modify the check to try downloading from 'raw_videos_v2' if file missing locally.
-
-                // (Duplicate logic removed)
-
                 // Fallback mechanism: If v2 fails, try v1 (only if we started with v2)
                 if (error && bucketName === 'raw_videos_v2') {
                     console.warn(`Download failed from ${bucketName}, trying fallback to raw_videos...`);
@@ -274,13 +239,13 @@ app.post('/process', async (req, res) => {
                 const arrayBuffer = await data.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
 
-                // Save flatly to UPLOADS_DIR using basename to avoid subdirectories
+                // Save flatly to UPLOADS_DIR using basename
                 localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
                 fs.writeFileSync(localInputPath, buffer);
-                console.log(`Downloaded to [${bucketName}] ${localInputPath}`);
-            } else if (!fs.existsSync(localInputPath)) {
-                // Fallback for old method
-                throw new Error('Original file not found locally or in storage');
+                console.log(`Downloaded to ${localInputPath}`);
+
+            } else {
+                console.log(`Local file found: ${localInputPath}`);
             }
 
             // Step 1: Create segments
