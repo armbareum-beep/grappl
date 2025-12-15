@@ -3440,20 +3440,34 @@ export async function getDrillById(id: string) {
     const mockDrill = MOCK_DRILLS.find(d => d.id === id);
     if (mockDrill) return mockDrill;
 
-    const { data, error } = await supabase
-        .from('drills')
-        .select(`
-            *
-        `)
-        .eq('id', id)
-        .single();
+    try {
+        const { data, error } = await withTimeout(
+            supabase
+                .from('drills')
+                .select('*')
+                .eq('id', id)
+                .single(),
+            10000
+        );
 
-    if (error) {
-        console.error('Error fetching drill:', error);
+        if (error) {
+            console.error('Error fetching drill:', error);
+            return null;
+        }
+
+        return transformDrill(data);
+    } catch (e) {
+        console.error('getDrillById failed/timeout:', e);
         return null;
     }
+}
 
-    return transformDrill(data);
+if (error) {
+    console.error('Error fetching drill:', error);
+    return null;
+}
+
+return transformDrill(data);
 }
 
 /**
