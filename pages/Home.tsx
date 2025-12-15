@@ -70,7 +70,8 @@ export const Home: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/');
+      setLoading(false); // Fix infinite loading trap
+      navigate('/', { replace: true });
       return;
     }
 
