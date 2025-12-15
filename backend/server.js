@@ -13,8 +13,20 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Supabase Setup
 const { createClient } = require('@supabase/supabase-js');
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY; // Prefer Service Key for backend
+
+// Support both standard and VITE_ prefixed environment variables for flexibility
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+    console.error('CRITICAL ERROR: Missing Supabase Environment Variables');
+    console.error('SUPABASE_URL:', !!supabaseUrl);
+    console.error('SUPABASE_KEY:', !!supabaseKey);
+    // Do not throw immediately to check logs? No, server is useless without DB.
+    // Allow crash but with clear log.
+    throw new Error('Missing Supabase URL or Key');
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
