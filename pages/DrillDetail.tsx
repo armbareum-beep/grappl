@@ -40,6 +40,22 @@ export const DrillDetail: React.FC = () => {
         }
     }, [id, authLoading]);
 
+    // Auto-poll if processing (every 5 seconds)
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+
+        if (drill && (!drill.vimeoUrl || drill.vimeoUrl.includes('placeholder'))) {
+            console.log('Processing detected, polling status...');
+            intervalId = setInterval(() => {
+                fetchDrill();
+            }, 5000);
+        }
+
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [drill, id]);
+
     const fetchDrill = async () => {
         if (!id) return;
         try {
