@@ -156,7 +156,8 @@ export const videoProcessingApi = {
         });
 
         if (!response.ok) {
-            throw new Error('Processing failed');
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Processing failed with status ${response.status}`);
         }
 
         return response.json();
