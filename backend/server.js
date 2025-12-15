@@ -54,7 +54,7 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.3.3', // Bump for Service Key check
+        version: '1.3.4', // Bump for Error Logging
         deployedAt: new Date().toISOString(),
         note: 'Diagnostic: Checking Service Key',
         supabaseConnected: !!supabase,
@@ -399,10 +399,11 @@ app.post('/process', async (req, res) => {
             // Catch-all Error Update
             const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
             try {
+                // WRITE ERROR TO DB SO WE CAN SEE IT
                 await supabase.from('drills')
                     .update({
-                        // We set a special flag or just a visual error thumbnail
-                        ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Processing+Error' } : {})
+                        [columnToUpdate]: `ERROR: ${error.message}`.substring(0, 100), // Store error in vimeo_url column for debug
+                        ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error' } : {})
                     })
                     .eq('id', drillId);
                 console.log('Marked as critical error in DB');
