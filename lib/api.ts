@@ -73,37 +73,58 @@ function transformLesson(data: any): Lesson {
 
 // Creators API
 export async function getCreators(): Promise<Creator[]> {
-    const { data, error } = await supabase
-        .from('creators')
-        .select('*')
-        .eq('approved', true)
-        .order('subscriber_count', { ascending: false });
+    try {
+        const { data, error } = await withTimeout(
+            supabase
+                .from('creators')
+                .select('*')
+                .eq('approved', true)
+                .order('subscriber_count', { ascending: false }),
+            5000 // 5s timeout
+        );
 
-    if (error) {
-        console.error('Error fetching creators:', error);
-        throw error;
+        if (error) {
+            console.error('Error fetching creators:', error);
+            throw error;
+        }
+
+        return (data || []).map(transformCreator);
+    } catch (e) {
+        console.error('getCreators timeout/fail:', e);
+        return []; // Return empty array on failure to prevent infinite loading
     }
-
-    return (data || []).map(transformCreator);
 }
 
 export async function getCreatorById(id: string): Promise<Creator | null> {
-    const { data, error } = await supabase
-        .from('creators')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+    try {
+        const { data, error } = await withTimeout(
+            supabase
+                .from('creators')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle(),
+            5000
+        );
 
-    if (error) {
-        // 406/PGRST106: Table missing or RLS issue
-        if (error.code === 'PGRST106' || error.code === '406') {
-            return null;
+        if (error) {
+            // 406/PGRST106: Table missing or RLS issue
+            if (error.code === 'PGRST106' || error.code === '406') {
+                return null;
+            }
+            throw error;
         }
-        console.error('Error fetching creator:', error);
+
+        return data ? transformCreator(data) : null;
+    } catch (e) {
+        console.error('getCreatorById timeout/fail:', e);
         return null;
     }
+}
+console.error('Error fetching creator:', error);
+return null;
+    }
 
-    return data ? transformCreator(data) : null;
+return data ? transformCreator(data) : null;
 }
 
 // Courses API
