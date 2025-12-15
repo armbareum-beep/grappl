@@ -333,16 +333,10 @@ export const DrillDetail: React.FC = () => {
                 </p>
                 <div className="flex gap-4">
                     <button
-                        onClick={() => window.location.reload()}
-                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
-                    >
-                        새로고침
-                    </button>
-                    <button
                         onClick={() => navigate('/creator')}
                         className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition"
                     >
-                        대시보드로
+                        대시보드로 돌아가기
                     </button>
                 </div>
             </div>
