@@ -198,8 +198,28 @@ app.post('/process', async (req, res) => {
             // Step 0: Download from Supabase Storage (if needed)
             let localInputPath = path.join(UPLOADS_DIR, filename);
 
-            if (isRemote) {
+            // FORCE DOWNLOAD if remote OR if file is missing locally
+            if (isRemote || !fs.existsSync(localInputPath)) {
                 console.log(`Downloading from Supabase Storage: ${filename}`);
+
+                // Determine bucket and file key
+                let bucketName = 'raw_videos_v2'; // DEFAULT to V2 for safety
+                let fileKey = filename;
+
+                if (filename.includes('raw_videos_v2/')) {
+                    bucketName = 'raw_videos_v2';
+                    fileKey = filename.replace('raw_videos_v2/', '');
+                } else if (filename.includes('raw_videos/')) {
+                    bucketName = 'raw_videos';
+                    fileKey = filename.replace('raw_videos/', '');
+                }
+                // Else: It's a naked filename, we use the default 'raw_videos_v2' set above
+
+                console.log(`Attempting download from bucket: ${bucketName}, key: ${fileKey}`);
+
+                let { data, error } = await supabase.storage
+                    .from(bucketName)
+                    .download(fileKey);
 
                 // Extract bucket and path. Filename format: "bucket_name/uuid.ext"
                 // but currently we constructed filename as just uuid in frontend? 
