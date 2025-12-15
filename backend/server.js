@@ -172,9 +172,10 @@ app.post('/process', async (req, res) => {
     // Explicitly check for both bucket names to satisfy old and new code
     const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/') || filename.includes('raw_videos');
 
-    if (!isRemote && !fs.existsSync(inputPath)) {
-        return res.status(404).json({ error: 'Original file not found' });
-    }
+    // DISABLE EARLY CHECK: We assume if it's not local, we try to download it remotely.
+    // if (!isRemote && !fs.existsSync(inputPath)) {
+    //    return res.status(404).json({ error: 'Original file not found' });
+    // }
 
     // Return immediate response (Fire and Forget)
     const processId = uuidv4();
