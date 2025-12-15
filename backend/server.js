@@ -13,6 +13,34 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Supabase Setup
 const { createClient } = require('@supabase/supabase-js');
+const https = require('https');
+const { pipeline } = require('stream');
+const { promisify } = require('util');
+const streamPipeline = promisify(pipeline);
+
+async function downloadFile(url, dest) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        https.get(url, response => {
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to download file: ${response.statusCode}`));
+                return;
+            }
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+            file.on('error', err => {
+                fs.unlink(dest, () => { }); // Delete failed file
+                reject(err);
+            });
+        }).on('error', err => {
+            fs.unlink(dest, () => { });
+            reject(err);
+        });
+    });
+}
 
 // Support both standard and VITE_ prefixed environment variables for flexibility
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -266,31 +294,30 @@ app.post('/process', async (req, res) => {
 
                 console.log(`Attempting download from bucket: ${bucketName}, key: ${fileKey}`);
 
-                let { data, error } = await supabase.storage
+                console.log(`Attempting download from bucket: ${bucketName}, key: ${fileKey}`);
+
+                // Use stream to avoid OOM on large files
+                const { data, error } = await supabase.storage
                     .from(bucketName)
-                    .download(fileKey);
+                    .createSignedUrl(fileKey, 60); // Get a URL instead of downloading buffer directly
 
-                // Fallback mechanism: If v2 fails, try v1 (only if we started with v2)
-                if (error && bucketName === 'raw_videos_v2') {
-                    console.warn(`Download failed from ${bucketName}, trying fallback to raw_videos...`);
-                    const fallback = await supabase.storage.from('raw_videos').download(fileKey);
+                if (error) {
+                    // Fallback to v1 logic if needed or throw
+                    if (bucketName === 'raw_videos_v2') {
+                        console.warn('V2 Download failed, trying V1 fallback...');
+                        // Fallback logic logic simplified for stream: try getting signed url from other bucket
+                        const fallback = await supabase.storage.from('raw_videos').createSignedUrl(fileKey, 60);
+                        if (fallback.error) throw new Error(`Download URL failed: ${error.message}`);
 
-                    if (fallback.error) {
-                        throw new Error(`Download failed from both buckets: ${error.message} / ${fallback.error.message}`);
+                        // Download from URL to File Stream
+                        await downloadFile(fallback.data.signedUrl, localInputPath);
+                    } else {
+                        throw new Error(`Download URL failed: ${error.message}`);
                     }
-                    data = fallback.data;
-                    error = null;
-                } else if (error) {
-                    throw new Error(`Download failed from ${bucketName}: ${error.message}`);
+                } else {
+                    // Download from URL to File Stream
+                    await downloadFile(data.signedUrl, localInputPath);
                 }
-
-                // Save to local
-                const arrayBuffer = await data.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-
-                // Save flatly to UPLOADS_DIR using basename
-                localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
-                fs.writeFileSync(localInputPath, buffer);
                 console.log(`Downloaded to ${localInputPath}`);
 
             } else {
