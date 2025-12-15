@@ -54,9 +54,14 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.3.1', // Bump version for middleware fix
+        version: '1.3.2', // Bump for diagnostic
         deployedAt: new Date().toISOString(),
-        note: 'CORS Fixed: Middleware Moved to Top'
+        note: 'Diagnostic: Checking Supabase Connection',
+        supabaseConnected: !!supabase,
+        envCheck: {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseKey
+        }
     });
 });
 
@@ -222,6 +227,11 @@ app.post('/process', async (req, res) => {
 
     // Run in background (do not await)
     (async () => {
+        if (!supabase) {
+            console.error('CRITICAL: Supabase client is not initialized. Cannot process video.');
+            return; // Exit to prevent crash
+        }
+
         const processDir = path.join(TEMP_DIR, 'processing', processId);
         if (!fs.existsSync(processDir)) {
             fs.mkdirSync(processDir, { recursive: true });
