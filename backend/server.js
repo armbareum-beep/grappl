@@ -23,6 +23,15 @@ const PORT = process.env.BACKEND_PORT || 3002;
 // In-memory job status storage
 const jobStatus = {};
 
+// Verify Deployment Endpoint
+app.get('/version', (req, res) => {
+    res.json({
+        version: '1.2.0',
+        deployedAt: new Date().toISOString(),
+        note: 'Smart Download Logic Enabled'
+    });
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
