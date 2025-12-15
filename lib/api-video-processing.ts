@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://grapplay-backend.onrender.com';
 
 export interface UploadResponse {
     success: boolean;
