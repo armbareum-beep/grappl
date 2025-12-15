@@ -54,10 +54,11 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.3.2', // Bump for diagnostic
+        version: '1.3.3', // Bump for Service Key check
         deployedAt: new Date().toISOString(),
-        note: 'Diagnostic: Checking Supabase Connection',
+        note: 'Diagnostic: Checking Service Key',
         supabaseConnected: !!supabase,
+        isServiceRole: !!process.env.SUPABASE_SERVICE_KEY, // CRITICAL CHECK
         envCheck: {
             hasUrl: !!supabaseUrl,
             hasKey: !!supabaseKey

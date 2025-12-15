@@ -3,9 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-// Load env vars
-// Note: We need to parse them from .env file manually or use dotenv if installed
-// I'll try to use a simple parser since I saw .env in the file list
+// Load env vars manually
 const envPath = path.join(__dirname, '.env');
 const envContent = fs.readFileSync(envPath, 'utf8');
 const env = {};
@@ -16,6 +14,9 @@ envContent.split('\n').forEach(line => {
 
 const supabaseUrl = env.VITE_SUPABASE_URL;
 const supabaseKey = env.VITE_SUPABASE_ANON_KEY;
+
+console.log('URL:', supabaseUrl);
+console.log('Key Length:', supabaseKey ? supabaseKey.length : 0);
 
 if (!supabaseUrl || !supabaseKey) {
     console.error('Could not load Supabase credentials from .env');
