@@ -182,7 +182,7 @@ export const CreatorDashboard: React.FC = () => {
                                         variant="outline"
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('https://grapplay-backend.onrender.com/version');
+                                                const res = await fetch('https://grappl-video-backend.onrender.com/version');
                                                 if (res.ok) {
                                                     const data = await res.json();
                                                     alert(`서버 연결 성공!\n버전: ${data.version}\n시간: ${data.timestamp}\n(정상 작동 중입니다)`);

@@ -1,5 +1,4 @@
-/// <reference types="vite/client" />
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://grapplay-backend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://grappl-video-backend.onrender.com';
 
 export interface UploadResponse {
     success: boolean;
