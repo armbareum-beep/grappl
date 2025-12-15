@@ -55,8 +55,15 @@ import { ToastProvider } from './contexts/ToastContext';
 
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
+  const [forceLoad, setForceLoad] = React.useState(false);
 
-  if (loading) {
+  React.useEffect(() => {
+    // Fail-safe: If Auth loading takes > 1.5s, force show Landing
+    const timer = setTimeout(() => setForceLoad(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading && !forceLoad) {
     return <LoadingScreen message="로그인 정보 확인 중..." />;
   }
 
