@@ -5,10 +5,10 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "node generate-version.js && vite build",
+        "build": "npm install && cd backend && npm install && cd .. && node generate-version.js && vite build",
         "preview": "vite preview",
-        "server": "cd backend && npm install && npm start",
-        "start": "cd backend && npm install && npm start"
+        "server": "cd backend && node server.js",
+        "start": "cd backend && node server.js"
     },
     "dependencies": {
         "@stripe/react-stripe-js": "^5.4.0",
