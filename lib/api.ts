@@ -120,12 +120,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         return null;
     }
 }
-console.error('Error fetching creator:', error);
-return null;
-    }
 
-return data ? transformCreator(data) : null;
-}
 
 // Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
