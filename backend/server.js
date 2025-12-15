@@ -32,7 +32,7 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3002;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3002;
 
 // In-memory job status storage
 const jobStatus = {};
