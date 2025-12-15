@@ -34,6 +34,15 @@ if (!supabaseUrl || !supabaseKey) {
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3002;
 
+// Middleware (MUST be before routes)
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id']
+}));
+app.options('*', cors()); // Enable pre-flight for all routes
+app.use(express.json());
+
 // In-memory job status storage
 const jobStatus = {};
 
@@ -45,20 +54,11 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.3.0', // Bump version to verify new deploy
+        version: '1.3.1', // Bump version for middleware fix
         deployedAt: new Date().toISOString(),
-        note: 'Port Fix + Dependency Fix + Crash Fix'
+        note: 'CORS Fixed: Middleware Moved to Top'
     });
 });
-
-// Middleware
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id']
-}));
-app.options('*', cors()); // Enable pre-flight for all routes
-app.use(express.json());
 
 // Ensure temp directories exist
 const TEMP_DIR = path.join(__dirname, 'temp');
