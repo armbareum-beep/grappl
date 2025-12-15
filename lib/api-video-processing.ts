@@ -52,7 +52,7 @@ export const videoProcessingApi = {
                     contentType: file.type,
                     cacheControl: '3600',
                 },
-                chunkSize: 6 * 1024 * 1024, // 6MB chunk size
+                chunkSize: 5 * 1024 * 1024, // Reduced to 5MB to be safe
                 onError: (error) => {
                     console.error('TUS upload failed:', error);
                     reject(error);
