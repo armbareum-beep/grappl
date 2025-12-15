@@ -130,6 +130,7 @@ export const UploadDrill: React.FC = () => {
         // 2. Background Upload
         try {
             console.log(`Starting background upload for ${type}...`);
+            enableNoSleep(); // Activate NoSleep video hack for mobile stability
 
             // Get Access Token for TUS
             const { data } = await supabase.auth.getSession();
