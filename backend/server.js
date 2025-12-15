@@ -198,13 +198,72 @@ app.post('/process', async (req, res) => {
 
             if (isRemote) {
                 console.log(`Downloading from Supabase Storage: ${filename}`);
-                const storagePath = filename.replace('raw_videos/', ''); // result: uuid.mp4
-                // Download needs bucket name 'raw_videos' and path 'uuid.mp4'.
-                const { data, error } = await supabase.storage
-                    .from('raw_videos')
-                    .download(storagePath);
 
-                if (error) throw new Error(`Download failed: ${error.message}`);
+                // Extract bucket and path. Filename format: "bucket_name/uuid.ext"
+                // but currently we constructed filename as just uuid in frontend? 
+                // Wait, UploadResponse in frontend says: originalPath: `${BUCKET_NAME}/${filename}`
+                // And server receives this as 'filename'? 
+                // Let's check api-video-processing.ts: processVideo sends 'filename' which is likely just uniqueId.ext?
+                // NO! `api-video-processing.ts` -> `processVideo` -> sends `filename`.
+                // In uploadVideo success: `filename: filename` (just uuid.ext).
+                // But wait, the backend receives `filename`.
+
+                // If the user sends `filename` as "raw_videos_v2/abcdef.mp4", we need to split it.
+                // Currently backend check: `filename.includes('raw_videos/')`.
+
+                // Let's assume filename MIGHT contain bucket prefix or might not.
+                // But the frontend uploadVideo returns `filename` as just the name (line 69), 
+                // and `originalPath` as bucket/name.
+                // The `processVideo` call (line 135) takes `filename`.
+                // Does it take just the name or the full path?
+                // If it takes just the name, then it's NOT remote by the logic `includes('raw_videos/')`.
+
+                // Wait, earlier I added logic: `const isRemote = filename.includes('raw_videos/');`
+                // If `api-video-processing.ts` sends just "uuid.mp4", then `isRemote` is FALSE.
+                // And `fs.existsSync` fails.
+
+                // ERROR DIAGNOSIS: The frontend sends just the filename "uuid.mp4".
+                // But the backend expects checking for 'raw_videos/' to know it's remote?
+                // This implies the frontend SHOULD pass the full path or the backend should know it's remote.
+
+                // CORRECTION: Since we are using Supabase Storage, ALL uploads from frontend are remote.
+                // But the backend also supports local uploads via `/upload`.
+                // We need a flag or we check if it exists locally.
+
+                // Let's modify the check to try downloading from 'raw_videos_v2' if file missing locally.
+
+                const bucketName = filename.startsWith('raw_videos_v2/') ? 'raw_videos_v2' : 'raw_videos';
+                const fileKey = filename.replace(`${bucketName}/`, '');
+
+                // If filename does NOT have prefix, we assume 'raw_videos_v2' for new system?
+                // Or we try both?
+                // Let's change backend to assume 'raw_videos_v2' if not found locally.
+
+                const { data, error } = await supabase.storage
+                    .from(bucketName)
+                    .download(fileKey);
+
+                if (error) {
+                    // Fallback to v1 bucket if v2 fails (migration support)
+                    if (bucketName === 'raw_videos_v2') {
+                        console.log("Not found in v2, trying v1...");
+                        const { data: v1Data, error: v1Error } = await supabase.storage.from('raw_videos').download(fileKey);
+                        if (v1Error) throw new Error(`Download failed from both buckets: ${error.message} / ${v1Error.message}`);
+                        // Save v1 data
+                        const arrayBuffer = await v1Data.arrayBuffer();
+                        const buffer = Buffer.from(arrayBuffer);
+                        localInputPath = path.join(UPLOADS_DIR, path.basename(filename)); // ensure flat filename
+                        fs.writeFileSync(localInputPath, buffer);
+                    } else {
+                        throw new Error(`Download failed (v1): ${error.message}`);
+                    }
+                } else {
+                    // Save v2 data
+                    const arrayBuffer = await data.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    localInputPath = path.join(UPLOADS_DIR, path.basename(filename));
+                    fs.writeFileSync(localInputPath, buffer);
+                }
 
                 // Save to local
                 const arrayBuffer = await data.arrayBuffer();

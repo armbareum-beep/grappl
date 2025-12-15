@@ -31,7 +31,7 @@ export const videoProcessingApi = {
         // Dynamic import Supabase credentials
         const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
         const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        const BUCKET_NAME = 'raw_videos';
+        const BUCKET_NAME = 'raw_videos_v2';
 
         // Dynamic import tus-js-client
         const tus = await import('tus-js-client');
