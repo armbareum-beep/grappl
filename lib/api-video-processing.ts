@@ -39,7 +39,7 @@ export const videoProcessingApi = {
         return new Promise((resolve, reject) => {
             const upload = new tus.Upload(file, {
                 endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
-                retryDelays: [0, 3000, 5000, 10000, 20000],
+                retryDelays: [0, 1000, 3000, 5000, 10000, 20000, 60000], // More aggressive retries
                 headers: {
                     authorization: accessToken ? `Bearer ${accessToken}` : `Bearer ${SUPABASE_KEY}`,
                     'x-upsert': 'true', // Optional
@@ -52,7 +52,7 @@ export const videoProcessingApi = {
                     contentType: file.type,
                     cacheControl: '3600',
                 },
-                chunkSize: 6 * 1024 * 1024, // Reverted to 6MB (Safe standard limit)
+                chunkSize: 3 * 1024 * 1024, // Reduced to 3MB for maximum stability on mobile
                 onError: (error) => {
                     console.error('TUS upload failed:', error);
                     reject(error);
