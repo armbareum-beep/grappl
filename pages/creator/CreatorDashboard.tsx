@@ -177,9 +177,29 @@ export const CreatorDashboard: React.FC = () => {
                                     <h2 className="text-2xl font-bold text-white">내 강좌</h2>
                                     <p className="text-slate-400 text-sm mt-1">학생들에게 판매할 강좌를 관리하세요</p>
                                 </div>
-                                <Link to="/creator/courses/new">
-                                    <Button>새 강좌 만들기</Button>
-                                </Link>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await fetch('https://grapplay-backend.onrender.com/version');
+                                                if (res.ok) {
+                                                    const data = await res.json();
+                                                    alert(`서버 연결 성공!\n버전: ${data.version}\n시간: ${data.timestamp}\n(정상 작동 중입니다)`);
+                                                } else {
+                                                    alert('서버 연결 실패 (HTTP Error)');
+                                                }
+                                            } catch (e) {
+                                                alert('서버 연결 실패 (Network Error)\n' + e);
+                                            }
+                                        }}
+                                    >
+                                        📡 서버 상태 확인
+                                    </Button>
+                                    <Link to="/creator/courses/new">
+                                        <Button>새 강좌 만들기</Button>
+                                    </Link>
+                                </div>
                             </div>
 
                             {courses.length === 0 ? (

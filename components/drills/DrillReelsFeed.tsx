@@ -354,6 +354,36 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         ? (currentDrill.videoUrl || '/placeholder-drill.mp4')
         : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || '/placeholder-drill-desc.mp4');
 
+    // Detect Processing State
+    const isProcessing = !useVimeo && (!currentDrill.videoUrl || currentDrill.videoUrl.includes('placeholder'));
+
+    if (isProcessing) {
+        return (
+            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                <h2 className="text-xl font-bold text-white mb-2">영상 처리 중입니다...</h2>
+                <p className="text-slate-400 text-center max-w-xs mb-8">
+                    서버에서 고화질로 변환하고 있습니다.<br />
+                    잠시만 기다려주세요. (약 1~2분 소요)
+                </p>
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+                    >
+                        새로고침
+                    </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition"
+                    >
+                        홈으로
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             ref={containerRef}

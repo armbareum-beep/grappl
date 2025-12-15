@@ -319,6 +319,36 @@ export const DrillDetail: React.FC = () => {
     const useVimeo = !!vimeoId && owns;
     const videoSrc = useVimeo ? `https://player.vimeo.com/video/${vimeoId}` : fallbackUrl;
 
+    // Detect Processing State (Backend is still working)
+    const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
+
+    if (isProcessing) {
+        return (
+            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                <h2 className="text-xl font-bold text-white mb-2">영상 처리 중입니다...</h2>
+                <p className="text-slate-400 text-center max-w-xs mb-8">
+                    서버에서 고화질로 변환하고 있습니다.<br />
+                    잠시만 기다려주세요. (약 1~2분 소요)
+                </p>
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+                    >
+                        새로고침
+                    </button>
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition"
+                    >
+                        대시보드로
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="relative h-screen w-screen bg-black overflow-hidden select-none">
             {/* Progress Bar */}
@@ -439,6 +469,16 @@ export const DrillDetail: React.FC = () => {
 
             {/* Bottom Info Overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                {/* DEBUG OVERLAY - REMOVE BEFORE PRODUCTION */}
+                <div className="absolute bottom-20 right-4 bg-red-500/80 text-white text-[10px] p-2 rounded pointer-events-auto z-50 max-w-[200px] break-words">
+                    <p>DEBUG INFO:</p>
+                    <p>Owns: {String(owns)}</p>
+                    <p>VimeoID: {vimeoId || 'null'}</p>
+                    <p>VideoUrl: {drill.videoUrl || 'null'}</p>
+                    <p>IsProc: {String(isProcessing)}</p>
+                    <p>UseVimeo: {String(useVimeo)}</p>
+                </div>
+
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                     {/* Left: Info */}
                     <div className="flex-1 pr-4">
