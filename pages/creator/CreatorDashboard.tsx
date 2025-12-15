@@ -190,7 +190,7 @@ export const CreatorDashboard: React.FC = () => {
                                                     alert('서버 연결 실패 (HTTP Error)');
                                                 }
                                             } catch (e) {
-                                                alert('서버 연결 실패 (Network Error)\n' + e);
+                                                alert(`서버 연결 실패 (Network Error)\nTarget: https://grappl-video-backend.onrender.com\nError: ${e}`);
                                             }
                                         }}
                                     >
