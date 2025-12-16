@@ -50,7 +50,7 @@ export const DrillDetail: React.FC = () => {
             // If unmounted, stop
             if (!isMounted) return;
 
-            await fetchDrill();
+            await fetchDrill(true);
 
             // Schedule next poll only after current one finishes
             if (isMounted) {
@@ -74,16 +74,18 @@ export const DrillDetail: React.FC = () => {
 
     // ... (existing state)
 
-    const fetchDrill = async () => {
+    const fetchDrill = async (suppressErrorUI = false) => {
         if (!id) return;
-        setError(null);
+        if (!suppressErrorUI) setError(null);
 
         try {
             let result: any = await getDrillById(id);
 
             if (result && result.error) {
                 console.error('Fetch error:', result.error);
-                setError(typeof result.error === 'string' ? result.error : (result.error.message || 'Failed to load drill'));
+                if (!suppressErrorUI) {
+                    setError(typeof result.error === 'string' ? result.error : (result.error.message || 'Failed to load drill'));
+                }
                 return;
             }
 
