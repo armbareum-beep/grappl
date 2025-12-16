@@ -3460,17 +3460,22 @@ export async function getDrillById(id: string) {
                 .from('drills')
                 .select('*')
                 .eq('id', id)
-                .single(),
+                .limit(1),
             20000
         );
 
         if (error) {
             console.error('Error fetching drill:', error);
-            // Return error object to differentiate from not found
+            // Return error object and exit
             return { error };
         }
 
-        return transformDrill(data);
+        // Handle empty result manually
+        if (!data || data.length === 0) {
+            return { error: { message: 'Drill not found', code: '404' } };
+        }
+
+        return transformDrill(data[0]);
     } catch (e: any) {
         console.error('getDrillById failed/timeout:', e);
         return { error: e.message || 'Timeout/Network Error' };
