@@ -303,23 +303,17 @@ app.post('/process', async (req, res) => {
 
                 logToDB(processId, 'info', `Downloading from ${bucketName}`, { fileKey });
 
-                const { data, error } = await supabase.storage
+                // Use public URL since bucket is now public
+                const { data: publicUrlData } = supabase.storage
                     .from(bucketName)
-                    .createSignedUrl(fileKey, 60);
+                    .getPublicUrl(fileKey);
 
-                if (error) {
-                    // Fallback logic check
-                    if (bucketName === 'raw_videos_v2') {
-                        logToDB(processId, 'warn', 'V2 Download failed, trying fallback');
-                        const fallback = await supabase.storage.from('raw_videos').createSignedUrl(fileKey, 60);
-                        if (fallback.error) throw new Error(`Download URL failed: ${error.message}`);
-                        await downloadFile(fallback.data.signedUrl, localInputPath);
-                    } else {
-                        throw new Error(`Download URL failed: ${error.message}`);
-                    }
-                } else {
-                    await downloadFile(data.signedUrl, localInputPath);
+                if (!publicUrlData || !publicUrlData.publicUrl) {
+                    throw new Error(`Failed to get public URL for ${fileKey}`);
                 }
+
+                logToDB(processId, 'info', 'Using public URL', { url: publicUrlData.publicUrl });
+                await downloadFile(publicUrlData.publicUrl, localInputPath);
                 logToDB(processId, 'info', 'Download Complete');
             } else {
                 logToDB(processId, 'info', 'Using Local File');
