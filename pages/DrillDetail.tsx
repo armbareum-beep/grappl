@@ -380,8 +380,8 @@ export const DrillDetail: React.FC = () => {
     const isActionVideo = currentVideoType === 'action';
 
     // Helper to extract Vimeo ID
-    const extractVimeoId = (url?: string) => {
-        if (!url) return undefined;
+    const extractVimeoId = (url?: string | null) => {
+        if (!url || typeof url !== 'string') return undefined;
         // If it's just numbers, assume it's an ID
         if (/^\d+$/.test(url)) return url;
         // Try to extract from URL
