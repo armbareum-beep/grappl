@@ -140,10 +140,6 @@ export const videoProcessingApi = {
     ): Promise<ProcessResponse> => {
         const requestId = crypto.randomUUID();
 
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for initial response
-
         try {
             const response = await fetch(`${BACKEND_URL}/process`, {
                 method: 'POST',
@@ -159,11 +155,8 @@ export const videoProcessingApi = {
                     description,
                     drillId,
                     videoType
-                }),
-                signal: controller.signal
+                })
             });
-
-            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
@@ -177,14 +170,6 @@ export const videoProcessingApi = {
             return result;
 
         } catch (err: any) {
-            clearTimeout(timeoutId);
-
-            if (err.name === 'AbortError') {
-                const timeoutError = 'Backend did not respond in time. Processing may still be running in background.';
-                console.error(timeoutError, { requestId, drillId });
-                throw new Error(timeoutError);
-            }
-
             console.error('Failed to start video processing:', err.message, { requestId, drillId });
             throw err;
         }
