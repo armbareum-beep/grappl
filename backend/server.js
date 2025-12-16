@@ -368,64 +368,153 @@ app.post('/process', async (req, res) => {
             });
             logToDB(processId, 'info', 'Concatenation Complete', { finalPath });
 
-            // Step 4: Upload to Vimeo
+
+            // Step 4: Upload to Vimeo with Timeout and Retry
             logToDB(processId, 'info', 'Step 4: Uploading to Vimeo');
 
-            const Vimeo = require('vimeo').Vimeo;
-            const client = new Vimeo(
-                process.env.VITE_VIMEO_CLIENT_ID,
-                process.env.VITE_VIMEO_CLIENT_SECRET,
-                process.env.VITE_VIMEO_ACCESS_TOKEN
-            );
+            // Validate Vimeo credentials
+            const vimeoClientId = process.env.VITE_VIMEO_CLIENT_ID;
+            const vimeoSecret = process.env.VITE_VIMEO_CLIENT_SECRET;
+            const vimeoToken = process.env.VITE_VIMEO_ACCESS_TOKEN;
 
-            client.upload(
-                finalPath,
-                {
-                    'name': title || 'Edited Video',
-                    'description': description || 'Edited with Grappl Editor',
-                    'privacy': { 'view': 'anybody', 'embed': 'public' }
-                },
-                function (uri) {
-                    logToDB(processId, 'info', 'Vimeo Upload Success', { uri });
+            if (!vimeoClientId || !vimeoSecret || !vimeoToken) {
+                throw new Error('Missing Vimeo API credentials. Check environment variables.');
+            }
+
+            logToDB(processId, 'info', 'Vimeo credentials validated');
+
+            const Vimeo = require('vimeo').Vimeo;
+            const client = new Vimeo(vimeoClientId, vimeoSecret, vimeoToken);
+
+            // Helper function to upload to Vimeo with timeout
+            const uploadToVimeoWithTimeout = (filePath, metadata, timeoutMs = 600000) => {
+                return new Promise((resolve, reject) => {
+                    let uploadCompleted = false;
+                    let lastProgress = 0;
+
+                    // Set timeout (default 10 minutes)
+                    const timeoutId = setTimeout(() => {
+                        if (!uploadCompleted) {
+                            const errorMsg = `Vimeo upload timed out after ${timeoutMs / 1000}s (last progress: ${lastProgress}%)`;
+                            logToDB(processId, 'error', errorMsg);
+                            reject(new Error(errorMsg));
+                        }
+                    }, timeoutMs);
+
+                    client.upload(
+                        filePath,
+                        metadata,
+                        function (uri) {
+                            uploadCompleted = true;
+                            clearTimeout(timeoutId);
+                            resolve(uri);
+                        },
+                        function (bytes_uploaded, bytes_total) {
+                            const percentage = (bytes_uploaded / bytes_total * 100).toFixed(2);
+                            lastProgress = parseFloat(percentage);
+
+                            // Log every 20% to track progress
+                            if (Math.floor(percentage) % 20 === 0 && Math.floor(percentage) !== 0) {
+                                logToDB(processId, 'info', `Vimeo upload progress: ${percentage}%`, {
+                                    bytes_uploaded,
+                                    bytes_total
+                                });
+                            }
+                        },
+                        function (error) {
+                            uploadCompleted = true;
+                            clearTimeout(timeoutId);
+                            reject(error);
+                        }
+                    );
+                });
+            };
+
+            // Retry logic for Vimeo upload
+            let uploadSuccess = false;
+            let lastError = null;
+            const maxRetries = 2;
+
+            for (let attempt = 1; attempt <= maxRetries && !uploadSuccess; attempt++) {
+                try {
+                    logToDB(processId, 'info', `Vimeo upload attempt ${attempt}/${maxRetries}`, {
+                        fileSize: fs.statSync(finalPath).size,
+                        title: title
+                    });
+
+                    const uri = await uploadToVimeoWithTimeout(
+                        finalPath,
+                        {
+                            'name': title || 'Edited Video',
+                            'description': description || 'Edited with Grappl Editor',
+                            'privacy': { 'view': 'anybody', 'embed': 'public' }
+                        },
+                        600000 // 10 minute timeout
+                    );
+
+                    // Success!
+                    uploadSuccess = true;
+                    logToDB(processId, 'info', 'Vimeo Upload Success', { uri, attempt });
+
                     const vimeoId = uri.split('/').pop();
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
 
-                    supabase.from('drills')
+                    const { error: updateError } = await supabase.from('drills')
                         .update({
                             [columnToUpdate]: vimeoId,
                             ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
                         })
-                        .eq('id', drillId)
-                        .then(({ error }) => {
-                            if (error) {
-                                console.error('Supabase Update Error:', error);
-                                logToDB(processId, 'error', 'DB Update Failed', { error });
-                            } else {
-                                console.log(`Supabase updated for drill ${drillId}`);
-                                logToDB(processId, 'info', 'Job Fully Complete');
-                            }
-                        });
-                },
-                function (bytes_uploaded, bytes_total) {
-                    const percentage = (bytes_uploaded / bytes_total * 100).toFixed(2);
-                    // Only log every 20% to avoid DB spam
-                    if (Math.floor(percentage) % 20 === 0) {
-                        // console.log(`Upload progress: ${percentage}%`); 
-                    }
-                },
-                function (error) {
-                    logToDB(processId, 'error', 'Vimeo Upload Failed', { error: error.message });
-                    // Handle Error in DB...
-                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                    supabase.from('drills')
-                        .update({
-                            [columnToUpdate]: 'error',
-                            ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' } : {})
-                        })
                         .eq('id', drillId);
+
+                    if (updateError) {
+                        console.error('Supabase Update Error:', updateError);
+                        logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                    } else {
+                        console.log(`Supabase updated for drill ${drillId}`);
+                        logToDB(processId, 'info', 'Job Fully Complete', {
+                            drillId,
+                            vimeoId,
+                            videoType
+                        });
+                    }
+
+                } catch (err) {
+                    lastError = err;
+                    logToDB(processId, 'warn', `Vimeo upload attempt ${attempt} failed`, {
+                        error: err.message,
+                        willRetry: attempt < maxRetries
+                    });
+
+                    if (attempt < maxRetries) {
+                        // Wait before retry (exponential backoff)
+                        const waitTime = Math.min(5000 * Math.pow(2, attempt - 1), 30000);
+                        logToDB(processId, 'info', `Waiting ${waitTime}ms before retry`);
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                    }
                 }
-            );
+            }
+
+            // If all retries failed
+            if (!uploadSuccess) {
+                logToDB(processId, 'error', 'Vimeo Upload Failed After All Retries', {
+                    error: lastError?.message,
+                    attempts: maxRetries
+                });
+
+                const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                await supabase.from('drills')
+                    .update({
+                        [columnToUpdate]: 'error',
+                        ...(videoType === 'action' ? {
+                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
+                        } : {})
+                    })
+                    .eq('id', drillId);
+
+                throw lastError || new Error('Vimeo upload failed');
+            }
+
 
         } catch (error) {
             console.error('Processing failed:', error);

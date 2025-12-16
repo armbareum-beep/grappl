@@ -138,28 +138,56 @@ export const videoProcessingApi = {
         drillId: string,
         videoType: 'action' | 'desc'
     ): Promise<ProcessResponse> => {
-        const response = await fetch(`${BACKEND_URL}/process`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                videoId,
-                filename,
-                cuts,
-                title,
-                description,
-                drillId,
-                videoType
-            }),
-        });
+        const requestId = crypto.randomUUID();
 
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error || `Processing failed with status ${response.status}`);
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for initial response
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/process`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-request-id': requestId
+                },
+                body: JSON.stringify({
+                    videoId,
+                    filename,
+                    cuts,
+                    title,
+                    description,
+                    drillId,
+                    videoType
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const errorMessage = errData.error || `Processing failed with status ${response.status}`;
+                console.error('Backend processing error:', errorMessage, { requestId, drillId, videoType });
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            console.log('Processing started successfully:', { requestId, processId: result.processId, drillId });
+            return result;
+
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+
+            if (err.name === 'AbortError') {
+                const timeoutError = 'Backend did not respond in time. Processing may still be running in background.';
+                console.error(timeoutError, { requestId, drillId });
+                throw new Error(timeoutError);
+            }
+
+            console.error('Failed to start video processing:', err.message, { requestId, drillId });
+            throw err;
         }
-
-        return response.json();
     },
 
     getPreviewUrl: (path: string) => {
