@@ -48,7 +48,7 @@ export const DrillDetail: React.FC = () => {
             console.log('Processing detected, polling status...');
             intervalId = setInterval(() => {
                 fetchDrill();
-            }, 5000);
+            }, 10000); // Increased to 10s to prevent network flooding
         }
 
         return () => {
@@ -91,7 +91,7 @@ export const DrillDetail: React.FC = () => {
                     setOwns(true);
                 } else {
                     // Only increment views if from database
-                    await incrementDrillViews(id);
+                    // await incrementDrillViews(id); // Temporarily disabled to prevent DB locks during high load
 
                     // Check ownership for database drills
                     if (contextUser && drillData.creatorId === contextUser.id) {
