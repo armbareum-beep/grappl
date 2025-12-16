@@ -232,6 +232,24 @@ app.get('/status/:jobId', (req, res) => {
 // Serve static files from temp/processed for preview playback
 app.use('/temp/processed', express.static(PROCESSED_DIR));
 
+// Helper: Log to Database
+async function logToDB(processId, level, message, details = {}) {
+    if (!supabase) return;
+    try {
+        // Fire and forget - don't await to avoid slowing down processing
+        supabase.from('system_logs').insert({
+            process_id: processId,
+            level,
+            message,
+            details
+        }).then(({ error }) => {
+            if (error) console.error('Log DB Error:', error);
+        });
+    } catch (e) {
+        console.error('Log DB Exception:', e);
+    }
+}
+
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
     const { videoId, filename, cuts, title, description, drillId, videoType } = req.body;
@@ -240,17 +258,9 @@ app.post('/process', async (req, res) => {
         return res.status(400).json({ error: 'Invalid input data' });
     }
 
-    const inputPath = path.join(UPLOADS_DIR, filename);
-    // Explicitly check for both bucket names to satisfy old and new code
-    const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/') || filename.includes('raw_videos');
-
-    // DISABLE EARLY CHECK: We assume if it's not local, we try to download it remotely.
-    // if (!isRemote && !fs.existsSync(inputPath)) {
-    //    return res.status(404).json({ error: 'Original file not found' });
-    // }
-
-    // Return immediate response (Fire and Forget)
     const processId = uuidv4();
+
+    // Immediate response
     res.status(202).json({
         success: true,
         message: 'Video processing started in background',
@@ -258,12 +268,13 @@ app.post('/process', async (req, res) => {
     });
 
     console.log(`Starting background processing for ${videoId} (Process ID: ${processId})`);
+    logToDB(processId, 'info', 'Job Received', { videoId, filename, cutsCount: cuts.length, drillId });
 
-    // Run in background (do not await)
+    // Run in background
     (async () => {
         if (!supabase) {
-            console.error('CRITICAL: Supabase client is not initialized. Cannot process video.');
-            return; // Exit to prevent crash
+            console.error('CRITICAL: Supabase client is not initialized');
+            return;
         }
 
         const processDir = path.join(TEMP_DIR, 'processing', processId);
@@ -272,15 +283,14 @@ app.post('/process', async (req, res) => {
         }
 
         try {
-            // Step 0: Download from Supabase Storage (if needed)
+            logToDB(processId, 'info', 'Step 1: Downloading File');
+
+            // Step 0: Download from Supabase Storage
             let localInputPath = path.join(UPLOADS_DIR, filename);
+            const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/') || filename.includes('raw_videos');
 
-            // FORCE DOWNLOAD if remote OR if file is missing locally
             if (isRemote || !fs.existsSync(localInputPath)) {
-                console.log(`Downloading from Supabase Storage: ${filename}`);
-
-                // Determine bucket and file key
-                let bucketName = 'raw_videos_v2'; // DEFAULT to V2 for safety
+                let bucketName = 'raw_videos_v2';
                 let fileKey = filename;
 
                 if (filename.includes('raw_videos_v2/')) {
@@ -290,43 +300,36 @@ app.post('/process', async (req, res) => {
                     bucketName = 'raw_videos';
                     fileKey = filename.replace('raw_videos/', '');
                 }
-                // Else: It's a naked filename, we use the default 'raw_videos_v2' set above
 
-                console.log(`Attempting download from bucket: ${bucketName}, key: ${fileKey}`);
+                logToDB(processId, 'info', `Downloading from ${bucketName}`, { fileKey });
 
-                console.log(`Attempting download from bucket: ${bucketName}, key: ${fileKey}`);
-
-                // Use stream to avoid OOM on large files
                 const { data, error } = await supabase.storage
                     .from(bucketName)
-                    .createSignedUrl(fileKey, 60); // Get a URL instead of downloading buffer directly
+                    .createSignedUrl(fileKey, 60);
 
                 if (error) {
-                    // Fallback to v1 logic if needed or throw
+                    // Fallback logic check
                     if (bucketName === 'raw_videos_v2') {
-                        console.warn('V2 Download failed, trying V1 fallback...');
-                        // Fallback logic logic simplified for stream: try getting signed url from other bucket
+                        logToDB(processId, 'warn', 'V2 Download failed, trying fallback');
                         const fallback = await supabase.storage.from('raw_videos').createSignedUrl(fileKey, 60);
                         if (fallback.error) throw new Error(`Download URL failed: ${error.message}`);
-
-                        // Download from URL to File Stream
                         await downloadFile(fallback.data.signedUrl, localInputPath);
                     } else {
                         throw new Error(`Download URL failed: ${error.message}`);
                     }
                 } else {
-                    // Download from URL to File Stream
                     await downloadFile(data.signedUrl, localInputPath);
                 }
-                console.log(`Downloaded to ${localInputPath}`);
-
+                logToDB(processId, 'info', 'Download Complete');
             } else {
-                console.log(`Local file found: ${localInputPath}`);
+                logToDB(processId, 'info', 'Using Local File');
             }
 
             // Step 1: Create segments
+            logToDB(processId, 'info', 'Step 2: Cutting Video', { cuts });
             const segmentPaths = [];
-            const inputPath = localInputPath; // Use the downloaded path
+            const inputPath = localInputPath;
+
             for (let i = 0; i < cuts.length; i++) {
                 const cut = cuts[i];
                 const segmentPath = path.join(processDir, `part_${i}.mp4`);
@@ -343,6 +346,7 @@ app.post('/process', async (req, res) => {
                 });
                 segmentPaths.push(segmentPath);
             }
+            logToDB(processId, 'info', 'Cuts Created');
 
             // Step 2: Create concat list
             const concatListPath = path.join(processDir, 'concat_list.txt');
@@ -350,6 +354,7 @@ app.post('/process', async (req, res) => {
             fs.writeFileSync(concatListPath, concatFileContent);
 
             // Step 3: Concat segments
+            logToDB(processId, 'info', 'Step 3: Concatenating');
             const finalPath = path.join(processDir, 'final.mp4');
             await new Promise((resolve, reject) => {
                 ffmpeg()
@@ -361,10 +366,11 @@ app.post('/process', async (req, res) => {
                     .on('error', reject)
                     .run();
             });
-
-            console.log(`Video processing complete: ${finalPath}`);
+            logToDB(processId, 'info', 'Concatenation Complete', { finalPath });
 
             // Step 4: Upload to Vimeo
+            logToDB(processId, 'info', 'Step 4: Uploading to Vimeo');
+
             const Vimeo = require('vimeo').Vimeo;
             const client = new Vimeo(
                 process.env.VITE_VIMEO_CLIENT_ID,
@@ -372,23 +378,16 @@ app.post('/process', async (req, res) => {
                 process.env.VITE_VIMEO_ACCESS_TOKEN
             );
 
-            console.log('Uploading to Vimeo...');
-
             client.upload(
                 finalPath,
                 {
                     'name': title || 'Edited Video',
                     'description': description || 'Edited with Grappl Editor',
-                    'privacy': {
-                        'view': 'anybody',
-                        'embed': 'public'
-                    }
+                    'privacy': { 'view': 'anybody', 'embed': 'public' }
                 },
                 function (uri) {
-                    console.log('Vimeo Upload URI:', uri);
+                    logToDB(processId, 'info', 'Vimeo Upload Success', { uri });
                     const vimeoId = uri.split('/').pop();
-
-                    // Update Supabase
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
 
@@ -399,41 +398,47 @@ app.post('/process', async (req, res) => {
                         })
                         .eq('id', drillId)
                         .then(({ error }) => {
-                            if (error) console.error('Supabase Update Error:', error);
-                            else console.log(`Supabase updated for drill ${drillId} (${columnToUpdate})`);
+                            if (error) {
+                                console.error('Supabase Update Error:', error);
+                                logToDB(processId, 'error', 'DB Update Failed', { error });
+                            } else {
+                                console.log(`Supabase updated for drill ${drillId}`);
+                                logToDB(processId, 'info', 'Job Fully Complete');
+                            }
                         });
                 },
                 function (bytes_uploaded, bytes_total) {
                     const percentage = (bytes_uploaded / bytes_total * 100).toFixed(2);
-                    console.log(`Upload progress: ${percentage}%`);
+                    // Only log every 20% to avoid DB spam
+                    if (Math.floor(percentage) % 20 === 0) {
+                        // console.log(`Upload progress: ${percentage}%`); 
+                    }
                 },
                 function (error) {
-                    console.error('Vimeo Upload Error:', error);
-                    // Update Supabase with Error
+                    logToDB(processId, 'error', 'Vimeo Upload Failed', { error: error.message });
+                    // Handle Error in DB...
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     supabase.from('drills')
                         .update({
-                            [columnToUpdate]: 'error', // Or keep empty but change thumbnail
+                            [columnToUpdate]: 'error',
                             ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' } : {})
                         })
-                        .eq('id', drillId)
-                        .then(() => console.log('Marked as error in DB'));
+                        .eq('id', drillId);
                 }
             );
 
         } catch (error) {
             console.error('Processing failed:', error);
-            // Catch-all Error Update
+            logToDB(processId, 'error', 'Processing Crash', { message: error.message, stack: error.stack });
+
             const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
             try {
-                // WRITE ERROR TO DB SO WE CAN SEE IT
                 await supabase.from('drills')
                     .update({
-                        [columnToUpdate]: `ERROR: ${error.message}`.substring(0, 100), // Store error in vimeo_url column for debug
+                        [columnToUpdate]: `ERROR: ${error.message}`.substring(0, 100),
                         ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error' } : {})
                     })
                     .eq('id', drillId);
-                console.log('Marked as critical error in DB');
             } catch (dbErr) {
                 console.error('Failed to update DB with error:', dbErr);
             }
