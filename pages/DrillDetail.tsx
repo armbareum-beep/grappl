@@ -108,6 +108,12 @@ export const DrillDetail: React.FC = () => {
                     // await incrementDrillViews(id); // Temporarily disabled to prevent DB locks during high load
 
                     // Check ownership for database drills
+                    console.log('[DEBUG] Checking ownership:', {
+                        drillCreator: drillData.creatorId,
+                        userId: contextUser?.id,
+                        match: contextUser && drillData.creatorId === contextUser.id
+                    });
+
                     if (contextUser && drillData.creatorId === contextUser.id) {
                         setOwns(true);
                     }
