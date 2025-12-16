@@ -82,9 +82,9 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.3.4', // Bump for Error Logging
+        version: '1.4.0', // Vimeo Upload Timeout Fix + Retry Logic
         deployedAt: new Date().toISOString(),
-        note: 'Diagnostic: Checking Service Key',
+        note: 'Fixed: Vimeo upload timeout, retry logic, detailed logging',
         supabaseConnected: !!supabase,
         isServiceRole: !!process.env.SUPABASE_SERVICE_KEY,
         envCheck: {
