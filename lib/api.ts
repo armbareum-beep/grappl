@@ -123,38 +123,33 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 
 
 // Courses API
+// Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
-    const fetchPromise = supabase
-        .from('courses')
-        .select(`
-      *,
-      creator:creators(name),
-      lessons:lessons(count)
-    `)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-    let data, error;
     try {
-        const result = await fetchPromise;
-        data = result.data;
-        error = result.error;
+        const { data, error } = await withTimeout(
+            supabase
+                .from('courses')
+                .select(`
+                    *,
+                    creator:creators(name),
+                    lessons:lessons(count)
+                `)
+                .eq('published', true)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1),
+            5000
+        );
+
+        if (error) throw error;
+
+        return (data || []).map((d: any) => ({
+            ...transformCourse(d),
+            lessonCount: d.lessons?.[0]?.count || 0
+        }));
     } catch (e) {
-        console.error('getCourses failed:', e);
-        throw e;
+        console.error('getCourses timeout/fail:', e);
+        return [];
     }
-
-    if (error) {
-        console.error('Error fetching courses:', error);
-        throw error;
-    }
-
-    return (data || []).map(course => {
-        return {
-            ...transformCourse(course),
-            lessonCount: course.lessons?.[0]?.count || 0,
-        };
-    });
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {
@@ -1207,11 +1202,11 @@ export async function calculateCreatorEarnings(creatorId: string) {
     // Feedback also uses the direct_share (80%)
     const { data: feedbackSales } = await supabase
         .from('feedback_requests')
-        .select('price_paid')
+        .select('*')
         .eq('instructor_id', creatorId)
         .eq('status', 'completed');
 
-    const totalFeedbackSales = feedbackSales?.reduce((sum: number, req: { price_paid: number }) => sum + (req.price_paid || 0), 0) || 0;
+    const totalFeedbackSales = feedbackSales?.reduce((sum: number, req: { price: number }) => sum + (req.price || 0), 0) || 0;
     const feedbackRevenue = totalFeedbackSales * directShare;
 
     // 3. Calculate Subscription Revenue (Watch Time Based)
@@ -3457,24 +3452,28 @@ export async function getDrillById(id: string) {
     if (mockDrill) return mockDrill;
 
     try {
+        console.log(`Fetching drill ${id}...`);
+
+        // Timeout increased to 20s to rule out slow network vs hang
         const { data, error } = await withTimeout(
             supabase
                 .from('drills')
                 .select('*')
                 .eq('id', id)
                 .single(),
-            10000
+            20000
         );
 
         if (error) {
             console.error('Error fetching drill:', error);
-            return null;
+            // Return error object to differentiate from not found
+            return { error };
         }
 
         return transformDrill(data);
-    } catch (e) {
+    } catch (e: any) {
         console.error('getDrillById failed/timeout:', e);
-        return null;
+        return { error: e.message || 'Timeout/Network Error' };
     }
 }
 
@@ -4207,9 +4206,9 @@ export async function toggleDrillLike(userId: string, drillId: string): Promise<
             .select('id')
             .eq('user_id', userId)
             .eq('drill_id', drillId)
-            .single();
+            .limit(1);
 
-        if (existing) {
+        if (existing && existing.length > 0) {
             // Unlike
             const { error } = await supabase
                 .from('user_drill_likes')
@@ -4236,14 +4235,15 @@ export async function toggleDrillLike(userId: string, drillId: string): Promise<
  * Check if user has liked a drill
  */
 export async function checkDrillLiked(userId: string, drillId: string): Promise<boolean> {
-    const { data } = await supabase
+    const { data, error } = await supabase
         .from('user_drill_likes')
         .select('id')
         .eq('user_id', userId)
         .eq('drill_id', drillId)
-        .single();
+        .limit(1);
 
-    return !!data;
+    if (error && error.code !== 'PGRST116') console.error('Error checking drill liked:', error);
+    return !!(data && data.length > 0);
 }
 
 /**
@@ -4269,9 +4269,9 @@ export async function toggleDrillSave(userId: string, drillId: string): Promise<
             .select('id')
             .eq('user_id', userId)
             .eq('drill_id', drillId)
-            .single();
+            .limit(1);
 
-        if (existing) {
+        if (existing && existing.length > 0) {
             // Unsave
             const { error } = await supabase
                 .from('user_saved_drills')
@@ -4303,9 +4303,9 @@ export async function checkDrillSaved(userId: string, drillId: string): Promise<
         .select('id')
         .eq('user_id', userId)
         .eq('drill_id', drillId)
-        .single();
+        .limit(1);
 
-    return !!data;
+    return !!(data && data.length > 0);
 }
 
 /**
@@ -4324,8 +4324,8 @@ export async function getUserSavedDrills(userId: string): Promise<Drill[]> {
     const drills: Drill[] = [];
 
     for (const drillId of drillIds) {
-        const drill = await getDrillById(drillId);
-        if (drill) drills.push(drill);
+        const result: any = await getDrillById(drillId);
+        if (result && !result.error) drills.push(result);
     }
 
     return drills;
@@ -4347,8 +4347,8 @@ export async function getUserLikedDrills(userId: string): Promise<Drill[]> {
     const drills: Drill[] = [];
 
     for (const drillId of drillIds) {
-        const drill = await getDrillById(drillId);
-        if (drill) drills.push(drill);
+        const result: any = await getDrillById(drillId);
+        if (result && !result.error) drills.push(result);
     }
 
     return drills;

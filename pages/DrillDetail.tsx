@@ -56,13 +56,27 @@ export const DrillDetail: React.FC = () => {
         };
     }, [drill, id]);
 
+    const [error, setError] = useState<string | null>(null);
+
+    // ... (existing state)
+
     const fetchDrill = async () => {
         if (!id) return;
+        setError(null);
+
         try {
-            let drillData = await getDrillById(id);
+            let result: any = await getDrillById(id);
+
+            if (result && result.error) {
+                console.error('Fetch error:', result.error);
+                setError(typeof result.error === 'string' ? result.error : (result.error.message || 'Failed to load drill'));
+                return;
+            }
+
+            let drillData = result;
             let isFromLocalStorage = false;
 
-            // If not found in database, check localStorage
+            // If not found in database (null result), check localStorage
             if (!drillData) {
                 const savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
                 drillData = savedDrills.find((d: Drill) => d.id === id);
@@ -88,9 +102,13 @@ export const DrillDetail: React.FC = () => {
                 // Check if saved
                 const savedDrills = JSON.parse(localStorage.getItem('saved_drills') || '[]');
                 setSaved(savedDrills.some((d: Drill) => d.id === id));
+            } else {
+                // Really not found
+                setError('Drill not found');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching drill:', error);
+            setError(error.message || 'Unexpected error');
         } finally {
             setLoading(false);
         }
@@ -306,6 +324,32 @@ export const DrillDetail: React.FC = () => {
 
     if (loading) {
         return <LoadingScreen message="드릴 정보 불러오는 중..." />;
+    }
+
+    if (error) {
+        return (
+            <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                    <span className="text-3xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">오류가 발생했습니다</h2>
+                <p className="text-slate-400 text-center mb-8 max-w-xs">{error}</p>
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => { setLoading(true); fetchDrill(); }}
+                        className="px-6 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition"
+                    >
+                        다시 시도
+                    </button>
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+                    >
+                        나가기
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (!drill) return <div className="text-white text-center pt-20">Drill not found</div>;

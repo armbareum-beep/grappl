@@ -27,27 +27,58 @@ export const CreatorDashboard: React.FC = () => {
     useEffect(() => {
         async function fetchData() {
             if (!user) return;
+            setLoading(true);
+
+            // Fetch data in parallel but handle errors individually to prevent waterfall failure
+            const fetchCourses = getCreatorCourses(user.id).catch(err => {
+                console.error('Failed to fetch courses:', err);
+                return [];
+            });
+            const fetchDrills = getDrills(user.id).catch(err => {
+                console.error('Failed to fetch drills:', err);
+                return { data: [], error: err };
+            });
+            const fetchLessons = getAllCreatorLessons(user.id).catch(err => {
+                console.error('Failed to fetch lessons:', err);
+                return [];
+            });
+            const fetchRoutines = getUserCreatedRoutines(user.id).catch(err => {
+                console.error('Failed to fetch routines:', err);
+                return { data: [], error: err };
+            });
+            const fetchEarnings = calculateCreatorEarnings(user.id).catch(err => {
+                console.error('Failed to fetch earnings:', err);
+                return { error: err };
+            });
 
             try {
                 const [coursesData, drillsData, lessonsData, routinesData, earningsData] = await Promise.all([
-                    getCreatorCourses(user.id),
-                    getDrills(user.id),
-                    getAllCreatorLessons(user.id),
-                    getUserCreatedRoutines(user.id),
-                    calculateCreatorEarnings(user.id)
+                    fetchCourses,
+                    fetchDrills,
+                    fetchLessons,
+                    fetchRoutines,
+                    fetchEarnings
                 ]);
 
-                console.log('Dashboard Data:', { coursesData, drillsData, lessonsData, routinesData, earningsData });
+                console.log('Dashboard Data Loaded:', {
+                    courses: coursesData?.length,
+                    drills: drillsData?.data?.length,
+                    earnings: earningsData
+                });
 
-                setCourses(coursesData);
-                setDrills(drillsData.data || []);
+                setCourses(coursesData || []);
+                setDrills(drillsData?.data || []);
                 setLessons(lessonsData || []);
-                setRoutines(routinesData.data || []);
-                if ('data' in earningsData) {
+                setRoutines(routinesData?.data || []);
+
+                if (earningsData && 'data' in earningsData) {
                     setEarnings(earningsData.data);
+                } else if (earningsData && !('error' in earningsData)) {
+                    // Handle case where earnings might return data directly or in generic format
+                    setEarnings(earningsData);
                 }
             } catch (error) {
-                console.error('Error fetching creator data:', error);
+                console.error('Critical Error in Dashboard Promise.all:', error);
             } finally {
                 setLoading(false);
             }
