@@ -41,20 +41,34 @@ export const DrillDetail: React.FC = () => {
     }, [id, authLoading]);
 
     // Auto-poll if processing (every 5 seconds)
+    // Recursive polling to prevent request pile-up
     useEffect(() => {
-        let intervalId: NodeJS.Timeout;
+        let isMounted = true;
+        let timeoutId: NodeJS.Timeout;
+
+        const pollDrill = async () => {
+            // If unmounted, stop
+            if (!isMounted) return;
+
+            await fetchDrill();
+
+            // Schedule next poll only after current one finishes
+            if (isMounted) {
+                timeoutId = setTimeout(pollDrill, 5000);
+            }
+        };
 
         if (drill && (!drill.vimeoUrl || drill.vimeoUrl.includes('placeholder'))) {
-            console.log('Processing detected, polling status...');
-            intervalId = setInterval(() => {
-                fetchDrill();
-            }, 10000); // Increased to 10s to prevent network flooding
+            console.log('Processing detected, starting safe polling...');
+            // Start the loop
+            timeoutId = setTimeout(pollDrill, 5000);
         }
 
         return () => {
-            if (intervalId) clearInterval(intervalId);
+            isMounted = false;
+            if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [drill, id]);
+    }, [drill?.vimeoUrl, id]); // Re-evaluate only when vimeoUrl changes
 
     const [error, setError] = useState<string | null>(null);
 
