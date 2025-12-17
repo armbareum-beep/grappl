@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Difficulty } from '../../types';
-import { createLesson } from '../../lib/api';
+import { createLesson } from '../../lib/api-lessons';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, FileVideo, Scissors } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
@@ -91,7 +91,7 @@ export const UploadLesson: React.FC = () => {
             const filename = `${videoId}.${ext}`;
 
             const { data: lesson, error: dbError } = await createLesson({
-                courseId: '', // Will be assigned when added to a course
+                courseId: null, // Will be assigned when added to a course
                 title: formData.title,
                 description: formData.description,
                 lessonNumber: 1, // Default, will be reordered in course editor
@@ -105,14 +105,14 @@ export const UploadLesson: React.FC = () => {
             console.log('Lesson created:', lesson.id);
             setSubmissionProgress('백그라운드 업로드 시작 중...');
 
-            // 2. Queue Background Upload (use special lesson marker for backend)
+            // 2. Queue Background Upload (use lessonId for lessons)
             await queueUpload(videoState.file, 'action', {
                 videoId: videoId,
                 filename: filename,
                 cuts: videoState.cuts,
                 title: `[Lesson] ${formData.title}`,
                 description: formData.description,
-                drillId: `LESSON-${lesson.id}`, // Special marker to distinguish lessons from drills
+                lessonId: lesson.id, // Use lessonId for lessons
                 videoType: 'action'
             });
 

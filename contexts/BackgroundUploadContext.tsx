@@ -18,7 +18,8 @@ export interface UploadTask {
         cuts: { start: number; end: number }[];
         title: string;
         description: string;
-        drillId: string;
+        drillId?: string; // For drill uploads
+        lessonId?: string; // For lesson uploads
         videoType: 'action' | 'desc';
     };
 }
