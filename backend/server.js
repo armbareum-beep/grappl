@@ -286,27 +286,29 @@ app.post('/process', async (req, res) => {
             logToDB(processId, 'info', 'Step 1: Downloading File');
 
             // Step 0: Download from Supabase Storage
-            let localInputPath = path.join(UPLOADS_DIR, filename);
-            console.log('[DEBUG] localInputPath:', localInputPath);
-            console.log('[DEBUG] filename:', filename);
-
             const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/') || filename.includes('raw_videos');
+            console.log('[DEBUG] filename:', filename);
             console.log('[DEBUG] isRemote:', isRemote);
+
+            // Extract bucket name and file key
+            let bucketName = 'raw_videos_v2';
+            let fileKey = filename;
+
+            if (filename.includes('raw_videos_v2/')) {
+                bucketName = 'raw_videos_v2';
+                fileKey = filename.replace('raw_videos_v2/', '');
+            } else if (filename.includes('raw_videos/')) {
+                bucketName = 'raw_videos';
+                fileKey = filename.replace('raw_videos/', '');
+            }
+
+            // Use fileKey for local path to avoid creating subdirectories
+            let localInputPath = path.join(UPLOADS_DIR, fileKey);
+            console.log('[DEBUG] localInputPath:', localInputPath);
             console.log('[DEBUG] fs.existsSync(localInputPath):', fs.existsSync(localInputPath));
 
             if (isRemote || !fs.existsSync(localInputPath)) {
                 console.log('[DEBUG] Entering download block');
-                let bucketName = 'raw_videos_v2';
-                let fileKey = filename;
-
-                if (filename.includes('raw_videos_v2/')) {
-                    bucketName = 'raw_videos_v2';
-                    fileKey = filename.replace('raw_videos_v2/', '');
-                } else if (filename.includes('raw_videos/')) {
-                    bucketName = 'raw_videos';
-                    fileKey = filename.replace('raw_videos/', '');
-                }
-
                 console.log('[DEBUG] bucketName:', bucketName, 'fileKey:', fileKey);
                 logToDB(processId, 'info', `Downloading from ${bucketName}`, { fileKey });
 
