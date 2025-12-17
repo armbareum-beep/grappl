@@ -29,36 +29,53 @@ export const CreatorDashboard: React.FC = () => {
             if (!user) return;
             setLoading(true);
 
-            // Fetch data in parallel but handle errors individually to prevent waterfall failure
-            const fetchCourses = getCreatorCourses(user.id).catch(err => {
+            // Helper to add timeout to any promise
+            const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+                return Promise.race([
+                    promise,
+                    new Promise<T>((_, reject) =>
+                        setTimeout(() => reject(new Error('Request timed out')), ms)
+                    )
+                ]);
+            };
+
+            // Fetch data in parallel with 10s timeout each
+            const fetchCourses = withTimeout(getCreatorCourses(user.id), 10000).catch(err => {
                 console.error('Failed to fetch courses:', err);
                 return [];
             });
-            const fetchDrills = getDrills(user.id).catch(err => {
+            const fetchDrills = withTimeout(getDrills(user.id), 10000).catch(err => {
                 console.error('Failed to fetch drills:', err);
                 return { data: [], error: err };
             });
-            const fetchLessons = getAllCreatorLessons(user.id).catch(err => {
+            const fetchLessons = withTimeout(getAllCreatorLessons(user.id), 10000).catch(err => {
                 console.error('Failed to fetch lessons:', err);
                 return [];
             });
-            const fetchRoutines = getUserCreatedRoutines(user.id).catch(err => {
+            const fetchRoutines = withTimeout(getUserCreatedRoutines(user.id), 10000).catch(err => {
                 console.error('Failed to fetch routines:', err);
                 return { data: [], error: err };
             });
-            const fetchEarnings = calculateCreatorEarnings(user.id).catch(err => {
+            const fetchEarnings = withTimeout(calculateCreatorEarnings(user.id), 10000).catch(err => {
                 console.error('Failed to fetch earnings:', err);
                 return { error: err };
             });
 
             try {
-                const [coursesData, drillsData, lessonsData, routinesData, earningsData] = await Promise.all([
+                // Use Promise.allSettled to ensure all promises complete regardless of failures
+                const results = await Promise.allSettled([
                     fetchCourses,
                     fetchDrills,
                     fetchLessons,
                     fetchRoutines,
                     fetchEarnings
                 ]);
+
+                const coursesData = results[0].status === 'fulfilled' ? results[0].value : [];
+                const drillsData = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
+                const lessonsData = results[2].status === 'fulfilled' ? results[2].value : [];
+                const routinesData = results[3].status === 'fulfilled' ? results[3].value : { data: [] };
+                const earningsData = results[4].status === 'fulfilled' ? results[4].value : null;
 
                 console.log('Dashboard Data Loaded:', {
                     courses: coursesData?.length,
@@ -74,12 +91,12 @@ export const CreatorDashboard: React.FC = () => {
                 if (earningsData && 'data' in earningsData) {
                     setEarnings(earningsData.data);
                 } else if (earningsData && !('error' in earningsData)) {
-                    // Handle case where earnings might return data directly or in generic format
                     setEarnings(earningsData);
                 }
             } catch (error) {
-                console.error('Critical Error in Dashboard Promise.all:', error);
+                console.error('Critical Error in Dashboard:', error);
             } finally {
+                // ALWAYS complete loading, even if everything fails
                 setLoading(false);
             }
         }
