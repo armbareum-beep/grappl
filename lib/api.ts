@@ -135,13 +135,16 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     creator:creators(name),
                     lessons:lessons(count)
                 `)
-                .eq('published', true)
+                // .eq('published', true) // Temporarily disable for debugging
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1),
             5000
         );
 
-        if (error) throw error;
+        if (error) {
+            console.error('getCourses Error Details:', error);
+            throw error;
+        }
 
         return (data || []).map((d: any) => ({
             ...transformCourse(d),
