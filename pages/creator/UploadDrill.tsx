@@ -300,12 +300,11 @@ export const UploadDrill: React.FC = () => {
 
             console.log('Drill created:', drill.id);
 
-            // 2. Trigger Background Processing (Fire & Forget)
-            setSubmissionProgress('영상 처리를 요청하는 중...');
+            // 2. Trigger Background Processing (Fire & Forget - don't wait)
+            setSubmissionProgress('백그라운드에서 영상을 처리합니다...');
 
-            // We await the *request* (which returns 202 instant), but the actual processing happens in background
-            // Note: actionVideo.filename and descVideo.filename now contain the Supabase Storage Path (e.g., "raw_videos/uuid.mp4")
-            await videoProcessingApi.processVideo(
+            // Start processing in background without waiting
+            videoProcessingApi.processVideo(
                 actionVideo.videoId,
                 actionVideo.filename,
                 actionVideo.cuts,
@@ -313,9 +312,9 @@ export const UploadDrill: React.FC = () => {
                 formData.description,
                 drill.id,
                 'action'
-            );
+            ).catch(err => console.error('Action video processing error:', err));
 
-            await videoProcessingApi.processVideo(
+            videoProcessingApi.processVideo(
                 descVideo.videoId,
                 descVideo.filename,
                 descVideo.cuts,
@@ -323,13 +322,13 @@ export const UploadDrill: React.FC = () => {
                 `Explanation for ${formData.title}`,
                 drill.id,
                 'desc'
-            );
+            ).catch(err => console.error('Desc video processing error:', err));
 
-            // 3. Navigate Immediately
-            setSubmissionProgress('완료! 대시보드로 이동합니다.');
+            // 3. Navigate Immediately (don't wait for processing)
+            setSubmissionProgress('드릴이 생성되었습니다! 영상은 백그라운드에서 처리됩니다.');
             setTimeout(() => {
                 navigate('/creator');
-            }, 500);
+            }, 1000);
 
         } catch (err: any) {
             console.error(err);
