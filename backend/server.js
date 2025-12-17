@@ -483,7 +483,7 @@ app.post('/process', async (req, res) => {
 
                     const { error: updateError } = await supabase.from('drills')
                         .update({
-                            [columnToUpdate]: vimeoId,
+                            [columnToUpdate]: `https://vimeo.com/${vimeoId}`,
                             ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
                         })
                         .eq('id', drillId);
