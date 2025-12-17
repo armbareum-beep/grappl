@@ -78,18 +78,19 @@ export const Drills: React.FC = () => {
                         </button>
                         <button
                             onClick={() => {
-                                // Clear critical local storage
-                                localStorage.clear(); // Or selective clear if needed
-                                // Reload
-                                window.location.href = '/';
+                                if (window.confirm('캐시를 삭제하고 새로고침하시겠습니까?\n\n로그인 정보는 유지되며, 앱이 최신 버전으로 업데이트됩니다.')) {
+                                    localStorage.clear();
+                                    sessionStorage.clear();
+                                    window.location.href = '/';
+                                }
                             }}
-                            className="px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-bold shadow-lg shadow-red-500/20"
+                            className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg transition-all font-bold shadow-lg"
                         >
-                            앱 초기화하기 (문제 해결)
+                            캐시 삭제하고 새로고침
                         </button>
                     </div>
                     <p className="text-xs text-slate-500 mt-4">
-                        * 앱 초기화 시 저장된 로그인 정보가 만료될 수 있습니다.
+                        * 앱이 업데이트되었을 경우 캐시 삭제가 필요할 수 있습니다
                     </p>
                 </div>
             </div>
