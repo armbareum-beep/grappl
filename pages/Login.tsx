@@ -1,8 +1,70 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
+
+const ConnectionTest: React.FC = () => {
+  const [status, setStatus] = useState<string>('Ready to test');
+  const [details, setDetails] = useState<string>('');
+
+  const runTest = async () => {
+    setStatus('Testing connection...');
+    const logs: string[] = [];
+    const log = (msg: string) => {
+      console.log(msg);
+      logs.push(msg);
+      setDetails(prev => prev + '\n' + msg);
+    };
+
+    try {
+      // 1. Check Env Vars
+      const sbUrl = import.meta.env.VITE_SUPABASE_URL;
+      const sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      log(`Supabase URL configured: ${!!sbUrl}`);
+      log(`Supabase URL: ${sbUrl ? sbUrl.substring(0, 10) + '...' : 'Missing'}`);
+      log(`Supabase Key configured: ${!!sbKey}`);
+
+      if (!sbUrl || !sbKey) throw new Error('Missing Environment Variables');
+
+      // 2. Simple Fetch Test
+      const start = Date.now();
+      const res = await fetch(`${sbUrl}/rest/v1/users?select=count`, {
+        headers: {
+          'apikey': sbKey,
+          'Authorization': `Bearer ${sbKey}`
+        }
+      });
+      const duration = Date.now() - start;
+      log(`Simple DB Ping: ${res.status} (${duration}ms)`);
+
+      if (!res.ok) {
+        const text = await res.text();
+        log(`DB Error: ${text}`);
+      }
+
+      // 3. Auth Test
+      const { data, error } = await supabase.auth.getSession();
+      log(`Auth Session Check: ${error ? 'Error' : 'Success'}`);
+      if (error) log(`Auth Error: ${error.message}`);
+
+      setStatus('Test Complete');
+    } catch (e: any) {
+      log(`Test Failed: ${e.message}`);
+      setStatus('Failed');
+    }
+  };
+
+  return (
+    <div className="mt-8 p-4 bg-black/50 rounded text-xs font-mono text-left">
+      <button onClick={runTest} type="button" className="text-blue-400 underline mb-2">Run Connection Diagnostic</button>
+      <div className="text-white mb-1">{status}</div>
+      <pre className="text-slate-400 whitespace-pre-wrap">{details}</pre>
+    </div>
+  );
+};
 
 export const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,9 +86,9 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // Create a timeout promise
+      // Create a timeout promise (extended to 15s to rule out short transient lag)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요.')), 10000)
+        setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요. 네트워크 연결 상태를 확인해주세요.')), 15000)
       );
 
       // Race between the actual auth call and the timeout
@@ -87,7 +149,14 @@ export const Login: React.FC = () => {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
                 <AlertCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
+                <div className="text-sm text-red-800">
+                  <p>{error}</p>
+                  {error.includes('시간이 초과') && (
+                    <p className="mt-1 text-xs text-red-600">
+                      네트워크 연결이 지연되고 있습니다. 잠시 후 다시 시도해보세요.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -183,6 +252,9 @@ export const Login: React.FC = () => {
 
             </div>
           </div>
+
+          <ConnectionTest />
+
         </div>
 
         {/* Back to Home */}
