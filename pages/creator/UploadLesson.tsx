@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Difficulty, Course } from '../../types';
-import { createLesson, getCreatorCourses } from '../../lib/api';
+import { Difficulty } from '../../types';
+import { createLesson } from '../../lib/api';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, FileVideo, Scissors, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Upload, FileVideo, Scissors } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { videoProcessingApi } from '../../lib/api-video-processing';
 
@@ -38,13 +38,9 @@ export const UploadLesson: React.FC = () => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        courseId: '',
         lessonNumber: 1,
         difficulty: Difficulty.Beginner,
     });
-
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [loadingCourses, setLoadingCourses] = useState(true);
 
     // Video State (Lessons typically have one main video)
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
@@ -55,18 +51,6 @@ export const UploadLesson: React.FC = () => {
     // Overall Progress
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionProgress, setSubmissionProgress] = useState<string>('');
-
-    useEffect(() => {
-        if (user) {
-            getCreatorCourses(user.id).then(data => {
-                setCourses(data);
-                if (data.length > 0) {
-                    setFormData(prev => ({ ...prev, courseId: data[0].id }));
-                }
-                setLoadingCourses(false);
-            });
-        }
-    }, [user]);
 
     const handleFileUpload = async (file: File) => {
         setVideoState(prev => ({ ...prev, file, status: 'uploading', progress: 0, error: null }));
@@ -141,7 +125,7 @@ export const UploadLesson: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if (!user || !videoState.videoId || !formData.courseId) return;
+        if (!user || !videoState.videoId) return;
 
         if (!videoState.cuts) {
             alert('영상을 편집해주세요.');
@@ -157,16 +141,18 @@ export const UploadLesson: React.FC = () => {
                 videoState.filename!,
                 videoState.cuts,
                 `[Lesson] ${formData.title}`,
-                formData.description
+                formData.description,
+                '', // drillId - not applicable for lessons
+                'action' // videoType
             );
 
             setSubmissionProgress('저장 중...');
             const { error: dbError } = await createLesson({
-                courseId: formData.courseId,
+                courseId: '', // Will be assigned when added to a course
                 title: formData.title,
                 description: formData.description,
                 lessonNumber: Number(formData.lessonNumber),
-                vimeoUrl: processRes.videoId,
+                vimeoUrl: processRes.videoId || '',
                 length: 0, // Will be updated later
                 difficulty: formData.difficulty,
             });
@@ -175,7 +161,7 @@ export const UploadLesson: React.FC = () => {
 
             setSubmissionProgress('완료!');
             setTimeout(() => {
-                navigate('/creator/courses');
+                navigate('/creator');
             }, 1000);
 
         } catch (err: any) {
@@ -257,24 +243,6 @@ export const UploadLesson: React.FC = () => {
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">코스 선택</label>
-                                    {loadingCourses ? (
-                                        <div className="text-slate-500 text-sm">코스 목록 로딩 중...</div>
-                                    ) : courses.length === 0 ? (
-                                        <div className="text-red-500 text-sm">등록된 코스가 없습니다. 코스를 먼저 생성해주세요.</div>
-                                    ) : (
-                                        <select
-                                            value={formData.courseId}
-                                            onChange={e => setFormData({ ...formData, courseId: e.target.value })}
-                                            className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
-                                        >
-                                            {courses.map(course => (
-                                                <option key={course.id} value={course.id}>{course.title}</option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">레슨 번호</label>
@@ -368,7 +336,7 @@ export const UploadLesson: React.FC = () => {
                         <div className="pt-8 border-t border-slate-800 flex justify-end">
                             <Button
                                 onClick={handleSubmit}
-                                disabled={!videoState.cuts || !formData.title || !formData.courseId}
+                                disabled={!videoState.cuts || !formData.title}
                                 className="px-8 py-3 text-lg"
                             >
                                 레슨 생성하기
