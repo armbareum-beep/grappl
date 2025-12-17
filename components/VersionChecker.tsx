@@ -30,6 +30,13 @@ export const VersionChecker: React.FC = () => {
                         }
                     }
 
+                    // Clear localStorage cache (Crucial for fixing infinite loading)
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('user_status_') || key.startsWith('sb-')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+
                     // Unregister Service Workers
                     if ('serviceWorker' in navigator) {
                         const registrations = await navigator.serviceWorker.getRegistrations();

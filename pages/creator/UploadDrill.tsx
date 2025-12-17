@@ -235,21 +235,20 @@ export const UploadDrill: React.FC = () => {
             return;
         }
 
-        // Check if background uploads are still in progress - WAIT for them
-        if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
-            setSubmissionProgress('영상 업로드를 마무리하는 중입니다...');
-            setIsSubmitting(true);
-            return; // useEffect will call startProcessing when uploads complete
-        }
-
-        // Only check for missing data AFTER confirming uploads are not in progress
-        // (This means upload failed silently without setting error state)
+        // Check if uploads completed successfully
         if (!actionVideo.videoId || !actionVideo.filename) {
-            alert('동작 영상 업로드에 문제가 발생했습니다.\n\n영상을 삭제하고 다시 업로드해주세요.');
+            alert('동작 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
             return;
         }
         if (!descVideo.videoId || !descVideo.filename) {
-            alert('설명 영상 업로드에 문제가 발생했습니다.\n\n영상을 삭제하고 다시 업로드해주세요.');
+            alert('설명 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
+            return;
+        }
+
+        // Check if background uploads are finished
+        if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
+            setSubmissionProgress('영상 원본 업로드를 마무리하는 중입니다...');
+            setIsSubmitting(true);
             return;
         }
 
@@ -300,11 +299,12 @@ export const UploadDrill: React.FC = () => {
 
             console.log('Drill created:', drill.id);
 
-            // 2. Trigger Background Processing (Fire & Forget - don't wait)
-            setSubmissionProgress('백그라운드에서 영상을 처리합니다...');
+            // 2. Trigger Background Processing (Fire & Forget)
+            setSubmissionProgress('영상 처리를 요청하는 중...');
 
-            // Start processing in background without waiting
-            videoProcessingApi.processVideo(
+            // We await the *request* (which returns 202 instant), but the actual processing happens in background
+            // Note: actionVideo.filename and descVideo.filename now contain the Supabase Storage Path (e.g., "raw_videos/uuid.mp4")
+            await videoProcessingApi.processVideo(
                 actionVideo.videoId,
                 actionVideo.filename,
                 actionVideo.cuts,
@@ -312,9 +312,9 @@ export const UploadDrill: React.FC = () => {
                 formData.description,
                 drill.id,
                 'action'
-            ).catch(err => console.error('Action video processing error:', err));
+            );
 
-            videoProcessingApi.processVideo(
+            await videoProcessingApi.processVideo(
                 descVideo.videoId,
                 descVideo.filename,
                 descVideo.cuts,
@@ -322,13 +322,13 @@ export const UploadDrill: React.FC = () => {
                 `Explanation for ${formData.title}`,
                 drill.id,
                 'desc'
-            ).catch(err => console.error('Desc video processing error:', err));
+            );
 
-            // 3. Navigate Immediately (don't wait for processing)
-            setSubmissionProgress('드릴이 생성되었습니다! 영상은 백그라운드에서 처리됩니다.');
+            // 3. Navigate Immediately
+            setSubmissionProgress('완료! 대시보드로 이동합니다.');
             setTimeout(() => {
                 navigate('/creator');
-            }, 1000);
+            }, 500);
 
         } catch (err: any) {
             console.error(err);
