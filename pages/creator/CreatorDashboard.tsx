@@ -5,7 +5,7 @@ import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, ge
 import { Course, Drill, Lesson, DrillRoutine } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2, Layers } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2, Layers, Pencil } from 'lucide-react';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
@@ -393,11 +393,11 @@ export const CreatorDashboard: React.FC = () => {
                                     {lessons.map((lesson, index) => (
                                         <div
                                             key={lesson.id}
-                                            className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors ${index !== lessons.length - 1 ? 'border-b border-slate-800' : ''
+                                            className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group ${index !== lessons.length - 1 ? 'border-b border-slate-800' : ''
                                                 }`}
                                         >
                                             {lesson.vimeoUrl ? (
-                                                <Link to={`/lessons/${lesson.id}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+                                                <Link to={`/lessons/${lesson.id}`} className="flex items-center gap-4 flex-1 min-w-0">
                                                     <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
                                                         <PlayCircle className="w-5 h-5" />
                                                     </div>
@@ -430,10 +430,17 @@ export const CreatorDashboard: React.FC = () => {
                                                 </div>
                                             )}
 
-                                            <div className="flex items-center gap-4 ml-4">
-                                                <div className="text-sm text-slate-400 w-20 text-right">
+                                            <div className="flex items-center gap-2 ml-4">
+                                                <div className="text-sm text-slate-400 w-16 text-right hidden sm:block">
                                                     {lesson.views?.toLocaleString() || 0} 조회
                                                 </div>
+                                                <Link
+                                                    to={`/creator/lessons/${lesson.id}/edit`}
+                                                    className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="수정"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Link>
                                                 <button
                                                     onClick={(e) => {
                                                         e.preventDefault();

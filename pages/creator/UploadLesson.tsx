@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Difficulty } from '../../types';
-import { createLesson } from '../../lib/api-lessons';
+import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, FileVideo, Scissors } from 'lucide-react';
+import { ArrowLeft, Upload, FileVideo, Scissors, Loader } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
@@ -33,6 +33,8 @@ const initialProcessingState: ProcessingState = {
 export const UploadLesson: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditMode = !!id;
     const { queueUpload } = useBackgroundUpload();
 
     // Global Form State
@@ -41,12 +43,41 @@ export const UploadLesson: React.FC = () => {
         description: '',
         difficulty: Difficulty.Beginner,
     });
+    const [isLoading, setIsLoading] = useState(false);
 
     // Video State (Lessons typically have one main video)
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
 
-    // Editor State
-    const [isEditing, setIsEditing] = useState(false);
+    // Data Fetching for Edit Mode
+    useEffect(() => {
+        if (!isEditMode || !id) return;
+
+        async function fetchLesson() {
+            setIsLoading(true);
+            try {
+                const { data, error } = await getLesson(id!);
+                if (error) throw error;
+                if (data) {
+                    setFormData({
+                        title: data.title,
+                        description: data.description || '',
+                        difficulty: data.difficulty || Difficulty.Beginner,
+                    });
+                    // We don't preload videoState as we only show it if user wants to replace video
+                }
+            } catch (err) {
+                console.error('Failed to fetch lesson:', err);
+                alert('레슨 정보를 불러오는데 실패했습니다.');
+                navigate('/creator');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchLesson();
+    }, [id, isEditMode, navigate]);
+
+    // Video Editor State (for trimming)
+    const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
 
     // Overall Progress
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,64 +96,95 @@ export const UploadLesson: React.FC = () => {
         }));
 
         // Auto-open editor immediately
-        setIsEditing(true);
+        setIsVideoEditorOpen(true);
     };
 
     const handleCutsSave = (cuts: { start: number; end: number }[]) => {
         setVideoState(prev => ({ ...prev, cuts }));
-        setIsEditing(false);
+        setIsVideoEditorOpen(false);
     };
 
-    const handleSubmit = async () => {
-        if (!user || !videoState.file) return;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-        if (!videoState.cuts) {
-            alert('영상을 편집해주세요.');
+        // Validation
+        if (!formData.title) {
+            alert('제목을 입력해주세요.');
             return;
         }
 
+        // Create mode requires video
+        if (!isEditMode && !videoState.file) {
+            alert('영상을 업로드해주세요.');
+            return;
+        }
+
+        // If file selected but not processed (e.g. valid duration check), generally queueUpload handles it,
+        // but if user opened editor, they should finish it.
+        // We assume ready if file exists.
+
         setIsSubmitting(true);
-        setSubmissionProgress('레슨 정보를 등록 중입니다...');
+        setSubmissionProgress('레슨 정보를 저장 중입니다...');
 
         try {
-            // 1. Create Lesson Record First (Database)
-            const videoId = crypto.randomUUID();
-            const ext = videoState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-            const filename = `${videoId}.${ext}`;
+            let lessonId = id;
+            let finalVideoId = videoState.videoId;
 
-            const { data: lesson, error: dbError } = await createLesson({
-                courseId: null, // Will be assigned when added to a course
-                title: formData.title,
-                description: formData.description,
-                lessonNumber: 1, // Default, will be reordered in course editor
-                vimeoUrl: '', // Will be updated by background process
-                length: 0, // Will be updated later
-                difficulty: formData.difficulty,
-            });
+            // 1. Database Operation
+            if (isEditMode && lessonId) {
+                // UPDATE
+                const { error } = await updateLesson(lessonId, {
+                    title: formData.title,
+                    description: formData.description,
+                    difficulty: formData.difficulty,
+                    // Only update video fields if a new video is being uploaded
+                    // If videoState.videoId is set, it means new video prepared
+                    vimeoUrl: videoState.videoId ? '' : undefined, // Reset vimeoUrl if new video
+                });
+                if (error) throw error;
+            } else {
+                // CREATE
+                if (!videoState.file) throw new Error('No video file');
+                finalVideoId = crypto.randomUUID();
 
-            if (dbError || !lesson) throw dbError;
+                const { data: newLesson, error } = await createLesson({
+                    courseId: null,
+                    title: formData.title,
+                    description: formData.description,
+                    lessonNumber: 1,
+                    vimeoUrl: '',
+                    length: 0,
+                    difficulty: formData.difficulty,
+                });
+                if (error || !newLesson) throw error || new Error('Failed to create lesson');
+                lessonId = newLesson.id;
+            }
 
-            console.log('Lesson created:', lesson.id);
-            setSubmissionProgress('백그라운드 업로드 시작 중...');
+            // 2. Background Upload (Only if new file exists)
+            if (videoState.file && lessonId) {
+                setSubmissionProgress('백그라운드 업로드 시작 중...');
+                // If creating, use generated ID. If editing, use generated ID for new video.
+                // We generated finalVideoId above if creating.
+                // If editing and new file, we usually generate a new videoId too.
+                if (!finalVideoId) finalVideoId = crypto.randomUUID();
 
-            // 2. Queue Background Upload (use lessonId for lessons)
-            await queueUpload(videoState.file, 'action', {
-                videoId: videoId,
-                filename: filename,
-                cuts: videoState.cuts,
-                title: `[Lesson] ${formData.title}`,
-                description: formData.description,
-                lessonId: lesson.id, // Use lessonId for lessons
-                videoType: 'action'
-            });
+                await queueUpload(videoState.file, 'action', {
+                    videoId: finalVideoId, // This is the UUID for the video file
+                    filename: `${finalVideoId}.${videoState.file.name.split('.').pop() || 'mp4'}`,
+                    cuts: videoState.cuts || [],
+                    title: formData.title,
+                    description: formData.description,
+                    lessonId: lessonId, // Attach to this lesson
+                    videoType: 'action'
+                });
+            }
 
-            // 3. Navigate Immediately
-            setSubmissionProgress('완료! 대시보드로 이동합니다.');
-            navigate('/creator');
+            // 3. Finish
+            navigate('/creator/dashboard'); // Go back to dashboard to see "Processing"
 
-        } catch (err: any) {
-            console.error(err);
-            alert('처리 중 오류가 발생했습니다: ' + err.message);
+        } catch (error: any) {
+            console.error('Submission error:', error);
+            alert(`오류가 발생했습니다: ${error.message}`);
             setIsSubmitting(false);
         }
     };
@@ -139,18 +201,29 @@ export const UploadLesson: React.FC = () => {
         );
     }
 
-    if (isEditing && videoState.previewUrl) {
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <Loader className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+                    <p className="text-slate-400">레슨 정보를 불러오는 중...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isVideoEditorOpen && videoState.previewUrl) {
         return (
             <div className="min-h-screen bg-slate-950 p-4">
                 <div className="max-w-5xl mx-auto space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold text-white">레슨 영상 편집</h2>
-                        <Button variant="secondary" onClick={() => setIsEditing(false)}>취소</Button>
+                        <Button variant="secondary" onClick={() => setIsVideoEditorOpen(false)}>취소</Button>
                     </div>
                     <VideoEditor
                         videoUrl={videoState.previewUrl}
                         onSave={handleCutsSave}
-                        onCancel={() => setIsEditing(false)}
+                        onCancel={() => setIsVideoEditorOpen(false)}
                     />
                 </div>
             </div>
@@ -170,8 +243,12 @@ export const UploadLesson: React.FC = () => {
 
                 <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
                     <div className="p-8 border-b border-slate-800">
-                        <h1 className="text-2xl font-bold text-white">새 레슨 만들기</h1>
-                        <p className="text-slate-400 mt-1">영상을 업로드하고 편집하여 코스에 추가하세요.</p>
+                        <h1 className="text-2xl font-bold text-white">
+                            {isEditMode ? '레슨 수정' : '새 레슨 만들기'}
+                        </h1>
+                        <p className="text-slate-400 mt-1">
+                            {isEditMode ? '레슨 정보를 수정합니다.' : '영상을 업로드하고 편집하여 코스에 추가하세요.'}
+                        </p>
                     </div>
 
                     <div className="p-8 space-y-8">
@@ -262,7 +339,7 @@ export const UploadLesson: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex gap-3">
-                                        <Button variant="secondary" onClick={() => setIsEditing(true)}>
+                                        <Button variant="secondary" onClick={() => setIsVideoEditorOpen(true)}>
                                             <Scissors className="w-4 h-4 mr-2" />
                                             {videoState.cuts ? '다시 편집' : '영상 편집'}
                                         </Button>
@@ -281,10 +358,10 @@ export const UploadLesson: React.FC = () => {
                         <div className="pt-8 border-t border-slate-800 flex justify-end">
                             <Button
                                 onClick={handleSubmit}
-                                disabled={!videoState.cuts || !formData.title}
+                                disabled={!formData.title || (!isEditMode && !videoState.cuts) || (!!videoState.file && !videoState.cuts)}
                                 className="px-8 py-3 text-lg"
                             >
-                                레슨 생성하기
+                                {isEditMode ? '수정사항 저장' : '레슨 생성하기'}
                             </Button>
                         </div>
                     </div>
