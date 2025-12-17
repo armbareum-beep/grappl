@@ -762,7 +762,7 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     const dbData: any = {};
     if (lessonData.title) dbData.title = lessonData.title;
     if (lessonData.description) dbData.description = lessonData.description;
-    if (lessonData.lessonNumber) dbData.lesson_number = lessonData.lessonNumber;
+    if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
     if (lessonData.length) dbData.length = lessonData.length;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
@@ -777,6 +777,21 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (error) return { error };
     return { data: transformLesson(data), error: null };
 }
+
+export async function reorderLessons(lessonOrders: { id: string, lessonNumber: number }[]) {
+    const promises = lessonOrders.map(item =>
+        supabase
+            .from('lessons')
+            .update({ lesson_number: item.lessonNumber })
+            .eq('id', item.id)
+    );
+
+    const results = await Promise.all(promises);
+    const firstError = results.find(r => r.error)?.error;
+
+    return { error: firstError || null };
+}
+
 
 // ==================== FEATURED CONTENT (HOME PAGE) ====================
 

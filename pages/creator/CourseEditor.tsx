@@ -1,13 +1,96 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons } from '../../lib/api';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
 import { useToast } from '../../contexts/ToastContext';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+
+const SortableLessonItem = ({ lesson, index, onEdit, onDelete }: {
+    lesson: Lesson,
+    index: number,
+    onEdit: (lesson: Lesson) => void,
+    onDelete: (id: string) => void
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: lesson.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 0,
+        position: 'relative' as const,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border transition-colors group ${isDragging ? 'border-blue-500 bg-slate-800 shadow-xl' : 'border-slate-800'
+                }`}
+        >
+            <div
+                {...attributes}
+                {...listeners}
+                className="text-slate-500 cursor-grab active:cursor-grabbing hover:text-slate-300 p-1"
+            >
+                <GripVertical className="w-5 h-5" />
+            </div>
+            <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-slate-600 font-bold text-slate-300 text-sm">
+                {index + 1}
+            </div>
+            <div className="flex-grow">
+                <h4 className="font-bold text-white">{lesson.title}</h4>
+                <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                    <span className="flex items-center gap-1"><Video className="w-3 h-3" /> {lesson.length}</span>
+                    <span>{lesson.difficulty}</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={() => onEdit(lesson)}
+                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg"
+                >
+                    <Edit className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => onDelete(lesson.id)}
+                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 
 export const CourseEditor: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -46,6 +129,51 @@ export const CourseEditor: React.FC = () => {
     const [showImportModal, setShowImportModal] = useState(false);
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
     const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = lessons.findIndex((l) => l.id === active.id);
+            const newIndex = lessons.findIndex((l) => l.id === over.id);
+
+            const newLessons = arrayMove(lessons, oldIndex, newIndex);
+            setLessons(newLessons);
+
+            // If it's an existing course, update the order in the database
+            if (!isNew && id) {
+                const lessonOrders = newLessons.map((l, index) => ({
+                    id: l.id,
+                    lessonNumber: index + 1
+                }));
+
+                try {
+                    const { error } = await reorderLessons(lessonOrders);
+                    if (error) throw error;
+                    success('순서가 저장되었습니다.');
+                } catch (err) {
+                    console.error('Error reordering lessons:', err);
+                    toastError('순서 저장 중 오류가 발생했습니다.');
+                    // Revert UI if needed, but usually better to just alert
+                }
+            } else {
+                // For new course, just update local state (handles lessonNumber)
+                const updatedIndices = newLessons.map((l, index) => ({
+                    ...l,
+                    lessonNumber: index + 1
+                }));
+                setLessons(updatedIndices);
+            }
+        }
+    };
+
 
     useEffect(() => {
         if (!isNew && id) {
@@ -518,37 +646,27 @@ export const CourseEditor: React.FC = () => {
                             </div>
 
                             <div className="space-y-3 mb-8">
-                                {lessons.map((lesson, index) => (
-                                    <div key={lesson.id} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-800 group">
-                                        <div className="text-slate-500 cursor-grab">
-                                            <GripVertical className="w-5 h-5" />
-                                        </div>
-                                        <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-slate-600 font-bold text-slate-300 text-sm">
-                                            {index + 1}
-                                        </div>
-                                        <div className="flex-grow">
-                                            <h4 className="font-bold text-white">{lesson.title}</h4>
-                                            <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                                                <span className="flex items-center gap-1"><Video className="w-3 h-3" /> {lesson.length}</span>
-                                                <span>{lesson.difficulty}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => setEditingLesson(lesson)}
-                                                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteLesson(lesson.id)}
-                                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                    modifiers={[restrictToVerticalAxis]}
+                                >
+                                    <SortableContext
+                                        items={lessons.map(l => l.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        {lessons.map((lesson, index) => (
+                                            <SortableLessonItem
+                                                key={lesson.id}
+                                                lesson={lesson}
+                                                index={index}
+                                                onEdit={setEditingLesson}
+                                                onDelete={handleDeleteLesson}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
                                 {lessons.length === 0 && (
                                     <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
                                         아직 등록된 레슨이 없습니다.
