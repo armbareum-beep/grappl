@@ -264,12 +264,24 @@ async function logToDB(processId, level, message, details = {}) {
 
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
-    const { videoId, filename, cuts, title, description, drillId, videoType } = req.body;
+    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType } = req.body;
 
-    if (!videoId || !filename || !cuts || !drillId) {
+    // Validate: exactly one of drillId or lessonId must be present
+    if (!drillId && !lessonId) {
+        return res.status(400).json({ error: 'Either drillId or lessonId is required' });
+    }
+
+    if (drillId && lessonId) {
+        return res.status(400).json({ error: 'Cannot specify both drillId and lessonId' });
+    }
+
+    if (!videoId || !filename || !cuts) {
         return res.status(400).json({ error: 'Invalid input data' });
     }
 
+    const isLesson = !!lessonId;
+    const contentId = isLesson ? lessonId : drillId;
+    const tableName = isLesson ? 'lessons' : 'drills';
     const processId = uuidv4();
 
     // Immediate response
@@ -279,8 +291,8 @@ app.post('/process', async (req, res) => {
         processId
     });
 
-    console.log(`Starting background processing for ${videoId} (Process ID: ${processId})`);
-    logToDB(processId, 'info', 'Job Received', { videoId, filename, cutsCount: cuts.length, drillId });
+    console.log(`Starting background processing for ${videoId} (Process ID: ${processId}, ${tableName}: ${contentId})`);
+    logToDB(processId, 'info', 'Job Received', { videoId, filename, cutsCount: cuts.length, contentId, tableName });
 
     // Run in background
     (async () => {
@@ -478,26 +490,50 @@ app.post('/process', async (req, res) => {
                     logToDB(processId, 'info', 'Vimeo Upload Success', { uri, attempt });
 
                     const vimeoId = uri.split('/').pop();
-                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
 
-                    const { error: updateError } = await supabase.from('drills')
-                        .update({
-                            [columnToUpdate]: vimeoId,
-                            ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
-                        })
-                        .eq('id', drillId);
+                    // Update the correct table based on content type
+                    if (isLesson) {
+                        // Update lessons table
+                        const { error: updateError } = await supabase.from('lessons')
+                            .update({
+                                vimeo_url: vimeoId,
+                                thumbnail_url: thumbnailUrl
+                            })
+                            .eq('id', lessonId);
 
-                    if (updateError) {
-                        console.error('Supabase Update Error:', updateError);
-                        logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                        if (updateError) {
+                            console.error('Supabase Update Error:', updateError);
+                            logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                        } else {
+                            console.log(`Supabase updated for lesson ${lessonId}`);
+                            logToDB(processId, 'info', 'Job Fully Complete', {
+                                lessonId,
+                                vimeoId,
+                                videoType
+                            });
+                        }
                     } else {
-                        console.log(`Supabase updated for drill ${drillId}`);
-                        logToDB(processId, 'info', 'Job Fully Complete', {
-                            drillId,
-                            vimeoId,
-                            videoType
-                        });
+                        // Update drills table
+                        const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                        const { error: updateError } = await supabase.from('drills')
+                            .update({
+                                [columnToUpdate]: vimeoId,
+                                ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
+                            })
+                            .eq('id', drillId);
+
+                        if (updateError) {
+                            console.error('Supabase Update Error:', updateError);
+                            logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                        } else {
+                            console.log(`Supabase updated for drill ${drillId}`);
+                            logToDB(processId, 'info', 'Job Fully Complete', {
+                                drillId,
+                                vimeoId,
+                                videoType
+                            });
+                        }
                     }
 
                 } catch (err) {
@@ -523,15 +559,24 @@ app.post('/process', async (req, res) => {
                     attempts: maxRetries
                 });
 
-                const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                await supabase.from('drills')
-                    .update({
-                        [columnToUpdate]: 'error',
-                        ...(videoType === 'action' ? {
+                if (isLesson) {
+                    await supabase.from('lessons')
+                        .update({
+                            vimeo_url: 'error',
                             thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
-                        } : {})
-                    })
-                    .eq('id', drillId);
+                        })
+                        .eq('id', lessonId);
+                } else {
+                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                    await supabase.from('drills')
+                        .update({
+                            [columnToUpdate]: 'error',
+                            ...(videoType === 'action' ? {
+                                thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
+                            } : {})
+                        })
+                        .eq('id', drillId);
+                }
 
                 throw lastError || new Error('Vimeo upload failed');
             }
@@ -541,14 +586,23 @@ app.post('/process', async (req, res) => {
             console.error('Processing failed:', error);
             logToDB(processId, 'error', 'Processing Crash', { message: error.message, stack: error.stack });
 
-            const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
             try {
-                await supabase.from('drills')
-                    .update({
-                        [columnToUpdate]: `ERROR: ${error.message}`.substring(0, 100),
-                        ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error' } : {})
-                    })
-                    .eq('id', drillId);
+                if (isLesson) {
+                    await supabase.from('lessons')
+                        .update({
+                            vimeo_url: `ERROR: ${error.message}`.substring(0, 100),
+                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error'
+                        })
+                        .eq('id', lessonId);
+                } else {
+                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                    await supabase.from('drills')
+                        .update({
+                            [columnToUpdate]: `ERROR: ${error.message}`.substring(0, 100),
+                            ...(videoType === 'action' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error' } : {})
+                        })
+                        .eq('id', drillId);
+                }
             } catch (dbErr) {
                 console.error('Failed to update DB with error:', dbErr);
             }
