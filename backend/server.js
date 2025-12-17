@@ -282,13 +282,20 @@ app.post('/process', async (req, res) => {
         }
 
         try {
+            console.log('[DEBUG] Step 1: Downloading File');
             logToDB(processId, 'info', 'Step 1: Downloading File');
 
             // Step 0: Download from Supabase Storage
             let localInputPath = path.join(UPLOADS_DIR, filename);
+            console.log('[DEBUG] localInputPath:', localInputPath);
+            console.log('[DEBUG] filename:', filename);
+
             const isRemote = filename.includes('raw_videos/') || filename.includes('raw_videos_v2/') || filename.includes('raw_videos');
+            console.log('[DEBUG] isRemote:', isRemote);
+            console.log('[DEBUG] fs.existsSync(localInputPath):', fs.existsSync(localInputPath));
 
             if (isRemote || !fs.existsSync(localInputPath)) {
+                console.log('[DEBUG] Entering download block');
                 let bucketName = 'raw_videos_v2';
                 let fileKey = filename;
 
@@ -300,21 +307,27 @@ app.post('/process', async (req, res) => {
                     fileKey = filename.replace('raw_videos/', '');
                 }
 
+                console.log('[DEBUG] bucketName:', bucketName, 'fileKey:', fileKey);
                 logToDB(processId, 'info', `Downloading from ${bucketName}`, { fileKey });
 
                 // Use public URL since bucket is now public
+                console.log('[DEBUG] Getting public URL...');
                 const { data: publicUrlData } = supabase.storage
                     .from(bucketName)
                     .getPublicUrl(fileKey);
 
+                console.log('[DEBUG] publicUrlData:', publicUrlData);
                 if (!publicUrlData || !publicUrlData.publicUrl) {
                     throw new Error(`Failed to get public URL for ${fileKey}`);
                 }
 
+                console.log('[DEBUG] Using public URL:', publicUrlData.publicUrl);
                 logToDB(processId, 'info', 'Using public URL', { url: publicUrlData.publicUrl });
                 await downloadFile(publicUrlData.publicUrl, localInputPath);
+                console.log('[DEBUG] Download Complete');
                 logToDB(processId, 'info', 'Download Complete');
             } else {
+                console.log('[DEBUG] Using Local File');
                 logToDB(processId, 'info', 'Using Local File');
             }
 
