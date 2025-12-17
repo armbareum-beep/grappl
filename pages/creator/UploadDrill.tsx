@@ -225,6 +225,26 @@ export const UploadDrill: React.FC = () => {
             return;
         }
 
+        // Check for upload errors FIRST
+        if (actionVideo.error) {
+            alert(`동작 영상 업로드 실패: ${actionVideo.error}\n\n영상을 삭제하고 다시 업로드해주세요.`);
+            return;
+        }
+        if (descVideo.error) {
+            alert(`설명 영상 업로드 실패: ${descVideo.error}\n\n영상을 삭제하고 다시 업로드해주세요.`);
+            return;
+        }
+
+        // Check if uploads completed successfully
+        if (!actionVideo.videoId || !actionVideo.filename) {
+            alert('동작 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
+            return;
+        }
+        if (!descVideo.videoId || !descVideo.filename) {
+            alert('설명 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
+            return;
+        }
+
         // Check if background uploads are finished
         if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
             setSubmissionProgress('영상 원본 업로드를 마무리하는 중입니다...');
