@@ -45,6 +45,7 @@ export interface Course {
   createdAt: string;
   isSubscriptionExcluded?: boolean; // If true, subscribers cannot access for free
   previewVideoUrl?: string; // URL of the first lesson for preview
+  published?: boolean;
 }
 
 export interface Lesson {

@@ -54,6 +54,7 @@ function transformCourse(data: any): Course {
         lessonCount: data.lesson_count,
         createdAt: data.created_at,
         isSubscriptionExcluded: data.is_subscription_excluded,
+        published: data.published,
     };
 }
 

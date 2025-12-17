@@ -29,6 +29,7 @@ export const CourseEditor: React.FC = () => {
         price: 0,
         thumbnailUrl: '',
         isSubscriptionExcluded: false,
+        published: false,
     });
 
     // Lessons State
@@ -459,6 +460,25 @@ export const CourseEditor: React.FC = () => {
                                         <div className="ml-2 text-sm">
                                             <label htmlFor="subscriptionExcluded" className="font-medium text-slate-300">구독 제외 상품 (단품 구매 전용)</label>
                                             <p className="text-slate-500">체크하면 구독자도 무료로 볼 수 없으며, 반드시 따로 구매해야 합니다.</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Published Toggle */}
+                                    <div className="mt-4 flex items-start p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                                        <div className="flex items-center h-5">
+                                            <input
+                                                type="checkbox"
+                                                id="published"
+                                                checked={courseData.published || false}
+                                                onChange={e => setCourseData({ ...courseData, published: e.target.checked })}
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-slate-950"
+                                            />
+                                        </div>
+                                        <div className="ml-2 text-sm">
+                                            <label htmlFor="published" className="font-medium text-blue-400">강좌 공개 (Publish)</label>
+                                            <p className="text-slate-400 text-xs mt-0.5">
+                                                체크하면 '내 강좌' 목록과 추천 강좌에 노출됩니다. 준비가 완료되면 체크하세요.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
