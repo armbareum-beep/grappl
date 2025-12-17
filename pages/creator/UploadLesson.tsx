@@ -6,7 +6,7 @@ import { createLesson } from '../../lib/api';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, FileVideo, Scissors } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
-import { videoProcessingApi } from '../../lib/api-video-processing';
+import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 type ProcessingState = {
     file: File | null;
@@ -33,6 +33,7 @@ const initialProcessingState: ProcessingState = {
 export const UploadLesson: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { queueUpload } = useBackgroundUpload();
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -81,42 +82,43 @@ export const UploadLesson: React.FC = () => {
         }
 
         setIsSubmitting(true);
+        setSubmissionProgress('레슨 정보를 등록 중입니다...');
 
         try {
-            // 1. Upload Raw Video
-            setSubmissionProgress('영상 업로드 중...');
-            const uploadRes = await videoProcessingApi.uploadVideo(videoState.file);
+            // 1. Create Lesson Record First (Database)
+            const videoId = crypto.randomUUID();
+            const ext = videoState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+            const filename = `${videoId}.${ext}`;
 
-            // 2. Process Video
-            setSubmissionProgress('영상 처리 중...');
-            const processRes = await videoProcessingApi.processVideo(
-                uploadRes.videoId,
-                uploadRes.filename,
-                videoState.cuts,
-                `[Lesson] ${formData.title}`,
-                formData.description,
-                '', // drillId - not applicable for lessons
-                'action' // videoType
-            );
-
-            // 3. Save to Database
-            setSubmissionProgress('저장 중...');
             const { error: dbError } = await createLesson({
                 courseId: '', // Will be assigned when added to a course
                 title: formData.title,
                 description: formData.description,
                 lessonNumber: 1, // Default, will be reordered in course editor
-                vimeoUrl: processRes.videoId || '',
+                vimeoUrl: '', // Will be updated by background process
                 length: 0, // Will be updated later
                 difficulty: formData.difficulty,
             });
 
             if (dbError) throw dbError;
 
-            setSubmissionProgress('완료!');
-            setTimeout(() => {
-                navigate('/creator');
-            }, 1000);
+            console.log('Lesson created');
+            setSubmissionProgress('백그라운드 업로드 시작 중...');
+
+            // 2. Queue Background Upload
+            await queueUpload(videoState.file, 'action', {
+                videoId: videoId,
+                filename: filename,
+                cuts: videoState.cuts,
+                title: `[Lesson] ${formData.title}`,
+                description: formData.description,
+                drillId: '', // Not applicable for lessons
+                videoType: 'action'
+            });
+
+            // 3. Navigate Immediately
+            setSubmissionProgress('완료! 대시보드로 이동합니다.');
+            navigate('/creator');
 
         } catch (err: any) {
             console.error(err);
