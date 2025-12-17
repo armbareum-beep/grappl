@@ -415,7 +415,13 @@ export const DrillDetail: React.FC = () => {
     const videoSrc = useVimeo ? `https://player.vimeo.com/video/${vimeoId}` : fallbackUrl;
 
     // Detect Processing State (Backend is still working)
-    const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
+    // Check if vimeoUrl is missing or placeholder
+    const isProcessing = owns && (
+        !drill.vimeoUrl ||
+        drill.vimeoUrl.includes('placeholder') ||
+        !drill.videoUrl ||
+        drill.videoUrl.includes('placeholder')
+    );
 
     if (isProcessing) {
         return (
