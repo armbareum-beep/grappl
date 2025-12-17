@@ -1,269 +1,197 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 
-const ConnectionTest: React.FC = () => {
-  const [status, setStatus] = useState<string>('Ready to test');
-  const [details, setDetails] = useState<string>('');
+export const Login: React.FC = () => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [socialLoading, setSocialLoading] = useState<string | null>(null);
 
-  const runTest = async () => {
-    setStatus('Testing connection...');
-    const logs: string[] = [];
-    const log = (msg: string) => {
-      console.log(msg);
-      logs.push(msg);
-      setDetails(prev => prev + '\n' + msg);
+    const { signIn, signUp, signInWithGoogle } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const from = (location.state as any)?.from?.pathname || '/';
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요.')), 5000)
+            );
+
+            // Race between the actual auth call and the timeout
+            const authPromise = isLogin
+                ? signIn(email, password)
+                : signUp(email, password);
+
+            const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
+            const { error } = result;
+
+            if (error) {
+                setError(error.message);
+            } else {
+                navigate(from, { replace: true });
+            }
+        } catch (err: any) {
+            console.error('Login error:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    try {
-      // 1. Check Env Vars
-      const sbUrl = import.meta.env.VITE_SUPABASE_URL;
-      const sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const handleSocialLogin = async (provider: 'google') => {
+        setError('');
+        setSocialLoading(provider);
 
-      log(`Supabase URL configured: ${!!sbUrl}`);
-      log(`Supabase URL: ${sbUrl ? sbUrl.substring(0, 10) + '...' : 'Missing'}`);
-      log(`Supabase Key configured: ${!!sbKey}`);
+        try {
+            const result = await signInWithGoogle();
 
-      if (!sbUrl || !sbKey) throw new Error('Missing Environment Variables');
-
-      // 2. Simple Fetch Test
-      const start = Date.now();
-      const res = await fetch(`${sbUrl}/rest/v1/users?select=count`, {
-        headers: {
-          'apikey': sbKey,
-          'Authorization': `Bearer ${sbKey}`
+            if (result.error) {
+                setError(result.error.message);
+                setSocialLoading(null);
+            }
+            // Note: OAuth will redirect, so we don't need to handle success here
+        } catch (err: any) {
+            setError(err.message);
+            setSocialLoading(null);
         }
-      });
-      const duration = Date.now() - start;
-      log(`Simple DB Ping: ${res.status} (${duration}ms)`);
+    };
 
-      if (!res.ok) {
-        const text = await res.text();
-        log(`DB Error: ${text}`);
-      }
-
-      // 3. Auth Test
-      const { data, error } = await supabase.auth.getSession();
-      log(`Auth Session Check: ${error ? 'Error' : 'Success'}`);
-      if (error) log(`Auth Error: ${error.message}`);
-
-      setStatus('Test Complete');
-    } catch (e: any) {
-      log(`Test Failed: ${e.message}`);
-      setStatus('Failed');
-    }
-  };
-
-  return (
-    <div className="mt-8 p-4 bg-black/50 rounded text-xs font-mono text-left">
-      <button onClick={runTest} type="button" className="text-blue-400 underline mb-2">Run Connection Diagnostic</button>
-      <div className="text-white mb-1">{status}</div>
-      <pre className="text-slate-400 whitespace-pre-wrap">{details}</pre>
-    </div>
-  );
-};
-
-export const Login: React.FC = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
-
-  const { signIn, signUp, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = (location.state as any)?.from?.pathname || '/';
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      // Create a timeout promise (extended to 15s to rule out short transient lag)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요. 네트워크 연결 상태를 확인해주세요.')), 15000)
-      );
-
-      // Race between the actual auth call and the timeout
-      const authPromise = isLogin
-        ? signIn(email, password)
-        : signUp(email, password);
-
-      const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
-      const { error } = result;
-
-      if (error) {
-        setError(error.message);
-      } else {
-        navigate(from, { replace: true });
-      }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: 'google') => {
-    setError('');
-    setSocialLoading(provider);
-
-    try {
-      const result = await signInWithGoogle();
-
-      if (result.error) {
-        setError(result.error.message);
-        setSocialLoading(null);
-      }
-      // Note: OAuth will redirect, so we don't need to handle success here
-    } catch (err: any) {
-      setError(err.message);
-      setSocialLoading(null);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <h2 className="text-4xl font-black text-white">
-            {isLogin ? '로그인' : '회원가입'}
-          </h2>
-          <p className="mt-2 text-slate-400">
-            {isLogin ? 'Grapplay 계정으로 로그인하세요' : '새로운 계정을 만드세요'}
-          </p>
-        </div>
-
-        {/* Form */}
-        <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-red-800">
-                  <p>{error}</p>
-                  {error.includes('시간이 초과') && (
-                    <p className="mt-1 text-xs text-red-600">
-                      네트워크 연결이 지연되고 있습니다. 잠시 후 다시 시도해보세요.
+    return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8">
+                {/* Header */}
+                <div className="text-center">
+                    <h2 className="text-4xl font-black text-white">
+                        {isLogin ? '로그인' : '회원가입'}
+                    </h2>
+                    <p className="mt-2 text-slate-400">
+                        {isLogin ? 'Grapplay 계정으로 로그인하세요' : '새로운 계정을 만드세요'}
                     </p>
-                  )}
                 </div>
-              </div>
-            )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                이메일
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="your@email.com"
-                />
-              </div>
-            </div>
+                {/* Form */}
+                <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 p-8">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+                                <AlertCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-red-800">{error}</p>
+                            </div>
+                        )}
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                비밀번호
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
-                  minLength={6}
-                />
-              </div>
-              {!isLogin && (
-                <p className="mt-1 text-xs text-slate-400">최소 6자 이상</p>
-              )}
-            </div>
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                                이메일
+                            </label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input
+                                    id="email"
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="your@email.com"
+                                />
+                            </div>
+                        </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? '처리 중...' : isLogin ? '로그인' : '회원가입'}
-            </Button>
-          </form>
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                                비밀번호
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input
+                                    id="password"
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="pl-10 w-full px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="••••••••"
+                                    minLength={6}
+                                />
+                            </div>
+                            {!isLogin && (
+                                <p className="mt-1 text-xs text-slate-400">최소 6자 이상</p>
+                            )}
+                        </div>
 
-          {/* Toggle */}
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-              }}
-              className="text-sm text-blue-400 hover:text-blue-300 font-medium"
-            >
-              {isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
-            </button>
-          </div>
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={loading}
+                        >
+                            {loading ? '처리 중...' : isLogin ? '로그인' : '회원가입'}
+                        </Button>
+                    </form>
 
-          {/* Social Login Placeholder */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-slate-900 text-slate-400">또는</span>
-              </div>
-            </div>
+                    {/* Toggle */}
+                    <div className="mt-6 text-center">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsLogin(!isLogin);
+                                setError('');
+                            }}
+                            className="text-sm text-blue-400 hover:text-blue-300 font-medium"
+                        >
+                            {isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
+                        </button>
+                    </div>
 
-            <div className="mt-6 space-y-3">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('google')}
-                disabled={socialLoading !== null}
-                className="w-full flex items-center justify-center px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                {socialLoading === 'google' ? '로그인 중...' : 'Google 로그인'}
-              </button>
+                    {/* Social Login Placeholder */}
+                    <div className="mt-6">
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-slate-700"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-2 bg-slate-900 text-slate-400">또는</span>
+                            </div>
+                        </div>
 
-            </div>
-          </div>
+                        <div className="mt-6 space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => handleSocialLogin('google')}
+                                disabled={socialLoading !== null}
+                                className="w-full flex items-center justify-center px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                </svg>
+                                {socialLoading === 'google' ? '로그인 중...' : 'Google 로그인'}
+                            </button>
 
-          <ConnectionTest />
+                        </div>
+                    </div>
+                </div>
 
-        </div>
-
-        {/* Back to Home */}
-        <div className="text-center">
-          <Link to="/" className="text-sm text-slate-400 hover:text-white">
-            ← 홈으로 돌아가기
-          </Link>
-        </div>
-      </div >
-    </div >
-  );
+                {/* Back to Home */}
+                <div className="text-center">
+                    <Link to="/" className="text-sm text-slate-400 hover:text-white">
+                        ← 홈으로 돌아가기
+                    </Link>
+                </div>
+            </div >
+        </div >
+    );
 };

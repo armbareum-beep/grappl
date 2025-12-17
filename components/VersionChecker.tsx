@@ -18,9 +18,30 @@ export const VersionChecker: React.FC = () => {
                 const currentVersion = localStorage.getItem('app_version');
 
                 if (currentVersion && latestVersion !== currentVersion) {
-                    console.log(`New version detected: ${latestVersion}. Reloading...`);
+                    const lastReload = parseInt(localStorage.getItem('version_reload_timestamp') || '0');
+                    const now = Date.now();
 
-                    // Clear caches if possible
+                    // Prevent infinite reload loop: if we reloaded less than 10 seconds ago, skip
+                    if (now - lastReload < 10000) {
+                        console.warn('Version mismatch detected but reload prevented to avoid loop.');
+                        return;
+                    }
+
+                    console.log(`New version detected: ${latestVersion}. Clearing EVERYTHING and Reloading...`);
+
+                    // 1. Clear all storage (This is what "Reset App" does)
+                    localStorage.clear();
+                    sessionStorage.clear();
+
+                    // 2. Unregister Service Workers
+                    if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (const registration of registrations) {
+                            await registration.unregister();
+                        }
+                    }
+
+                    // 3. Clear Cache Storage
                     if ('caches' in window) {
                         try {
                             const keys = await caches.keys();
@@ -30,22 +51,12 @@ export const VersionChecker: React.FC = () => {
                         }
                     }
 
-                    // Clear localStorage cache (Crucial for fixing infinite loading)
-                    Object.keys(localStorage).forEach(key => {
-                        if (key.startsWith('user_status_') || key.startsWith('sb-')) {
-                            localStorage.removeItem(key);
-                        }
-                    });
+                    // Reload immediately with cache busting
+                    // We don't store the version here because we want the new app to re-establish its state from scratch
+                    // But to prevent loops if clearing fails, we might want to?
+                    // actually, if we clear localStorage, we lose the 'app_version' anyway. 
+                    // So the new app will load, see no version, and set it.
 
-                    // Unregister Service Workers
-                    if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (const registration of registrations) {
-                            await registration.unregister();
-                        }
-                    }
-
-                    localStorage.setItem('app_version', latestVersion);
                     window.location.reload();
                 } else if (!currentVersion) {
                     localStorage.setItem('app_version', latestVersion);

@@ -52,6 +52,8 @@ import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
+import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
+import { GlobalUploadProgress } from './components/GlobalUploadProgress';
 
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
@@ -87,124 +89,127 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <VersionChecker />
       <ToastProvider>
-        <Router>
-          <Layout>
+        <BackgroundUploadProvider>
+          <GlobalUploadProgress />
+          <Router>
+            <Layout>
 
-            <Routes>
-              <Route path="/" element={<RootRedirect />} />
-              <Route path="/home" element={<Home />} />
-              <Route path="/browse" element={<Browse />} />
-              <Route path="/courses" element={<Browse />} />
-              <Route path="/courses/:id" element={<CourseDetail />} />
-              <Route path="/course/:id" element={<CourseRedirect />} />
-              <Route path="/videos/:id" element={<VideoDetail />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/creator" element={<CreatorDashboard />} />
-              <Route path="/creator-dashboard" element={<CreatorDashboard />} />
-              <Route path="/creator/dashboard" element={<CreatorDashboard />} />
-              <Route path="/creator/courses" element={<CreatorCourses />} />
-              <Route path="/creator/courses/new" element={<CourseEditor />} />
-              <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
-              <Route path="/creator/upload" element={<UploadVideo />} />
-              <Route path="/creator/drills/new" element={<UploadDrill />} />
-              <Route path="/creator/lessons/new" element={<UploadLesson />} />
-              <Route path="/creator/create-routine" element={<CreateRoutine />} />
-              <Route path="/become-creator" element={<BecomeCreator />} />
-              <Route path="/creator/:id" element={<CreatorProfile />} />
-              <Route path="/library" element={<MyLibrary />} />
-              <Route path="/journal" element={<Journal />} />
-              <Route path="/drills" element={<Drills />} />
-              <Route path="/drills/:id" element={<DrillDetail />} />
-              <Route path="/routines/:id" element={<RoutineDetail />} />
-              <Route path="/my-routines/:id" element={<RoutineDetail />} />
-              <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
-              <Route path="/arena" element={<Arena />} />
-              <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
+              <Routes>
+                <Route path="/" element={<RootRedirect />} />
+                <Route path="/home" element={<Home />} />
+                <Route path="/browse" element={<Browse />} />
+                <Route path="/courses" element={<Browse />} />
+                <Route path="/courses/:id" element={<CourseDetail />} />
+                <Route path="/course/:id" element={<CourseRedirect />} />
+                <Route path="/videos/:id" element={<VideoDetail />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/creator" element={<CreatorDashboard />} />
+                <Route path="/creator-dashboard" element={<CreatorDashboard />} />
+                <Route path="/creator/dashboard" element={<CreatorDashboard />} />
+                <Route path="/creator/courses" element={<CreatorCourses />} />
+                <Route path="/creator/courses/new" element={<CourseEditor />} />
+                <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
+                <Route path="/creator/upload" element={<UploadVideo />} />
+                <Route path="/creator/drills/new" element={<UploadDrill />} />
+                <Route path="/creator/lessons/new" element={<UploadLesson />} />
+                <Route path="/creator/create-routine" element={<CreateRoutine />} />
+                <Route path="/become-creator" element={<BecomeCreator />} />
+                <Route path="/creator/:id" element={<CreatorProfile />} />
+                <Route path="/library" element={<MyLibrary />} />
+                <Route path="/journal" element={<Journal />} />
+                <Route path="/drills" element={<Drills />} />
+                <Route path="/drills/:id" element={<DrillDetail />} />
+                <Route path="/routines/:id" element={<RoutineDetail />} />
+                <Route path="/my-routines/:id" element={<RoutineDetail />} />
+                <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
+                <Route path="/arena" element={<Arena />} />
+                <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
 
-              <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
-              <Route path="/lessons/:id" element={<LessonDetail />} />
-              <Route path="/instructors" element={<Instructors />} />
-              <Route path="/settings" element={<Settings />} />
+                <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
+                <Route path="/lessons/:id" element={<LessonDetail />} />
+                <Route path="/instructors" element={<Instructors />} />
+                <Route path="/settings" element={<Settings />} />
 
-              {/* Admin Routes */}
-              <Route path="/admin/dashboard" element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              } />
-              <Route path="/admin" element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              } />
-              <Route path="/admin/courses" element={
-                <AdminRoute>
-                  <AdminCourseList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/drills" element={
-                <AdminRoute>
-                  <AdminDrillList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/routines" element={
-                <AdminRoute>
-                  <AdminRoutineList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/reports" element={
-                <AdminRoute>
-                  <AdminReportList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/tournaments" element={
-                <AdminRoute>
-                  <AdminTournamentList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/support" element={
-                <AdminRoute>
-                  <AdminSupportList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/creators" element={
-                <AdminRoute>
-                  <CreatorApprovalList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/featured" element={
-                <AdminRoute>
-                  <FeaturedContent />
-                </AdminRoute>
-              } />
-              <Route path="/admin/marketing" element={
-                <AdminRoute>
-                  <AdminMarketing />
-                </AdminRoute>
-              } />
-              <Route path="/admin/payouts" element={
-                <AdminRoute>
-                  <AdminPayouts />
-                </AdminRoute>
-              } />
-              <Route path="/admin/users" element={
-                <AdminRoute>
-                  <AdminUserList />
-                </AdminRoute>
-              } />
-              <Route path="/admin/testimonials" element={
-                <AdminRoute>
-                  <AdminTestimonials />
-                </AdminRoute>
-              } />
+                {/* Admin Routes */}
+                <Route path="/admin/dashboard" element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                } />
+                <Route path="/admin" element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/courses" element={
+                  <AdminRoute>
+                    <AdminCourseList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/drills" element={
+                  <AdminRoute>
+                    <AdminDrillList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/routines" element={
+                  <AdminRoute>
+                    <AdminRoutineList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/reports" element={
+                  <AdminRoute>
+                    <AdminReportList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/tournaments" element={
+                  <AdminRoute>
+                    <AdminTournamentList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/support" element={
+                  <AdminRoute>
+                    <AdminSupportList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/creators" element={
+                  <AdminRoute>
+                    <CreatorApprovalList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/featured" element={
+                  <AdminRoute>
+                    <FeaturedContent />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/marketing" element={
+                  <AdminRoute>
+                    <AdminMarketing />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/payouts" element={
+                  <AdminRoute>
+                    <AdminPayouts />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/users" element={
+                  <AdminRoute>
+                    <AdminUserList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/testimonials" element={
+                  <AdminRoute>
+                    <AdminTestimonials />
+                  </AdminRoute>
+                } />
 
-              <Route path="/payment/complete" element={<PaymentComplete />} />
-              <Route path="/checkout/:type/:id" element={<Checkout />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </Router>
+                <Route path="/payment/complete" element={<PaymentComplete />} />
+                <Route path="/checkout/:type/:id" element={<Checkout />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </Router>
+        </BackgroundUploadProvider>
       </ToastProvider>
     </ErrorBoundary>
   );

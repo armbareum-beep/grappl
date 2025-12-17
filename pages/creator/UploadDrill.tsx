@@ -7,7 +7,7 @@ import { createDrill } from '../../lib/api';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Video, AlertCircle, CheckCircle, Scissors, Play, FileVideo, Trash2 } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
-import { videoProcessingApi } from '../../lib/api-video-processing';
+import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 type ProcessingState = {
     file: File | null;
@@ -120,53 +120,13 @@ export const UploadDrill: React.FC = () => {
             file,
             previewUrl: objectUrl,
             status: 'ready', // Immediately ready for editing
-            isBackgroundUploading: true,
+            isBackgroundUploading: false,
             error: null
         }));
 
         // Auto-open editor immediately
         setActiveEditor(type);
 
-        // 2. Background Upload
-        try {
-            console.log(`Starting background upload for ${type}...`);
-            enableNoSleep(); // Activate NoSleep video hack for mobile stability
-
-            // Get Access Token for TUS
-            const { data } = await supabase.auth.getSession();
-            const accessToken = data.session?.access_token;
-
-            // Set status to uploading specifically for UI feedback if we wanted to show it (but we show "ready" currently)
-            // Actually, we want to show 'uploading' visual if we want the bar. 
-            // But currently the logic sets it to 'ready' immediately for local preview.
-            // Let's keep it 'ready' but show a small progress indicator in the 'ready' card?
-            // OR the user asked "Why do I have to wait?". 
-            // In the current flow (Fire-forget), we let them edit WHILE uploading.
-            // So the "Waiting" happens at the END (handleSubmit).
-            // So we need the progress bar THERE if it's still uploading.
-
-            const uploadRes = await videoProcessingApi.uploadVideo(file, (percent) => {
-                setVideoState(prev => ({ ...prev, uploadProgress: percent }));
-            }, accessToken);
-
-            setVideoState(prev => ({
-                ...prev,
-                videoId: uploadRes.videoId,
-                filename: uploadRes.originalPath, // Store the full storage path here!
-                isBackgroundUploading: false
-            }));
-            console.log(`Background upload complete for ${type}`);
-
-            // Note: We skip generatePreview entirely as we use the local file
-
-        } catch (err: any) {
-            console.error(err);
-            setVideoState(prev => ({
-                ...prev,
-                isBackgroundUploading: false,
-                error: '백그라운드 업로드 실패: ' + err.message
-            }));
-        }
     };
 
     const handleCutsSave = (cuts: { start: number; end: number }[]) => {
@@ -178,102 +138,27 @@ export const UploadDrill: React.FC = () => {
         setActiveEditor(null);
     };
 
-    // Watch for background upload completion while submitting
-    useEffect(() => {
-        if (isSubmitting) {
-            // Check success
-            if (!actionVideo.isBackgroundUploading && !descVideo.isBackgroundUploading) {
-                if (actionVideo.error || descVideo.error) {
-                    setIsSubmitting(false);
-                    const errorMsg = actionVideo.error || descVideo.error || 'Unknown error';
-                    alert(`영상 업로드 중 오류가 발생했습니다: ${errorMsg}`);
-                    return;
-                }
+    // Hook must be at top level
+    const { queueUpload } = useBackgroundUpload();
 
-                // Both done and no error -> Proceed
-                // Only call if we haven't started processing yet (check progress text or add a new state?)
-                // Actually startProcessing checks for IDs.
-                // We need to avoid double-calling. 
-                // Let's rely on the fact that startProcessing sets submissionProgress to something else.
-                if (submissionProgress === '영상 원본 업로드를 마무리하는 중입니다...' ||
-                    submissionProgress === '동작 영상 업로드를 확인 중입니다... (거의 다 됐습니다!)' ||
-                    submissionProgress === '설명 영상 업로드를 확인 중입니다... (잠시만요!)'
-                ) {
-                    startProcessing();
-                }
-            } else {
-                // Update dynamic messages
-                if (actionVideo.uploadProgress === 100 && actionVideo.isBackgroundUploading) {
-                    setSubmissionProgress('동작 영상 업로드를 확인 중입니다... (거의 다 됐습니다!)');
-                } else if (descVideo.uploadProgress === 100 && descVideo.isBackgroundUploading) {
-                    setSubmissionProgress('설명 영상 업로드를 확인 중입니다... (잠시만요!)');
-                }
-            }
-        }
-    }, [isSubmitting, actionVideo.isBackgroundUploading, descVideo.isBackgroundUploading, actionVideo.error, descVideo.error, actionVideo.uploadProgress, descVideo.uploadProgress]);
+    // Watch for background upload completion while submitting - LEGACY LOGIC REMOVED
+    // We now use global context and fire-and-forget. 
+    // This useEffect was causing issues and had nested hook calls.
 
     const handleSubmit = async () => {
         if (!user) return;
 
-        // Validation
+        // Basic Validation
         if (!actionVideo.cuts) {
-            alert('동작 영상을 편집해주세요.');
+            alert('동작 영상 편집 구간을 선택해주세요.');
             return;
         }
         if (!descVideo.cuts) {
-            alert('설명 영상을 편집해주세요.');
+            alert('설명 영상 편집 구간을 선택해주세요.');
             return;
         }
-
-        // Check for upload errors FIRST
-        if (actionVideo.error) {
-            alert(`동작 영상 업로드 실패: ${actionVideo.error}\n\n영상을 삭제하고 다시 업로드해주세요.`);
-            return;
-        }
-        if (descVideo.error) {
-            alert(`설명 영상 업로드 실패: ${descVideo.error}\n\n영상을 삭제하고 다시 업로드해주세요.`);
-            return;
-        }
-
-        // Check if uploads completed successfully
-        if (!actionVideo.videoId || !actionVideo.filename) {
-            alert('동작 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
-            return;
-        }
-        if (!descVideo.videoId || !descVideo.filename) {
-            alert('설명 영상이 아직 업로드되지 않았습니다.\n\n잠시 후 다시 시도하거나, 영상을 삭제하고 다시 업로드해주세요.');
-            return;
-        }
-
-        // Check if background uploads are finished
-        if (actionVideo.isBackgroundUploading || descVideo.isBackgroundUploading) {
-            setSubmissionProgress('영상 원본 업로드를 마무리하는 중입니다...');
-            setIsSubmitting(true);
-            return;
-        }
-
-        startProcessing();
-    };
-
-    const startProcessing = async () => {
-        // Validation with specific error messages
-        const missingFields = [];
-        if (!user) missingFields.push('로그인 필요');
-        if (!actionVideo.videoId) missingFields.push('동작 영상 ID 누락');
-        if (!actionVideo.filename) missingFields.push('동작 영상 파일명 누락');
-        if (!descVideo.videoId) missingFields.push('설명 영상 ID 누락');
-        if (!descVideo.filename) missingFields.push('설명 영상 파일명 누락');
-        if (!actionVideo.cuts) missingFields.push('동작 편집 정보 누락');
-        if (!descVideo.cuts) missingFields.push('설명 편집 정보 누락');
-
-        if (missingFields.length > 0) {
-            console.error('Missing fields:', missingFields);
-            // Check for upload errors first
-            if (actionVideo.error || descVideo.error) {
-                alert(`업로드 실패: ${actionVideo.error || descVideo.error}`);
-            } else {
-                alert(`업로드 정보가 불완전합니다 (${missingFields.join(', ')}). \n잠시 후 다시 시도하거나 영상을 다시 선택해주세요.`);
-            }
+        if (!actionVideo.file || !descVideo.file) {
+            alert('영상 파일을 선택해주세요.');
             return;
         }
 
@@ -282,53 +167,60 @@ export const UploadDrill: React.FC = () => {
 
         try {
             // 1. Create Drill Record First (Database)
-            // Use placeholder for videos, they will be updated by backend
             const { data: drill, error: dbError } = await createDrill({
                 title: formData.title,
                 description: formData.description,
                 creatorId: user.id,
                 category: formData.category,
                 difficulty: formData.difficulty,
-                vimeoUrl: '', // Will be updated by backend
-                descriptionVideoUrl: '', // Will be updated by backend
-                thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...', // Temporary thumbnail
+                vimeoUrl: '',
+                descriptionVideoUrl: '',
+                thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
                 durationMinutes: 0,
             });
 
             if (dbError || !drill) throw dbError;
 
             console.log('Drill created:', drill.id);
+            setSubmissionProgress('백그라운드 업로드 시작 중...');
 
-            // 2. Trigger Background Processing (Fire & Forget)
-            setSubmissionProgress('영상 처리를 요청하는 중...');
+            // 2. Queue Background Uploads
+            // Action Video
+            const actionVideoId = crypto.randomUUID();
+            const actionExt = actionVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+            const actionFilename = `${actionVideoId}.${actionExt}`;
 
-            // We await the *request* (which returns 202 instant), but the actual processing happens in background
-            // Note: actionVideo.filename and descVideo.filename now contain the Supabase Storage Path (e.g., "raw_videos/uuid.mp4")
-            await videoProcessingApi.processVideo(
-                actionVideo.videoId,
-                actionVideo.filename,
-                actionVideo.cuts,
-                `[Drill] ${formData.title}`,
-                formData.description,
-                drill.id,
-                'action'
-            );
+            await queueUpload(actionVideo.file, 'action', {
+                videoId: actionVideoId,
+                filename: actionFilename,
+                cuts: actionVideo.cuts,
+                title: `[Drill] ${formData.title}`,
+                description: formData.description,
+                drillId: drill.id,
+                videoType: 'action'
+            });
 
-            await videoProcessingApi.processVideo(
-                descVideo.videoId,
-                descVideo.filename,
-                descVideo.cuts,
-                `[Drill Explanation] ${formData.title}`,
-                `Explanation for ${formData.title}`,
-                drill.id,
-                'desc'
-            );
+            // Add delay to prevent race conditions for second upload
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Description Video
+            const descVideoId = crypto.randomUUID();
+            const descExt = descVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+            const descFilename = `${descVideoId}.${descExt}`;
+
+            await queueUpload(descVideo.file, 'desc', {
+                videoId: descVideoId,
+                filename: descFilename,
+                cuts: descVideo.cuts,
+                title: `[Drill Explanation] ${formData.title}`,
+                description: `Explanation for ${formData.title}`,
+                drillId: drill.id,
+                videoType: 'desc'
+            });
 
             // 3. Navigate Immediately
             setSubmissionProgress('완료! 대시보드로 이동합니다.');
-            setTimeout(() => {
-                navigate('/creator');
-            }, 500);
+            navigate('/creator');
 
         } catch (err: any) {
             console.error(err);

@@ -461,7 +461,22 @@ export const CreatorDashboard: React.FC = () => {
                                             className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group ${index !== drills.length - 1 ? 'border-b border-slate-800' : ''
                                                 }`}
                                         >
-                                            <Link to={`/drills/${drill.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                                            <Link
+                                                to={`/drills/${drill.id}`}
+                                                className="flex items-center gap-4 flex-1 min-w-0"
+                                                onClick={(e) => {
+                                                    // Strict readiness check
+                                                    const hasVimeo = drill.vimeoUrl && drill.vimeoUrl.length > 5 && !drill.vimeoUrl.includes('placeholder');
+                                                    const hasRawVideo = drill.videoUrl && drill.videoUrl.length > 10;
+
+                                                    // Allow if EITHER Vimeo is ready OR we have a raw video fallback
+                                                    if (!hasVimeo && !hasRawVideo) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        alert('🚫 동영상이 아직 준비되지 않았습니다.\n\n서버에서 영상을 처리 중이거나 업로드에 실패했을 수 있습니다.\n잠시 후 다시 시도해 주세요.');
+                                                    }
+                                                }}
+                                            >
                                                 <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
                                                     <PlayCircle className="w-5 h-5" />
                                                 </div>

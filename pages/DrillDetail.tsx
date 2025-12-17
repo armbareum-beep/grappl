@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDrillById, checkDrillOwnership, incrementDrillViews, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -274,9 +274,7 @@ export const DrillDetail: React.FC = () => {
         navigate(`/payment/drill/${drill.id}?price=${finalPrice}`);
     };
 
-    const handleComplete = () => {
-        setShowQuestComplete(true);
-    };
+
 
     const handleLike = async () => {
         if (!user || !id) {
@@ -353,6 +351,28 @@ export const DrillDetail: React.FC = () => {
     }
 
     if (error) {
+        // If it's a timeout, show a softer "Connecting" screen instead of a hard error
+        const isTimeout = error.includes('time out') || error.includes('timeout');
+
+        if (isTimeout) {
+            return (
+                <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <h2 className="text-xl font-bold text-white mb-2">서버 연결 중...</h2>
+                    <p className="text-slate-400 text-center max-w-xs mb-8">
+                        드릴 정보를 불러오고 있습니다.<br />
+                        잠시만 기다려주세요.
+                    </p>
+                    <button
+                        onClick={() => { setLoading(true); fetchDrill(); }}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition"
+                    >
+                        다시 시도
+                    </button>
+                </div>
+            );
+        }
+
         return (
             <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
@@ -403,7 +423,11 @@ export const DrillDetail: React.FC = () => {
     const fallbackUrl = isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl && !vimeoId ? drill.descriptionVideoUrl : drill.videoUrl);
 
     const useVimeo = !!vimeoId && owns;
-    const videoSrc = useVimeo ? `https://player.vimeo.com/video/${vimeoId}` : fallbackUrl;
+
+    // SAFE VIDEO SRC: Ensure we never pass empty string to video tag to avoid browser alerts
+    const videoSrc = useVimeo
+        ? `https://player.vimeo.com/video/${vimeoId}`
+        : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4'); // Placeholder to prevent errors
 
     // Detect Processing State (Backend is still working)
     const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
@@ -423,6 +447,13 @@ export const DrillDetail: React.FC = () => {
                         className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition"
                     >
                         대시보드로 돌아가기
+                    </button>
+                    {/* Add a force-refresh button for eager users */}
+                    <button
+                        onClick={() => fetchDrill()}
+                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+                    >
+                        상태 확인
                     </button>
                 </div>
             </div>
