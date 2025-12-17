@@ -231,23 +231,43 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
         .select('id')
         .eq('creator_id', creatorId);
 
-    if (!courses || courses.length === 0) return [];
+    const courseIds = courses?.map(c => c.id) || [];
 
-    const courseIds = courses.map(c => c.id);
+    // Get lessons from two sources:
+    // 1. Lessons belonging to creator's courses
+    // 2. Standalone lessons (course_id is null) - we need to add creator_id to lessons table for this
+    // For now, we'll just get all standalone lessons and filter client-side
 
-    // Get all lessons from these courses
-    const { data, error } = await supabase
-        .from('lessons')
-        .select('*')
-        .in('course_id', courseIds)
-        .order('created_at', { ascending: false });
+    const queries = [];
 
-    if (error) {
-        console.error('Error fetching creator lessons:', error);
-        return [];
+    // Get lessons from creator's courses
+    if (courseIds.length > 0) {
+        queries.push(
+            supabase
+                .from('lessons')
+                .select('*')
+                .in('course_id', courseIds)
+        );
     }
 
-    return (data || []).map(transformLesson);
+    // Get standalone lessons (course_id is null)
+    // TODO: Add creator_id column to lessons table for better filtering
+    queries.push(
+        supabase
+            .from('lessons')
+            .select('*')
+            .is('course_id', null)
+    );
+
+    const results = await Promise.all(queries);
+    const allLessons = results.flatMap(r => r.data || []);
+
+    // Remove duplicates and sort by created_at
+    const uniqueLessons = Array.from(
+        new Map(allLessons.map(lesson => [lesson.id, lesson])).values()
+    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return uniqueLessons.map(transformLesson);
 }
 
 export async function getLessonById(id: string): Promise<Lesson | null> {
