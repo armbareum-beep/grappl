@@ -135,7 +135,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     creator:creators(name),
                     lessons:lessons(count)
                 `)
-                // .eq('published', true) // Temporarily disable for debugging
+                .eq('published', true) // Re-enable published filter
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1),
             5000
@@ -699,6 +699,7 @@ export async function createCourse(courseData: Partial<Course>) {
         thumbnail_url: courseData.thumbnailUrl,
         price: courseData.price,
         is_subscription_excluded: courseData.isSubscriptionExcluded,
+        published: courseData.published,
     };
 
     const { data, error } = await supabase
@@ -720,6 +721,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
+    if (courseData.published !== undefined) dbData.published = courseData.published;
 
     const { data, error } = await supabase
         .from('courses')
