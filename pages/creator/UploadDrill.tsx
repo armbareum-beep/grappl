@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { VideoCategory, Difficulty } from '../../types';
-import { createDrill } from '../../lib/api';
+import { createDrill, getDrillById, updateDrill } from '../../lib/api';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, Video, AlertCircle, CheckCircle, Scissors, Play, FileVideo, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Video, AlertCircle, CheckCircle, Scissors, Play, FileVideo, Trash2, Loader } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
@@ -35,6 +35,8 @@ const initialProcessingState: ProcessingState = {
 export const UploadDrill: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditMode = !!id;
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -43,6 +45,7 @@ export const UploadDrill: React.FC = () => {
         category: VideoCategory.Standing,
         difficulty: Difficulty.Beginner,
     });
+    const [isLoading, setIsLoading] = useState(false);
 
     // Video States
     const [actionVideo, setActionVideo] = useState<ProcessingState>(initialProcessingState);
@@ -57,6 +60,33 @@ export const UploadDrill: React.FC = () => {
 
     // Tab State for "Swipe" view
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
+
+    // Fetch drill data in edit mode
+    useEffect(() => {
+        if (!isEditMode || !id) return;
+
+        async function fetchDrill() {
+            setIsLoading(true);
+            try {
+                const drill = await getDrillById(id);
+                if (drill) {
+                    setFormData({
+                        title: drill.title,
+                        description: drill.description || '',
+                        category: drill.category || VideoCategory.Standing,
+                        difficulty: drill.difficulty || Difficulty.Beginner,
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch drill:', err);
+                alert('드릴 정보를 불러오는데 실패했습니다.');
+                navigate('/creator');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchDrill();
+    }, [id, isEditMode, navigate]);
 
     // NoSleep Video Ref
     const noSleepVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -514,12 +544,14 @@ export const UploadDrill: React.FC = () => {
                 <div className="space-y-6">
                     <div>
                         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                            새 드릴 만들기
+                            {isEditMode ? '드릴 수정' : '새 드릴 만들기'}
                             <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-[10px] rounded-full uppercase tracking-wider shadow-lg">
                                 ⚡️ Super Speed
                             </span>
                         </h1>
-                        <p className="text-slate-400 mt-1">동작과 설명을 각각 업로드하여 드릴을 완성하세요.</p>
+                        <p className="text-slate-400 mt-1">
+                            {isEditMode ? '드릴 정보를 수정합니다.' : '동작과 설명을 각각 업로드하여 드릴을 완성하세요.'}
+                        </p>
                     </div>
 
                     {/* Metadata Form */}
@@ -617,10 +649,10 @@ export const UploadDrill: React.FC = () => {
                     {/* Submit Button */}
                     <Button
                         onClick={handleSubmit}
-                        disabled={!actionVideo.cuts || !descVideo.cuts || !formData.title}
+                        disabled={isEditMode ? !formData.title : (!actionVideo.cuts || !descVideo.cuts || !formData.title)}
                         className="w-full py-4 text-lg font-bold shadow-xl shadow-blue-500/10"
                     >
-                        드릴 생성 완료
+                        {isEditMode ? '수정사항 저장' : '드릴 생성 완료'}
                     </Button>
                 </div>
             </div>
