@@ -90,8 +90,12 @@ export const UploadLesson: React.FC = () => {
             const ext = videoState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
             const filename = `${videoId}.${ext}`;
 
+            // Use a special "Standalone Lessons" course ID
+            // TODO: Create this course in the database or make course_id nullable
+            const STANDALONE_COURSE_ID = '00000000-0000-0000-0000-000000000000';
+
             const { data: lesson, error: dbError } = await createLesson({
-                courseId: null, // Will be assigned when added to a course
+                courseId: STANDALONE_COURSE_ID, // Special ID for standalone lessons
                 title: formData.title,
                 description: formData.description,
                 lessonNumber: 1, // Default, will be reordered in course editor
