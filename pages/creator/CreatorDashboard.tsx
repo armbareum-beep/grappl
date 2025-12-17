@@ -479,36 +479,42 @@ export const CreatorDashboard: React.FC = () => {
                                             className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group ${index !== drills.length - 1 ? 'border-b border-slate-800' : ''
                                                 }`}
                                         >
-                                            <Link
-                                                to={`/drills/${drill.id}`}
-                                                className="flex items-center gap-4 flex-1 min-w-0"
-                                                onClick={(e) => {
-                                                    // Strict readiness check
-                                                    const hasVimeo = drill.vimeoUrl && drill.vimeoUrl.length > 5 && !drill.vimeoUrl.includes('placeholder');
-                                                    const hasRawVideo = drill.videoUrl && drill.videoUrl.length > 10;
-
-                                                    // Allow if EITHER Vimeo is ready OR we have a raw video fallback
-                                                    if (!hasVimeo && !hasRawVideo) {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        alert('🚫 동영상이 아직 준비되지 않았습니다.\n\n서버에서 영상을 처리 중이거나 업로드에 실패했을 수 있습니다.\n잠시 후 다시 시도해 주세요.');
-                                                    }
-                                                }}
-                                            >
-                                                <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
-                                                    <PlayCircle className="w-5 h-5" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
-                                                        {drill.title}
-                                                    </h3>
-                                                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                                                        <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
-                                                        <span>&bull;</span>
-                                                        <span>{drill.durationMinutes}분</span>
+                                            {drill.vimeoUrl && drill.vimeoUrl.length > 5 && !drill.vimeoUrl.includes('placeholder') ? (
+                                                <Link
+                                                    to={`/drills/${drill.id}`}
+                                                    className="flex items-center gap-4 flex-1 min-w-0 group"
+                                                >
+                                                    <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
+                                                        <PlayCircle className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                                                            {drill.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                            <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
+                                                            <span>&bull;</span>
+                                                            <span>{drill.durationMinutes}분</span>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            ) : (
+                                                <div className="flex items-center gap-4 flex-1 min-w-0 cursor-not-allowed opacity-60">
+                                                    <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-500">
+                                                        <div className="w-5 h-5 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-medium text-white truncate">
+                                                            {drill.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                            <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
+                                                            <span>&bull;</span>
+                                                            <span className="text-yellow-500">처리 중...</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </Link>
+                                            )}
 
                                             <div className="flex items-center gap-4 ml-4">
                                                 <div className="text-sm text-slate-400 w-20 text-right">
