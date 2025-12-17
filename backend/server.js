@@ -82,13 +82,19 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        hasKey: !!supabaseKey
-    },
+        version: '1.5.1',
+        note: 'Force rebuild - Public URL fix for Supabase Storage downloads',
+        supabaseConnected: !!supabase,
+        isServiceRole: !!process.env.SUPABASE_SERVICE_KEY,
+        envCheck: {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseKey
+        },
         vimeoCheck: {
-        hasClientId: !!process.env.VITE_VIMEO_CLIENT_ID,
-        hasSecret: !!process.env.VITE_VIMEO_CLIENT_SECRET,
-        hasToken: !!process.env.VITE_VIMEO_ACCESS_TOKEN
-    }
+            hasClientId: !!process.env.VITE_VIMEO_CLIENT_ID,
+            hasSecret: !!process.env.VITE_VIMEO_CLIENT_SECRET,
+            hasToken: !!process.env.VITE_VIMEO_ACCESS_TOKEN
+        }
     });
 });
 
