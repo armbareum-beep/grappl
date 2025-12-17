@@ -105,14 +105,14 @@ export const UploadLesson: React.FC = () => {
             console.log('Lesson created:', lesson.id);
             setSubmissionProgress('백그라운드 업로드 시작 중...');
 
-            // 2. Queue Background Upload (use lesson.id as drillId for backend compatibility)
+            // 2. Queue Background Upload (use special lesson marker for backend)
             await queueUpload(videoState.file, 'action', {
                 videoId: videoId,
                 filename: filename,
                 cuts: videoState.cuts,
                 title: `[Lesson] ${formData.title}`,
                 description: formData.description,
-                drillId: lesson.id, // Use lesson ID for backend compatibility
+                drillId: `LESSON-${lesson.id}`, // Special marker to distinguish lessons from drills
                 videoType: 'action'
             });
 
