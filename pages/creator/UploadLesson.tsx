@@ -52,70 +52,19 @@ export const UploadLesson: React.FC = () => {
     const [submissionProgress, setSubmissionProgress] = useState<string>('');
 
     const handleFileUpload = async (file: File) => {
-        setVideoState(prev => ({ ...prev, file, status: 'uploading', progress: 0, error: null }));
+        // 1. Instant Local Preview (like UploadDrill)
+        const objectUrl = URL.createObjectURL(file);
 
-        try {
-            // 1. Upload Raw
-            const uploadRes = await videoProcessingApi.uploadVideo(file);
-            setVideoState(prev => ({
-                ...prev,
-                videoId: uploadRes.videoId,
-                filename: uploadRes.filename,
-                status: 'previewing',
-                progress: 0
-            }));
+        setVideoState(prev => ({
+            ...prev,
+            file,
+            previewUrl: objectUrl,
+            status: 'ready', // Immediately ready for editing
+            error: null
+        }));
 
-            // 2. Generate Preview
-            const previewRes = await videoProcessingApi.generatePreview(uploadRes.videoId, uploadRes.filename);
-
-            if (previewRes.previewUrl && !previewRes.jobId) {
-                setVideoState(prev => ({
-                    ...prev,
-                    previewUrl: videoProcessingApi.getPreviewUrl(previewRes.previewUrl!),
-                    status: 'ready',
-                    progress: 100
-                }));
-                setIsEditing(true);
-                return;
-            }
-
-            const jobId = previewRes.jobId!;
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusRes = await videoProcessingApi.getJobStatus(jobId);
-                    setVideoState(prev => ({ ...prev, progress: statusRes.progress }));
-
-                    if (statusRes.status === 'completed' && statusRes.previewUrl) {
-                        clearInterval(pollInterval);
-                        setVideoState(prev => ({
-                            ...prev,
-                            previewUrl: videoProcessingApi.getPreviewUrl(statusRes.previewUrl!),
-                            status: 'ready',
-                            progress: 100
-                        }));
-                        setIsEditing(true);
-                    } else if (statusRes.status === 'error') {
-                        clearInterval(pollInterval);
-                        throw new Error(statusRes.error || 'Preview generation failed');
-                    }
-                } catch (err: any) {
-                    clearInterval(pollInterval);
-                    setVideoState(prev => ({
-                        ...prev,
-                        status: 'error',
-                        error: '미리보기 생성 실패: ' + err.message
-                    }));
-                }
-            }, 1000);
-
-        } catch (err: any) {
-            console.error(err);
-            setVideoState(prev => ({
-                ...prev,
-                status: 'error',
-                error: '업로드/변환 실패: ' + err.message
-            }));
-        }
+        // Auto-open editor immediately
+        setIsEditing(true);
     };
 
     const handleCutsSave = (cuts: { start: number; end: number }[]) => {
@@ -124,7 +73,7 @@ export const UploadLesson: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if (!user || !videoState.videoId) return;
+        if (!user || !videoState.file) return;
 
         if (!videoState.cuts) {
             alert('영상을 편집해주세요.');
@@ -134,10 +83,15 @@ export const UploadLesson: React.FC = () => {
         setIsSubmitting(true);
 
         try {
+            // 1. Upload Raw Video
+            setSubmissionProgress('영상 업로드 중...');
+            const uploadRes = await videoProcessingApi.uploadVideo(videoState.file);
+
+            // 2. Process Video
             setSubmissionProgress('영상 처리 중...');
             const processRes = await videoProcessingApi.processVideo(
-                videoState.videoId,
-                videoState.filename!,
+                uploadRes.videoId,
+                uploadRes.filename,
                 videoState.cuts,
                 `[Lesson] ${formData.title}`,
                 formData.description,
@@ -145,6 +99,7 @@ export const UploadLesson: React.FC = () => {
                 'action' // videoType
             );
 
+            // 3. Save to Database
             setSubmissionProgress('저장 중...');
             const { error: dbError } = await createLesson({
                 courseId: '', // Will be assigned when added to a course
