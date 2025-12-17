@@ -18,12 +18,21 @@ const { pipeline } = require('stream');
 const { promisify } = require('util');
 const streamPipeline = promisify(pipeline);
 
+// Helper: Download file from URL
 async function downloadFile(url, dest) {
     return new Promise((resolve, reject) => {
         const file = fs.createWriteStream(dest);
         https.get(url, response => {
+            if (response.statusCode === 404) {
+                reject(new Error(`File not found (404): The file does not exist in Supabase Storage. URL: ${url}`));
+                return;
+            }
+            if (response.statusCode === 400) {
+                reject(new Error(`Bad request (400): The file may not have been uploaded successfully. URL: ${url}`));
+                return;
+            }
             if (response.statusCode !== 200) {
-                reject(new Error(`Failed to download file: ${response.statusCode}`));
+                reject(new Error(`Failed to download file: HTTP ${response.statusCode}. URL: ${url}`));
                 return;
             }
             response.pipe(file);
