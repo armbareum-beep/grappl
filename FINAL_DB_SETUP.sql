@@ -25,8 +25,6 @@ ALTER TABLE lessons
 ADD COLUMN IF NOT EXISTS vimeo_url TEXT;
 
 -- 3. Add creator_id to lessons table (optional but recommended for easier authenticaton)
--- For now we rely on the implementation that filters by course ownership, 
--- but adding this would allow "Select * from lessons where creator_id = X"
 ALTER TABLE lessons
 ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES auth.users(id);
 
