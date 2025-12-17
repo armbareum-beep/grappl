@@ -27,10 +27,23 @@ export const videoProcessingApi = {
         const extension = file.name.split('.').pop();
         const filename = `${uniqueId}.${extension}`;
 
-        // Dynamic import Supabase credentials
+        // Dynamic import Supabase credentials and client
         const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
         const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
         const BUCKET_NAME = 'raw_videos_v2';
+
+        // Get fresh access token from Supabase session
+        let authToken = accessToken;
+        if (!authToken) {
+            try {
+                const { supabase } = await import('./supabase');
+                const { data } = await supabase.auth.getSession();
+                authToken = data.session?.access_token;
+                console.log('[Upload] Using fresh access token:', authToken ? 'present' : 'missing');
+            } catch (err) {
+                console.warn('[Upload] Failed to get session, using anon key:', err);
+            }
+        }
 
         // Dynamic import tus-js-client
         const tus = await import('tus-js-client');
@@ -40,7 +53,7 @@ export const videoProcessingApi = {
                 endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
                 retryDelays: [0, 1000, 3000, 5000, 10000, 20000, 60000], // More aggressive retries
                 headers: {
-                    authorization: accessToken ? `Bearer ${accessToken}` : `Bearer ${SUPABASE_KEY}`,
+                    authorization: authToken ? `Bearer ${authToken}` : `Bearer ${SUPABASE_KEY}`,
                     'x-upsert': 'true', // Optional
                 },
                 uploadDataDuringCreation: false,
@@ -78,6 +91,9 @@ export const videoProcessingApi = {
                 if (previousUploads.length) {
                     upload.resumeFromPreviousUpload(previousUploads[0]);
                 }
+                upload.start();
+            }).catch((err) => {
+                console.error('Failed to check previous uploads:', err);
                 upload.start();
             });
         });
