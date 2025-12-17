@@ -353,17 +353,26 @@ export const DrillDetail: React.FC = () => {
     }
 
     if (error) {
+        // 타임아웃이나 연결 문제인 경우 친절한 메시지 표시
+        const isTimeout = error.includes('timed out') || error.includes('timeout') || error.includes('connection');
+
         return (
-            <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
-                    <span className="text-3xl">⚠️</span>
+            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mb-6">
+                    <span className="text-3xl">{isTimeout ? '⏳' : '⚠️'}</span>
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">오류가 발생했습니다</h2>
-                <p className="text-slate-400 text-center mb-8 max-w-xs">{error}</p>
+                <h2 className="text-xl font-bold text-white mb-2">
+                    {isTimeout ? '연결을 확인하고 있습니다' : '오류가 발생했습니다'}
+                </h2>
+                <p className="text-slate-400 text-center mb-8 max-w-xs">
+                    {isTimeout
+                        ? '서버 응답을 기다리고 있습니다. 잠시 후 다시 시도해주세요.'
+                        : error}
+                </p>
                 <div className="flex gap-4">
                     <button
-                        onClick={() => { setLoading(true); fetchDrill(); }}
-                        className="px-6 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition"
+                        onClick={() => { setError(null); setLoading(true); fetchDrill(); }}
+                        className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition"
                     >
                         다시 시도
                     </button>
