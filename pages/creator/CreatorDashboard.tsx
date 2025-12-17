@@ -390,7 +390,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                                                             <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
                                                             <span>&bull;</span>
-                                                            <span>{lesson.durationMinutes}분</span>
+                                                            <span>{lesson.length || (lesson.durationMinutes ? `${lesson.durationMinutes}분` : '0:00')}</span>
                                                         </div>
                                                     </div>
                                                 </Link>
@@ -483,7 +483,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                                                             <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
                                                             <span>&bull;</span>
-                                                            <span>{drill.durationMinutes}분</span>
+                                                            <span>{drill.length || (drill.durationMinutes ? `${drill.durationMinutes}분` : '0:00')}</span>
                                                         </div>
                                                     </div>
                                                 </Link>
@@ -506,9 +506,16 @@ export const CreatorDashboard: React.FC = () => {
                                             )}
 
                                             <div className="flex items-center gap-4 ml-4">
-                                                <div className="text-sm text-slate-400 w-20 text-right">
+                                                <div className="text-sm text-slate-400 w-20 text-right hidden sm:block">
                                                     {drill.views.toLocaleString()} 조회
                                                 </div>
+                                                <Link
+                                                    to={`/creator/drills/${drill.id}/edit`}
+                                                    className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="수정"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Link>
                                                 <button
                                                     onClick={(e) => {
                                                         e.preventDefault();
