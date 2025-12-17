@@ -82,9 +82,9 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.4.0', // Vimeo Upload Timeout Fix + Retry Logic
+        version: '1.5.0', // Public URL Fix for Storage Downloads
         deployedAt: new Date().toISOString(),
-        note: 'Fixed: Vimeo upload timeout, retry logic, detailed logging',
+        note: 'Fixed: Using public URLs instead of signed URLs for Supabase Storage',
         supabaseConnected: !!supabase,
         isServiceRole: !!process.env.SUPABASE_SERVICE_KEY,
         envCheck: {
