@@ -7,7 +7,10 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'autoUpdate',
+            registerType: 'prompt', // Changed from autoUpdate to prevent stale cache
+            workbox: {
+                cleanupOutdatedCaches: true // Automatically clean up old caches
+            },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {
                 name: 'Grapplay',
@@ -29,6 +32,16 @@ export default defineConfig({
             }
         })
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                // Add hash to filenames for automatic cache busting
+                entryFileNames: 'assets/[name].[hash].js',
+                chunkFileNames: 'assets/[name].[hash].js',
+                assetFileNames: 'assets/[name].[hash].[ext]'
+            }
+        }
+    },
     server: {
         port: 8080,
         open: true
