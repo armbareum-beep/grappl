@@ -53,7 +53,7 @@ async function downloadFile(url, dest) {
 
 // Support both standard and VITE_ prefixed environment variables for flexibility
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 let supabase = null;
 
@@ -91,13 +91,17 @@ app.get('/', (req, res) => {
 // Verify Deployment Endpoint
 app.get('/version', (req, res) => {
     res.json({
-        version: '1.5.1',
-        note: 'Force rebuild - Public URL fix for Supabase Storage downloads',
+        version: '1.6.0',
+        note: 'Fixed environment variable names to match Render config (SUPABASE_SERVICE_ROLE_KEY)',
         supabaseConnected: !!supabase,
-        isServiceRole: !!process.env.SUPABASE_SERVICE_KEY,
+        isServiceRole: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY),
         envCheck: {
             hasUrl: !!supabaseUrl,
-            hasKey: !!supabaseKey
+            hasKey: !!supabaseKey,
+            urlValue: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+            keySource: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' :
+                process.env.SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_KEY' :
+                    process.env.VITE_SUPABASE_ANON_KEY ? 'VITE_SUPABASE_ANON_KEY' : 'NONE'
         },
         vimeoCheck: {
             hasClientId: !!process.env.VITE_VIMEO_CLIENT_ID,
