@@ -3452,33 +3452,39 @@ export async function getDrillById(id: string) {
     if (mockDrill) return mockDrill;
 
     try {
-        console.log(`Fetching drill ${id}...`);
+        console.log(`[getDrillById] Fetching drill ${id}...`);
+        const startTime = Date.now();
 
-        // Timeout increased to 20s to rule out slow network vs hang
+        // Reduced timeout to 10s for faster feedback
         const { data, error } = await withTimeout(
             supabase
                 .from('drills')
                 .select('*')
                 .eq('id', id)
                 .limit(1),
-            20000
+            10000
         );
 
+        const duration = Date.now() - startTime;
+        console.log(`[getDrillById] Query completed in ${duration}ms`);
+
         if (error) {
-            console.error('Error fetching drill:', error);
+            console.error(`[getDrillById] Error fetching drill ${id}:`, error);
             // Return error object and exit
             return { error };
         }
 
         // Handle empty result manually
         if (!data || data.length === 0) {
+            console.warn(`[getDrillById] Drill ${id} not found in database`);
             return { error: { message: 'Drill not found', code: '404' } };
         }
 
+        console.log(`[getDrillById] Successfully fetched drill ${id}`);
         return transformDrill(data[0]);
     } catch (e: any) {
-        console.error('getDrillById failed/timeout:', e);
-        return { error: e.message || 'Timeout/Network Error' };
+        console.error(`[getDrillById] Failed/timeout for drill ${id}:`, e);
+        return { error: e.message || 'Request timed out. Please check your connection and try again.' };
     }
 }
 
