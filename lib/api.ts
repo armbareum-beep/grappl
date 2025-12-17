@@ -1714,19 +1714,19 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         console.warn('Error fetching belt info:', e);
     }
     // Fetch profile images from users table
+    // NOTE: user_metadata is not available in the public users table
+    // Avatar URLs should be stored in a separate column if needed
     try {
         if (userIds.length > 0) {
             const { data: usersData } = await supabase
                 .from('users')
-                .select('id, user_metadata')
+                .select('id, avatar_url')
                 .in('id', userIds);
 
             if (usersData) {
                 usersData.forEach((u: any) => {
-                    // Try to get avatar from user_metadata
-                    const avatar = u.user_metadata?.avatar_url;
-                    if (avatar) {
-                        avatarMap[u.id] = avatar;
+                    if (u.avatar_url) {
+                        avatarMap[u.id] = u.avatar_url;
                     }
                 });
             }
