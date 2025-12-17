@@ -545,16 +545,6 @@ export const DrillDetail: React.FC = () => {
 
             {/* Bottom Info Overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
-                {/* DEBUG OVERLAY - REMOVE BEFORE PRODUCTION */}
-                <div className="absolute bottom-20 right-4 bg-red-500/80 text-white text-[10px] p-2 rounded pointer-events-auto z-50 max-w-[200px] break-words">
-                    <p>DEBUG INFO:</p>
-                    <p>Owns: {String(owns)}</p>
-                    <p>VimeoID: {vimeoId || 'null'}</p>
-                    <p>VideoUrl: {drill.videoUrl || 'null'}</p>
-                    <p>IsProc: {String(isProcessing)}</p>
-                    <p>UseVimeo: {String(useVimeo)}</p>
-                </div>
-
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                     {/* Left: Info */}
                     <div className="flex-1 pr-4">
