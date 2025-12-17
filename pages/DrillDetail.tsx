@@ -148,17 +148,21 @@ export const DrillDetail: React.FC = () => {
             const isSub = userData?.is_subscriber || false;
             setIsSubscriber(isSub);
 
-            if (id) {
+            if (id && drill) {
                 // Simple logic:
-                // 1. Subscribers can watch everything
-                // 2. First drill in routine is free
-                // 3. Creator can watch their own drills
+                // 1. Creator can watch their own drills (highest priority)
+                // 2. Subscribers can watch everything
+                // 3. First drill in routine is free
 
                 let hasAccess = false;
 
-                // Check if creator
-                if (drill && drill.creatorId === contextUser.id) {
+                // Check if creator (HIGHEST PRIORITY)
+                if (drill.creatorId === contextUser.id) {
                     hasAccess = true;
+                    console.log('[DEBUG] Creator access granted:', {
+                        drillCreator: drill.creatorId,
+                        userId: contextUser.id
+                    });
                 }
                 // Check if subscriber
                 else if (isSub) {
