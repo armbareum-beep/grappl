@@ -111,6 +111,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                             task.processingParams.title,
                             task.processingParams.description,
                             task.processingParams.drillId,
+                            task.processingParams.lessonId,
                             task.processingParams.videoType
                         )
                             .then(() => {

@@ -2,29 +2,37 @@
 
 ## Lesson vs Drill Identification
 
-The frontend sends video processing requests with a `drillId` parameter. To distinguish between lessons and drills:
+The frontend sends video processing requests with both `drillId` and `lessonId` parameters. Use these to distinguish between lessons and drills:
 
 ### Drill Processing
-- `drillId`: Regular UUID (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+- `drillId`: UUID (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+- `lessonId`: `undefined` or `null`
 - Backend should update the `drills` table with the processed video URL
 
 ### Lesson Processing  
-- `drillId`: Prefixed with `LESSON-` (e.g., `"LESSON-550e8400-e29b-41d4-a716-446655440000"`)
-- Backend should:
-  1. Extract the actual lesson ID by removing the `LESSON-` prefix
-  2. Update the `lessons` table instead of `drills` table
-  3. Use the same video processing pipeline
+- `drillId`: `undefined` or `null`
+- `lessonId`: UUID (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+- Backend should update the `lessons` table with the processed video URL
 
 ### Backend Implementation Required
 
 ```typescript
 // In your backend /process endpoint:
 function processVideoRequest(req, res) {
-  const { drillId, videoId, filename, cuts, title, description, videoType } = req.body;
+  const { drillId, lessonId, videoId, filename, cuts, title, description, videoType } = req.body;
   
-  // Check if this is a lesson
-  const isLesson = drillId.startsWith('LESSON-');
-  const actualId = isLesson ? drillId.replace('LESSON-', '') : drillId;
+  // Validate: exactly one of drillId or lessonId should be present
+  if (!drillId && !lessonId) {
+    return res.status(400).json({ error: 'Either drillId or lessonId is required' });
+  }
+  
+  if (drillId && lessonId) {
+    return res.status(400).json({ error: 'Cannot specify both drillId and lessonId' });
+  }
+  
+  // Determine which table to update
+  const isLesson = !!lessonId;
+  const contentId = isLesson ? lessonId : drillId;
   const tableName = isLesson ? 'lessons' : 'drills';
   
   // Process video...
@@ -33,28 +41,48 @@ function processVideoRequest(req, res) {
     // Update lessons table
     await supabase
       .from('lessons')
-      .update({ vimeoUrl: processedVideoUrl })
-      .eq('id', actualId);
+      .update({ vimeo_url: processedVideoUrl })
+      .eq('id', lessonId);
   } else {
     // Update drills table
     await supabase
       .from('drills')
-      .update({ vimeoUrl: processedVideoUrl })
-      .eq('id', actualId);
+      .update({ 
+        vimeo_url: processedVideoUrl,
+        description_video_url: videoType === 'desc' ? processedVideoUrl : undefined 
+      })
+      .eq('id', drillId);
   }
+}
+```
+
+### Request Body Schema
+
+```typescript
+interface ProcessVideoRequest {
+  videoId: string;           // UUID for the uploaded file
+  filename: string;          // Storage path
+  cuts: Array<{ start: number; end: number }>;
+  title: string;
+  description: string;
+  drillId?: string;          // UUID - for drill uploads
+  lessonId?: string;         // UUID - for lesson uploads
+  videoType?: 'action' | 'desc';  // Type of video
 }
 ```
 
 ### Why This Approach?
 
-1. **Backward Compatibility**: Existing drill uploads continue to work without changes
-2. **Clear Separation**: The `LESSON-` prefix makes it obvious what type of content is being processed
-3. **Single Pipeline**: Both lessons and drills use the same video processing infrastructure
-4. **Future-Proof**: Easy to add more content types (e.g., `COURSE-`, `TUTORIAL-`) later
+1. **Clear Separation**: Explicit `lessonId` vs `drillId` makes intent obvious
+2. **Type Safety**: Backend can validate that exactly one is provided
+3. **Backward Compatibility**: Existing drill uploads continue to work
+4. **Future-Proof**: Easy to add more content types later
 
 ### Testing
 
 To test lesson uploads:
 1. Create a lesson through the UI
-2. Check the backend logs for `drillId` starting with `LESSON-`
-3. Verify the `lessons` table is updated, not the `drills` table
+2. Check the backend logs for `lessonId` parameter
+3. Verify the `lessons` table is updated with `vimeo_url`
+4. Confirm the `drills` table is NOT modified
+

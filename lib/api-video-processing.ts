@@ -171,6 +171,7 @@ export const videoProcessingApi = {
                     title,
                     description,
                     drillId,
+                    lessonId,
                     videoType
                 })
             });
