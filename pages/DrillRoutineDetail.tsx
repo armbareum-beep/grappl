@@ -11,6 +11,7 @@ export const DrillRoutineDetail: React.FC = () => {
     const navigate = useNavigate();
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
@@ -24,16 +25,27 @@ export const DrillRoutineDetail: React.FC = () => {
 
     const fetchRoutine = async () => {
         if (!id) return;
+        setError(null);
+        setLoading(true);
 
         try {
-            const routineData = await getDrillRoutineById(id);
+            // Add timeout wrapper
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out')), 10000)
+            );
+
+            const routinePromise = getDrillRoutineById(id);
+
+            const routineData = await Promise.race([routinePromise, timeoutPromise]) as DrillRoutine;
+
             if (routineData) {
                 setRoutine(routineData);
                 // Increment views
                 await incrementDrillRoutineViews(id);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching routine:', error);
+            setError(error.message || 'Failed to load routine');
         } finally {
             setLoading(false);
         }
@@ -79,10 +91,42 @@ export const DrillRoutineDetail: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-slate-950">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">로딩 중...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-slate-400">로딩 중...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        const isTimeout = error.includes('timed out') || error.includes('timeout');
+
+        return (
+            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                    <span className="text-3xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">
+                    {isTimeout ? '서버 연결 중...' : '오류가 발생했습니다'}
+                </h2>
+                <p className="text-slate-400 text-center max-w-xs mb-8">
+                    {isTimeout ? '드릴 루틴 정보를 불러오고 있습니다.\n잠시만 기다려주세요.' : error}
+                </p>
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => { setLoading(true); fetchRoutine(); }}
+                        className="px-6 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition"
+                    >
+                        다시 시도
+                    </button>
+                    <button
+                        onClick={() => navigate('/drills')}
+                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+                    >
+                        드릴 목록으로
+                    </button>
                 </div>
             </div>
         );
@@ -90,9 +134,9 @@ export const DrillRoutineDetail: React.FC = () => {
 
     if (!routine) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-slate-950">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">루틴을 찾을 수 없습니다</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">루틴을 찾을 수 없습니다</h2>
                     <Link to="/drills">
                         <Button>드릴 목록으로 돌아가기</Button>
                     </Link>
