@@ -80,8 +80,16 @@ export const LessonDetail: React.FC = () => {
                             onEnded={() => { }}
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-500">
-                            영상이 없습니다
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
+                            <div className="w-16 h-16 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                            <p className="text-xl font-medium text-white mb-2">비디오 처리 중입니다</p>
+                            <p className="text-sm text-zinc-500">업로드된 영상을 처리하고 있습니다. 잠시만 기다려주세요.</p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            >
+                                새로고침
+                            </button>
                         </div>
                     )}
                 </div>
