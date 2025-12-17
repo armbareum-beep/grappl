@@ -38,7 +38,6 @@ export const UploadLesson: React.FC = () => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        lessonNumber: 1,
         difficulty: Difficulty.Beginner,
     });
 
@@ -151,7 +150,7 @@ export const UploadLesson: React.FC = () => {
                 courseId: '', // Will be assigned when added to a course
                 title: formData.title,
                 description: formData.description,
-                lessonNumber: Number(formData.lessonNumber),
+                lessonNumber: 1, // Default, will be reordered in course editor
                 vimeoUrl: processRes.videoId || '',
                 length: 0, // Will be updated later
                 difficulty: formData.difficulty,
@@ -243,28 +242,17 @@ export const UploadLesson: React.FC = () => {
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">레슨 번호</label>
-                                        <input
-                                            type="number"
-                                            value={formData.lessonNumber}
-                                            onChange={e => setFormData({ ...formData, lessonNumber: Number(e.target.value) })}
-                                            className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">난이도</label>
-                                        <select
-                                            value={formData.difficulty}
-                                            onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
-                                            className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
-                                        >
-                                            {Object.values(Difficulty).map(diff => (
-                                                <option key={diff} value={diff}>{diff}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">난이도</label>
+                                    <select
+                                        value={formData.difficulty}
+                                        onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
+                                    >
+                                        {Object.values(Difficulty).map(diff => (
+                                            <option key={diff} value={diff}>{diff}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
