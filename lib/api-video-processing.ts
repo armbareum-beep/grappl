@@ -45,6 +45,13 @@ export const videoProcessingApi = {
                 },
                 uploadDataDuringCreation: false,
                 removeFingerprintOnSuccess: true, // Needed for repeated uploads of same file
+                // CRITICAL FIX: Generate unique fingerprint for each upload to prevent conflicts
+                // when uploading multiple files simultaneously (e.g., action + description videos)
+                fingerprint: (file) => {
+                    // Create a unique fingerprint based on filename, size, and type
+                    // This prevents TUS from confusing multiple concurrent uploads
+                    return Promise.resolve(`${filename}-${file.size}-${file.type}-${uniqueId}`);
+                },
                 metadata: {
                     bucketName: BUCKET_NAME,
                     objectName: filename,
