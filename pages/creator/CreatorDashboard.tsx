@@ -396,21 +396,39 @@ export const CreatorDashboard: React.FC = () => {
                                             className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors ${index !== lessons.length - 1 ? 'border-b border-slate-800' : ''
                                                 }`}
                                         >
-                                            <Link to={`/lessons/${lesson.id}`} className="flex items-center gap-4 flex-1 min-w-0 group">
-                                                <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
-                                                    <PlayCircle className="w-5 h-5" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
-                                                        {lesson.title}
-                                                    </h3>
-                                                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                                                        <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
-                                                        <span>&bull;</span>
-                                                        <span>{lesson.durationMinutes}분</span>
+                                            {lesson.vimeoUrl ? (
+                                                <Link to={`/lessons/${lesson.id}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+                                                    <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors text-slate-500">
+                                                        <PlayCircle className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                                                            {lesson.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                            <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
+                                                            <span>&bull;</span>
+                                                            <span>{lesson.durationMinutes}분</span>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            ) : (
+                                                <div className="flex items-center gap-4 flex-1 min-w-0 cursor-not-allowed opacity-60">
+                                                    <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-500">
+                                                        <div className="w-5 h-5 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-medium text-white truncate">
+                                                            {lesson.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                                                            <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
+                                                            <span>&bull;</span>
+                                                            <span className="text-yellow-500">처리 중...</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </Link>
+                                            )}
 
                                             <div className="flex items-center gap-4 ml-4">
                                                 <div className="text-sm text-slate-400 w-20 text-right">
