@@ -90,7 +90,7 @@ export const UploadLesson: React.FC = () => {
             const ext = videoState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
             const filename = `${videoId}.${ext}`;
 
-            const { error: dbError } = await createLesson({
+            const { data: lesson, error: dbError } = await createLesson({
                 courseId: '', // Will be assigned when added to a course
                 title: formData.title,
                 description: formData.description,
@@ -100,19 +100,19 @@ export const UploadLesson: React.FC = () => {
                 difficulty: formData.difficulty,
             });
 
-            if (dbError) throw dbError;
+            if (dbError || !lesson) throw dbError;
 
-            console.log('Lesson created');
+            console.log('Lesson created:', lesson.id);
             setSubmissionProgress('백그라운드 업로드 시작 중...');
 
-            // 2. Queue Background Upload
+            // 2. Queue Background Upload (use lesson.id as drillId for backend compatibility)
             await queueUpload(videoState.file, 'action', {
                 videoId: videoId,
                 filename: filename,
                 cuts: videoState.cuts,
                 title: `[Lesson] ${formData.title}`,
                 description: formData.description,
-                drillId: '', // Not applicable for lessons
+                drillId: lesson.id, // Use lesson ID for backend compatibility
                 videoType: 'action'
             });
 
