@@ -2062,7 +2062,7 @@ export async function getBundles() {
         .from('bundles')
         .select(`
             *,
-            creator:creators(name),
+            creator:users(name),
             bundle_courses(course_id)
         `)
         .order('created_at', { ascending: false });
