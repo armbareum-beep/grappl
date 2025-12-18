@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrainingLog } from '../../types';
 import { SocialPost } from './SocialPost';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 interface SocialFeedProps {
     posts: TrainingLog[];
@@ -10,10 +10,35 @@ interface SocialFeedProps {
 }
 
 export const SocialFeed: React.FC<SocialFeedProps> = ({ posts, loading, onRefresh }) => {
+    const [showRefreshButton, setShowRefreshButton] = useState(false);
+
+    useEffect(() => {
+        if (loading) {
+            setShowRefreshButton(false);
+            const timer = setTimeout(() => {
+                setShowRefreshButton(true);
+            }, 5000); // Show refresh button after 5 seconds
+
+            return () => clearTimeout(timer);
+        }
+    }, [loading]);
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+                {showRefreshButton && (
+                    <div className="text-center">
+                        <p className="text-slate-400 text-sm mb-3">로딩이 오래 걸리고 있습니다</p>
+                        <button
+                            onClick={onRefresh}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            새로고침
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }

@@ -85,7 +85,7 @@ export const Settings: React.FC = () => {
                 // Update user profile with new image URL
                 const { error: updateError } = await updateUserProfile({ profileImage: url });
                 if (updateError) throw updateError;
-                
+
                 setProfileImageUrl(url);
             }
 
@@ -106,6 +106,19 @@ export const Settings: React.FC = () => {
         try {
             const { error } = await updateUserProfile({ name: displayName });
             if (error) throw error;
+
+            // Also update users table for feed display
+            if (user) {
+                await supabase
+                    .from('users')
+                    .upsert({
+                        id: user.id,
+                        name: displayName,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'id'
+                    });
+            }
 
             if (isCreator && user) {
                 const { error: bioError } = await updateCreatorProfile(user.id, { bio });
