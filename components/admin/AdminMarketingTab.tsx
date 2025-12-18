@@ -55,15 +55,19 @@ export const AdminMarketingTab: React.FC = () => {
             courseIds: selectedCourses
         });
 
-        if (!error) {
-            setBundleTitle('');
-            setBundleDescription('');
-            setBundlePrice('');
-            setSelectedCourses([]);
-            setShowBundleForm(false);
-            await loadData();
-            alert('번들이 생성되었습니다!');
+        if (error) {
+            console.error('Error creating bundle:', error);
+            alert(`번들 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            return;
         }
+
+        setBundleTitle('');
+        setBundleDescription('');
+        setBundlePrice('');
+        setSelectedCourses([]);
+        setShowBundleForm(false);
+        await loadData();
+        alert('번들이 생성되었습니다!');
     };
 
     const handleCreateCoupon = async (e: React.FormEvent) => {
@@ -79,14 +83,18 @@ export const AdminMarketingTab: React.FC = () => {
             expiresAt: expiresAt || undefined
         });
 
-        if (!error) {
-            setCouponCode('');
-            setDiscountValue('');
-            setMaxUses('');
-            setExpiresAt('');
-            setShowCouponForm(false);
-            alert('플랫폼 전체 쿠폰이 생성되었습니다!');
+        if (error) {
+            console.error('Error creating coupon:', error);
+            alert(`쿠폰 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            return;
         }
+
+        setCouponCode('');
+        setDiscountValue('');
+        setMaxUses('');
+        setExpiresAt('');
+        setShowCouponForm(false);
+        alert('플랫폼 전체 쿠폰이 생성되었습니다!');
     };
 
     const toggleCourseSelection = (courseId: string) => {

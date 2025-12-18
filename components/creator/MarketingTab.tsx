@@ -32,14 +32,19 @@ export const MarketingTab: React.FC = () => {
 
     const loadData = async () => {
         if (!user) return;
+        console.log('Loading Marketing data for user:', user.id);
         const [bundlesRes, coursesData] = await Promise.all([
             getBundles(),
             getCreatorCourses(user.id)
         ]);
 
+        console.log('Bundles result:', bundlesRes);
         if (bundlesRes.data) {
-            // Filter bundles created by this user
-            setBundles(bundlesRes.data.filter(b => b.creatorId === user.id));
+            const myBundles = bundlesRes.data.filter(b => b.creatorId === user.id);
+            console.log('Filtered bundles:', myBundles);
+            setBundles(myBundles);
+        } else if (bundlesRes.error) {
+            console.error('Error loading bundles:', bundlesRes.error);
         }
         setCourses(coursesData);
     };
@@ -56,14 +61,19 @@ export const MarketingTab: React.FC = () => {
             courseIds: selectedCourses
         });
 
-        if (!error) {
-            setBundleTitle('');
-            setBundleDescription('');
-            setBundlePrice('');
-            setSelectedCourses([]);
-            setShowBundleForm(false);
-            await loadData();
+        if (error) {
+            console.error('Error creating bundle:', error);
+            alert(`번들 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            return;
         }
+
+        setBundleTitle('');
+        setBundleDescription('');
+        setBundlePrice('');
+        setSelectedCourses([]);
+        setShowBundleForm(false);
+        await loadData();
+        alert('번들이 생성되었습니다!');
     };
 
     const handleCreateCoupon = async (e: React.FormEvent) => {
@@ -79,14 +89,18 @@ export const MarketingTab: React.FC = () => {
             expiresAt: expiresAt || undefined
         });
 
-        if (!error) {
-            setCouponCode('');
-            setDiscountValue('');
-            setMaxUses('');
-            setExpiresAt('');
-            setShowCouponForm(false);
-            alert('쿠폰이 생성되었습니다!');
+        if (error) {
+            console.error('Error creating coupon:', error);
+            alert(`쿠폰 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            return;
         }
+
+        setCouponCode('');
+        setDiscountValue('');
+        setMaxUses('');
+        setExpiresAt('');
+        setShowCouponForm(false);
+        alert('쿠폰이 생성되었습니다!');
     };
 
     const toggleCourseSelection = (courseId: string) => {
