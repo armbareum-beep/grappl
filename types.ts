@@ -654,12 +654,17 @@ export interface Bundle {
   id: string;
   creatorId: string;
   creatorName?: string;
+  name: string; // Added
   title: string;
   description: string;
   price: number;
   thumbnailUrl?: string;
   courseIds?: string[];
+  course_ids?: string[]; // Database field name
   courses?: Course[];
+  drillIds?: string[];
+  drill_ids?: string[]; // Database field name
+  drills?: Drill[];
   createdAt: string;
 }
 
