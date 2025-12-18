@@ -83,7 +83,7 @@ export const Settings: React.FC = () => {
 
             if (url) {
                 // Update user profile with new image URL
-                const { error: updateError } = await updateUserProfile({ profileImage: url });
+                const { error: updateError } = await updateUserProfile(user.id, { profileImageUrl: url });
                 if (updateError) throw updateError;
 
                 setProfileImageUrl(url);
@@ -104,23 +104,23 @@ export const Settings: React.FC = () => {
         setMessage(null);
 
         try {
-            const { error } = await updateUserProfile({ name: displayName });
+            if (!user) throw new Error('사용자 정보를 찾을 수 없습니다.');
+
+            const { error } = await updateUserProfile(user.id, { name: displayName });
             if (error) throw error;
 
             // Also update users table for feed display
-            if (user) {
-                await supabase
-                    .from('users')
-                    .upsert({
-                        id: user.id,
-                        name: displayName,
-                        updated_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'id'
-                    });
-            }
+            await supabase
+                .from('users')
+                .upsert({
+                    id: user.id,
+                    name: displayName,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'id'
+                });
 
-            if (isCreator && user) {
+            if (isCreator) {
                 const { error: bioError } = await updateCreatorProfile(user.id, { bio });
                 if (bioError) throw bioError;
             }
