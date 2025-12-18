@@ -110,11 +110,15 @@ export const Settings: React.FC = () => {
             if (error) throw error;
 
             // Also update users table for feed display
+            // Priority: uploaded image > Google avatar
+            const avatarUrl = profileImageUrl || user.user_metadata?.avatar_url || null;
+
             await supabase
                 .from('users')
                 .upsert({
                     id: user.id,
                     name: displayName,
+                    avatar_url: avatarUrl,
                     updated_at: new Date().toISOString()
                 }, {
                     onConflict: 'id'
