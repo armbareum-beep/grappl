@@ -981,6 +981,17 @@ export async function updateUserProfile(userId: string, updates: {
         return { data: null, error };
     }
 
+    // Also update auth.users metadata to persist across sessions
+    if (updates.name !== undefined) {
+        const { error: authError } = await supabase.auth.updateUser({
+            data: { name: updates.name }
+        });
+
+        if (authError) {
+            console.error('Error updating auth metadata:', authError);
+        }
+    }
+
     return { data, error: null };
 }
 
