@@ -103,6 +103,7 @@ const App: React.FC = () => {
                 <Route path="/course/:id" element={<CourseRedirect />} />
                 <Route path="/videos/:id" element={<VideoDetail />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
                 <Route path="/creator" element={<CreatorDashboard />} />
                 <Route path="/creator-dashboard" element={<CreatorDashboard />} />
                 <Route path="/creator/dashboard" element={<CreatorDashboard />} />
