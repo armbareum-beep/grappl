@@ -8,6 +8,7 @@ import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } fro
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 
 
@@ -21,6 +22,7 @@ export const CourseDetail: React.FC = () => {
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
@@ -77,8 +79,9 @@ export const CourseDetail: React.FC = () => {
                         setCompletedLessons(completed);
                     }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error fetching course details:', error);
+                setError(error.message || '강좌 정보를 불러오는 중 오류가 발생했습니다.');
             } finally {
                 setLoading(false);
             }
@@ -186,6 +189,10 @@ export const CourseDetail: React.FC = () => {
 
     if (loading) {
         return <LoadingScreen message="강좌 정보 불러오는 중..." />;
+    }
+
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="강좌 정보를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
     }
 
     if (!course) {

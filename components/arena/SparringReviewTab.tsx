@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../Button';
-import { Plus, User, Lock, Clock, Target, TrendingUp } from 'lucide-react';
+import { Plus, Target, TrendingUp } from 'lucide-react';
 import { AICoachWidget } from '../journal/AICoachWidget';
 import { TrainingLog } from '../../types';
 import { ShareToFeedModal } from '../social/ShareToFeedModal';
 import { createFeedPost } from '../../lib/api';
 import { QuestCompleteModal } from '../QuestCompleteModal';
+import { ErrorScreen } from '../ErrorScreen';
 
 interface SparringReview {
     id: string;
@@ -116,6 +117,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const navigate = useNavigate();
     const [reviews, setReviews] = useState<SparringReview[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [formData, setFormData] = useState({
@@ -168,13 +170,23 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
 
     const loadReviews = async () => {
         if (!user) return;
-        setLoading(true);
-        const { getSparringReviews } = await import('../../lib/api');
-        const { data } = await getSparringReviews(user.id);
-        if (data) {
-            setReviews(data);
+        try {
+            setLoading(true);
+            setError(null);
+            const { getSparringReviews } = await import('../../lib/api');
+            const result = await getSparringReviews(user.id);
+
+            if (result.error) throw result.error;
+
+            if (result.data) {
+                setReviews(result.data);
+            }
+        } catch (err: any) {
+            console.error('Error loading sparring reviews:', err);
+            setError(err.message || '스파링 복기 목록을 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const REVIEWS_DISPLAY_LIMIT = 10;
@@ -368,6 +380,10 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
     //         </div>
     //     );
     // }
+
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="스파링 복기 목록을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    }
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">

@@ -4,11 +4,13 @@ import { getPublicTrainingLogs } from '../lib/api';
 import { TrainingLog } from '../types';
 import { SocialFeed } from '../components/social/SocialFeed';
 import { CreatePostModal } from '../components/social/CreatePostModal';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     useEffect(() => {
@@ -18,13 +20,17 @@ export const Journal: React.FC = () => {
     const loadPosts = async () => {
         try {
             setLoading(true);
+            setError(null);
             const result = await getPublicTrainingLogs(1, 10);
+
+            if (result.error) throw result.error;
 
             if (result.data) {
                 setPosts(result.data);
             }
-        } catch (error) {
-            console.error('Error loading posts:', error);
+        } catch (err: any) {
+            console.error('Error loading posts:', err);
+            setError(err.message || '게시물을 불러오는 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
@@ -34,6 +40,10 @@ export const Journal: React.FC = () => {
         setPosts([newPost, ...posts]);
         setShowCreateModal(false);
     };
+
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="피드 게시물을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    }
 
     return (
         <div className="min-h-screen bg-slate-950">

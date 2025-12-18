@@ -47,6 +47,7 @@ import { TechniqueRoadmapDashboard } from './components/technique/TechniqueRoadm
 import { TechniqueDetailPage } from './pages/TechniqueDetail';
 import { LessonDetail } from './pages/LessonDetail';
 import { Instructors } from './pages/Instructors';
+import { Bundles } from './pages/Bundles';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -98,6 +99,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/home" element={<Home />} />
                 <Route path="/browse" element={<Browse />} />
+                <Route path="/bundles" element={<Bundles />} />
                 <Route path="/courses" element={<Browse />} />
                 <Route path="/courses/:id" element={<CourseDetail />} />
                 <Route path="/course/:id" element={<CourseRedirect />} />

@@ -6,7 +6,7 @@ export interface ShareToFeedModalProps {
     isOpen: boolean;
     onClose: () => void;
     onShare: (comment: string) => Promise<void>;
-    activityType: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique';
+    activityType: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general';
     defaultContent: string;
     metadata?: Record<string, any>;
 }
@@ -16,7 +16,8 @@ const ACTIVITY_ICONS = {
     sparring: '🥋',
     level_up: '🎉',
     title_earned: '👑',
-    technique: '🎯'
+    technique: '🎯',
+    general: '📝'
 };
 
 const ACTIVITY_LABELS = {
@@ -24,7 +25,8 @@ const ACTIVITY_LABELS = {
     sparring: '스파링 복기',
     level_up: '레벨 업',
     title_earned: '칭호 획득',
-    technique: '기술 마스터'
+    technique: '기술 마스터',
+    general: '일반 소식'
 };
 
 const MAX_CHARACTERS = 500;

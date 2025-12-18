@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users } from 'lucide-react';
+import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Package } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -46,6 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: '클래스', href: '/browse', icon: BookOpen },
+    { name: '번들 패키지', href: '/bundles', icon: Package },
     { name: '드릴 & 루틴', href: '/drills', icon: Zap },
     { name: '피드', href: '/journal', icon: Users },
     { name: '아레나', href: '/arena', icon: Trophy },

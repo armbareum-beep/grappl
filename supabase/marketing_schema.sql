@@ -49,23 +49,23 @@ ALTER TABLE public.user_bundles ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLS Policies
 
--- Bundles: Everyone can view, only admin/creator can manage
+-- Bundles: Everyone can view, admin/creator can manage
 CREATE POLICY "Everyone can view bundles" ON public.bundles FOR SELECT USING (true);
-CREATE POLICY "Admins can manage bundles" ON public.bundles FOR ALL 
-    USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Creators and admins can manage bundles" ON public.bundles FOR ALL 
+    USING (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))
+    WITH CHECK (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));
 
--- Bundle Courses: Everyone can view, only admin/creator can manage
+-- Bundle Courses: Everyone can view, admin/creator can manage (simplified to bundle owner)
 CREATE POLICY "Everyone can view bundle courses" ON public.bundle_courses FOR SELECT USING (true);
-CREATE POLICY "Admins can manage bundle courses" ON public.bundle_courses FOR ALL 
-    USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Creators and admins can manage bundle courses" ON public.bundle_courses FOR ALL 
+    USING (EXISTS (SELECT 1 FROM public.bundles WHERE id = bundle_id AND (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.bundles WHERE id = bundle_id AND (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))));
 
--- Coupons: Everyone can view (to validate), only admin can manage
+-- Coupons: Everyone can view (to validate), admin/creator can manage
 CREATE POLICY "Everyone can view coupons" ON public.coupons FOR SELECT USING (true);
-CREATE POLICY "Admins can manage coupons" ON public.coupons FOR ALL 
-    USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Creators and admins can manage coupons" ON public.coupons FOR ALL 
+    USING (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true))
+    WITH CHECK (creator_id = auth.uid() OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_admin = true));
 
 -- User Bundles: Users can view their own
 CREATE POLICY "Users can view their own bundles" ON public.user_bundles FOR SELECT 

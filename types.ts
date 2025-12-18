@@ -645,3 +645,31 @@ export interface Testimonial {
   rating: number;
   createdAt: string;
 }
+
+// ==================== Marketing ====================
+
+export interface Bundle {
+  id: string;
+  creatorId: string;
+  creatorName?: string;
+  title: string;
+  description: string;
+  price: number;
+  thumbnailUrl?: string;
+  courseIds?: string[];
+  courses?: Course[];
+  createdAt: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  creatorId: string;
+  creatorName?: string;
+  discountType: 'percent' | 'fixed';
+  value: number;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: string;
+  createdAt?: string;
+}

@@ -6,6 +6,7 @@ import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play } from 'lucide-react';
 import { Button } from '../components/Button';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 interface CourseWithProgress extends Course {
   progress?: number;
@@ -25,6 +26,7 @@ export const MyLibrary: React.FC = () => {
   const [purchasedRoutines, setPurchasedRoutines] = useState<DrillRoutine[]>([]);
   const [customRoutines, setCustomRoutines] = useState<DrillRoutine[]>([]);
   const [routinesLoading, setRoutinesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -36,6 +38,9 @@ export const MyLibrary: React.FC = () => {
 
       // Fetch Courses
       try {
+        setError(null);
+        setCoursesLoading(true);
+        setRoutinesLoading(true);
         const coursesData = await getUserCourses(user.id);
         const coursesWithProgress = await Promise.all(
           coursesData.map(async (course) => {
@@ -64,8 +69,9 @@ export const MyLibrary: React.FC = () => {
 
         const localCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
         setCustomRoutines(localCustomRoutines);
-      } catch (error) {
-        console.error('Error fetching user routines:', error);
+      } catch (err: any) {
+        console.error('Error fetching user routines:', err);
+        setError(err.message || '라이브러리를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setRoutinesLoading(false);
       }
@@ -73,6 +79,10 @@ export const MyLibrary: React.FC = () => {
 
     fetchData();
   }, [user]);
+
+  if (error) {
+    return <ErrorScreen error={error} resetMessage="내 라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+  }
 
   if (!user) {
     return (

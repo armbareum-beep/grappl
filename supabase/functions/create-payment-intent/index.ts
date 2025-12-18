@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json()
-        const { mode, courseId, routineId, drillId, feedbackRequestId, priceId } = body
+        const { mode, courseId, routineId, drillId, bundleId, feedbackRequestId, priceId } = body
 
         console.log(`Processing payment request: mode=${mode}, user=${user.id}`);
 
@@ -205,6 +205,46 @@ Deno.serve(async (req) => {
                 },
             })
             console.log(`Created Feedback PI with metadata:`, paymentIntent.metadata);
+
+            return new Response(
+                JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                }
+            )
+        } else if (mode === 'bundle') {
+            // Marketing Bundle Purchase
+            if (!bundleId) {
+                throw new Error('Bundle ID is required')
+            }
+
+            const { data: bundle } = await supabaseClient
+                .from('bundles')
+                .select('*')
+                .eq('id', bundleId)
+                .single()
+
+            if (!bundle) {
+                throw new Error('Bundle not found')
+            }
+
+            // Convert KRW to USD
+            const usdAmount = Math.round((bundle.price / 1500) * 100);
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: usdAmount,
+                currency: 'usd',
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+                metadata: {
+                    mode: 'bundle',
+                    bundleId: bundle.id,
+                    userId: user.id,
+                },
+            })
+            console.log(`Created Bundle PI with metadata:`, paymentIntent.metadata);
 
             return new Response(
                 JSON.stringify({ clientSecret: paymentIntent.client_secret }),

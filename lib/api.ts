@@ -1239,6 +1239,19 @@ export async function calculateCreatorEarnings(creatorId: string) {
         directRevenue = totalSales * directShare;
     }
 
+    // 1.5 Calculate Bundle Revenue
+    const { data: bundles } = await supabase.from('bundles').select('id').eq('creator_id', creatorId);
+    const bundleIds = bundles?.map((b: { id: string }) => b.id) || [];
+    let bundleRevenue = 0;
+    if (bundleIds.length > 0) {
+        const { data: bundleSales } = await supabase
+            .from('user_bundles')
+            .select('price_paid')
+            .in('bundle_id', bundleIds);
+        const totalBundleSales = bundleSales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
+        bundleRevenue = totalBundleSales * directShare;
+    }
+
     // 2. Calculate Feedback Revenue
     // Feedback also uses the direct_share (80%)
     const { data: feedbackSales } = await supabase
@@ -1314,9 +1327,10 @@ export async function calculateCreatorEarnings(creatorId: string) {
     return {
         data: {
             directRevenue,
+            bundleRevenue,
             feedbackRevenue,
             subscriptionRevenue: creatorSubRevenue,
-            totalRevenue: directRevenue + feedbackRevenue + creatorSubRevenue,
+            totalRevenue: directRevenue + bundleRevenue + feedbackRevenue + creatorSubRevenue,
             creatorWatchTime,
             totalWatchTime,
             watchTimeShare: share
@@ -2125,6 +2139,47 @@ export async function createBundle(bundle: {
     return { data: newBundle, error: null };
 }
 
+export async function deleteBundle(bundleId: string) {
+    const { error } = await supabase
+        .from('bundles')
+        .delete()
+        .eq('id', bundleId);
+
+    return { error };
+}
+
+/**
+ * Update a bundle
+ */
+export async function updateBundle(id: string, bundle: Partial<Bundle>) {
+    const { error } = await supabase
+        .from('bundles')
+        .update({
+            title: bundle.title,
+            description: bundle.description,
+            price: bundle.price,
+            thumbnail_url: bundle.thumbnailUrl
+        })
+        .eq('id', id);
+
+    if (error) return { error };
+
+    // Update bundle courses if provided
+    if (bundle.courseIds) {
+        // Delete existing courses
+        await supabase.from('bundle_courses').delete().eq('bundle_id', id);
+        // Insert new ones
+        const bundleCourses = bundle.courseIds.map(course_id => ({
+            bundle_id: id,
+            course_id
+        }));
+        const { error: coursesError } = await supabase.from('bundle_courses').insert(bundleCourses);
+        if (coursesError) return { error: coursesError };
+    }
+
+    return { error: null };
+}
+
 /**
  * Purchase a bundle (Mock)
  */
@@ -2200,6 +2255,66 @@ export async function createCoupon(coupon: {
             max_uses: coupon.maxUses,
             expires_at: coupon.expiresAt
         });
+
+    return { error };
+}
+
+/**
+ * Get all coupons
+ */
+export async function getCoupons() {
+    const { data, error } = await supabase
+        .from('coupons')
+        .select(`
+            *,
+            creator:users(name)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) return { data: null, error };
+
+    const coupons: Coupon[] = data.map((coupon: any) => ({
+        id: coupon.id,
+        code: coupon.code,
+        creatorId: coupon.creator_id,
+        creatorName: coupon.creator?.name,
+        discountType: coupon.discount_type,
+        value: coupon.value,
+        maxUses: coupon.max_uses,
+        usedCount: coupon.used_count,
+        expiresAt: coupon.expires_at,
+        createdAt: coupon.created_at
+    }));
+
+    return { data: coupons, error: null };
+}
+
+/**
+ * Delete a coupon
+ */
+export async function deleteCoupon(couponId: string) {
+    const { error } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('id', couponId);
+
+    return { error };
+}
+
+/**
+ * Update a coupon
+ */
+export async function updateCoupon(id: string, coupon: Partial<Coupon>) {
+    const { error } = await supabase
+        .from('coupons')
+        .update({
+            code: coupon.code?.toUpperCase(),
+            discount_type: coupon.discountType,
+            value: coupon.value,
+            max_uses: coupon.maxUses,
+            expires_at: coupon.expiresAt
+        })
+        .eq('id', id);
 
     return { error };
 }

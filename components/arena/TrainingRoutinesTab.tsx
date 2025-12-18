@@ -8,12 +8,14 @@ import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
 import { supabase } from '../../lib/supabase';
+import { ErrorScreen } from '../ErrorScreen';
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
     const [completedRoutineIds, setCompletedRoutineIds] = useState<Set<string>>(new Set());
 
@@ -61,26 +63,33 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     const loadRoutines = async () => {
         if (!user) return;
-        setLoading(true);
+        try {
+            setLoading(true);
+            setError(null);
 
-        // Load all user routines (purchased + created)
-        const { data } = await getUserRoutines(user.id);
+            // Load all user routines (purchased + created)
+            const result = await getUserRoutines(user.id);
+            if (result.error) throw result.error;
 
-        // Load custom routines from LocalStorage
-        const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+            // Load custom routines from LocalStorage
+            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
 
-        // Merge and set
-        if (data) {
-            setRoutines([...customRoutines, ...data]);
-        } else {
-            setRoutines(customRoutines);
+            // Merge and set
+            if (result.data) {
+                setRoutines([...customRoutines, ...result.data]);
+            } else {
+                setRoutines(customRoutines);
+            }
+
+            // Load completed routines for today
+            const completedIds = await getCompletedRoutinesToday(user.id);
+            setCompletedRoutineIds(new Set(completedIds));
+        } catch (err: any) {
+            console.error('Error loading routines:', err);
+            setError(err.message || '훈련 루틴을 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
         }
-
-        // Load completed routines for today
-        const completedIds = await getCompletedRoutinesToday(user.id);
-        setCompletedRoutineIds(new Set(completedIds));
-
-        setLoading(false);
     };
 
     const { success, error: toastError } = useToast();
@@ -228,7 +237,9 @@ export const TrainingRoutinesTab: React.FC = () => {
     const ROUTINES_DISPLAY_LIMIT = 6;
     const displayedRoutines = showAllRoutines ? routines : routines.slice(0, ROUTINES_DISPLAY_LIMIT);
 
-
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="훈련 루틴 목록을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    }
 
     return (
         <div className="space-y-8 min-h-screen">

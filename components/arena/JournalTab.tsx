@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getTrainingLogs, createTrainingLog, updateTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP } from '../../lib/api';
 import { TrainingLog } from '../../types';
 import { TrainingLogForm } from '../journal/TrainingLogForm';
 import { Button } from '../Button';
-import { Plus, User, Lock, Globe, Calendar, Flame, Clock, Swords, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Lock, Calendar, Flame, Clock, Swords, Trash2, Edit2 } from 'lucide-react';
 import { BeltUpModal } from '../BeltUpModal';
 import { QuestCompleteModal } from '../QuestCompleteModal';
 import { ShareToFeedModal } from '../social/ShareToFeedModal';
-import { format, subDays, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { ErrorScreen } from '../ErrorScreen';
 
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
@@ -19,10 +20,11 @@ export const JournalTab: React.FC = () => {
     const navigate = useNavigate();
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [editingLog, setEditingLog] = useState<TrainingLog | null>(null);
     const [showBeltUp, setShowBeltUp] = useState(false);
-    const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
+    const [beltUpData] = useState<{ old: number; new: number } | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [showAllLogs, setShowAllLogs] = useState(false);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
@@ -74,18 +76,28 @@ export const JournalTab: React.FC = () => {
 
     const loadLogs = async () => {
         if (!user) return;
-        setLoading(true);
-        const { data } = await getTrainingLogs(user.id);
-        if (data) {
-            // Double check filtering to ensure no feed posts appear here
-            const cleanLogs = data.filter(log =>
-                log.durationMinutes !== -1 && // Filter by duration marker
-                (!log.location || !log.location.startsWith('__FEED__')) &&
-                !['sparring', 'routine', 'mastery'].includes((log as any).type)
-            );
-            setLogs(cleanLogs);
+        try {
+            setLoading(true);
+            setError(null);
+            const result = await getTrainingLogs(user.id);
+
+            if (result.error) throw result.error;
+
+            if (result.data) {
+                // Double check filtering to ensure no feed posts appear here
+                const cleanLogs = result.data.filter(log =>
+                    log.durationMinutes !== -1 && // Filter by duration marker
+                    (!log.location || !log.location.startsWith('__FEED__')) &&
+                    !['sparring', 'routine', 'mastery'].includes((log as any).type)
+                );
+                setLogs(cleanLogs);
+            }
+        } catch (err: any) {
+            console.error('Error loading logs:', err);
+            setError(err.message || '수련 일지를 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleSaveLog = async (logData: Omit<TrainingLog, 'id' | 'userId' | 'createdAt'>) => {
@@ -283,6 +295,10 @@ ${logData.notes}`;
     //         </div>
     //     );
     // }
+
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="수련 일지를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    }
 
     return (
         <div className="max-w-3xl mx-auto space-y-8">

@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
         switch (event.type) {
             case 'payment_intent.succeeded': {
                 const paymentIntent = event.data.object as Stripe.PaymentIntent
-                const { mode, courseId, routineId, drillId, feedbackRequestId, userId, subscription_id, tier } = paymentIntent.metadata
+                const { mode, courseId, routineId, drillId, bundleId, feedbackRequestId, userId, subscription_id, tier } = paymentIntent.metadata
 
                 // Subscription Purchase (NEW)
                 if (mode === 'subscription' && subscription_id && userId && tier) {
@@ -254,6 +254,53 @@ Deno.serve(async (req) => {
 
                     console.log(`Feedback payment recorded: ${feedbackRequestId}`)
                     await logWebhook('success', event.type, { mode, feedbackRequestId, userId }, null);
+                }
+
+                // Bundle Purchase
+                if (mode === 'bundle' && bundleId && userId) {
+                    // 1. Get courses in bundle
+                    const { data: bundleCourses } = await supabaseClient
+                        .from('bundle_courses')
+                        .select('course_id')
+                        .eq('bundle_id', bundleId);
+
+                    if (bundleCourses) {
+                        // 2. Grant access to each course
+                        for (const item of bundleCourses) {
+                            await supabaseClient
+                                .from('user_courses')
+                                .upsert({
+                                    user_id: userId,
+                                    course_id: item.course_id,
+                                    purchased_at: new Date().toISOString(),
+                                    price_paid: 0, // Part of bundle
+                                }, { onConflict: 'user_id, course_id' });
+                        }
+                    }
+
+                    // 3. Record in user_bundles
+                    await supabaseClient
+                        .from('user_bundles')
+                        .insert({
+                            user_id: userId,
+                            bundle_id: bundleId,
+                            price_paid: paymentIntent.amount / 100,
+                        })
+
+                    // 4. Record payment
+                    await supabaseClient
+                        .from('payments')
+                        .insert({
+                            user_id: userId,
+                            amount: paymentIntent.amount,
+                            currency: paymentIntent.currency,
+                            status: 'completed',
+                            payment_method: 'stripe',
+                            stripe_payment_intent_id: paymentIntent.id,
+                        })
+
+                    console.log(`Bundle access granted: ${bundleId} to user ${userId}`)
+                    await logWebhook('success', event.type, { mode, bundleId, userId }, null);
                 }
                 break
             }

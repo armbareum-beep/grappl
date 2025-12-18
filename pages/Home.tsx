@@ -4,15 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Heart, MessageCircle,
   Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
-  Calendar, Lock, Star, TrendingUp, X
+  Calendar, Lock, Star, TrendingUp, X, Package
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
 import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
 import {
-  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine
+  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine, getBundles
 } from '../lib/api';
-import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine } from '../types';
+import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine, Bundle } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
 import { LoadingScreen } from '../components/LoadingScreen';
 
@@ -39,6 +39,7 @@ export const Home: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
   const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
+  const [recommendedBundles, setRecommendedBundles] = useState<Bundle[]>([]);
 
   // User progress states
   const [progress, setProgress] = useState<UserProgress | null>(null);
@@ -102,6 +103,9 @@ export const Home: React.FC = () => {
         // Fetch daily routine
         const { data: routineData } = await getDailyRoutine();
         setDailyRoutine(routineData);
+
+        const { data: bundlesData } = await getBundles();
+        if (bundlesData) setRecommendedBundles(bundlesData.slice(0, 3));
 
       } catch (error) {
         console.error('Error fetching home data:', error);
@@ -207,6 +211,59 @@ export const Home: React.FC = () => {
           )}
         </div>
       </section>
+
+      {/* 2.5 New! Bundle Packages */}
+      {recommendedBundles.length > 0 && (
+        <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Package className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">신규 번들 패키지</h2>
+                <p className="text-xs text-slate-400">여러 강좌를 묶음 할인으로 마스터해보세요</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/bundles')}
+              className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+            >
+              전체 보기
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {recommendedBundles.map((bundle) => (
+              <div
+                key={bundle.id}
+                onClick={() => navigate(`/checkout/bundle/${bundle.id}`)}
+                className="group relative bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-blue-500/50 transition-all cursor-pointer overflow-hidden shadow-lg shadow-blue-900/5"
+              >
+                <div className="absolute top-0 right-0 p-3">
+                  <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg">
+                    HOT BUNDLE
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{bundle.title}</h3>
+                <p className="text-xs text-slate-500 line-clamp-2 mb-6">{bundle.description}</p>
+
+                <div className="flex items-center justify-between pt-6 border-t border-slate-800">
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-0.5">최저가 결제</p>
+                    <p className="text-xl font-black text-white">₩{bundle.price.toLocaleString()}</p>
+                  </div>
+                  <div className="text-[10px] text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                    {bundle.courseIds?.length || 0} CLASSES
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 2. Recommended Routine (Pro) */}
       <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto">

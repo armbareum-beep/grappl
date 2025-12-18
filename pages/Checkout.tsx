@@ -94,6 +94,7 @@ export const Checkout: React.FC = () => {
             if (type === 'course') body.courseId = id;
             if (type === 'routine') body.routineId = id;
             if (type === 'feedback') body.feedbackRequestId = id;
+            if (type === 'bundle') body.bundleId = id;
             if (type === 'subscription') body.priceId = id;
 
             const controller = new AbortController();
@@ -131,6 +132,9 @@ export const Checkout: React.FC = () => {
             } else if (type === 'feedback') {
                 const { data: feedback } = await supabase.from('feedback_requests').select('price').eq('id', id).single();
                 setAmount(feedback?.price || 0);
+            } else if (type === 'bundle') {
+                const { data: bundle } = await supabase.from('bundles').select('price').eq('id', id).single();
+                setAmount(bundle?.price || 0);
             } else if (type === 'subscription') {
                 // For subscription, we might not know the amount easily without fetching the price from Stripe or having a mapping.
                 // For now, we can try to infer it or just show "Subscription"

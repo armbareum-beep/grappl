@@ -18,6 +18,7 @@ import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from 
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CombatPowerRadar } from '../CombatPowerRadar';
+import { ErrorScreen } from '../ErrorScreen';
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
@@ -35,6 +36,7 @@ export const SkillTreeTab: React.FC = () => {
     const [allCourses, setAllCourses] = useState<Course[]>([]);
     const [purchasedCourseIds, setPurchasedCourseIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<SkillCategory>('Standing');
     const [showCourseSelector, setShowCourseSelector] = useState(false);
     const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
@@ -52,11 +54,15 @@ export const SkillTreeTab: React.FC = () => {
     const loadData = async () => {
         try {
             if (!user) {
+                setError(null);
+                setLoading(true);
                 const courses = await getCourses();
                 setAllCourses(courses);
                 setLoading(false);
                 return;
             }
+            setError(null);
+            setLoading(true);
             const [skills, purchasedCourses, allCourses, subcats, stats] = await Promise.all([
                 getUserSkills(user.id),
                 getUserCourses(user.id),
@@ -71,8 +77,9 @@ export const SkillTreeTab: React.FC = () => {
             setSubcategories(subcats);
             if (stats.data) setArenaStats(stats.data);
             setLoading(false);
-        } catch (error) {
-            console.error('Error loading skill tree data:', error);
+        } catch (err: any) {
+            console.error('Error loading skill tree data:', err);
+            setError(err.message || '기술 로드맵을 불러오는 중 오류가 발생했습니다.');
             setLoading(false);
         }
     };
@@ -173,6 +180,10 @@ export const SkillTreeTab: React.FC = () => {
         subcategory: subcat,
         skills: categorySkills.filter(s => s.subcategoryId === subcat.id)
     }));
+
+    if (error) {
+        return <ErrorScreen error={error} resetMessage="기술 로드맵 데이터를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    }
 
     if (loading) {
         return (
