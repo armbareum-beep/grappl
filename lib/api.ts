@@ -1386,20 +1386,11 @@ export async function enrollInCourse(userId: string, courseId: string) {
 }
 
 /**
- * Purchase a subscription (Mock)
+ * Purchase a subscription
  */
-export async function purchaseSubscription(userId: string, plan: 'monthly' | 'yearly') {
-    // Mock subscription purchase
-    // In a real app, this would integrate with a payment gateway
-
-    // Update user's subscription status in a 'subscriptions' table
-    // For MVP, we'll just return success and save to localStorage
-    localStorage.setItem('subscription_' + userId, 'true');
-    localStorage.setItem('subscription_plan_' + userId, plan);
-
-    // Force a page reload or event to update context if needed, 
-    // but ideally the component calling this handles the UI update or re-checks auth
-
+export async function purchaseSubscription(planId: string) {
+    // In our new PayPal flow, we navigate to the checkout page
+    window.location.href = `/checkout/subscription/${planId}`;
     return { error: null };
 }
 
