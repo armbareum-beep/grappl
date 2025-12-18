@@ -258,27 +258,42 @@ Deno.serve(async (req) => {
 
                 // Bundle Purchase
                 if (mode === 'bundle' && bundleId && userId) {
-                    // 1. Get courses in bundle
-                    const { data: bundleCourses } = await supabaseClient
-                        .from('bundle_courses')
-                        .select('course_id')
-                        .eq('bundle_id', bundleId);
+                    // 1. Get bundle details
+                    const { data: bundle } = await supabaseClient
+                        .from('bundles')
+                        .select('course_ids, drill_ids')
+                        .eq('id', bundleId)
+                        .single();
 
-                    if (bundleCourses) {
-                        // 2. Grant access to each course
-                        for (const item of bundleCourses) {
-                            await supabaseClient
-                                .from('user_courses')
-                                .upsert({
-                                    user_id: userId,
-                                    course_id: item.course_id,
-                                    purchased_at: new Date().toISOString(),
-                                    price_paid: 0, // Part of bundle
-                                }, { onConflict: 'user_id, course_id' });
+                    if (bundle) {
+                        // 2. Grant access to courses
+                        if (bundle.course_ids && bundle.course_ids.length > 0) {
+                            for (const courseId of bundle.course_ids) {
+                                await supabaseClient
+                                    .from('course_enrollments')
+                                    .upsert({
+                                        user_id: userId,
+                                        course_id: courseId,
+                                        enrolled_at: new Date().toISOString(),
+                                    }, { onConflict: 'user_id,course_id' });
+                            }
+                        }
+
+                        // 3. Grant access to drills
+                        if (bundle.drill_ids && bundle.drill_ids.length > 0) {
+                            for (const drillId of bundle.drill_ids) {
+                                await supabaseClient
+                                    .from('user_drills')
+                                    .upsert({
+                                        user_id: userId,
+                                        drill_id: drillId,
+                                        purchased_at: new Date().toISOString(),
+                                    }, { onConflict: 'user_id,drill_id' });
+                            }
                         }
                     }
 
-                    // 3. Record in user_bundles
+                    // 4. Record in user_bundles
                     await supabaseClient
                         .from('user_bundles')
                         .insert({
@@ -287,11 +302,12 @@ Deno.serve(async (req) => {
                             price_paid: paymentIntent.amount / 100,
                         })
 
-                    // 4. Record payment
+                    // 5. Record payment
                     await supabaseClient
                         .from('payments')
                         .insert({
                             user_id: userId,
+                            bundle_id: bundleId,
                             amount: paymentIntent.amount,
                             currency: paymentIntent.currency,
                             status: 'completed',
@@ -300,7 +316,7 @@ Deno.serve(async (req) => {
                         })
 
                     console.log(`Bundle access granted: ${bundleId} to user ${userId}`)
-                    await logWebhook('success', event.type, { mode, bundleId, userId }, null);
+                    await logWebhook('success', event.type, { mode, bundleId, userId, courseCount: bundle?.course_ids?.length || 0, drillCount: bundle?.drill_ids?.length || 0 }, null);
                 }
                 break
             }
