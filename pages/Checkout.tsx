@@ -88,7 +88,7 @@ export const Checkout: React.FC = () => {
     const createPaymentIntent = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Not authenticated');
+            if (!session) throw new Error('로그인이 필요합니다.');
 
             const body: any = { mode: type };
             if (type === 'course') body.courseId = id;
@@ -97,29 +97,49 @@ export const Checkout: React.FC = () => {
             if (type === 'bundle') body.bundleId = id;
             if (type === 'subscription') body.priceId = id;
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            console.log('Creating payment intent:', { type, id, body });
 
-            const response = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify(body),
-                    signal: controller.signal
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+            let response;
+            try {
+                response = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify(body),
+                        signal: controller.signal
+                    }
+                );
+            } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                    throw new Error('요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.');
                 }
-            );
+                throw new Error('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+            }
+
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create payment intent');
+                let errorMessage = '결제 준비 중 오류가 발생했습니다.';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                    console.error('Payment intent error:', errorData);
+                } catch (e) {
+                    console.error('Failed to parse error response');
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
+            console.log('Payment intent created successfully');
             setClientSecret(data.clientSecret);
 
             // Get amount for display
@@ -136,11 +156,6 @@ export const Checkout: React.FC = () => {
                 const { data: bundle } = await supabase.from('bundles').select('price').eq('id', id).single();
                 setAmount(bundle?.price || 0);
             } else if (type === 'subscription') {
-                // For subscription, we might not know the amount easily without fetching the price from Stripe or having a mapping.
-                // For now, we can try to infer it or just show "Subscription"
-                // Or we can pass the amount in state if we want to be precise.
-                // Let's default to a generic message or try to fetch if possible, but we don't have a prices table.
-                // We'll leave it as 0 or handle it in the UI to show "Subscription" instead of price if 0.
                 setAmount(0);
             }
 
