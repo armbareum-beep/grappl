@@ -46,8 +46,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: '클래스', href: '/browse', icon: BookOpen },
-    { name: '번들 패키지', href: '/bundles', icon: Package },
     { name: '드릴 & 루틴', href: '/drills', icon: Zap },
+    { name: '번들 패키지', href: '/bundles', icon: Package },
     { name: '피드', href: '/journal', icon: Users },
     { name: '아레나', href: '/arena', icon: Trophy },
     { name: '요금제', href: '/pricing', icon: DollarSign },

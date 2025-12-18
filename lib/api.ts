@@ -2077,7 +2077,8 @@ export async function getBundles() {
         .select(`
             *,
             creator:users(name),
-            bundle_courses(course_id)
+            bundle_courses(course_id),
+            bundle_drills(drill_id)
         `)
         .order('created_at', { ascending: false });
 
@@ -2092,6 +2093,7 @@ export async function getBundles() {
         price: bundle.price,
         thumbnailUrl: bundle.thumbnail_url,
         courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
+        drillIds: bundle.bundle_drills?.map((bd: any) => bd.drill_id) || [],
         createdAt: bundle.created_at
     }));
 
@@ -2107,7 +2109,8 @@ export async function createBundle(bundle: {
     description: string;
     price: number;
     thumbnailUrl?: string;
-    courseIds: string[];
+    courseIds?: string[];
+    drillIds?: string[];
 }) {
     // 1. Create bundle
     const { data: newBundle, error: bundleError } = await supabase
@@ -2125,16 +2128,32 @@ export async function createBundle(bundle: {
     if (bundleError) return { error: bundleError };
 
     // 2. Add courses to bundle
-    const bundleCourses = bundle.courseIds.map(courseId => ({
-        bundle_id: newBundle.id,
-        course_id: courseId
-    }));
+    if (bundle.courseIds && bundle.courseIds.length > 0) {
+        const bundleCourses = bundle.courseIds.map(courseId => ({
+            bundle_id: newBundle.id,
+            course_id: courseId
+        }));
 
-    const { error: coursesError } = await supabase
-        .from('bundle_courses')
-        .insert(bundleCourses);
+        const { error: coursesError } = await supabase
+            .from('bundle_courses')
+            .insert(bundleCourses);
 
-    if (coursesError) return { error: coursesError };
+        if (coursesError) return { error: coursesError };
+    }
+
+    // 3. Add drills to bundle
+    if (bundle.drillIds && bundle.drillIds.length > 0) {
+        const bundleDrills = bundle.drillIds.map(drillId => ({
+            bundle_id: newBundle.id,
+            drill_id: drillId
+        }));
+
+        const { error: drillsError } = await supabase
+            .from('bundle_drills')
+            .insert(bundleDrills);
+
+        if (drillsError) return { error: drillsError };
+    }
 
     return { data: newBundle, error: null };
 }
@@ -2165,16 +2184,33 @@ export async function updateBundle(id: string, bundle: Partial<Bundle>) {
     if (error) return { error };
 
     // Update bundle courses if provided
-    if (bundle.courseIds) {
+    if (bundle.courseIds !== undefined) {
         // Delete existing courses
         await supabase.from('bundle_courses').delete().eq('bundle_id', id);
-        // Insert new ones
-        const bundleCourses = bundle.courseIds.map(course_id => ({
-            bundle_id: id,
-            course_id
-        }));
-        const { error: coursesError } = await supabase.from('bundle_courses').insert(bundleCourses);
-        if (coursesError) return { error: coursesError };
+        // Insert new ones if any
+        if (bundle.courseIds.length > 0) {
+            const bundleCourses = bundle.courseIds.map(course_id => ({
+                bundle_id: id,
+                course_id
+            }));
+            const { error: coursesError } = await supabase.from('bundle_courses').insert(bundleCourses);
+            if (coursesError) return { error: coursesError };
+        }
+    }
+
+    // Update bundle drills if provided
+    if (bundle.drillIds !== undefined) {
+        // Delete existing drills
+        await supabase.from('bundle_drills').delete().eq('bundle_id', id);
+        // Insert new ones if any
+        if (bundle.drillIds.length > 0) {
+            const bundleDrills = bundle.drillIds.map(drill_id => ({
+                bundle_id: id,
+                drill_id
+            }));
+            const { error: drillsError } = await supabase.from('bundle_drills').insert(bundleDrills);
+            if (drillsError) return { error: drillsError };
+        }
     }
 
     return { error: null };

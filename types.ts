@@ -214,6 +214,8 @@ export interface Bundle {
   thumbnailUrl?: string;
   courseIds?: string[];
   courses?: Course[];
+  drillIds?: string[];
+  drills?: Drill[];
   createdAt: string;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon } from '../../lib/api';
-import { Bundle, Coupon, Course } from '../../types';
+import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getDrills } from '../../lib/api';
+import { Bundle, Coupon, Course, Drill } from '../../types';
 import { Package, Tag, Plus, X, Pencil } from 'lucide-react';
 
 export const MarketingTab: React.FC = () => {
@@ -9,6 +9,7 @@ export const MarketingTab: React.FC = () => {
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [drills, setDrills] = useState<Drill[]>([]);
     const [showBundleForm, setShowBundleForm] = useState(false);
     const [showCouponForm, setShowCouponForm] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -18,6 +19,7 @@ export const MarketingTab: React.FC = () => {
     const [bundleDescription, setBundleDescription] = useState('');
     const [bundlePrice, setBundlePrice] = useState('');
     const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+    const [selectedDrills, setSelectedDrills] = useState<string[]>([]);
 
     // Coupon form state
     const [couponCode, setCouponCode] = useState('');
@@ -40,10 +42,11 @@ export const MarketingTab: React.FC = () => {
         if (!user) return;
         setLoading(true);
         console.log('Loading Marketing data for user:', user.id);
-        const [bundlesRes, couponsRes, coursesData] = await Promise.all([
+        const [bundlesRes, couponsRes, coursesData, drillsRes] = await Promise.all([
             getBundles(),
             getCoupons(),
-            getCreatorCourses(user.id)
+            getCreatorCourses(user.id),
+            getDrills(user.id)
         ]);
 
         console.log('Bundles result:', bundlesRes);
@@ -60,6 +63,9 @@ export const MarketingTab: React.FC = () => {
         }
 
         setCourses(coursesData);
+        if (drillsRes.data) {
+            setDrills(drillsRes.data);
+        }
         setLoading(false);
     };
 
@@ -90,6 +96,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription('');
         setBundlePrice('');
         setSelectedCourses([]);
+        setSelectedDrills([]);
         setShowBundleForm(false);
     };
 
@@ -107,6 +114,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription(bundle.description);
         setBundlePrice(bundle.price.toString());
         setSelectedCourses(bundle.courseIds || []);
+        setSelectedDrills(bundle.drillIds || []);
         setShowBundleForm(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -130,7 +138,8 @@ export const MarketingTab: React.FC = () => {
             title: bundleTitle,
             description: bundleDescription,
             price: parseFloat(bundlePrice),
-            courseIds: selectedCourses
+            courseIds: selectedCourses,
+            drillIds: selectedDrills
         });
 
         if (error) {
@@ -167,14 +176,15 @@ export const MarketingTab: React.FC = () => {
 
     const handleCreateBundle = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || selectedCourses.length === 0) return;
+        if (!user || (selectedCourses.length === 0 && selectedDrills.length === 0)) return;
 
         const { error } = await createBundle({
             creatorId: user.id,
             title: bundleTitle,
             description: bundleDescription,
             price: parseFloat(bundlePrice),
-            courseIds: selectedCourses
+            courseIds: selectedCourses,
+            drillIds: selectedDrills
         });
 
         if (error) {
@@ -187,6 +197,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription('');
         setBundlePrice('');
         setSelectedCourses([]);
+        setSelectedDrills([]);
         setShowBundleForm(false);
         await loadData();
         alert('번들이 생성되었습니다!');
@@ -225,6 +236,14 @@ export const MarketingTab: React.FC = () => {
             prev.includes(courseId)
                 ? prev.filter(id => id !== courseId)
                 : [...prev, courseId]
+        );
+    };
+
+    const toggleDrillSelection = (drillId: string) => {
+        setSelectedDrills(prev =>
+            prev.includes(drillId)
+                ? prev.filter(id => id !== drillId)
+                : [...prev, drillId]
         );
     };
 
@@ -332,11 +351,36 @@ export const MarketingTab: React.FC = () => {
                                 </p>
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    포함할 드릴 선택 (선택사항)
+                                </label>
+                                <div className="space-y-2 max-h-64 overflow-y-auto border border-slate-700 rounded-lg p-4 bg-slate-950">
+                                    {drills.map((drill) => (
+                                        <label
+                                            key={drill.id}
+                                            className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedDrills.includes(drill.id)}
+                                                onChange={() => toggleDrillSelection(drill.id)}
+                                                className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700"
+                                            />
+                                            <span className="text-sm text-slate-300">{drill.title}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    {selectedDrills.length}개 드릴 선택됨
+                                </p>
+                            </div>
+
                             <div className="flex gap-3">
                                 <button
                                     type="submit"
                                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                    disabled={selectedCourses.length === 0}
+                                    disabled={selectedCourses.length === 0 && selectedDrills.length === 0}
                                 >
                                     {editingBundle ? '수정 완료' : '번들 생성'}
                                 </button>
@@ -390,9 +434,18 @@ export const MarketingTab: React.FC = () => {
                                     <span className="text-lg font-bold text-blue-400">
                                         ₩{bundle.price.toLocaleString()}
                                     </span>
-                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
-                                        {bundle.courseIds?.length || 0}개 강좌 포함
-                                    </span>
+                                    <div className="flex gap-2">
+                                        {(bundle.courseIds?.length || 0) > 0 && (
+                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                                                {bundle.courseIds?.length || 0}개 강좌
+                                            </span>
+                                        )}
+                                        {(bundle.drillIds?.length || 0) > 0 && (
+                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                                                {bundle.drillIds?.length || 0}개 드릴
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))
