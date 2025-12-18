@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getBundles } from '../lib/api';
 import { Bundle } from '../types';
-import { Package, Search, Filter, ArrowRight, BookOpen } from 'lucide-react';
-import { Button } from '../components/Button';
+import { Package, Search, BookOpen } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
-import { useNavigate } from 'react-router-dom';
+import { BundleCard } from '../components/BundleCard';
 
 export const Bundles: React.FC = () => {
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const navigate = useNavigate();
 
     useEffect(() => {
         loadBundles();
@@ -79,46 +77,7 @@ export const Bundles: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filteredBundles.map((bundle) => (
-                            <div
-                                key={bundle.id}
-                                className="group bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden hover:border-blue-500/50 transition-all duration-300 flex flex-col hover:shadow-[0_20px_40px_-15px_rgba(59,130,246,0.15)]"
-                            >
-                                <div className="p-8 flex flex-col h-full">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-3 bg-blue-500/10 rounded-2xl">
-                                            <Package className="w-6 h-6 text-blue-500" />
-                                        </div>
-                                        <div className="bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
-                                            <span className="text-xs font-semibold text-slate-300">
-                                                {bundle.courseIds?.length || 0} CLASSES
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-400 transition-colors">
-                                        {bundle.title}
-                                    </h3>
-                                    <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                                        {bundle.description}
-                                    </p>
-
-                                    <div className="mt-auto pt-6 border-t border-slate-800/50 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs text-slate-500 mb-1">번들 할인가</p>
-                                            <p className="text-2xl font-black text-white">
-                                                ₩{bundle.price.toLocaleString()}
-                                            </p>
-                                        </div>
-                                        <Button
-                                            onClick={() => navigate(`/checkout/bundle/${bundle.id}`)}
-                                            className="rounded-xl px-6"
-                                        >
-                                            구매하기
-                                            <ArrowRight className="w-4 h-4 ml-2" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
+                            <BundleCard key={bundle.id} bundle={bundle} />
                         ))}
                     </div>
                 )}
