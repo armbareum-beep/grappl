@@ -296,14 +296,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ul className="space-y-2 text-sm text-slate-400">
                 <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
                 <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
-                <li><Link to="/creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
+                <li><Link to="/become-creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-4">고객지원</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="#" className="hover:text-blue-600 transition-colors">자주 묻는 질문</a></li>
-                <li><a href="#" className="hover:text-blue-600 transition-colors">문의하기</a></li>
+                <li><Link to="/contact" className="hover:text-blue-600 transition-colors">문의하기</Link></li>
                 <li><Link to="/terms" className="hover:text-blue-600 transition-colors">이용약관</Link></li>
                 <li><Link to="/privacy" className="hover:text-blue-600 transition-colors">개인정보처리방침</Link></li>
               </ul>

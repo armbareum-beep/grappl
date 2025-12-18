@@ -50,6 +50,7 @@ import { Instructors } from './pages/Instructors';
 import { Bundles } from './pages/Bundles';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
+import { Contact } from './pages/Contact';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
+                <Route path="/contact" element={<Contact />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/dashboard" element={
