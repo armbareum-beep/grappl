@@ -4,6 +4,7 @@ import { CourseCard } from '../components/CourseCard';
 import { Course, VideoCategory, Difficulty } from '../types';
 import { Filter, Search, Menu, Activity } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 export const Browse: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -42,21 +43,9 @@ export const Browse: React.FC = () => {
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-white p-4">
-        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 max-w-md text-center">
-          <h3 className="text-xl font-bold text-red-400 mb-2">오류 발생</h3>
-          <p className="text-slate-300 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-          >
-            새로고침
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorScreen error={error} resetMessage="강좌 목록을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
   }
+
 
   const categories = ['All', ...Object.values(VideoCategory)];
   const difficulties = ['All', ...Object.values(Difficulty)];

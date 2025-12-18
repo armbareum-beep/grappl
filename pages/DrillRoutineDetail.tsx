@@ -5,6 +5,8 @@ import { DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { PlayCircle, List, Eye, ArrowLeft, Clock } from 'lucide-react';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 export const DrillRoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -90,47 +92,14 @@ export const DrillRoutineDetail: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-950">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-slate-400">로딩 중...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="루틴 정보를 불러오고 있습니다..." />;
     }
+
 
     if (error) {
-        const isTimeout = error.includes('timed out') || error.includes('timeout');
-
-        return (
-            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
-                    <span className="text-3xl">⚠️</span>
-                </div>
-                <h2 className="text-xl font-bold text-white mb-2">
-                    {isTimeout ? '서버 연결 중...' : '오류가 발생했습니다'}
-                </h2>
-                <p className="text-slate-400 text-center max-w-xs mb-8">
-                    {isTimeout ? '드릴 루틴 정보를 불러오고 있습니다.\n잠시만 기다려주세요.' : error}
-                </p>
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => { setLoading(true); fetchRoutine(); }}
-                        className="px-6 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition"
-                    >
-                        다시 시도
-                    </button>
-                    <button
-                        onClick={() => navigate('/drills')}
-                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
-                    >
-                        드릴 목록으로
-                    </button>
-                </div>
-            </div>
-        );
+        return <ErrorScreen error={error} resetMessage="루틴 정보를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
     }
+
 
     if (!routine) {
         return (

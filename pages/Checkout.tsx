@@ -5,6 +5,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -147,24 +149,18 @@ export const Checkout: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-                <div className="text-white">결제 준비 중...</div>
-            </div>
-        );
+        return <LoadingScreen message="결제 정보를 준비하고 있습니다..." />;
     }
 
+
     if (error) {
-        return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-slate-900 p-6 rounded-xl border border-slate-800">
-                    <h2 className="text-xl font-bold text-white mb-4">오류 발생</h2>
-                    <p className="text-red-400 mb-4">{error}</p>
-                    <Button onClick={() => navigate(-1)}>돌아가기</Button>
-                </div>
-            </div>
-        );
+        return <ErrorScreen
+            title="결제 오류"
+            error={error}
+            resetMessage="결제 준비 중 오류가 발생했습니다. 잠시 후 다시 시도하시거나 캐시를 삭제해 주세요."
+        />;
     }
+
 
     return (
         <div className="min-h-screen bg-slate-950 py-12">

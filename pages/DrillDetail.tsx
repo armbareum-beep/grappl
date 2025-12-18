@@ -8,6 +8,7 @@ import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock } from 'lu
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -351,52 +352,9 @@ export const DrillDetail: React.FC = () => {
     }
 
     if (error) {
-        // If it's a timeout, show a softer "Connecting" screen instead of a hard error
-        const isTimeout = error.includes('time out') || error.includes('timeout');
-
-        if (isTimeout) {
-            return (
-                <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <h2 className="text-xl font-bold text-white mb-2">서버 연결 중...</h2>
-                    <p className="text-slate-400 text-center max-w-xs mb-8">
-                        드릴 정보를 불러오고 있습니다.<br />
-                        잠시만 기다려주세요.
-                    </p>
-                    <button
-                        onClick={() => { setLoading(true); fetchDrill(); }}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 transition"
-                    >
-                        다시 시도
-                    </button>
-                </div>
-            );
-        }
-
-        return (
-            <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
-                    <span className="text-3xl">⚠️</span>
-                </div>
-                <h2 className="text-xl font-bold text-white mb-2">오류가 발생했습니다</h2>
-                <p className="text-slate-400 text-center mb-8 max-w-xs">{error}</p>
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => { setLoading(true); fetchDrill(); }}
-                        className="px-6 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition"
-                    >
-                        다시 시도
-                    </button>
-                    <button
-                        onClick={() => navigate('/creator')}
-                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
-                    >
-                        나가기
-                    </button>
-                </div>
-            </div>
-        );
+        return <ErrorScreen error={error} resetMessage="드릴 정보를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
     }
+
 
     if (!drill) return <div className="text-white text-center pt-20">Drill not found</div>;
 
