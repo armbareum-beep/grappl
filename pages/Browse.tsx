@@ -125,7 +125,7 @@ export const Browse: React.FC = () => {
 
 
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold text-white">추천 강좌</h1>
+            <h1 className="text-2xl font-bold text-white">추천 클래스</h1>
 
             <div className="flex items-center gap-3">
               <div className="relative">

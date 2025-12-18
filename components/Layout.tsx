@@ -304,17 +304,29 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ul className="space-y-2 text-sm text-slate-400">
                 <li><a href="#" className="hover:text-blue-600 transition-colors">자주 묻는 질문</a></li>
                 <li><a href="#" className="hover:text-blue-600 transition-colors">문의하기</a></li>
-                <li><a href="#" className="hover:text-blue-600 transition-colors">이용약관</a></li>
-                <li><a href="#" className="hover:text-blue-600 transition-colors">개인정보처리방침</a></li>
+                <li><Link to="/terms" className="hover:text-blue-600 transition-colors">이용약관</Link></li>
+                <li><Link to="/privacy" className="hover:text-blue-600 transition-colors">개인정보처리방침</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-slate-500">
-              © 2024 Grapplay. All rights reserved.
-            </p>
-            <div className="flex space-x-6">
-              {/* Social icons would go here */}
+          <div className="border-t border-slate-800 mt-12 pt-8">
+            {/* Business Information */}
+            <div className="mb-6 text-xs text-slate-500 space-y-1">
+              <p><strong className="text-slate-400">상호명:</strong> 그래플레이</p>
+              <p><strong className="text-slate-400">대표자:</strong> 이바름</p>
+              <p><strong className="text-slate-400">사업자등록번호:</strong> 111-39-34149</p>
+              <p><strong className="text-slate-400">주소:</strong> 서울 동작대로29길 119, 102-1207</p>
+              <p><strong className="text-slate-400">이메일:</strong> coach0179@naver.com</p>
+              <p className="text-slate-600 mt-2">* 통신판매업 신고 진행 중</p>
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-xs text-slate-500">
+                © 2024 Grapplay. All rights reserved.
+              </p>
+              <div className="flex space-x-6">
+                {/* Social icons would go here */}
+              </div>
             </div>
           </div>
         </div>

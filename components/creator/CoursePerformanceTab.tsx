@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { Course } from '../../types';
 import { TrendingUp, Eye, DollarSign, Clock } from 'lucide-react';
 
@@ -31,20 +32,58 @@ export const CoursePerformanceTab: React.FC = () => {
         try {
             const coursesData = await getCreatorCourses(user.id);
 
-            // Mock performance data - replace with real API
-            const performanceData: CoursePerformance[] = coursesData.map((course) => ({
-                ...course,
-                directRevenue: Math.floor(Math.random() * 500000) + 100000,
-                subscriptionRevenue: Math.floor(Math.random() * 300000) + 50000,
-                totalRevenue: 0, // Will calculate below
-                watchTimeMinutes: Math.floor(Math.random() * 10000) + 1000,
-                enrollmentCount: Math.floor(Math.random() * 200) + 20
-            }));
+            // Get real performance data for each course
+            const performanceData: CoursePerformance[] = await Promise.all(
+                coursesData.map(async (course) => {
+                    // Get enrollment count
+                    const { count: enrollmentCount } = await supabase
+                        .from('course_enrollments')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('course_id', course.id);
 
-            // Calculate total revenue
-            performanceData.forEach(course => {
-                course.totalRevenue = course.directRevenue + course.subscriptionRevenue;
-            });
+                    // Get direct revenue (course purchases)
+                    const { data: purchases } = await supabase
+                        .from('payments')
+                        .select('amount')
+                        .eq('mode', 'course')
+                        .eq('target_id', course.id)
+                        .eq('status', 'completed');
+
+                    const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+
+                    // Get watch time for this course's lessons
+                    const { data: lessons } = await supabase
+                        .from('lessons')
+                        .select('id')
+                        .eq('course_id', course.id);
+
+                    const lessonIds = lessons?.map(l => l.id) || [];
+
+                    let watchTimeMinutes = 0;
+                    if (lessonIds.length > 0) {
+                        const { data: watchLogs } = await supabase
+                            .from('video_watch_logs')
+                            .select('watch_seconds')
+                            .in('lesson_id', lessonIds);
+
+                        const totalSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
+                        watchTimeMinutes = Math.floor(totalSeconds / 60);
+                    }
+
+                    // Calculate subscription revenue based on watch time share
+                    // This is a simplified calculation - actual calculation is done in calculateCreatorEarnings
+                    const subscriptionRevenue = 0; // Will be calculated server-side
+
+                    return {
+                        ...course,
+                        directRevenue,
+                        subscriptionRevenue,
+                        totalRevenue: directRevenue + subscriptionRevenue,
+                        watchTimeMinutes,
+                        enrollmentCount: enrollmentCount || 0
+                    };
+                })
+            );
 
             setCourses(performanceData);
         } catch (error) {

@@ -7,8 +7,8 @@ import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, 
 // Revenue split constants
 export const DIRECT_PRODUCT_CREATOR_SHARE = 0.8; // 80% to creator for individual product sales
 export const DIRECT_PRODUCT_PLATFORM_SHARE = 0.2;
-export const SUBSCRIPTION_CREATOR_SHARE = 0.7; // 70% to creator for subscription revenue
-export const SUBSCRIPTION_PLATFORM_SHARE = 0.3;
+export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscription revenue
+export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper functions to transform snake_case to camelCase
 function transformCreator(data: any): Creator {
@@ -1689,31 +1689,27 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     // 2. Extract user IDs
     const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
 
-    // 3. Fetch user names manually (robust against missing FKs)
-    let users = null;
+    // 3. Fetch user names from users table
+    const userMap: Record<string, string> = {};
     try {
         if (userIds.length > 0) {
-            const { data, error } = await supabase
+            const { data: usersData, error: usersError } = await supabase
                 .from('users')
                 .select('id, name')
                 .in('id', userIds);
 
-            if (!error) {
-                users = data;
+            if (!usersError && usersData) {
+                usersData.forEach((u: any) => {
+                    if (u.name) {
+                        userMap[u.id] = u.name;
+                    }
+                });
             } else {
-                console.warn('Failed to fetch users for feed:', error);
+                console.warn('Failed to fetch users for feed:', usersError);
             }
         }
     } catch (e) {
         console.warn('Exception fetching users for feed:', e);
-    }
-
-    // 4. Create a map of userId -> name
-    const userMap: Record<string, string> = {};
-    if (users) {
-        users.forEach((u: any) => {
-            userMap[u.id] = u.name;
-        });
     }
 
     // 5. Also try to fetch creator names if they are instructors (fallback)
@@ -3954,6 +3950,29 @@ export async function createFeedPost(post: {
     type: 'sparring' | 'routine' | 'mastery' | 'general' | 'title_earned' | 'level_up' | 'technique';
     metadata?: any;
 }) {
+    // First, ensure user exists in users table
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const userName = user.user_metadata?.name ||
+                user.user_metadata?.full_name ||
+                user.email?.split('@')[0] ||
+                'User';
+
+            await supabase
+                .from('users')
+                .upsert({
+                    id: post.userId,
+                    name: userName,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'id'
+                });
+        }
+    } catch (e) {
+        console.warn('Failed to upsert user info:', e);
+    }
+
     const { data, error } = await supabase
         .from('training_logs')
         .insert({

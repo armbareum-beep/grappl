@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalButtons } from '@paypal/react-paypal-js';
+import * as PortOne from '@portone/browser-sdk/v2';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -136,34 +137,118 @@ export const Checkout: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="space-y-4">
-                        <PayPalButtons
-                            style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
-                            createOrder={(_, actions) => {
-                                return actions.order.create({
-                                    intent: "CAPTURE",
-                                    purchase_units: [
-                                        {
-                                            amount: {
-                                                currency_code: "USD",
-                                                value: usdAmount,
+                    <div className="space-y-6">
+                        {/* PayPal Payment (International) */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                                <span className="text-blue-400">🌍</span> 해외 결제 (PayPal)
+                            </h3>
+                            <PayPalButtons
+                                style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
+                                createOrder={(_, actions) => {
+                                    return actions.order.create({
+                                        intent: "CAPTURE",
+                                        purchase_units: [
+                                            {
+                                                amount: {
+                                                    currency_code: "USD",
+                                                    value: usdAmount,
+                                                },
+                                                description: productTitle,
                                             },
-                                            description: productTitle,
-                                        },
-                                    ],
-                                });
-                            }}
-                            onApprove={async (_, actions) => {
-                                if (actions.order) {
-                                    const details = await actions.order.capture();
-                                    await handleSuccess(details);
-                                }
-                            }}
-                            onError={(err) => {
-                                console.error('PayPal Error:', err);
-                                setError('PayPal 결제 중 오류가 발생했습니다.');
-                            }}
-                        />
+                                        ],
+                                    });
+                                }}
+                                onApprove={async (_, actions) => {
+                                    if (actions.order) {
+                                        const details = await actions.order.capture();
+                                        await handleSuccess(details);
+                                    }
+                                }}
+                                onError={(err) => {
+                                    console.error('PayPal Error:', err);
+                                    setError('PayPal 결제 중 오류가 발생했습니다.');
+                                }}
+                            />
+                        </div>
+
+                        {/* Divider */}
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-slate-700"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-4 bg-slate-900 text-slate-500">또는</span>
+                            </div>
+                        </div>
+
+                        {/* Portone Payment (Korean) */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                                <span className="text-yellow-400">🇰🇷</span> 국내 결제 (카드/간편결제)
+                            </h3>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const response = await PortOne.requestPayment({
+                                            storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+                                            channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                            paymentId: `payment-${Date.now()}`,
+                                            orderName: productTitle,
+                                            totalAmount: amount,
+                                            currency: "KRW",
+                                            payMethod: "CARD",
+                                            customer: {
+                                                email: user?.email,
+                                            },
+                                        });
+
+                                        if (response?.code != null) {
+                                            // 결제 실패
+                                            alert(`결제 실패: ${response.message}`);
+                                            return;
+                                        }
+
+                                        // 결제 성공 - 백엔드 검증
+                                        const { data: { session } } = await supabase.auth.getSession();
+                                        if (!session) throw new Error('Not authenticated');
+
+                                        const verifyResponse = await fetch(
+                                            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-portone-payment`,
+                                            {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${session.access_token}`,
+                                                },
+                                                body: JSON.stringify({
+                                                    paymentId: response?.paymentId || '',
+                                                    mode: type,
+                                                    id: id,
+                                                    userId: user?.id,
+                                                }),
+                                            }
+                                        );
+
+                                        if (!verifyResponse.ok) {
+                                            throw new Error('결제 검증 실패');
+                                        }
+
+                                        navigate('/payment/complete');
+                                    } catch (err: any) {
+                                        console.error('Portone Error:', err);
+                                        setError('국내 결제 중 오류가 발생했습니다.');
+                                    }
+                                }}
+                                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                            >
+                                <span>💳</span>
+                                <span>카드/카카오페이로 결제하기</span>
+                            </button>
+                            <p className="text-xs text-slate-500 mt-2 text-center">
+                                신용카드, 카카오페이, 네이버페이 등 사용 가능
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

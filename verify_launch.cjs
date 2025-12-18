@@ -23,10 +23,18 @@ if (fs.existsSync(envPath)) {
         }
     });
 
-    // Stripe
-    check('env', 'Stripe Production Key',
-        envVars['VITE_STRIPE_PUBLISHABLE_KEY']?.startsWith('pk_live_'),
-        envVars['VITE_STRIPE_PUBLISHABLE_KEY']?.startsWith('pk_live_') ? 'Set to Live mode' : 'Not set or Test mode detected');
+    // PayPal
+    check('env', 'PayPal Client ID',
+        !!envVars['VITE_PAYPAL_CLIENT_ID'],
+        envVars['VITE_PAYPAL_CLIENT_ID'] ? 'Present' : 'Missing');
+
+    check('env', 'PayPal Environment',
+        envVars['VITE_PAYPAL_ENV'] === 'live',
+        envVars['VITE_PAYPAL_ENV'] === 'live' ? 'Set to Live mode' : 'Not set to Live (Sandbox?)');
+
+    check('env', 'PayPal Secret Key',
+        !!envVars['PAYPAL_SECRET_KEY'],
+        envVars['PAYPAL_SECRET_KEY'] ? 'Present' : 'Missing');
 
     // Vimeo
     check('env', 'Vimeo Token',
@@ -59,9 +67,6 @@ if (fs.existsSync(indexPath)) {
 }
 
 // Legal Links in Footer
-const footerPath = path.join(process.cwd(), 'components', 'Footer.tsx'); // Guessing path, will try to find
-let legalLinksFound = false;
-
 function findFile(dir, filename) {
     const files = fs.readdirSync(dir);
     for (const file of files) {
@@ -92,7 +97,7 @@ if (actualFooterPath) {
 // 3. Config / Edge Functions
 const functionsDir = path.join(process.cwd(), 'supabase', 'functions');
 if (fs.existsSync(functionsDir)) {
-    check('config', 'Stripe Webhook Function', fs.existsSync(path.join(functionsDir, 'stripe-webhook')), 'Folder exists');
+    check('config', 'PayPal Verification Function', fs.existsSync(path.join(functionsDir, 'verify-paypal-payment')), 'Folder exists');
 }
 
 console.log(JSON.stringify(results, null, 2));

@@ -605,7 +605,7 @@ export const CourseEditor: React.FC = () => {
                                         <div className="ml-2 text-sm">
                                             <label htmlFor="published" className="font-medium text-blue-400">강좌 공개 (Publish)</label>
                                             <p className="text-slate-400 text-xs mt-0.5">
-                                                체크하면 '내 강좌' 목록과 추천 강좌에 노출됩니다. 준비가 완료되면 체크하세요.
+                                                체크하면 '내 강좌' 목록과 추천 클래스에 노출됩니다. 준비가 완료되면 체크하세요.
                                             </p>
                                         </div>
                                     </div>

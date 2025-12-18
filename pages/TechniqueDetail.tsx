@@ -233,7 +233,7 @@ export const TechniqueDetailPage: React.FC = () => {
                             <div>
                                 <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
                                     <BookOpen className="w-4 h-4" />
-                                    추천 강좌
+                                    추천 클래스
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {relatedCourses.map(course => (
