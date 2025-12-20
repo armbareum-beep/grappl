@@ -23,6 +23,7 @@ export const DrillDetail: React.FC = () => {
     const [user, setUser] = useState<any>(null);
     const [showQuestComplete, setShowQuestComplete] = useState(false);
     const [showAddToRoutine, setShowAddToRoutine] = useState(false);
+    const [associatedRoutineId, setAssociatedRoutineId] = useState<string | null>(null);
 
     // Video player state
     const [isPlaying, setIsPlaying] = useState(true);
@@ -30,6 +31,7 @@ export const DrillDetail: React.FC = () => {
     const [currentVideoType, setCurrentVideoType] = useState<'action' | 'description'>('action');
     const [liked, setLiked] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [isVideoReady, setIsVideoReady] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -38,6 +40,7 @@ export const DrillDetail: React.FC = () => {
         if (id) {
             fetchDrill();
             checkUser();
+            checkRoutine();
         }
     }, [id, authLoading]);
 
@@ -150,11 +153,6 @@ export const DrillDetail: React.FC = () => {
             setIsSubscriber(isSub);
 
             if (id && drill) {
-                // Simple logic:
-                // 1. Creator can watch their own drills (highest priority)
-                // 2. Subscribers can watch everything
-                // 3. First drill in routine is free
-
                 let hasAccess = false;
 
                 // Check if creator (HIGHEST PRIORITY)
@@ -168,24 +166,6 @@ export const DrillDetail: React.FC = () => {
                 // Check if subscriber
                 else if (isSub) {
                     hasAccess = true;
-                }
-                // Check if first drill in routine (free preview)
-                // Check if first drill in routine (free preview)
-                else {
-                    // try {
-                    //     const { getRoutineByDrillId } = await import('../lib/api');
-                    //     const { data: routineData } = await getRoutineByDrillId(id);
-
-                    //     if (routineData && routineData.drills && routineData.drills.length > 0) {
-                    //         // First drill is free
-                    //         if (routineData.drills[0].id === id) {
-                    //             hasAccess = true;
-                    //         }
-                    //     }
-                    // } catch (error) {
-                    //     console.warn('Could not check routine status:', error);
-                    //     // If we can't check, don't block access
-                    // }
                 }
 
                 setOwns(hasAccess);
@@ -203,7 +183,7 @@ export const DrillDetail: React.FC = () => {
                 }
             }
         } else {
-            // Not logged in - check if first drill in routine
+            // Not logged in - check if first drill in routine (free preview)
             if (id) {
                 try {
                     const { getRoutineByDrillId } = await import('../lib/api');
@@ -222,14 +202,33 @@ export const DrillDetail: React.FC = () => {
         }
     };
 
+    const checkRoutine = async () => {
+        if (!id) return;
+        try {
+            const { getRoutineByDrillId } = await import('../lib/api');
+            const { data: routine } = await getRoutineByDrillId(id);
+            if (routine) {
+                setAssociatedRoutineId(routine.id);
+            } else {
+                setAssociatedRoutineId(null);
+            }
+        } catch (e) {
+            console.error('Error checking routine association:', e);
+        }
+    };
+
     // Auto-play current video
+    useEffect(() => {
+        setIsVideoReady(false); // Reset ready state when changing video tabs
+    }, [currentVideoType]);
+
     useEffect(() => {
         if (videoRef.current && isPlaying && owns) {
             videoRef.current.play().catch(err => console.log('Play error:', err));
         } else if (videoRef.current) {
             videoRef.current.pause();
         }
-    }, [isPlaying, currentVideoType, owns]);
+    }, [isPlaying, currentVideoType, owns, id]);
 
     // Update progress
     useEffect(() => {
@@ -388,7 +387,7 @@ export const DrillDetail: React.FC = () => {
         : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4'); // Placeholder to prevent errors
 
     // Detect Processing State (Backend is still working)
-    const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
+    const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
 
     if (isProcessing) {
         return (
@@ -483,8 +482,27 @@ export const DrillDetail: React.FC = () => {
                                     muted={false}
                                     autoPlay={isPlaying}
                                     onClick={togglePlayPause}
-                                    src={videoSrc}
+                                    src={videoSrc || undefined}
+                                    preload="auto"
+                                    onPlaying={() => setIsVideoReady(true)}
+                                    onWaiting={() => setIsVideoReady(false)}
+                                    onLoadStart={() => setIsVideoReady(false)}
                                 />
+
+                                {/* Thumbnail Overlay (Smooth Transition) */}
+                                {!isVideoReady && drill && (
+                                    <div className="absolute inset-0 z-20">
+                                        <img
+                                            src={drill.thumbnailUrl}
+                                            className="w-full h-full object-cover"
+                                            alt=""
+                                        />
+                                        {/* Loading Spinner on top of thumbnail */}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+                                            <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Play/Pause Overlay */}
                                 {!isPlaying && (
@@ -614,13 +632,25 @@ export const DrillDetail: React.FC = () => {
                         {/* Add to Routine / Complete */}
                         {owns && (
                             <button
-                                onClick={() => setShowAddToRoutine(true)}
+                                onClick={async () => {
+                                    if (associatedRoutineId) {
+                                        navigate(`/routines/${associatedRoutineId}`);
+                                    } else {
+                                        setShowAddToRoutine(true);
+                                    }
+                                }}
                                 className="flex flex-col items-center gap-1 group"
                             >
                                 <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                    <MoreVertical className="w-6 h-6 text-white" />
+                                    {associatedRoutineId ? (
+                                        <Play className="w-6 h-6 text-white" />
+                                    ) : (
+                                        <MoreVertical className="w-6 h-6 text-white" />
+                                    )}
                                 </div>
-                                <span className="text-white text-xs">루틴</span>
+                                <span className="text-white text-xs">
+                                    {associatedRoutineId ? '루틴 보기' : '루틴'}
+                                </span>
                             </button>
                         )}
                     </div>

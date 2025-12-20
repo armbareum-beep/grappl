@@ -1,6 +1,7 @@
 
 
 import { supabase } from './supabase';
+import { Filter } from 'bad-words';
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview, Testimonial } from '../types';
 
 
@@ -11,6 +12,20 @@ export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscriptio
 export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper functions to transform snake_case to camelCase
+let filter: any;
+try {
+    filter = new Filter();
+    // Add basic Korean bad words (expand as needed)
+    filter.addWords('시발', '씨발', '병신', '개새끼', '존나', '좆', '씹');
+} catch (e) {
+    console.warn('Failed to initialize profanity filter:', e);
+    // Fallback mock filter if initialization fails
+    filter = {
+        clean: (text: string) => text,
+        isProfane: () => false
+    };
+}
+
 function transformCreator(data: any): Creator {
     return {
         id: data.id,
@@ -153,6 +168,38 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
     } catch (e) {
         console.error('getCourses timeout/fail:', e);
         return [];
+    }
+}
+
+export async function searchContent(query: string) {
+    try {
+        const searchTerm = `%${query}%`;
+
+        // Parallel fetch
+        const [coursesResponse, routinesResponse] = await Promise.all([
+            supabase
+                .from('courses')
+                .select('*, creator:creators(*)')
+                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .eq('published', true)
+                .limit(20),
+            supabase
+                .from('routines')
+                .select('*, creator:creators(*)')
+                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .limit(20)
+        ]);
+
+        if (coursesResponse.error) throw coursesResponse.error;
+        if (routinesResponse.error) throw routinesResponse.error;
+
+        return {
+            courses: (coursesResponse.data || []).map(transformCourse),
+            routines: (routinesResponse.data || []).map(transformDrillRoutine)
+        };
+    } catch (error) {
+        console.error('Error searching content:', error);
+        return { courses: [], routines: [] };
     }
 }
 
@@ -778,6 +825,37 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     return { data: transformLesson(data), error: null };
 }
 
+
+// ==================== Support API ====================
+
+export async function createSupportTicket(ticketData: {
+    userId?: string;
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+    category?: string;
+}) {
+    const dbData = {
+        user_id: ticketData.userId || null, // Allow null for guests
+        user_name: ticketData.name,
+        user_email: ticketData.email,
+        subject: ticketData.subject,
+        message: ticketData.message,
+        category: ticketData.category || 'general',
+        status: 'open',
+        priority: 'medium'
+    };
+
+    const { error } = await supabase
+        .from('support_tickets')
+        .insert(dbData);
+
+    return { error };
+}
+
+
+
 export async function reorderLessons(lessonOrders: { id: string, lessonNumber: number }[]) {
     const promises = lessonOrders.map(item =>
         supabase
@@ -1352,20 +1430,51 @@ export async function calculateCreatorEarnings(creatorId: string) {
 
 /**
  * Get creator revenue stats (monthly breakdown)
- * Mock data for now
+ * Aggregates real sales data from:
+ * 1. Course Sales (user_courses)
+ * 2. Feedback Sales (feedback_requests)
+ * 3. Bundle Bundles (user_bundles - TODO: if implemented)
  */
 export async function getCreatorRevenueStats(creatorId: string) {
-    // Mock data
-    const stats = [
-        { period: '2023-10', amount: 1250000, status: 'pending' },
-        { period: '2023-09', amount: 1100000, status: 'paid' },
-        { period: '2023-08', amount: 950000, status: 'paid' },
-        { period: '2023-07', amount: 880000, status: 'paid' },
-        { period: '2023-06', amount: 1050000, status: 'paid' },
-        { period: '2023-05', amount: 920000, status: 'paid' },
-    ];
+    try {
+        // Fetch monthly settlement stats from the centralized SQL view
+        // This ensures the Admin Dashboard and Creator Dashboard show the EXACT same numbers (80% settlement)
+        const { data, error } = await supabase
+            .from('creator_monthly_settlements')
+            .select('*')
+            .eq('creator_id', creatorId)
+            .order('settlement_month', { ascending: false });
 
-    return { data: stats, error: null };
+        if (error) {
+            // If view doesn't exist (e.g. migration not run), return empty to avoid crash
+            if (error.code === '42P01') {
+                console.warn('creator_monthly_settlements view not found. falling back to empty.');
+                return { data: [], error: null };
+            }
+            throw error;
+        }
+
+        const today = new Date();
+        const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+        const stats = (data || []).map((row: any) => {
+            const date = new Date(row.settlement_month);
+            const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+            return {
+                period,
+                amount: row.settlement_amount, // Use the calculated 80% amount
+                // Logic: Past months are "paid" (assumed), current month is "pending"
+                status: period < currentMonth ? 'paid' : 'pending'
+            };
+        });
+
+        return { data: stats, error: null };
+
+    } catch (error) {
+        console.error('Error calculating creator revenue stats:', error);
+        return { data: null, error };
+    }
 }
 
 /**
@@ -1448,6 +1557,8 @@ export async function getTrainingLogs(userId: string) {
         isPublic: log.is_public || false,
         location: log.location,
         youtubeUrl: log.youtube_url,
+        mediaUrl: log.media_url,
+        metadata: log.metadata,
         createdAt: log.created_at
     }));
 
@@ -1511,6 +1622,11 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
     // Daily check removed - users can create multiple logs per day
     // XP is controlled by quest system which has daily limits
 
+    // Profanity Check
+    if (log.isPublic && log.notes && filter.isProfane(log.notes)) {
+        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
+    }
+
     const { data, error } = await supabase
         .from('training_logs')
         .insert({
@@ -1522,7 +1638,9 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
             notes: log.notes,
             is_public: log.isPublic,
             location: log.location,
-            youtube_url: log.youtubeUrl
+            youtube_url: log.youtubeUrl,
+            media_url: log.mediaUrl,
+            metadata: log.metadata
         })
         .select()
         .single();
@@ -1541,6 +1659,8 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
             isPublic: data.is_public,
             location: data.location,
             youtubeUrl: data.youtube_url,
+            mediaUrl: data.media_url,
+            metadata: data.metadata,
             createdAt: data.created_at
         } as TrainingLog,
         error: null
@@ -1737,10 +1857,12 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         console.warn('Exception fetching creators:', e);
     }
 
+    const instructorSet = new Set<string>();
     if (creators) {
         creators.forEach((c: any) => {
             // Prefer creator name if available (might be more official)
             userMap[c.id] = c.name;
+            instructorSet.add(c.id);
         });
     }
 
@@ -1795,12 +1917,21 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             type = log.location.replace('__FEED__', '');
         }
 
+        const isInstructor = instructorSet.has(log.user_id);
+
         return {
             id: log.id,
             userId: log.user_id,
             userName: userMap[log.user_id] || 'User',
             userAvatar: avatarMap[log.user_id],
             userBelt: beltMap[log.user_id],
+            user: {
+                name: userMap[log.user_id] || 'User',
+                email: '',
+                belt: beltMap[log.user_id],
+                profileImage: avatarMap[log.user_id],
+                isInstructor: isInstructor
+            },
             date: log.date,
             durationMinutes: log.duration_minutes,
             techniques: log.techniques || [],
@@ -1810,6 +1941,7 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             type: type,
             location: log.location,
             youtubeUrl: log.youtube_url,
+            mediaUrl: log.media_url,
             createdAt: log.created_at,
             metadata: log.metadata
         };
@@ -1876,15 +2008,25 @@ export async function getLogFeedback(logId: string) {
  * Create feedback
  */
 export async function createLogFeedback(logId: string, userId: string, content: string) {
-    const { error } = await supabase
+    // Profanity Check
+    if (filter.isProfane(content)) {
+        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
+    }
+
+    const { data, error } = await supabase
         .from('log_feedback')
         .insert({
             log_id: logId,
             user_id: userId,
             content
-        });
+        })
+        .select(`
+            *,
+            user:users(name, avatar_url)
+        `)
+        .single();
 
-    return { error };
+    return { data, error };
 }
 
 
@@ -2541,7 +2683,57 @@ export async function submitFeedbackResponse(requestId: string, content: string)
 }
 
 
+// ==================== REPORTING ====================
+
+/**
+ * Create a new report
+ */
+export async function createReport(reportData: {
+    reporterId: string;
+    targetId: string;
+    targetType: 'post' | 'comment' | 'user' | 'drill';
+    reason: string;
+    description?: string;
+}) {
+    const { error } = await supabase
+        .from('reports')
+        .insert({
+            reporter_id: reportData.reporterId,
+            target_id: reportData.targetId,
+            target_type: reportData.targetType,
+            reason: reportData.reason,
+            description: reportData.description,
+            status: 'pending'
+        });
+
+    return { error };
+}
+
 // ==================== NOTIFICATIONS ====================
+
+/**
+ * Create a new notification manually
+ */
+export async function createNotification(notification: {
+    userId: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    title: string;
+    message: string;
+    link?: string;
+}) {
+    const { error } = await supabase
+        .from('notifications')
+        .insert({
+            user_id: notification.userId,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            link: notification.link,
+            is_read: false
+        });
+
+    return { error };
+}
 
 /**
  * Get user notifications
@@ -3298,13 +3490,12 @@ export async function getRoutines(creatorId?: string) {
     }
 
     const { data, error } = await query;
-
     if (error) {
         console.error('Error fetching routines:', error);
-        return { data: null, error };
+        return [];
     }
 
-    return { data: data as DrillRoutine[], error: null };
+    return (data || []).map(transformDrillRoutine);
 }
 
 /**
@@ -3341,11 +3532,12 @@ export async function getDailyRoutine() {
 export const getDrillRoutines = getRoutines;
 
 export async function getRoutineById(id: string) {
+    console.log('[getRoutineById] Fetching routine:', id);
+
     const { data, error } = await supabase
         .from('routines')
         .select(`
             *,
-            creator:creator_id(name, profile_image),
             items:routine_drills(
                 order_index,
                 drill:drills(*)
@@ -3355,18 +3547,62 @@ export async function getRoutineById(id: string) {
         .single();
 
     if (error) {
-        console.error('Error fetching routine:', error);
+        console.error('[getRoutineById] Error fetching routine:', {
+            routineId: id,
+            error: error,
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+        });
         return { data: null, error };
+    }
+
+    if (!data) {
+        console.warn('[getRoutineById] No data returned for routine:', id);
+        return { data: null, error: { message: 'Routine not found', code: '404' } };
+    }
+
+    console.log('[getRoutineById] Raw data received:', {
+        routineId: data.id,
+        creatorId: data.creator_id,
+        itemsCount: data.items?.length || 0
+    });
+
+    // Fetch creator info separately to avoid join syntax issues
+    let creatorName = 'Unknown';
+    if (data.creator_id) {
+        try {
+            const { data: creatorData } = await supabase
+                .from('creators')
+                .select('name')
+                .eq('id', data.creator_id)
+                .single();
+
+            if (creatorData) {
+                creatorName = creatorData.name;
+            }
+        } catch (e) {
+            console.warn('[getRoutineById] Could not fetch creator:', e);
+        }
     }
 
     // Transform to match DrillRoutine interface with items
     const routine = {
         ...data,
+        creatorName: creatorName,
         drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
-            ...item.drill,
+            ...transformDrill(item.drill),
             orderIndex: item.order_index
-        }))
+        })) || []
     };
+
+    console.log('[getRoutineById] Transformed routine:', {
+        id: routine.id,
+        title: routine.title,
+        creatorName: routine.creatorName,
+        drillCount: routine.drills?.length || 0
+    });
 
     return { data: routine as DrillRoutine, error: null };
 }
@@ -3686,8 +3922,10 @@ export async function getDrillById(id: string) {
  */
 export async function getRoutineByDrillId(drillId: string): Promise<{ data: DrillRoutine | null; error: any }> {
     try {
+        console.log('getRoutineByDrillId lookup for:', drillId);
         // Query database for routine containing this drill
-        const { data, error } = await supabase
+        // Use .limit(1) instead of .single() to avoid errors if multiple routines contain the drill
+        const { data: associations, error } = await supabase
             .from('routine_drills')
             .select(`
                 routine_id,
@@ -3696,23 +3934,30 @@ export async function getRoutineByDrillId(drillId: string): Promise<{ data: Dril
                 )
             `)
             .eq('drill_id', drillId)
-            .limit(1)
-            .single();
+            .limit(1);
 
         if (error) {
-            // Not an error if drill is not in a routine
-            if (error.code === 'PGRST116') {
-                return { data: null, error: null };
-            }
             console.warn('Error fetching routine by drill:', error);
-            return { data: null, error: null }; // Return null instead of error to not block UI
-        }
-
-        if (!data || !data.routines) {
             return { data: null, error: null };
         }
 
-        // Fetch drills for this routine
+        if (!associations || associations.length === 0) {
+            console.log('No routine associated with drill:', drillId);
+            return { data: null, error: null };
+        }
+
+        const association = associations[0];
+        // Handle cases where routines might be returned as an array or object
+        const rawRoutine = Array.isArray(association.routines) ? association.routines[0] : association.routines;
+
+        if (!rawRoutine) {
+            console.warn('Association exists but routine data is missing:', association);
+            return { data: null, error: null };
+        }
+
+        console.log('Found routine for drill:', { routineId: rawRoutine.id, drillId });
+
+        // Fetch drills for this routine to build the full object
         const { data: routineDrills } = await supabase
             .from('routine_drills')
             .select(`
@@ -3720,33 +3965,32 @@ export async function getRoutineByDrillId(drillId: string): Promise<{ data: Dril
                 order_index,
                 drills (*)
             `)
-            .eq('routine_id', data.routine_id)
+            .eq('routine_id', association.routine_id)
             .order('order_index', { ascending: true });
 
-        const routine = data.routines as any;
         const drills = routineDrills?.map((rd: any) => transformDrill(rd.drills)) || [];
 
         return {
             data: {
-                id: routine.id,
-                title: routine.title,
-                description: routine.description,
-                thumbnailUrl: routine.thumbnail_url,
-                difficulty: routine.difficulty,
-                category: routine.category,
-                totalDurationMinutes: routine.duration_minutes || 0,
+                id: rawRoutine.id,
+                title: rawRoutine.title,
+                description: rawRoutine.description,
+                thumbnailUrl: rawRoutine.thumbnail_url,
+                difficulty: rawRoutine.difficulty,
+                category: rawRoutine.category,
+                totalDurationMinutes: rawRoutine.duration_minutes || 0,
                 drills: drills,
-                creatorId: routine.creator_id,
-                creatorName: 'Unknown',
-                price: routine.price || 0,
-                views: routine.views || 0,
-                createdAt: routine.created_at
+                creatorId: rawRoutine.creator_id,
+                creatorName: (rawRoutine.creator as any)?.name || 'Unknown',
+                price: rawRoutine.price || 0,
+                views: rawRoutine.views || 0,
+                createdAt: rawRoutine.created_at
             },
             error: null
         };
     } catch (error) {
         console.warn('Exception in getRoutineByDrillId:', error);
-        return { data: null, error: null }; // Return null to not block UI
+        return { data: null, error: null };
     }
 }
 
@@ -4030,6 +4274,11 @@ export async function createFeedPost(post: {
  * Create a comment on a post
  */
 export async function createComment(postId: string, userId: string, content: string) {
+    // Profanity Check
+    if (filter.isProfane(content)) {
+        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
+    }
+
     const { data, error } = await supabase
         .from('post_comments')
         .insert({
@@ -4037,7 +4286,10 @@ export async function createComment(postId: string, userId: string, content: str
             user_id: userId,
             content
         })
-        .select()
+        .select(`
+            *,
+            user:users!user_id(name, avatar_url)
+        `)
         .single();
 
     if (error) {
@@ -4056,7 +4308,7 @@ export async function getPostComments(postId: string) {
         .from('post_comments')
         .select(`
             *,
-            user:users!user_id(name)
+            user:users!user_id(name, avatar_url)
         `)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
@@ -4344,6 +4596,7 @@ export interface CombatPowerStats {
         sparringReviews: { count: number; score: number };
         skills: { count: number; score: number };
         belt: { level: string; score: number };
+        arena: { count: number; score: number };
     };
 }
 
@@ -4357,20 +4610,23 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
     // Count unique dates
     const uniqueLogDays = new Set(logDates?.map(l => l.date)).size;
 
-    // 2. Get unique dates for Sparring Reviews
-    const { data: sparringDates } = await supabase
+    // 2. Get dates for Sparring Reviews
+    const { data: sparringLogs } = await supabase
         .from('sparring_reviews')
         .select('date')
         .eq('user_id', userId);
 
-    // Count unique dates
-    const uniqueSparringDays = new Set(sparringDates?.map(s => s.date)).size;
+    // Count unique dates (1 per day)
+    const uniqueSparringDays = new Set(sparringLogs?.map(s => s.date)).size;
 
-    // 3. Get other counts (Routines and Skills are still per item)
-    const { count: routineCount } = await supabase
-        .from('user_routine_purchases')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+    // 3. Get completed routines (Based on unique days)
+    const { data: routineLogs } = await supabase
+        .from('training_logs')
+        .select('date')
+        .eq('user_id', userId)
+        .eq('type', 'routine');
+
+    const uniqueRoutineDays = new Set(routineLogs?.map(r => r.date)).size;
 
     const { count: skillCount } = await supabase
         .from('user_skills')
@@ -4381,11 +4637,19 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
     // 4. Get Belt Level
     const beltLevel = await getUserBeltLevel(userId);
 
-    // 5. Calculate Scores
+    // 5. Get Arena Wins
+    const { count: arenaWins } = await supabase
+        .from('match_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('result', 'win');
+
+    // 6. Calculate Scores
     const LOG_MULTIPLIER = 10;
-    const ROUTINE_MULTIPLIER = 50;
+    const ROUTINE_MULTIPLIER = 30;
     const SPARRING_MULTIPLIER = 20;
-    const SKILL_MULTIPLIER = 5;
+    const SKILL_MULTIPLIER = 20;
+    const ARENA_WIN_MULTIPLIER = 10;
 
     const beltScores: Record<string, number> = {
         'White': 0,
@@ -4396,21 +4660,23 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
     };
 
     const logScore = uniqueLogDays * LOG_MULTIPLIER;
-    const routineScore = (routineCount || 0) * ROUTINE_MULTIPLIER;
+    const routineScore = uniqueRoutineDays * ROUTINE_MULTIPLIER;
     const sparringScore = uniqueSparringDays * SPARRING_MULTIPLIER;
     const skillScore = (skillCount || 0) * SKILL_MULTIPLIER;
     const beltScore = beltScores[beltLevel] || 0;
+    const arenaScore = (arenaWins || 0) * ARENA_WIN_MULTIPLIER;
 
-    const totalPower = logScore + routineScore + sparringScore + skillScore + beltScore;
+    const totalPower = logScore + routineScore + sparringScore + skillScore + beltScore + arenaScore;
 
     return {
         totalPower,
         breakdown: {
             trainingLogs: { count: uniqueLogDays, score: logScore },
-            routines: { count: routineCount || 0, score: routineScore },
+            routines: { count: uniqueRoutineDays, score: routineScore },
             sparringReviews: { count: uniqueSparringDays, score: sparringScore },
             skills: { count: skillCount || 0, score: skillScore },
-            belt: { level: beltLevel, score: beltScore }
+            belt: { level: beltLevel, score: beltScore },
+            arena: { count: arenaWins || 0, score: arenaScore }
         }
     };
 }
@@ -4818,3 +5084,5 @@ export async function deleteTestimonial(id: string) {
 
     return { error };
 }
+
+

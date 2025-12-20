@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { VideoCategory, Difficulty } from '../../types';
+import { VideoCategory, Difficulty, Drill } from '../../types';
 import { createDrill, getDrillById, updateDrill } from '../../lib/api';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, Video, AlertCircle, CheckCircle, Scissors, Play, FileVideo, Trash2, Loader } from 'lucide-react';
+import { ArrowLeft, Upload, AlertCircle, CheckCircle, Scissors, FileVideo, Trash2 } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
@@ -15,7 +14,7 @@ type ProcessingState = {
     filename: string | null;
     previewUrl: string | null;
     cuts: { start: number; end: number }[] | null;
-    status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'complete' | 'error';
+    status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'completed' | 'complete' | 'error';
     error: string | null;
     isBackgroundUploading?: boolean;
     uploadProgress?: number;
@@ -45,18 +44,21 @@ export const UploadDrill: React.FC = () => {
         category: VideoCategory.Standing,
         difficulty: Difficulty.Beginner,
     });
-    const [isLoading, setIsLoading] = useState(false);
 
     // Video States
     const [actionVideo, setActionVideo] = useState<ProcessingState>(initialProcessingState);
     const [descVideo, setDescVideo] = useState<ProcessingState>(initialProcessingState);
 
-    // Editor State
+    // 1. Hook must be at top level
+    const { queueUpload, tasks, cancelUpload } = useBackgroundUpload();
+
+    // 2. Tab State for "Swipe" view
     const [activeEditor, setActiveEditor] = useState<'action' | 'desc' | null>(null);
 
     // Overall Progress
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionProgress, setSubmissionProgress] = useState<string>('');
+    const [createdDrillId, setCreatedDrillId] = useState<string | null>(null);
 
     // Tab State for "Swipe" view
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
@@ -66,23 +68,39 @@ export const UploadDrill: React.FC = () => {
         if (!isEditMode || !id) return;
 
         async function fetchDrill() {
-            setIsLoading(true);
             try {
-                const drill = await getDrillById(id);
-                if (drill) {
+                const result: any = await getDrillById(id as string);
+                if (result && !result.error) {
+                    const drill = result as Drill;
                     setFormData({
                         title: drill.title,
                         description: drill.description || '',
                         category: drill.category || VideoCategory.Standing,
                         difficulty: drill.difficulty || Difficulty.Beginner,
                     });
+
+                    // Populate existing videos
+                    if (drill.vimeoUrl || drill.videoUrl) {
+                        setActionVideo(prev => ({
+                            ...prev,
+                            status: 'complete',
+                            previewUrl: drill.videoUrl || (drill.vimeoUrl ? `https://player.vimeo.com/video/${drill.vimeoUrl.split('/').pop()}` : null)
+                        }));
+                    }
+                    if (drill.descriptionVideoUrl) {
+                        setDescVideo(prev => ({
+                            ...prev,
+                            status: 'complete',
+                            previewUrl: drill.descriptionVideoUrl || null
+                        }));
+                    }
+                } else if (result?.error) {
+                    console.error('Failed to fetch drill:', result.error);
                 }
             } catch (err) {
                 console.error('Failed to fetch drill:', err);
                 alert('드릴 정보를 불러오는데 실패했습니다.');
                 navigate('/creator');
-            } finally {
-                setIsLoading(false);
             }
         }
         fetchDrill();
@@ -92,7 +110,7 @@ export const UploadDrill: React.FC = () => {
     const noSleepVideoRef = React.useRef<HTMLVideoElement>(null);
 
     // Helper: Enable NoSleep Video
-    const enableNoSleep = () => {
+    const handleEnableNoSleep = () => {
         if (noSleepVideoRef.current) {
             noSleepVideoRef.current.play().catch(err => console.log('NoSleep video play failed:', err));
         }
@@ -111,9 +129,11 @@ export const UploadDrill: React.FC = () => {
                     wakeLock = await (navigator as any).wakeLock.request('screen');
                     console.log('Wake Lock active');
 
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock released');
-                    });
+                    if (wakeLock) {
+                        wakeLock.addEventListener('release', () => {
+                            console.log('Wake Lock released');
+                        });
+                    }
                 } catch (err) {
                     console.error('Wake Lock error:', err);
                 }
@@ -132,7 +152,7 @@ export const UploadDrill: React.FC = () => {
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (wakeLock) {
-                wakeLock.release().catch(console.error);
+                (wakeLock as any).release().catch(console.error);
             }
         };
     }, [isSubmitting, actionVideo.isBackgroundUploading, descVideo.isBackgroundUploading]);
@@ -142,6 +162,13 @@ export const UploadDrill: React.FC = () => {
         type: 'action' | 'desc',
         setVideoState: React.Dispatch<React.SetStateAction<ProcessingState>>
     ) => {
+        // Cancel existing background task if any before replacing
+        const currentState = type === 'action' ? actionVideo : descVideo;
+        if (currentState.videoId) {
+            console.log('Cancelling previous background upload for replace:', currentState.videoId);
+            cancelUpload(currentState.videoId);
+        }
+
         // 1. Instant Local Preview
         const objectUrl = URL.createObjectURL(file);
 
@@ -151,6 +178,7 @@ export const UploadDrill: React.FC = () => {
             previewUrl: objectUrl,
             status: 'ready', // Immediately ready for editing
             isBackgroundUploading: false,
+            videoId: null, // Reset videoId to allow new auto-upload
             error: null
         }));
 
@@ -159,98 +187,242 @@ export const UploadDrill: React.FC = () => {
 
     };
 
-    const handleCutsSave = (cuts: { start: number; end: number }[]) => {
+    const handleCutsSave = async (cuts: { start: number; end: number }[]) => {
+        let currentDrillId = id || createdDrillId;
+
+        // Update local state first for immediate UI feedback
         if (activeEditor === 'action') {
-            setActionVideo(prev => ({ ...prev, cuts }));
+            setActionVideo(prev => ({ ...prev, cuts, status: 'ready' }));
         } else if (activeEditor === 'desc') {
-            setDescVideo(prev => ({ ...prev, cuts }));
+            setDescVideo(prev => ({ ...prev, cuts, status: 'ready' }));
         }
+
+        // Trigger auto-upload if we have all requirements (file and cuts)
+        // and haven't started uploading yet
+        const targetState = activeEditor === 'action' ? actionVideo : descVideo;
+        const setTargetState = activeEditor === 'action' ? setActionVideo : setDescVideo;
+
+        if (targetState.file && cuts && !targetState.isBackgroundUploading && !targetState.videoId) {
+            console.log('Auto-triggering background upload for', activeEditor);
+
+            try {
+                // 1. Ensure Drill record exists
+                if (!currentDrillId) {
+                    console.log('Creating draft drill for early upload...');
+                    // Calculate duration from cuts if available
+                    const totalSeconds = cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
+                    const durationMinutes = Math.floor(totalSeconds / 60);
+
+                    const { data: drill, error: dbError } = await createDrill({
+                        title: formData.title || '업로드 중인 드릴...',
+                        description: formData.description,
+                        creatorId: user?.id,
+                        category: formData.category,
+                        difficulty: formData.difficulty,
+                        vimeoUrl: '',
+                        descriptionVideoUrl: '',
+                        thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+                        durationMinutes: durationMinutes,
+                    });
+                    if (dbError || !drill) throw dbError;
+                    currentDrillId = drill.id;
+                    setCreatedDrillId(drill.id);
+                }
+
+                // 2. Queue Upload
+                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const ext = targetState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const filename = `${videoId}.${ext}`;
+
+                await queueUpload(targetState.file, activeEditor as 'action' | 'desc', {
+                    videoId,
+                    filename,
+                    cuts,
+                    title: `[Drill] ${formData.title || 'New Drill'}`,
+                    description: formData.description,
+                    drillId: currentDrillId,
+                    videoType: activeEditor as 'action' | 'desc'
+                });
+
+                // Update local state to reflect upload started
+                setTargetState(prev => ({
+                    ...prev,
+                    isBackgroundUploading: true,
+                    videoId: videoId,
+                    filename: filename
+                }));
+
+            } catch (err) {
+                console.error('Auto-upload failed:', err);
+            }
+        }
+
         setActiveEditor(null);
     };
 
-    // Hook must be at top level
-    const { queueUpload } = useBackgroundUpload();
+    // Moved hook to top level
 
-    // Watch for background upload completion while submitting - LEGACY LOGIC REMOVED
-    // We now use global context and fire-and-forget. 
-    // This useEffect was causing issues and had nested hook calls.
+    // Sync Background Tasks to Local State
+    useEffect(() => {
+        if (tasks.length === 0) return;
+
+        tasks.forEach(task => {
+            // Find which video this task belongs to
+            const isActionMatch = actionVideo.videoId === task.id;
+            const isDescMatch = descVideo.videoId === task.id;
+
+            if (!isActionMatch && !isDescMatch) return;
+
+            const updateFn = isActionMatch ? setActionVideo : setDescVideo;
+
+            updateFn(prev => {
+                const newStatus = task.status === 'uploading' ? 'ready' : (task.status as any);
+
+                // Don't update if nothing changed to prevent loops
+                if (prev.uploadProgress === Math.round(task.progress) &&
+                    prev.status === newStatus) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    uploadProgress: Math.round(task.progress),
+                    isBackgroundUploading: task.status === 'uploading',
+                    status: newStatus,
+                    error: task.error || null
+                };
+            });
+        });
+    }, [tasks, actionVideo.videoId, descVideo.videoId]);
 
     const handleSubmit = async () => {
         if (!user) return;
 
         // Basic Validation
-        if (!actionVideo.cuts) {
-            alert('동작 영상 편집 구간을 선택해주세요.');
-            return;
-        }
-        if (!descVideo.cuts) {
-            alert('설명 영상 편집 구간을 선택해주세요.');
-            return;
-        }
-        if (!actionVideo.file || !descVideo.file) {
-            alert('영상 파일을 선택해주세요.');
-            return;
+        // Only require cuts/file if not in edit mode OR if a new file is uploaded
+        if (!isEditMode) {
+            if (!actionVideo.cuts) {
+                alert('동작 영상 편집 구간을 선택해주세요.');
+                return;
+            }
+            if (!descVideo.cuts) {
+                alert('설명 영상 편집 구간을 선택해주세요.');
+                return;
+            }
+            if (!actionVideo.file || !descVideo.file) {
+                alert('영상 파일을 선택해주세요.');
+                return;
+            }
+        } else {
+            // Edit Mode: Only check if user attempted to upload a new file but didn't finish editing
+            if (actionVideo.file && !actionVideo.cuts) {
+                alert('동작 영상의 편집 구간을 완료해주세요.');
+                return;
+            }
+            if (descVideo.file && !descVideo.cuts) {
+                alert('설명 영상의 편집 구간을 완료해주세요.');
+                return;
+            }
         }
 
         setIsSubmitting(true);
         setSubmissionProgress('드릴 정보를 등록 중입니다...');
 
         try {
-            // 1. Create Drill Record First (Database)
-            const { data: drill, error: dbError } = await createDrill({
-                title: formData.title,
-                description: formData.description,
-                creatorId: user.id,
-                category: formData.category,
-                difficulty: formData.difficulty,
-                vimeoUrl: '',
-                descriptionVideoUrl: '',
-                thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
-                durationMinutes: 0,
-            });
+            // 1. Create OR Update Drill Record
+            const currentDrillId = id || createdDrillId;
+            let drillId = currentDrillId;
 
-            if (dbError || !drill) throw dbError;
+            if (!currentDrillId) {
+                // Calculate duration from action video cuts
+                const totalSeconds = actionVideo.cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
+                const durationMinutes = Math.floor(totalSeconds / 60);
 
-            console.log('Drill created:', drill.id);
-            setSubmissionProgress('백그라운드 업로드 시작 중...');
+                const { data: drill, error: dbError } = await createDrill({
+                    title: formData.title,
+                    description: formData.description,
+                    creatorId: user.id || '',
+                    category: formData.category,
+                    difficulty: formData.difficulty,
+                    vimeoUrl: '',
+                    descriptionVideoUrl: '',
+                    thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+                    durationMinutes: durationMinutes,
+                });
+                if (dbError || !drill) throw dbError;
+                drillId = drill.id;
+            } else {
+                // Update Metadata
+                const updateParams: any = {
+                    title: formData.title,
+                    description: formData.description,
+                    category: formData.category,
+                    difficulty: formData.difficulty,
+                };
 
-            // 2. Queue Background Uploads
-            // Action Video
-            const actionVideoId = crypto.randomUUID();
-            const actionExt = actionVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-            const actionFilename = `${actionVideoId}.${actionExt}`;
+                // Update duration if cuts have changed
+                if (actionVideo.cuts) {
+                    const totalSeconds = actionVideo.cuts.reduce((acc, cut) => acc + (cut.end - cut.start), 0);
+                    updateParams.durationMinutes = Math.floor(totalSeconds / 60);
+                }
 
-            await queueUpload(actionVideo.file, 'action', {
-                videoId: actionVideoId,
-                filename: actionFilename,
-                cuts: actionVideo.cuts,
-                title: `[Drill] ${formData.title}`,
-                description: formData.description,
-                drillId: drill.id,
-                videoType: 'action'
-            });
+                // If a new video is being uploaded, reset the corresponding URL in DB 
+                // to trigger 'isProcessing' in other views immediately
+                if (actionVideo.file) {
+                    updateParams.vimeoUrl = '';
+                    updateParams.videoUrl = ''; // Clear actual video URL to trigger processing view
+                    updateParams.thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+                }
+                if (descVideo.file) {
+                    updateParams.descriptionVideoUrl = '';
+                }
 
-            // Add delay to prevent race conditions for second upload
-            await new Promise(resolve => setTimeout(resolve, 2000));
+                const { error: dbError } = await updateDrill(currentDrillId, updateParams);
+                if (dbError) throw dbError;
+            }
 
-            // Description Video
-            const descVideoId = crypto.randomUUID();
-            const descExt = descVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-            const descFilename = `${descVideoId}.${descExt}`;
+            console.log('Drill record ensured:', drillId);
+            setSubmissionProgress('동기화 완료 중...');
 
-            await queueUpload(descVideo.file, 'desc', {
-                videoId: descVideoId,
-                filename: descFilename,
-                cuts: descVideo.cuts,
-                title: `[Drill Explanation] ${formData.title}`,
-                description: `Explanation for ${formData.title}`,
-                drillId: drill.id,
-                videoType: 'desc'
-            });
+            // 2. Queue Background Uploads (if not already started)
+            if (actionVideo.file && !actionVideo.isBackgroundUploading && !actionVideo.videoId) {
+                const actionVideoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const actionExt = actionVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const actionFilename = `${actionVideoId}.${actionExt}`;
 
-            // 3. Navigate Immediately
-            setSubmissionProgress('완료! 대시보드로 이동합니다.');
-            navigate('/creator');
+                await queueUpload(actionVideo.file, 'action', {
+                    videoId: actionVideoId,
+                    filename: actionFilename,
+                    cuts: actionVideo.cuts || [],
+                    title: `[Drill] ${formData.title}`,
+                    description: formData.description,
+                    drillId: drillId as string,
+                    videoType: 'action'
+                });
+            }
+
+            // Sync latest metadata to background tasks if they are already running
+            // (Note: This is optional but good for consistency)
+
+            if (descVideo.file && !descVideo.isBackgroundUploading && !descVideo.videoId) {
+                const descVideoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const descExt = descVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const descFilename = `${descVideoId}.${descExt}`;
+
+                await queueUpload(descVideo.file, 'desc', {
+                    videoId: descVideoId,
+                    filename: descFilename,
+                    cuts: descVideo.cuts || [],
+                    title: `[Drill Explanation] ${formData.title}`,
+                    description: `Explanation for ${formData.title}`,
+                    drillId: drillId as string,
+                    videoType: 'desc'
+                });
+            }
+
+            // 3. Navigate Immediately to Detail Page
+            setSubmissionProgress('완료! 드릴 페이지로 이동합니다.');
+            navigate(`/drills/${drillId}`);
 
         } catch (err: any) {
             console.error(err);
@@ -263,8 +435,7 @@ export const UploadDrill: React.FC = () => {
     const renderVideoBox = (
         type: 'action' | 'desc',
         state: ProcessingState,
-        label: string,
-        required: boolean = true
+        label: string
     ) => {
         const isAction = type === 'action';
 
@@ -374,10 +545,23 @@ export const UploadDrill: React.FC = () => {
                                         </div>
                                         <p className="text-[10px] text-red-400 leading-tight">{state.error}</p>
                                     </div>
-                                ) : state.videoId ? (
+                                ) : state.status === 'processing' ? (
+                                    <div className="w-full">
+                                        <div className="flex items-center gap-1 text-xs text-purple-400 font-bold mb-1 animate-pulse">
+                                            <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                                            <span>서버 처리 중...</span>
+                                        </div>
+                                        <p className="text-[10px] text-purple-300 leading-tight">업로드가 완료되어 영상을 합성하고 있습니다.</p>
+                                    </div>
+                                ) : state.status === 'completed' || state.videoId ? (
                                     <div className="flex items-center gap-1 text-xs text-green-400 font-medium">
                                         <CheckCircle className="w-3 h-3" />
-                                        <span>업로드 완료</span>
+                                        <span>최종 완료</span>
+                                    </div>
+                                ) : state.status === 'complete' ? (
+                                    <div className="flex items-center gap-1 text-xs text-green-400 font-medium">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span>이미 등록됨</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1 text-xs text-yellow-400 font-medium">
@@ -399,10 +583,10 @@ export const UploadDrill: React.FC = () => {
 
                         <div className="space-y-3">
                             <div className="flex items-center gap-2 text-sm text-white/90 bg-black/40 p-2 rounded-lg backdrop-blur-sm w-fit">
-                                {state.cuts ? (
+                                {state.cuts || (state.status === 'complete' && !state.file) ? (
                                     <>
                                         <CheckCircle className="w-4 h-4 text-green-400" />
-                                        <span>{state.cuts.length}개 구간 선택됨</span>
+                                        <span>{state.cuts ? `${state.cuts.length}개 구간 선택됨` : '기존 설정 유지'}</span>
                                     </>
                                 ) : (
                                     <>
@@ -418,7 +602,7 @@ export const UploadDrill: React.FC = () => {
                                 onClick={() => setActiveEditor(type)}
                             >
                                 <Scissors className="w-4 h-4 mr-2" />
-                                {state.cuts ? '구간 다시 선택하기' : '영상 편집하기'}
+                                {state.cuts ? '구간 다시 선택하기' : (state.status === 'complete' && !state.file) ? '새 영상으로 교체 (편집 필요)' : '영상 편집하기'}
                             </Button>
                         </div>
                     </div>
@@ -534,7 +718,7 @@ export const UploadDrill: React.FC = () => {
         <div className="min-h-screen bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mx-auto">
                 <button
-                    onClick={() => navigate('/creator/dashboard')}
+                    onClick={() => navigate('/creator')}
                     className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
