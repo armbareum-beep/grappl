@@ -9,20 +9,7 @@ export const DIRECT_PRODUCT_PLATFORM_SHARE = 0.2;
 export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscription revenue
 export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
-// Helper functions to transform snake_case to camelCase
-let filter: any;
-try {
-    filter = new Filter();
-    // Add basic Korean bad words (expand as needed)
-    filter.addWords('시발', '씨발', '병신', '개새끼', '존나', '좆', '씹');
-} catch (e) {
-    console.warn('Failed to initialize profanity filter:', e);
-    // Fallback mock filter if initialization fails
-    filter = {
-        clean: (text: string) => text,
-        isProfane: () => false
-    };
-}
+
 
 function transformCreator(data: any): Creator {
     return {
@@ -1620,10 +1607,7 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
     // Daily check removed - users can create multiple logs per day
     // XP is controlled by quest system which has daily limits
 
-    // Profanity Check
-    if (log.isPublic && log.notes && filter.isProfane(log.notes)) {
-        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
-    }
+
 
     const { data, error } = await supabase
         .from('training_logs')
@@ -2006,10 +1990,7 @@ export async function getLogFeedback(logId: string) {
  * Create feedback
  */
 export async function createLogFeedback(logId: string, userId: string, content: string) {
-    // Profanity Check
-    if (filter.isProfane(content)) {
-        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
-    }
+
 
     const { data, error } = await supabase
         .from('log_feedback')
@@ -4272,10 +4253,7 @@ export async function createFeedPost(post: {
  * Create a comment on a post
  */
 export async function createComment(postId: string, userId: string, content: string) {
-    // Profanity Check
-    if (filter.isProfane(content)) {
-        return { data: null, error: { message: '비속어가 포함되어 있습니다. 바른 말을 사용해주세요.' } };
-    }
+
 
     const { data, error } = await supabase
         .from('post_comments')
