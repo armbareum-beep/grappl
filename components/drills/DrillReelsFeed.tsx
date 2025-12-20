@@ -428,7 +428,15 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             </div>
 
             {/* Video Container - 9:16 aspect ratio */}
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
+            <div
+                className="absolute inset-0 flex items-center justify-center bg-black"
+                onClick={(e) => {
+                    // Only toggle if clicking the video area, not buttons
+                    if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'VIDEO') {
+                        togglePlayPause();
+                    }
+                }}
+            >
                 <div className="relative w-full h-full max-w-[56.25vh]">
                     {useVimeo ? (
                         <iframe
@@ -448,7 +456,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                             playsInline
                             muted={isMuted}
                             autoPlay={isPlaying}
-                            onClick={togglePlayPause}
                             src={videoSrc}
                             poster={currentDrill.thumbnailUrl}
                             preload="auto"
