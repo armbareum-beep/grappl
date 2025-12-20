@@ -31,6 +31,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const currentDrill = drills[currentIndex];
@@ -62,35 +63,41 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         setIsVideoReady(false); // Reset ready state when changing drills
     }, [currentIndex]);
 
-    // Auto-play current video
+    // Unified Play/Pause logic
+    const applyPlaybackState = (playing: boolean) => {
+        if (useVimeo) {
+            const iframe = iframeRef.current;
+            if (iframe && iframe.contentWindow) {
+                const message = playing ? '{"method":"play"}' : '{"method":"pause"}';
+                iframe.contentWindow.postMessage(message, '*');
+
+                // Also ensures volume is synced
+                const volumeMessage = `{"method":"setVolume", "value": ${isMuted ? 0 : 1}}`;
+                iframe.contentWindow.postMessage(volumeMessage, '*');
+            }
+        } else {
+            const video = videoRef.current;
+            if (video) {
+                if (playing) {
+                    video.play().catch(err => console.log('Play error:', err));
+                } else {
+                    video.pause();
+                }
+            }
+        }
+    };
+
+    // Auto-play current video and sync state changes
     useEffect(() => {
-        if (useVimeo && videoRef.current) {
-            const iframe = videoRef.current as unknown as HTMLIFrameElement;
-            const message = isPlaying ? '{"method":"play"}' : '{"method":"pause"}';
-            iframe.contentWindow?.postMessage(message, '*');
-
-            // Sync volume for vimeo
-            const volumeMessage = `{"method":"setVolume", "value": ${isMuted ? 0 : 1}}`;
-            iframe.contentWindow?.postMessage(volumeMessage, '*');
-            return;
-        }
-
-        if (videoRef.current && isPlaying) {
-            videoRef.current.play().catch(err => console.log('Play error:', err));
-        } else if (videoRef.current) {
-            videoRef.current.pause();
-        }
+        applyPlaybackState(isPlaying);
     }, [currentIndex, isPlaying, currentVideoType, useVimeo, isMuted]);
 
     // Sync volume/muted state for HTML5 video
     useEffect(() => {
         if (videoRef.current && !useVimeo) {
             videoRef.current.muted = isMuted;
-            if (!isMuted && hasInteracted && isPlaying) {
-                videoRef.current.play().catch(() => { });
-            }
         }
-    }, [isMuted, useVimeo, hasInteracted, isPlaying]);
+    }, [isMuted, useVimeo]);
 
     // Update progress
     useEffect(() => {
@@ -210,12 +217,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     };
 
     const togglePlayPause = () => {
+        const nextPlaying = !isPlaying;
         // On first interaction, unmute the video
         if (!hasInteracted) {
             setHasInteracted(true);
             setIsMuted(false);
         }
-        setIsPlaying(!isPlaying);
+        setIsPlaying(nextPlaying);
+        applyPlaybackState(nextPlaying); // Immediate apply
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -463,8 +472,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                     {useVimeo ? (
                         <iframe
                             key={`${currentDrill.id}-${currentVideoType}`}
-                            ref={videoRef as any}
-                            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1&muted=${isMuted ? 1 : 0}`}
+                            ref={iframeRef}
+                            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=${isMuted ? 1 : 0}`}
                             className="absolute inset-0 w-full h-full"
                             frameBorder="0"
                             allow="autoplay; fullscreen; picture-in-picture"
@@ -478,7 +487,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                             loop
                             playsInline
                             muted={isMuted}
-                            autoPlay={isPlaying}
                             src={videoSrc}
                             poster={currentDrill.thumbnailUrl}
                             preload="auto"
