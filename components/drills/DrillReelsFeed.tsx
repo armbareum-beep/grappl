@@ -1,23 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, MoreVertical, Grid, Play } from 'lucide-react';
+import { Heart, Bookmark, Share2, MoreVertical, Grid, Play, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 
 interface DrillReelsFeedProps {
     drills: Drill[];
     onChangeView: () => void;
+    initialIndex?: number;
 }
 
-export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChangeView }) => {
+export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChangeView, initialIndex = 0 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isPlaying, setIsPlaying] = useState(true);
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [progress, setProgress] = useState(0);
+    const [isVideoReady, setIsVideoReady] = useState(false);
+    const [isMuted, setIsMuted] = useState(false); // Start unmuted
 
     // Touch handling
     const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -34,6 +37,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     // Reset video type when drill changes
     useEffect(() => {
         setCurrentVideoType('main');
+        setIsVideoReady(false); // Reset ready state when changing drills
     }, [currentIndex]);
 
     // Auto-play current video
@@ -355,7 +359,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || '/placeholder-drill-desc.mp4');
 
     // Detect Processing State
-    const isProcessing = !useVimeo && (!currentDrill.videoUrl || currentDrill.videoUrl.includes('placeholder'));
+    const isProcessing = !useVimeo && (!currentDrill.videoUrl || currentDrill.videoUrl.includes('placeholder') || currentDrill.videoUrl.includes('placehold.co'));
 
     if (isProcessing) {
         return (
@@ -442,12 +446,49 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                             className="absolute inset-0 w-full h-full object-cover"
                             loop
                             playsInline
-                            muted={false}
+                            muted={isMuted}
                             autoPlay={isPlaying}
                             onClick={togglePlayPause}
                             src={videoSrc}
                             poster={currentDrill.thumbnailUrl}
+                            preload="auto"
+                            onPlaying={() => setIsVideoReady(true)}
+                            onWaiting={() => setIsVideoReady(false)}
+                            onLoadStart={() => setIsVideoReady(false)}
                         />
+                    )}
+
+                    {/* Thumbnail Overlay (Smooth Transition) */}
+                    {!isVideoReady && !useVimeo && (
+                        <div className="absolute inset-0 z-20">
+                            <img
+                                src={currentDrill.thumbnailUrl}
+                                className="w-full h-full object-cover"
+                                alt=""
+                            />
+                            {/* Loading Spinner on top of thumbnail */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+                                <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Hidden Preloader for Next Drill */}
+                    {currentIndex < drills.length - 1 && (
+                        <div className="hidden" aria-hidden="true">
+                            <video
+                                src={drills[currentIndex + 1].videoUrl}
+                                preload="auto"
+                                muted
+                            />
+                            {drills[currentIndex + 1].descriptionVideoUrl && (
+                                <video
+                                    src={drills[currentIndex + 1].descriptionVideoUrl}
+                                    preload="auto"
+                                    muted
+                                />
+                            )}
+                        </div>
                     )}
 
                     {/* Play/Pause Overlay */}
@@ -532,6 +573,21 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                                 <Share2 className="w-6 h-6 text-white" />
                             </div>
                             <span className="text-white text-xs">공유</span>
+                        </button>
+
+                        {/* Mute/Unmute */}
+                        <button
+                            onClick={() => setIsMuted(!isMuted)}
+                            className="flex flex-col items-center gap-1 group"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                {isMuted ? (
+                                    <VolumeX className="w-6 h-6 text-white" />
+                                ) : (
+                                    <Volume2 className="w-6 h-6 text-white" />
+                                )}
+                            </div>
+                            <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
                         </button>
 
                         {/* More */}

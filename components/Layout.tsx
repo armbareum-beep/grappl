@@ -279,57 +279,60 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center mb-4">
-                <img src="/logo_v2.png" alt="Grapplay" className="h-12 w-auto object-contain mix-blend-screen" />
+      {location.pathname !== '/drills' && (
+        <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="grid md:grid-cols-4 gap-8">
+              <div className="col-span-1 md:col-span-2">
+                <div className="flex items-center mb-4">
+                  <img src="/logo_v2.png" alt="Grapplay" className="h-12 w-auto object-contain mix-blend-screen" />
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+                  세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.
+                  언제 어디서나 당신의 실력을 향상시키세요.
+                </p>
               </div>
-              <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.
-                언제 어디서나 당신의 실력을 향상시키세요.
-              </p>
+              <div>
+                <h4 className="font-bold text-white mb-4">서비스</h4>
+                <ul className="space-y-2 text-sm text-slate-400">
+                  <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
+                  <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
+                  <li><Link to="/become-creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-bold text-white mb-4">고객지원</h4>
+                <ul className="space-y-2 text-sm text-slate-400">
+                  <li><Link to="/contact" className="hover:text-blue-600 transition-colors">문의하기</Link></li>
+                  <li><Link to="/terms" className="hover:text-blue-600 transition-colors">이용약관</Link></li>
+                  <li><Link to="/privacy" className="hover:text-blue-600 transition-colors">개인정보처리방침</Link></li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold text-white mb-4">서비스</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
-                <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
-                <li><Link to="/become-creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-white mb-4">고객지원</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link to="/contact" className="hover:text-blue-600 transition-colors">문의하기</Link></li>
-                <li><Link to="/terms" className="hover:text-blue-600 transition-colors">이용약관</Link></li>
-                <li><Link to="/privacy" className="hover:text-blue-600 transition-colors">개인정보처리방침</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-slate-800 mt-12 pt-8">
-            {/* Business Information */}
-            <div className="mb-6 text-xs text-slate-500 space-y-1">
-              <p><strong className="text-slate-400">상호명:</strong> 그래플레이</p>
-              <p><strong className="text-slate-400">대표자:</strong> 이바름</p>
-              <p><strong className="text-slate-400">사업자등록번호:</strong> 111-39-34149</p>
-              <p><strong className="text-slate-400">주소:</strong> 서울 동작대로29길 119, 102-1207</p>
-              <p><strong className="text-slate-400">이메일:</strong> coach0179@naver.com</p>
-              <p className="text-slate-600 mt-2">* 통신판매업 신고 진행 중</p>
-            </div>
+            <div className="border-t border-slate-800 mt-12 pt-8">
+              {/* Business Information */}
+              <div className="mb-6 text-xs text-slate-500 space-y-1">
+                <p><strong className="text-slate-400">상호명:</strong> 그래플레이</p>
+                <p><strong className="text-slate-400">대표자:</strong> 이바름</p>
+                <p><strong className="text-slate-400">사업자등록번호:</strong> 111-39-34149</p>
+                <p><strong className="text-slate-400">주소:</strong> 서울 동작대로29길 119, 102-1207</p>
+                <p><strong className="text-slate-400">이메일:</strong> coach0179@naver.com</p>
+                <p><strong className="text-slate-400">전화번호:</strong> 02-599-6315</p>
+                <p className="text-slate-600 mt-2">* 통신판매업 신고 진행 중</p>
+              </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-xs text-slate-500">
-                © 2024 Grapplay. All rights reserved.
-              </p>
-              <div className="flex space-x-6">
-                {/* Social icons would go here */}
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-xs text-slate-500">
+                  © 2024 Grapplay. All rights reserved.
+                </p>
+                <div className="flex space-x-6">
+                  {/* Social icons would go here */}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Global Modals */}
       {levelUpData && (
