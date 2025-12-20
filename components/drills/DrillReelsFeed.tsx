@@ -35,6 +35,27 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
     const currentDrill = drills[currentIndex];
 
+    // --- Video Logic ---
+    // Helper to extract Vimeo ID
+    const extractVimeoId = (url?: string) => {
+        if (!url) return undefined;
+        if (/^\d+$/.test(url)) return url;
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : undefined;
+    };
+
+    const isActionVideo = currentVideoType === 'main';
+    const rawVimeoUrl = isActionVideo
+        ? currentDrill?.vimeoUrl
+        : (currentDrill?.descriptionVideoUrl || currentDrill?.vimeoUrl);
+
+    const vimeoId = extractVimeoId(rawVimeoUrl);
+    const useVimeo = !!vimeoId;
+
+    const videoSrc = isActionVideo
+        ? (currentDrill?.videoUrl || '/placeholder-drill.mp4')
+        : (currentDrill?.descriptionVideoUrl || currentDrill?.videoUrl || '/placeholder-drill-desc.mp4');
+
     // Reset video type when drill changes
     useEffect(() => {
         setCurrentVideoType('main');
@@ -43,17 +64,38 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
     // Auto-play current video
     useEffect(() => {
+        if (useVimeo && videoRef.current) {
+            const iframe = videoRef.current as unknown as HTMLIFrameElement;
+            const message = isPlaying ? '{"method":"play"}' : '{"method":"pause"}';
+            iframe.contentWindow?.postMessage(message, '*');
+
+            // Sync volume for vimeo
+            const volumeMessage = `{"method":"setVolume", "value": ${isMuted ? 0 : 1}}`;
+            iframe.contentWindow?.postMessage(volumeMessage, '*');
+            return;
+        }
+
         if (videoRef.current && isPlaying) {
             videoRef.current.play().catch(err => console.log('Play error:', err));
         } else if (videoRef.current) {
             videoRef.current.pause();
         }
-    }, [currentIndex, isPlaying, currentVideoType]);
+    }, [currentIndex, isPlaying, currentVideoType, useVimeo, isMuted]);
+
+    // Sync volume/muted state for HTML5 video
+    useEffect(() => {
+        if (videoRef.current && !useVimeo) {
+            videoRef.current.muted = isMuted;
+            if (!isMuted && hasInteracted && isPlaying) {
+                videoRef.current.play().catch(() => { });
+            }
+        }
+    }, [isMuted, useVimeo, hasInteracted, isPlaying]);
 
     // Update progress
     useEffect(() => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video || useVimeo) return;
 
         const updateProgress = () => {
             const progress = (video.currentTime / video.duration) * 100;
@@ -62,12 +104,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
         video.addEventListener('timeupdate', updateProgress);
         return () => video.removeEventListener('timeupdate', updateProgress);
-    }, [currentIndex, currentVideoType]);
+    }, [currentIndex, currentVideoType, useVimeo]);
 
     // Handle video end - loop
     useEffect(() => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video || useVimeo) return;
 
         const handleEnded = () => {
             video.currentTime = 0;
@@ -76,7 +118,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
         video.addEventListener('ended', handleEnded);
         return () => video.removeEventListener('ended', handleEnded);
-    }, [currentIndex, currentVideoType]);
+    }, [currentIndex, currentVideoType, useVimeo]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -237,6 +279,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         setLiked(newLiked); // Optimistic update
 
         const { error } = await toggleDrillLike(user.id, currentDrill.id);
+        if (!hasInteracted) setHasInteracted(true);
         if (error) {
             console.error('Error toggling like:', error);
             // Revert
@@ -261,7 +304,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         setSaved(newSaved); // Optimistic update
 
         const { saved: savedState, error } = await toggleDrillSave(user.id, currentDrill.id);
-
+        if (!hasInteracted) setHasInteracted(true);
         if (error) {
             console.error('Error toggling save:', error);
             setSaved(saved); // Revert
@@ -339,31 +382,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         );
     }
 
-    // Helper to extract Vimeo ID
-    const extractVimeoId = (url?: string) => {
-        if (!url) return undefined;
-        if (/^\d+$/.test(url)) return url;
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : undefined;
-    };
-
-    // Determine video source
-    const isActionVideo = currentVideoType === 'main';
-
-    // Logic for Vimeo URL:
-    // If Action mode: use vimeoUrl
-    // If Description mode: use descriptionVideoUrl, fallback to vimeoUrl if description is missing
-    const rawVimeoUrl = isActionVideo
-        ? currentDrill.vimeoUrl
-        : (currentDrill.descriptionVideoUrl || currentDrill.vimeoUrl);
-
-    const vimeoId = extractVimeoId(rawVimeoUrl);
-    const useVimeo = !!vimeoId;
-
-    const videoSrc = isActionVideo
-        ? (currentDrill.videoUrl || '/placeholder-drill.mp4')
-        : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || '/placeholder-drill-desc.mp4');
-
     // Detect Processing State
     const isProcessing = !useVimeo && (!currentDrill.videoUrl || currentDrill.videoUrl.includes('placeholder') || currentDrill.videoUrl.includes('placehold.co'));
 
@@ -433,21 +451,20 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </div>
             </div>
 
-            {/* Video Container - 9:16 aspect ratio */}
+            {/* Video Click Overlay (Handles all interactions except buttons) */}
             <div
-                className="absolute inset-0 flex items-center justify-center bg-black"
-                onClick={(e) => {
-                    // Only toggle if clicking the video area, not buttons
-                    if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'VIDEO') {
-                        togglePlayPause();
-                    }
-                }}
-            >
+                className="absolute inset-0 z-35"
+                onClick={() => togglePlayPause()}
+            />
+
+            {/* Video Container - 9:16 aspect ratio */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
                     {useVimeo ? (
                         <iframe
                             key={`${currentDrill.id}-${currentVideoType}`}
-                            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1&controls=0`}
+                            ref={videoRef as any}
+                            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1&muted=${isMuted ? 1 : 0}`}
                             className="absolute inset-0 w-full h-full"
                             frameBorder="0"
                             allow="autoplay; fullscreen; picture-in-picture"
@@ -455,7 +472,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         />
                     ) : (
                         <video
-                            key={`${currentDrill.id}-${currentVideoType}`} // Force re-render on change
+                            key={`${currentDrill.id}-${currentVideoType}`}
                             ref={videoRef}
                             className="absolute inset-0 w-full h-full object-cover"
                             loop
@@ -471,15 +488,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         />
                     )}
 
-                    {/* Thumbnail Overlay (Smooth Transition) */}
+                    {/* Thumbnail Overlay */}
                     {!isVideoReady && !useVimeo && (
-                        <div className="absolute inset-0 z-20">
+                        <div className="absolute inset-0 z-20 pointer-events-none">
                             <img
                                 src={currentDrill.thumbnailUrl}
                                 className="w-full h-full object-cover"
                                 alt=""
                             />
-                            {/* Loading Spinner on top of thumbnail */}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
                                 <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
                             </div>
@@ -504,9 +520,9 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         </div>
                     )}
 
-                    {/* Play/Pause Overlay */}
+                    {/* Play/Pause Icon Overlay */}
                     {!isPlaying && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 pointer-events-none">
                             <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
                                 <Play className="w-10 h-10 text-black ml-1" />
                             </div>
@@ -515,10 +531,10 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </div>
             </div>
 
-            {/* Bottom Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+            {/* Bottom Info & Action Buttons */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                    {/* Left: Info */}
+                    {/* Info */}
                     <div className="flex-1 pr-4">
                         <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
                             {currentDrill.title}
@@ -547,11 +563,11 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         </div>
                     </div>
 
-                    {/* Right: Action Buttons */}
+                    {/* Actions */}
                     <div className="flex flex-col gap-6">
                         {/* Like */}
                         <button
-                            onClick={handleLike}
+                            onClick={(e) => { e.stopPropagation(); handleLike(); }}
                             className="flex flex-col items-center gap-1 group"
                         >
                             <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
@@ -566,7 +582,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
                         {/* Save */}
                         <button
-                            onClick={handleSave}
+                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
                             className="flex flex-col items-center gap-1 group"
                         >
                             <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
@@ -579,7 +595,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
                         {/* Share */}
                         <button
-                            onClick={handleShare}
+                            onClick={(e) => { e.stopPropagation(); handleShare(); }}
                             className="flex flex-col items-center gap-1 group"
                         >
                             <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
@@ -590,7 +606,11 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
                         {/* Mute/Unmute */}
                         <button
-                            onClick={() => setIsMuted(!isMuted)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMuted(!isMuted);
+                                if (!hasInteracted) setHasInteracted(true);
+                            }}
                             className="flex flex-col items-center gap-1 group"
                         >
                             <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
@@ -605,7 +625,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
                         {/* More */}
                         <button
-                            onClick={async () => {
+                            onClick={async (e) => {
+                                e.stopPropagation();
                                 // Find the routine that contains this drill
                                 const { getRoutineByDrillId } = await import('../../lib/api');
                                 const { data: routine } = await getRoutineByDrillId(currentDrill.id);
