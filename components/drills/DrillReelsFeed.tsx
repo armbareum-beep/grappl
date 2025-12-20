@@ -20,7 +20,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [progress, setProgress] = useState(0);
     const [isVideoReady, setIsVideoReady] = useState(false);
-    const [isMuted, setIsMuted] = useState(false); // Start unmuted
+    const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay
+    const [hasInteracted, setHasInteracted] = useState(false);
 
     // Touch handling
     const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -167,6 +168,11 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     };
 
     const togglePlayPause = () => {
+        // On first interaction, unmute the video
+        if (!hasInteracted) {
+            setHasInteracted(true);
+            setIsMuted(false);
+        }
         setIsPlaying(!isPlaying);
     };
 
