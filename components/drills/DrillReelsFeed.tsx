@@ -467,7 +467,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         <iframe
                             key={`${currentDrill.id}-${currentVideoType}`}
                             ref={iframeRef}
-                            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
+                            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=${isMuted ? 1 : 0}&controls=1&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
                             className="absolute inset-0 w-full h-full"
                             frameBorder="0"
                             allow="autoplay; fullscreen; picture-in-picture"
