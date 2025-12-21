@@ -337,7 +337,7 @@ export const LandingPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
                                     <Zap className="w-5 h-5 text-yellow-400" />
-                                    <span className="font-medium">일일 퀘스트</span>
+                                    <span className="font-medium">오늘의 훈련</span>
                                 </div>
                             </div>
 

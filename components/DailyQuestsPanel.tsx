@@ -102,7 +102,7 @@ export const DailyQuestsPanel: React.FC<DailyQuestsPanelProps> = ({ userId }) =>
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            오늘의 미션
+                            오늘의 훈련
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
                                 {completedCount}/{quests.length} 완료
                             </span>

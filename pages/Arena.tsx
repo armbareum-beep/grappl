@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Trophy, Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
-import { TournamentHomeTab } from '../components/arena/TournamentHomeTab';
 import { SkillTreeTab } from '../components/journal/SkillTreeTab';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
@@ -9,7 +8,7 @@ import { TrainingRoutinesTab } from '../components/arena/TrainingRoutinesTab';
 import { MobileTabSelector } from '../components/MobileTabSelector';
 import { useAuth } from '../contexts/AuthContext';
 
-type ArenaTab = 'routines' | 'sparring' | 'skills' | 'tournament' | 'journal';
+type ArenaTab = 'routines' | 'sparring' | 'skills' | 'journal';
 
 export const Arena: React.FC = () => {
     const { user } = useAuth();
@@ -18,7 +17,7 @@ export const Arena: React.FC = () => {
 
     useEffect(() => {
         const tabParam = searchParams.get('tab');
-        if (tabParam && ['routines', 'sparring', 'skills', 'tournament', 'journal'].includes(tabParam)) {
+        if (tabParam && ['routines', 'sparring', 'skills', 'journal'].includes(tabParam)) {
             setActiveTab(tabParam as ArenaTab);
         } else if (!tabParam) {
             // If no tab param, default to journal but don't force URL update yet to avoid replace loop
@@ -38,7 +37,6 @@ export const Arena: React.FC = () => {
         { id: 'routines', label: '훈련 루틴', icon: Dumbbell, color: 'emerald', desc: '매일 10분 드릴' },
         { id: 'skills', label: '테크닉 로드맵', icon: Target, color: 'purple', desc: '기술 체계화' },
         { id: 'sparring', label: '스파링 복기', icon: Swords, color: 'red', desc: 'AI 분석 & 피드백' },
-        { id: 'tournament', label: '아레나', icon: Trophy, color: 'amber', desc: '실력 증명' },
     ];
 
     return (
@@ -186,7 +184,6 @@ export const Arena: React.FC = () => {
                         />
                     )}
                     {activeTab === 'skills' && <SkillTreeTab />}
-                    {activeTab === 'tournament' && <TournamentHomeTab />}
                     {activeTab === 'journal' && <JournalTab />}
                 </div>
             </div>
