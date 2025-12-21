@@ -29,6 +29,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
                 controls: false, // Hide Vimeo controls
                 color: 'a855f7', // Purple-500 to match app theme
                 dnt: true,
+                badge: false, // Hide plugin logo
             };
 
             // Ensure vimeoId is a string for checking
