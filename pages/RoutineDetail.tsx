@@ -13,6 +13,11 @@ export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user: contextUser, loading: authLoading } = useAuth();
+
+    // Playback Refs
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [isPlaying, setIsPlaying] = useState(true);
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
     const [currentDrillIndex, setCurrentDrillIndex] = useState(0);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
@@ -606,6 +611,30 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         </div>
                     )}
 
+                    {/* Video Click Overlay for Routine Detail */}
+                    {!isTrainingMode && isPlayable && (
+                        <div
+                            className="absolute inset-0 z-35"
+                            onClick={() => {
+                                const nextPlaying = !isPlaying;
+                                setIsPlaying(nextPlaying);
+                                if (isVimeo) {
+                                    const iframe = iframeRef.current;
+                                    if (iframe && iframe.contentWindow) {
+                                        const message = nextPlaying ? '{"method":"play"}' : '{"method":"pause"}';
+                                        iframe.contentWindow.postMessage(message, '*');
+                                    }
+                                } else {
+                                    const video = videoRef.current;
+                                    if (video) {
+                                        if (nextPlaying) video.play();
+                                        else video.pause();
+                                    }
+                                }
+                            }}
+                        />
+                    )}
+
                     {isTrainingMode ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
                             <div className="text-slate-400 mb-4 text-lg animate-pulse">Training in Progress...</div>
@@ -625,17 +654,18 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             // Use direct video URL for 9:16 vertical format (same as drill reels)
                             <video
                                 key={`${currentDrill.id}-${videoType}`}
+                                ref={videoRef}
                                 src={directVideoUrl}
                                 className="w-full h-full object-cover"
-                                controls
-                                autoPlay
                                 loop
+                                autoPlay
                                 playsInline
                             />
                         ) : (
                             // Fallback to Vimeo iframe
                             <iframe
                                 key={`${currentDrill.id}-${videoType}`}
+                                ref={iframeRef}
                                 src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
                                 className="w-full h-full"
                                 frameBorder="0"

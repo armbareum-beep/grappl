@@ -33,6 +33,7 @@ export const DrillDetail: React.FC = () => {
     const [saved, setSaved] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -75,6 +76,32 @@ export const DrillDetail: React.FC = () => {
     }, [drill?.vimeoUrl, id]); // Re-evaluate only when vimeoUrl changes
 
     const [error, setError] = useState<string | null>(null);
+
+    // --- Derived Video State (Hoisted for use in handlers) ---
+    // Helper to extract Vimeo ID
+    const extractVimeoId = (url?: string | null) => {
+        if (!url || typeof url !== 'string') return undefined;
+        if (/^\d+$/.test(url)) return url;
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : undefined;
+    };
+
+    const isActionVideo = currentVideoType === 'action';
+    const rawVimeoUrl = drill ? (isActionVideo ? drill.vimeoUrl : drill.descriptionVideoUrl) : undefined;
+    const vimeoId = extractVimeoId(rawVimeoUrl);
+    const useVimeo = !!vimeoId && owns;
+
+    // For fallback, we prefer the direct video URL (mp4)
+    const fallbackUrl = drill ? (isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl && !vimeoId ? drill.descriptionVideoUrl : drill.videoUrl)) : undefined;
+
+    // SAFE VIDEO SRC
+    const videoSrc = useVimeo
+        ? `https://player.vimeo.com/video/${vimeoId}`
+        : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4');
+
+    // Detect Processing State
+    const isProcessing = owns && !useVimeo && drill && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
+    // -------------------------------------------------------------
 
     // ... (existing state)
 
@@ -222,13 +249,29 @@ export const DrillDetail: React.FC = () => {
         setIsVideoReady(false); // Reset ready state when changing video tabs
     }, [currentVideoType]);
 
-    useEffect(() => {
-        if (videoRef.current && isPlaying && owns) {
-            videoRef.current.play().catch(err => console.log('Play error:', err));
-        } else if (videoRef.current) {
-            videoRef.current.pause();
+    // Unified Play/Pause logic for Detail View
+    const applyPlaybackState = (playing: boolean) => {
+        if (useVimeo) {
+            const iframe = iframeRef.current;
+            if (iframe && iframe.contentWindow) {
+                const message = playing ? '{"method":"play"}' : '{"method":"pause"}';
+                iframe.contentWindow.postMessage(message, '*');
+            }
+        } else {
+            const video = videoRef.current;
+            if (video && owns) {
+                if (playing) {
+                    video.play().catch(err => console.log('Play error:', err));
+                } else {
+                    video.pause();
+                }
+            }
         }
-    }, [isPlaying, currentVideoType, owns, id]);
+    };
+
+    useEffect(() => {
+        applyPlaybackState(isPlaying);
+    }, [isPlaying, currentVideoType, owns, id, useVimeo]); // useVimeo is now safe to use
 
     // Update progress
     useEffect(() => {
@@ -260,7 +303,9 @@ export const DrillDetail: React.FC = () => {
 
     const togglePlayPause = () => {
         if (owns) {
-            setIsPlaying(!isPlaying);
+            const nextPlaying = !isPlaying;
+            setIsPlaying(nextPlaying);
+            applyPlaybackState(nextPlaying);
         }
     };
 
@@ -357,37 +402,9 @@ export const DrillDetail: React.FC = () => {
 
     if (!drill) return <div className="text-white text-center pt-20">Drill not found</div>;
 
-    const finalPrice = calculateDrillPrice(drill.price, isSubscriber);
 
-    // Determine video source - both action and description can be Vimeo
-    const isActionVideo = currentVideoType === 'action';
 
-    // Helper to extract Vimeo ID
-    const extractVimeoId = (url?: string | null) => {
-        if (!url || typeof url !== 'string') return undefined;
-        // If it's just numbers, assume it's an ID
-        if (/^\d+$/.test(url)) return url;
-        // Try to extract from URL
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : undefined;
-    };
-
-    const rawVimeoUrl = isActionVideo ? drill.vimeoUrl : drill.descriptionVideoUrl;
-    const vimeoId = extractVimeoId(rawVimeoUrl);
-
-    // For fallback, we prefer the direct video URL (mp4)
-    // If description mode but no description video, fallback to action video
-    const fallbackUrl = isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl && !vimeoId ? drill.descriptionVideoUrl : drill.videoUrl);
-
-    const useVimeo = !!vimeoId && owns;
-
-    // SAFE VIDEO SRC: Ensure we never pass empty string to video tag to avoid browser alerts
-    const videoSrc = useVimeo
-        ? `https://player.vimeo.com/video/${vimeoId}`
-        : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4'); // Placeholder to prevent errors
-
-    // Detect Processing State (Backend is still working)
-    const isProcessing = owns && !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
+    const finalPrice = drill ? calculateDrillPrice(drill.price, isSubscriber) : 0;
 
     if (isProcessing) {
         return (
@@ -458,6 +475,12 @@ export const DrillDetail: React.FC = () => {
                 </div>
             </div>
 
+            {/* Video Click Overlay for Drill Detail */}
+            <div
+                className="absolute inset-0 z-35"
+                onClick={togglePlayPause}
+            />
+
             {/* Video Container - 9:16 aspect ratio */}
             <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
@@ -465,6 +488,7 @@ export const DrillDetail: React.FC = () => {
                         useVimeo ? (
                             <iframe
                                 key={`vimeo-${vimeoId}-${currentVideoType}`}
+                                ref={iframeRef}
                                 src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
                                 className="absolute inset-0 w-full h-full"
                                 frameBorder="0"
