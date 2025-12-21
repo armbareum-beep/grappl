@@ -423,13 +423,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Progress Bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-white/20 z-50">
-                <div
-                    className="h-full bg-white transition-all duration-100"
-                    style={{ width: `${progress}%` }}
-                />
-            </div>
 
             {/* Top Bar */}
             <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
@@ -467,7 +460,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         <iframe
                             key={`${currentDrill.id}-${currentVideoType}`}
                             ref={iframeRef}
-                            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=${isMuted ? 1 : 0}&controls=1&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
+                            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
                             className="absolute inset-0 w-full h-full"
                             frameBorder="0"
                             allow="autoplay; fullscreen; picture-in-picture"
