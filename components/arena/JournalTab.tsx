@@ -119,6 +119,31 @@ export const JournalTab: React.FC = () => {
             success('일지가 수정되었습니다.');
         } else {
             // Create new log
+
+            // 1. Award training XP FIRST (before creating log)
+            let earnedXp = 0;
+            let userStreak = 0;
+            let bonusXp = 0;
+
+            try {
+                const xpResult = await awardTrainingXP(user.id, 'training_log', 20);
+
+                if (xpResult.data) {
+                    if (xpResult.data.alreadyCompletedToday) {
+                        // Already completed a training activity today
+                        // toastError('오늘은 이미 수련 활동으로 경험치를 획득했습니다.'); // Don't show error, just 0 XP
+                        earnedXp = 0;
+                        userStreak = xpResult.data.streak;
+                    } else {
+                        earnedXp = xpResult.data.xpEarned;
+                        userStreak = xpResult.data.streak;
+                        bonusXp = xpResult.data.bonusXP;
+                    }
+                }
+            } catch (err) {
+                console.error('Error awarding XP:', err);
+            }
+
             const { data, error } = await createTrainingLog({
                 ...logData,
                 userId: user.id,
@@ -135,27 +160,9 @@ export const JournalTab: React.FC = () => {
                 setLogs([data, ...logs]);
                 setIsCreating(false);
 
-                // Award training XP with daily limit and streak bonus
-                let earnedXp = 0;
-                let userStreak = 0;
-                let bonusXp = 0;
+
 
                 try {
-                    const xpResult = await awardTrainingXP(user.id, 'training_log', 20);
-
-                    if (xpResult.data) {
-                        if (xpResult.data.alreadyCompletedToday) {
-                            // Already completed a training activity today
-                            toastError('오늘은 이미 수련 활동으로 경험치를 획득했습니다.');
-                            earnedXp = 0;
-                            userStreak = xpResult.data.streak;
-                        } else {
-                            earnedXp = xpResult.data.xpEarned;
-                            userStreak = xpResult.data.streak;
-                            bonusXp = xpResult.data.bonusXP;
-                        }
-                    }
-
                     // Also update daily quest progress
                     const { updateQuestProgress } = await import('../../lib/api');
                     const questResult = await updateQuestProgress(user.id, 'write_log');
@@ -510,7 +517,7 @@ ${logData.notes}`;
                                     </button>
                                 </div>
                                 <TrainingLogForm
-                                    userId={user.id}
+                                    userId={user?.id || ''}
                                     onSubmit={handleSaveLog}
                                     onCancel={() => setIsCreating(false)}
                                     initialData={editingLog || { date: new Date().toISOString().split('T')[0] }}

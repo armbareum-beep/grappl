@@ -55,6 +55,35 @@ export const getAdminStats = async (): Promise<AdminStats> => {
     }
 };
 
+export interface SettlementStats {
+    creator_id: string;
+    creator_name: string;
+    creator_email: string;
+    settlement_month: string;
+    total_sales_count: number;
+    total_revenue: number;
+    settlement_amount: number;
+    platform_fee: number;
+    payout_settings: any;
+}
+
+export const getAdminSettlements = async (): Promise<SettlementStats[]> => {
+    // Attempt to fetch from the view 'creator_monthly_settlements'
+    // Note: This relies on the SQL migration being applied.
+    const { data, error } = await supabase
+        .from('creator_monthly_settlements')
+        .select('*')
+        .order('total_revenue', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching settlements:', error);
+        return [];
+    }
+
+    return data || [];
+};
+
+
 // ==================== Content Management ====================
 
 export async function deleteDrill(drillId: string) {

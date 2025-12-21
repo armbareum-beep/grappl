@@ -35,3 +35,4 @@ yarn-error.log*
 backend/temp/
 backend/node_modules/
 backend/uploads/
+.vercel

@@ -23,13 +23,39 @@ export const Settings: React.FC = () => {
     const [pushNotifications, setPushNotifications] = useState(true);
     const [marketingEmails, setMarketingEmails] = useState(false);
 
+    // Load profile image from users table
+    React.useEffect(() => {
+        async function loadProfileImage() {
+            if (user) {
+                try {
+                    const { data } = await supabase
+                        .from('users')
+                        .select('avatar_url')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (data?.avatar_url) {
+                        setProfileImageUrl(data.avatar_url);
+                    } else if (user.user_metadata?.avatar_url) {
+                        setProfileImageUrl(user.user_metadata.avatar_url);
+                    }
+                } catch (err) {
+                    console.error('Error loading profile image:', err);
+                }
+            }
+        }
+        loadProfileImage();
+    }, [user]);
+
     // Load creator profile image if user is creator
     React.useEffect(() => {
         async function loadCreatorProfile() {
             if (isCreator && user) {
                 const creator = await getCreatorById(user.id);
                 if (creator) {
-                    setProfileImageUrl(creator.profileImage);
+                    if (creator.profileImage) {
+                        setProfileImageUrl(creator.profileImage);
+                    }
                     setBio(creator.bio || '');
                 }
             }
@@ -82,11 +108,24 @@ export const Settings: React.FC = () => {
             if (error) throw error;
 
             if (url) {
+                // Immediately update the displayed image
+                setProfileImageUrl(url);
+
                 // Update user profile with new image URL
                 const { error: updateError } = await updateUserProfile(user.id, { profileImageUrl: url });
                 if (updateError) throw updateError;
 
-                setProfileImageUrl(url);
+                // Also update users table for feed display
+                await supabase
+                    .from('users')
+                    .upsert({
+                        id: user.id,
+                        name: displayName,
+                        avatar_url: url,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'id'
+                    });
             }
 
             setMessage({ type: 'success', text: '프로필 이미지가 업데이트되었습니다.' });
@@ -435,17 +474,6 @@ export const Settings: React.FC = () => {
                 <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
                     {/* Sidebar */}
                     <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900">
-                        <div className="p-6 border-b border-slate-800">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                                    {user?.email?.[0].toUpperCase()}
-                                </div>
-                                <div className="overflow-hidden">
-                                    <h2 className="font-bold text-white truncate">{user?.user_metadata?.name || '사용자'}</h2>
-                                    <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-                                </div>
-                            </div>
-                        </div>
                         <nav className="p-4 space-y-1">
                             <button
                                 onClick={() => setActiveSection('profile')}

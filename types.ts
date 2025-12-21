@@ -146,6 +146,8 @@ export interface TrainingLog {
   id: string;
   userId: string;
   userName?: string;
+  userAvatar?: string;
+  userBelt?: string;
   date: string;
   durationMinutes: number;
   techniques: string[];
@@ -166,6 +168,7 @@ export interface TrainingLog {
     email: string;
     belt?: string;
     profileImage?: string;
+    isInstructor?: boolean;
   };
 }
 
@@ -607,7 +610,7 @@ export type TicketCategory = 'general' | 'account' | 'payment' | 'technical' | '
 
 export interface SupportTicket {
   id: string;
-  userId: string;
+  userId?: string; // Optional for guests
   userName?: string;
   userEmail?: string;
   subject: string;

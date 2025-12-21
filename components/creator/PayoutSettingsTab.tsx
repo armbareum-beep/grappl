@@ -139,11 +139,11 @@ export const PayoutSettingsTab: React.FC = () => {
                         <div className="flex items-center space-x-3 mb-2">
                             <Building className={`w-5 h-5 ${payoutType === 'business' ? 'text-blue-400' : 'text-slate-400'}`} />
                             <span className={`font-semibold ${payoutType === 'business' ? 'text-blue-400' : 'text-white'}`}>
-                                Wise (USD)
+                                달러 외화 계좌 (USD)
                             </span>
                         </div>
                         <p className="text-sm text-slate-400">
-                            Wise를 통한 달러 송금 (해외 거주자/외화 계좌)
+                            Wise 및 국내/해외 외화 계좌로 송금 (SWIFT)
                         </p>
                     </button>
                 </div>
@@ -235,7 +235,7 @@ export const PayoutSettingsTab: React.FC = () => {
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Wise 이메일 주소 (권장)
+                                Email / Wise Email (권장)
                             </label>
                             <input
                                 type="email"
@@ -245,32 +245,32 @@ export const PayoutSettingsTab: React.FC = () => {
                                 className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <p className="text-xs text-slate-500 mt-1">
-                                Wise 계정에 등록된 이메일 주소를 입력하면 가장 빠르고 정확하게 송금됩니다.
+                                Wise 계정이 있다면 이메일만으로 송금이 가능합니다. 없으실 경우 연락 가능한 이메일을 적어주세요.
                             </p>
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
-                                ACH Routing Number (선택)
+                                Routing Number / SWIFT Code
                             </label>
                             <input
                                 type="text"
                                 value={wiseRoutingNumber}
                                 onChange={(e) => setWiseRoutingNumber(e.target.value)}
-                                placeholder="000000000"
+                                placeholder="SWIFT Code 또는 Routing Number"
                                 className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Account Number (선택)
+                                Account Number (계좌번호)
                             </label>
                             <input
                                 type="text"
                                 value={wiseAccountNumber}
                                 onChange={(e) => setWiseAccountNumber(e.target.value)}
-                                placeholder="0000000000"
+                                placeholder="외화 계좌번호"
                                 className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
@@ -299,7 +299,7 @@ export const PayoutSettingsTab: React.FC = () => {
                                 <div className="text-sm text-blue-300">
                                     <p className="font-semibold mb-1">안내사항</p>
                                     <ul className="list-disc list-inside space-y-1">
-                                        <li>Wise 이메일만 입력하셔도 송금이 가능합니다.</li>
+                                        <li>Wise 계정이나 국내 외화계좌 정보 모두 입력 가능합니다.</li>
                                         <li>달러(USD) 송금 시 발생하는 수수료는 수취인 부담일 수 있습니다.</li>
                                         {!isKoreanResident && (
                                             <li>해외 거주자의 경우 한국 세금(3.3%)이 원천징수되지 않습니다. (거주국가 세법 적용)</li>

@@ -465,7 +465,7 @@ export const DrillDetail: React.FC = () => {
                         useVimeo ? (
                             <iframe
                                 key={`vimeo-${vimeoId}-${currentVideoType}`}
-                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1&controls=0`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
                                 className="absolute inset-0 w-full h-full"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"

@@ -143,6 +143,36 @@ Deno.serve(async (req) => {
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: paymentId
                 })
+        } else if (mode === 'feedback') {
+            // 1. Update request status
+            await supabaseClient
+                .from('feedback_requests')
+                .update({
+                    payment_status: 'paid',
+                    paid_at: new Date().toISOString(),
+                    status: 'pending' // ready for instructor review
+                })
+                .eq('id', id);
+
+            // 2. Create payment record for accounting (Platform Fee 20%)
+            // We need to fetch instructor_id first to be accurate, but it's optional for now if not available in params.
+            // Ideally we fetch the request first.
+            const { data: request } = await supabaseClient.from('feedback_requests').select('instructor_id').eq('id', id).single();
+
+            if (request) {
+                const platformFee = Math.floor(amountValue * 0.2);
+                await supabaseClient
+                    .from('feedback_payments')
+                    .insert({
+                        request_id: id,
+                        student_id: userId,
+                        instructor_id: request.instructor_id,
+                        amount: amountValue,
+                        platform_fee: platformFee,
+                        instructor_revenue: amountValue - platformFee,
+                        paid_at: new Date().toISOString()
+                    });
+            }
         }
 
         // 3. Record Payment

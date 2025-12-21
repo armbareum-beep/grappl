@@ -31,11 +31,11 @@ export const SocialFeed: React.FC<SocialFeedProps> = ({ posts, loading, onRefres
                     <div className="text-center">
                         <p className="text-slate-400 text-sm mb-3">로딩이 오래 걸리고 있습니다</p>
                         <button
-                            onClick={onRefresh}
+                            onClick={() => window.location.reload()}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            새로고침
+                            캐시 삭제 후 새로고침
                         </button>
                     </div>
                 )}

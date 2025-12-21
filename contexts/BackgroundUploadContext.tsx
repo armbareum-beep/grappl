@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
 import { videoProcessingApi } from '../lib/api-video-processing';
 import { supabase } from '../lib/supabase';
 
@@ -11,6 +11,7 @@ export interface UploadTask {
     status: 'uploading' | 'processing' | 'completed' | 'error';
     error?: string;
     drillId?: string; // Associated Drill ID
+    isDismissed?: boolean; // UI-only dismiss state
     // Metadata for post-processing
     processingParams?: {
         videoId: string; // The UUID used for storage
@@ -33,6 +34,7 @@ interface BackgroundUploadContextType {
     ) => Promise<void>;
     retryUpload: (taskId: string) => void;
     cancelUpload: (taskId: string) => void;
+    dismissTask: (taskId: string) => void;
 }
 
 const BackgroundUploadContext = createContext<BackgroundUploadContextType | undefined>(undefined);
@@ -92,7 +94,13 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                 chunkSize: 3 * 1024 * 1024,
                 onError: (error) => {
                     console.error('TUS Upload Error:', error);
-                    updateTaskStatus(task.id, 'error', error.message);
+                    let message = error.message;
+                    if (message.includes('object ProgressEvent')) {
+                        message = '네트워크 연결 상태를 확인해주세요. (전송 중단됨)';
+                    } else if (message.includes('failed to resume')) {
+                        message = '업로드 재개 실패. 다시 시도해 주세요.';
+                    }
+                    updateTaskStatus(task.id, 'error', message);
                 },
                 onProgress: (bytesUploaded, bytesTotal) => {
                     const percentage = (bytesUploaded / bytesTotal * 100);
@@ -135,9 +143,17 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
             // Check for previous uploads to resume
             upload.findPreviousUploads().then((previousUploads) => {
-                if (previousUploads.length) {
-                    upload.resumeFromPreviousUpload(previousUploads[0]);
+                try {
+                    if (previousUploads.length) {
+                        upload.resumeFromPreviousUpload(previousUploads[0]);
+                    }
+                } catch (err) {
+                    console.warn('Failed to resume TUS upload, starting fresh:', err);
                 }
+                upload.start();
+            }).catch(err => {
+                console.warn('TUS findPreviousUploads failed, starting fresh:', err);
+                // Fallback to fresh upload if HEAD request fails (common for network/cors issues)
                 upload.start();
             });
 
@@ -176,8 +192,14 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
         setTasks(prev => prev.filter(t => t.id !== taskId));
     };
 
+    const dismissTask = (taskId: string) => {
+        setTasks(prev => prev.map(t =>
+            t.id === taskId ? { ...t, isDismissed: true } : t
+        ));
+    };
+
     return (
-        <BackgroundUploadContext.Provider value={{ tasks, queueUpload, retryUpload, cancelUpload }}>
+        <BackgroundUploadContext.Provider value={{ tasks, queueUpload, retryUpload, cancelUpload, dismissTask }}>
             {children}
         </BackgroundUploadContext.Provider>
     );

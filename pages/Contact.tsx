@@ -2,15 +2,30 @@ import React, { useState } from 'react';
 import { Mail, MapPin, Send } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
+import { createSupportTicket } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+
 export const Contact: React.FC = () => {
+    const { user } = useAuth();
     const { success, error: toastError } = useToast();
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
+        name: user?.name || '',
+        email: user?.email || '',
         subject: '',
         message: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Pre-fill user data when user loads
+    React.useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                email: user.email || prev.email
+            }));
+        }
+    }, [user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,19 +38,27 @@ export const Contact: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            // TODO: 실제 이메일 전송 로직 구현
-            // 현재는 시뮬레이션
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const { error } = await createSupportTicket({
+                userId: user?.id,
+                name: formData.name,
+                email: formData.email,
+                subject: formData.subject || '일반 문의',
+                message: formData.message,
+                category: 'general'
+            });
 
-            success('문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.');
+            if (error) throw error;
+
+            success('문의가 성공적으로 접수되었습니다. 관리자 확인 후 답변드리겠습니다.');
             setFormData({
-                name: '',
-                email: '',
+                name: user?.name || '',
+                email: user?.email || '',
                 subject: '',
                 message: ''
             });
-        } catch (err) {
-            toastError('문의 전송 중 오류가 발생했습니다. 다시 시도해주세요.');
+        } catch (err: any) {
+            console.error('Contact submit error:', err);
+            toastError('문의 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
         } finally {
             setIsSubmitting(false);
         }

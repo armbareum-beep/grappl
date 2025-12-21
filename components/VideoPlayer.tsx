@@ -23,8 +23,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
                 autoplay: false,
                 loop: false,
                 autopause: true,
-                title: true,
-                color: 'a855f7', // Purple-500 to match app theme (don't include #)
+                title: false,
+                byline: false,
+                portrait: false,
+                controls: false, // Hide Vimeo controls
+                color: 'a855f7', // Purple-500 to match app theme
+                dnt: true,
             };
 
             // Ensure vimeoId is a string for checking
@@ -61,9 +65,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
 
     return (
         <div
-            className="relative w-full [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:w-full [&>iframe]:h-full"
+            className="relative w-full cursor-pointer [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:w-full [&>iframe]:h-full"
             style={{ paddingBottom: '56.25%' }}
             ref={containerRef}
+            onClick={async () => {
+                if (!playerRef.current) return;
+                const paused = await playerRef.current.getPaused();
+                if (paused) {
+                    playerRef.current.play();
+                } else {
+                    playerRef.current.pause();
+                }
+            }}
         >
             {/* Player will be injected here by SDK */}
         </div>

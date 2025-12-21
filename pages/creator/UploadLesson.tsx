@@ -180,7 +180,7 @@ export const UploadLesson: React.FC = () => {
             }
 
             // 3. Finish
-            navigate('/creator/dashboard'); // Go back to dashboard to see "Processing"
+            navigate('/creator'); // Go back to dashboard to see "Processing"
 
         } catch (error: any) {
             console.error('Submission error:', error);

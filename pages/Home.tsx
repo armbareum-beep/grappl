@@ -4,17 +4,23 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Heart, MessageCircle,
   Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
-  Calendar, Lock, Star, TrendingUp, X, Package
+  Calendar, Lock, Star, TrendingUp, X, Package, Clock
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
 import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
 import {
-  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine, getBundles
+  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine, getBundles,
+  getTrainingLogs, getDrillRoutines
 } from '../lib/api';
 import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine, Bundle } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { AICoachWidget } from '../components/journal/AICoachWidget';
+import { DailyQuestsPanel } from '../components/DailyQuestsPanel';
+import { supabase } from '../lib/supabase';
+import { Settings } from 'lucide-react';
+import { LeaderboardPanel } from '../components/LeaderboardPanel';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
   watch_lesson: { icon: '📺', name: '레슨 시청' },
@@ -35,16 +41,21 @@ export const Home: React.FC = () => {
   // Data states
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [drills, setDrills] = useState<Drill[]>([]);
-  const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]);
+  const [trainingLogs, setTrainingLogs] = useState<TrainingLog[]>([]); // Public Feed
+  const [myLogs, setMyLogs] = useState<TrainingLog[]>([]); // Personal for AI
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
   const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
   const [recommendedBundles, setRecommendedBundles] = useState<Bundle[]>([]);
+  const [proRoutines, setProRoutines] = useState<DrillRoutine[]>([]);
 
   // User progress states
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [quests, setQuests] = useState<DailyQuest[]>([]);
   const [selectedPatch, setSelectedPatch] = useState<Patch | null>(null);
+  const [isSubscriber, setIsSubscriber] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   // Mock User Stats
   const userStats = {
@@ -67,8 +78,6 @@ export const Home: React.FC = () => {
   });
   const unlockedPatches = patches.filter(p => p.unlocked);
 
-
-
   useEffect(() => {
     if (!user) {
       setLoading(false); // Fix infinite loading trap
@@ -78,6 +87,16 @@ export const Home: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        // Fetch User Subscription & Profile
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_subscriber, avatar_url, name')
+          .eq('id', user.id)
+          .single();
+        setIsSubscriber(userData?.is_subscriber || false);
+        if (userData?.avatar_url) setUserAvatar(userData.avatar_url);
+        if (userData?.name) setUserName(userData.name);
+
         // Fetch user progress
         const userProgress = await getUserProgress(user.id);
         setProgress(userProgress);
@@ -96,6 +115,10 @@ export const Home: React.FC = () => {
         const { data: logsData } = await getPublicTrainingLogs(1, 5);
         if (logsData) setTrainingLogs(logsData);
 
+        // Fetch personal logs for AI Coach
+        const { data: myLogsData } = await getTrainingLogs(user.id);
+        if (myLogsData) setMyLogs(myLogsData);
+
         // Fetch recent activity
         const recent = await getRecentActivity(user.id);
         setRecentActivity(recent);
@@ -106,6 +129,39 @@ export const Home: React.FC = () => {
 
         const { data: bundlesData } = await getBundles();
         if (bundlesData) setRecommendedBundles(bundlesData.slice(0, 3));
+
+        // Fetch Pro Routines (Mocking "Pro" by selecting Intermediate/Advanced or specific Logic)
+        const { data: allRoutines } = await getDrillRoutines();
+        if (allRoutines) {
+          // 🧠 AI Recommendation Check
+          const savedRecommendations = localStorage.getItem('gemini_recommendations');
+          const aiRecs = savedRecommendations ? JSON.parse(savedRecommendations) : null;
+
+          if (aiRecs && aiRecs.length > 0) {
+            // Transform AI result to match Pro Routine display
+            const transformedRecs = aiRecs
+              .filter((r: any) => r.recommendedRoutine)
+              .map((r: any) => ({
+                ...r.recommendedRoutine,
+                // Inject AI context into description
+                description: `💡 AI 분석: ${r.message} - ${r.detail}`,
+                difficulty: r.type === 'weakness' ? 'WEAKNESS' : 'STRENGTH',
+                aiReason: r.message
+              }));
+
+            if (transformedRecs.length > 0) {
+              setProRoutines(transformedRecs.slice(0, 2));
+            } else {
+              // Fallback if AI suggested courses but no routines
+              const pros = allRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+              setProRoutines(pros);
+            }
+          } else {
+            // Standard Pro Logic (Intermediate/Advanced)
+            const pros = allRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+            setProRoutines(pros);
+          }
+        }
 
       } catch (error) {
         console.error('Error fetching home data:', error);
@@ -140,11 +196,26 @@ export const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-black text-white mb-1">환영합니다, {user?.email?.split('@')[0]}님!</h1>
+              <h1 className="text-2xl font-black text-white mb-1">
+                환영합니다, {userName || user?.user_metadata?.name || user?.email?.split('@')[0]}님!
+              </h1>
               <p className="text-slate-400 text-sm">오늘의 수련을 시작해보세요 🥋</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-              <span className="text-lg font-bold text-indigo-400">{user?.email?.[0].toUpperCase()}</span>
+            <div
+              onClick={() => navigate('/settings')}
+              className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-indigo-500 transition-colors"
+            >
+              {userAvatar || user?.user_metadata?.avatar_url ? (
+                <img
+                  src={userAvatar || user?.user_metadata?.avatar_url}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-lg font-bold text-indigo-400">
+                  {userName?.[0] || user?.user_metadata?.name?.[0] || user?.email?.[0]?.toUpperCase()}
+                </span>
+              )}
             </div>
           </div>
 
@@ -219,43 +290,89 @@ export const Home: React.FC = () => {
             <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
             추천 루틴 (Pro)
           </h2>
-          <button className="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-colors">
+          <button onClick={() => navigate('/arena?tab=routines')} className="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-colors">
             더 보기
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="relative bg-slate-900/50 border border-slate-800 rounded-xl p-5 overflow-hidden group hover:border-slate-700 transition-all">
-              {/* Lock Overlay */}
-              <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 transition-opacity duration-300">
-                <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                  <Lock className="w-5 h-5 text-amber-400" />
-                </div>
-                <h3 className="text-sm font-bold text-white mb-1">Pro 전용 추천</h3>
-                <p className="text-xs text-slate-400 mb-4">나의 약점을 보완하는 맞춤 루틴</p>
-                <button
-                  onClick={() => navigate('/pricing')}
-                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
-                >
-                  업그레이드하고 잠금해제
-                </button>
-              </div>
+          {(proRoutines.length > 0 ? proRoutines : [{ id: 'mock-1' }, { id: 'mock-2' }]).map((routine: any, i) => (
+            <div key={routine.id || i} className={`relative bg-slate-900/50 border rounded-xl p-5 overflow-hidden group transition-all ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
+              routine.difficulty === 'STRENGTH' ? 'border-emerald-500/30 hover:border-emerald-500/50' :
+                'border-slate-800 hover:border-slate-700'
+              }`}>
 
-              {/* Blurred Content Preview */}
-              <div className="opacity-30 blur-[1px]">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-lg bg-slate-800"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-3/4 bg-slate-700 rounded"></div>
-                    <div className="h-3 w-1/2 bg-slate-800 rounded"></div>
+              {!isSubscriber ? (
+                <>
+                  {/* Lock Overlay for Non-Subscribers */}
+                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 transition-opacity duration-300">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                      <Lock className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Pro 전용 추천</h3>
+                    <p className="text-xs text-slate-400 mb-4">나의 약점을 보완하는 맞춤 루틴</p>
+                    <button
+                      onClick={() => navigate('/pricing')}
+                      className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
+                    >
+                      업그레이드하고 잠금해제
+                    </button>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="h-6 w-16 bg-slate-800 rounded"></div>
-                  <div className="h-6 w-16 bg-slate-800 rounded"></div>
-                </div>
-              </div>
+
+                  {/* Blurred Content Preview */}
+                  <div className="opacity-30 blur-[1px]">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-14 h-14 rounded-lg bg-slate-800"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 bg-slate-700 rounded"></div>
+                        <div className="h-3 w-1/2 bg-slate-800 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-slate-800 rounded"></div>
+                      <div className="h-6 w-16 bg-slate-800 rounded"></div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Unlocked Content for Subscribers */}
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center">
+                      <Dumbbell className="w-8 h-8 text-slate-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-white mb-1">{routine.title || 'Pro 맞춤형 루틴'}</h3>
+                      <p className="text-xs text-slate-400 line-clamp-2 mb-3">
+                        {routine.description || '회원님의 수련 패턴을 분석하여 제공되는 고급 루틴입니다.'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${routine.difficulty === 'WEAKNESS' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          routine.difficulty === 'STRENGTH' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                          {routine.difficulty === 'WEAKNESS' ? '약점 보완' :
+                            routine.difficulty === 'STRENGTH' ? '강점 강화' :
+                              routine.difficulty || 'ADVANCED'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {routine.totalDurationMinutes || 20}분
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/routines/${routine.id}`);
+                      }}
+                      size="sm"
+                      className="flex-shrink-0"
+                    >
+                      <Play className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -269,11 +386,11 @@ export const Home: React.FC = () => {
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-          {/* Stats & Graph & Patches (Left Column) */}
-          <div className="lg:col-span-2 flex flex-col">
-            {/* Stats & Belt (Restored) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm h-full flex flex-col justify-between hover:border-slate-700 transition-colors">
-              <div className="flex items-center justify-between mb-8">
+          {/* Left Column (2/3): Stats, Belt & Missions */}
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            {/* Stats & Belt Block */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className="flex items-center gap-1.5 text-orange-400 font-black text-3xl mb-1">
@@ -303,7 +420,7 @@ export const Home: React.FC = () => {
               </div>
 
               {/* Belt Progress */}
-              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 mb-6 relative overflow-hidden group">
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3">
@@ -330,74 +447,61 @@ export const Home: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Patches */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                    <span>🎖️</span> 획득 패치
-                  </h3>
-                  <span className="text-xs text-slate-500">{unlockedPatches.length}개</span>
-                </div>
-                {unlockedPatches.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {unlockedPatches.map((patch) => {
-                      const Icon = patch.icon;
-                      return (
-                        <button
-                          key={patch.id}
-                          onClick={() => setSelectedPatch(patch)}
-                          className={`w-10 h-10 rounded-full ${patch.color} flex items-center justify-center shadow-md border border-white/20 hover:scale-110 transition-transform cursor-pointer group relative`}
-                          title={patch.name}
-                        >
-                          <Icon className="w-5 h-5 text-white" />
-                          {/* Hover Glow */}
-                          <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="bg-slate-950/30 rounded-lg p-4 text-center border border-slate-800/50 border-dashed">
-                    <p className="text-xs text-slate-500">아직 획득한 패치가 없습니다</p>
-                    <p className="text-xs text-slate-600 mt-1">미션을 완료하고 패치를 모아보세요!</p>
-                  </div>
-                )}
-              </div>
+            {/* Daily Missions Block (Moved here) */}
+            <div className="flex-1 min-h-[360px]">
+              <DailyQuestsPanel userId={user?.id || ''} />
             </div>
           </div>
 
-          {/* Today's Mission (Right Column) */}
-          <div className="flex flex-col">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-5 shadow-lg h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          {/* Right Column (1/3): Leaderboard & Patches */}
+          <div className="flex flex-col gap-4">
+            {/* 1. Leaderboard */}
+            <div className="h-[400px]">
+              <LeaderboardPanel currentUserId={user?.id || ''} />
+            </div>
+
+            {/* 2. Mini Patch Summary */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col hover:border-slate-700 transition-colors flex-1">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                  <span>📋</span> 오늘의 미션
+                  <span>🎖️</span> 보유 패치
                 </h3>
-                <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                  {quests.filter(q => q.completed).length}/{quests.length}
-                </span>
+                <span className="text-xs text-slate-500 cursor-pointer hover:text-white" onClick={() => setSelectedPatch(unlockedPatches[0])}>전체보기</span>
               </div>
-              <div className="space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent flex-1">
-                {quests.map((quest) => (
-                  <div key={quest.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/50 hover:border-slate-700 transition-colors">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${quest.completed ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
-                      {quest.completed ? '✓' : '○'}
+
+              {unlockedPatches.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {unlockedPatches.slice(0, 4).map((patch) => {
+                    const Icon = patch.icon;
+                    return (
+                      <div
+                        key={patch.id}
+                        onClick={() => setSelectedPatch(patch)}
+                        className={`w-8 h-8 rounded-lg ${patch.color} flex items-center justify-center shadow-sm border border-white/10 cursor-pointer hover:scale-110 transition-transform`}
+                        title={patch.name}
+                      >
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
+                    );
+                  })}
+                  {unlockedPatches.length > 4 && (
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                      +{unlockedPatches.length - 4}
                     </div>
-                    <span className={`text-xs flex-1 ${quest.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
-                      {QUEST_INFO[quest.questType]?.name || quest.questType}
-                    </span>
-                    <span className="text-[10px] font-bold text-amber-500 whitespace-nowrap">+{quest.xpReward} XP</span>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 text-center py-2">획득한 패치가 없습니다</p>
+              )}
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* 4. Sparring Review + AI Analysis */}
-      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+      < section className="px-4 md:px-8 py-6 max-w-7xl mx-auto" >
         <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-5">
           <BookOpen className="w-5 h-5 text-blue-400" />
           스파링 복기 & AI 분석
@@ -408,13 +512,21 @@ export const Home: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-blue-500/30 transition-colors group">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-white text-sm">최근 복기</h3>
-              <span className="text-xs text-slate-500">어제</span>
+              <span className="text-xs text-slate-500">
+                {myLogs.length > 0 ? new Date(myLogs[0].date).toLocaleDateString() : '작성 없음'}
+              </span>
             </div>
-            <div className="bg-slate-950/50 rounded-xl p-4 mb-5 border border-slate-800/50 group-hover:border-slate-700/50 transition-colors">
-              <p className="text-sm text-slate-300 line-clamp-2 italic">
-                "오늘 스파링에서는 가드 패스를 시도할 때 중심이 너무 앞으로 쏠리는 문제가 있었다..."
-              </p>
-            </div>
+            {myLogs.length > 0 ? (
+              <div className="bg-slate-950/50 rounded-xl p-4 mb-5 border border-slate-800/50 group-hover:border-slate-700/50 transition-colors">
+                <p className="text-sm text-slate-300 line-clamp-2 italic">
+                  "{myLogs[0].notes || '내용이 없습니다.'}"
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-950/50 rounded-xl p-4 mb-5 border border-slate-800/50 text-center">
+                <p className="text-sm text-slate-400">아직 작성된 스파링 복기가 없습니다.</p>
+              </div>
+            )}
             <button
               onClick={() => navigate('/arena?tab=sparring')}
               className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-900/20"
@@ -424,40 +536,19 @@ export const Home: React.FC = () => {
             </button>
           </div>
 
-          {/* AI Analysis (Pro Locked) */}
-          <div className="relative bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/20 rounded-xl p-6 overflow-hidden group">
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4 transition-opacity">
-              <div className="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mb-3 shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">
-                <Bot className="w-6 h-6 text-indigo-400" />
-              </div>
-              <h3 className="text-sm font-bold text-white mb-1">AI 코치 분석</h3>
-              <p className="text-xs text-slate-400 mb-4">내 스파링 패턴을 분석하고 개선점을 제안합니다.</p>
-              <button
-                onClick={() => navigate('/pricing')}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all shadow-lg shadow-indigo-600/20 hover:scale-105"
-              >
-                Pro로 업그레이드
-              </button>
-            </div>
-
-            <div className="opacity-30 blur-[1px]">
-              <div className="flex items-center gap-2 mb-4">
-                <Bot className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-bold text-indigo-300">AI Insight</span>
-              </div>
-              <div className="space-y-3">
-                <div className="h-2 w-full bg-slate-700 rounded"></div>
-                <div className="h-2 w-5/6 bg-slate-700 rounded"></div>
-                <div className="h-2 w-4/6 bg-slate-700 rounded"></div>
-                <div className="h-2 w-full bg-slate-700 rounded"></div>
-              </div>
-            </div>
+          {/* AI Analysis (Pro Locked -> AI Coach Widget) */}
+          <div className="h-full">
+            <AICoachWidget
+              logs={myLogs}
+              isLocked={!isSubscriber}
+              autoRun={false}
+            />
           </div>
         </div>
-      </section>
+      </section >
 
       {/* 5. Content Section */}
-      <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto border-t border-slate-800/50 mt-4">
+      < section className="px-4 md:px-8 py-8 max-w-7xl mx-auto border-t border-slate-800/50 mt-4" >
         <div className="flex items-center gap-8 border-b border-slate-800 mb-6 overflow-x-auto scrollbar-hide">
           {[
             { id: 'recent', label: '최근 시청', color: 'orange' },
@@ -611,36 +702,38 @@ export const Home: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
       {/* Patch Detail Modal */}
-      {selectedPatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedPatch(null)}>
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full relative shadow-2xl shadow-indigo-500/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => setSelectedPatch(null)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {
+        selectedPatch && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedPatch(null)}>
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full relative shadow-2xl shadow-indigo-500/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setSelectedPatch(null)}
+                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            <div className="flex flex-col items-center text-center">
-              <div className={`w-20 h-20 rounded-full ${selectedPatch.color} flex items-center justify-center shadow-xl mb-4 border-4 border-slate-800`}>
-                {React.createElement(selectedPatch.icon, { className: "w-10 h-10 text-white" })}
-              </div>
-              <h3 className="text-xl font-black text-white mb-1">{selectedPatch.name}</h3>
-              <p className="text-slate-400 text-sm mb-4">{selectedPatch.description}</p>
+              <div className="flex flex-col items-center text-center">
+                <div className={`w-20 h-20 rounded-full ${selectedPatch.color} flex items-center justify-center shadow-xl mb-4 border-4 border-slate-800`}>
+                  {React.createElement(selectedPatch.icon, { className: "w-10 h-10 text-white" })}
+                </div>
+                <h3 className="text-xl font-black text-white mb-1">{selectedPatch.name}</h3>
+                <p className="text-slate-400 text-sm mb-4">{selectedPatch.description}</p>
 
-              <div className="w-full bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                <p className="text-xs text-slate-500 mb-1">획득일</p>
-                <p className="text-sm font-bold text-white">
-                  {selectedPatch.unlockedAt ? new Date(selectedPatch.unlockedAt).toLocaleDateString() : '알 수 없음'}
-                </p>
+                <div className="w-full bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                  <p className="text-xs text-slate-500 mb-1">획득일</p>
+                  <p className="text-sm font-bold text-white">
+                    {selectedPatch.unlockedAt ? new Date(selectedPatch.unlockedAt).toLocaleDateString() : '알 수 없음'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };

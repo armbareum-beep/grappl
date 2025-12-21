@@ -16,6 +16,15 @@ export const Checkout: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [productTitle, setProductTitle] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [fullName, setFullName] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            // Pre-fill name if available
+            setFullName(user.user_metadata?.full_name || user.user_metadata?.name || '');
+        }
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -125,24 +134,23 @@ export const Checkout: React.FC = () => {
 
                     <div className="mb-8 p-6 bg-slate-950/50 rounded-xl border border-slate-800">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-slate-400">상품 금액</span>
-                            <span className="text-white font-bold">₩{amount.toLocaleString()}</span>
+                            <span className="text-slate-400">결제 금액</span>
+                            <span className="text-2xl text-white font-bold">₩{amount.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between items-center pt-4 border-t border-slate-800">
-                            <span className="text-slate-400">최종 결제 금액 (약)</span>
-                            <span className="text-2xl font-black text-blue-400">USD ${usdAmount}</span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-2 text-right">
-                            * 해외 결제 특성상 환율에 따라 최종 금액이 다를 수 있습니다.
-                        </p>
                     </div>
 
                     <div className="space-y-6">
                         {/* PayPal Payment (International) */}
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                                <span className="text-blue-400">🌍</span> 해외 결제 (PayPal)
-                            </h3>
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                                    <span className="text-blue-400">🌍</span> 해외 결제 (PayPal)
+                                </h3>
+                                <div className="text-right">
+                                    <span className="block text-sm font-bold text-blue-400">USD ${usdAmount}</span>
+                                    <span className="block text-[10px] text-slate-500">Approx.</span>
+                                </div>
+                            </div>
                             <PayPalButtons
                                 style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
                                 createOrder={(_, actions) => {
@@ -187,8 +195,41 @@ export const Checkout: React.FC = () => {
                             <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
                                 <span className="text-yellow-400">🇰🇷</span> 국내 결제 (카드/간편결제)
                             </h3>
+
+                            {/* Contact Info Inputs (Only for Domestic Payment) */}
+                            <div className="space-y-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                                        이름 (필수)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="홍길동"
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                        className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                                        연락처 (필수)
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        placeholder="010-0000-0000"
+                                        value={phoneNumber}
+                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                        className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                    />
+                                </div>
+                            </div>
+
                             <button
                                 onClick={async () => {
+                                    if (!phoneNumber || !fullName) {
+                                        alert('이름과 연락처를 모두 입력해주세요.');
+                                        return;
+                                    }
                                     try {
                                         const response = await PortOne.requestPayment({
                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
@@ -200,6 +241,10 @@ export const Checkout: React.FC = () => {
                                             payMethod: "CARD",
                                             customer: {
                                                 email: user?.email,
+                                                phoneNumber: phoneNumber || undefined,
+                                                fullName: fullName || undefined,
+                                                firstName: fullName || undefined,
+                                                lastName: undefined, // PortOne usually takes fullName fine
                                             },
                                         });
 
@@ -237,7 +282,8 @@ export const Checkout: React.FC = () => {
                                         navigate('/payment/complete');
                                     } catch (err: any) {
                                         console.error('Portone Error:', err);
-                                        setError('국내 결제 중 오류가 발생했습니다.');
+                                        // Display the actual error message or a fallback
+                                        setError(`국내 결제 초기화 실패: ${err.message || JSON.stringify(err)}`);
                                     }
                                 }}
                                 className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TrainingLog } from '../../types';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell, Save } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -14,34 +14,12 @@ interface SocialPostProps {
 // Helper function to convert YouTube URL to embed URL
 const getYouTubeEmbedUrl = (url: string): string => {
     if (!url) return url;
-    
-    // Already an embed URL
-    if (url.includes('youtube.com/embed/')) {
-        return url;
-    }
-    
-    // Extract video ID from various YouTube URL formats
+    if (url.includes('youtube.com/embed/')) return url;
     let videoId = '';
-    
-    // Format: https://www.youtube.com/watch?v=VIDEO_ID
-    if (url.includes('youtube.com/watch?v=')) {
-        videoId = url.split('watch?v=')[1]?.split('&')[0];
-    }
-    // Format: https://youtu.be/VIDEO_ID
-    else if (url.includes('youtu.be/')) {
-        videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    }
-    // Format: https://www.youtube.com/v/VIDEO_ID
-    else if (url.includes('youtube.com/v/')) {
-        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
-    }
-    
-    // Return embed URL if we found a video ID
-    if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-    }
-    
-    // Return original URL if we couldn't parse it
+    if (url.includes('youtube.com/watch?v=')) videoId = url.split('watch?v=')[1]?.split('&')[0];
+    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    else if (url.includes('youtube.com/v/')) videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
     return url;
 };
 
@@ -59,6 +37,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const [commentText, setCommentText] = useState('');
     const [comments, setComments] = useState<any[]>([]);
     const [loadingComments, setLoadingComments] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     // Close menu when clicking outside
     React.useEffect(() => {
@@ -85,6 +64,11 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         setLiked(!liked);
     };
 
+    const handleSaveRoutine = () => {
+        // Implement save routine logic later
+        alert('루틴 저장 기능은 준비 중입니다.');
+    };
+
     const togglePlay = (e: React.MouseEvent<HTMLVideoElement>) => {
         const video = e.currentTarget;
         if (video.paused) {
@@ -96,35 +80,30 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     };
 
-    const handleSaveRoutine = () => {
-        if (!post.metadata?.sharedRoutine) return;
+    const handleReport = async () => {
+        if (!user) {
+            toastError('로그인이 필요합니다.');
+            return;
+        }
 
-        try {
-            const routine = post.metadata.sharedRoutine;
-            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+        if (window.confirm('이 게시물을 신고하시겠습니까?')) {
+            try {
+                const { createReport } = await import('../../lib/api');
+                const { error } = await createReport({
+                    reporterId: user.id,
+                    targetId: post.id,
+                    targetType: 'post',
+                    reason: 'Inappropriate Content', // Default reason for now
+                    description: 'User reported via feed interaction'
+                });
 
-            // Check for duplicates
-            const isDuplicate = customRoutines.some((r: any) => r.id === routine.id || (r.title === routine.title && r.creatorId === routine.creatorId));
-
-            if (isDuplicate) {
-                alert('이미 저장된 루틴입니다.');
-                return;
+                if (error) throw error;
+                success('신고가 접수되었습니다. 관리자 검토 후 조치하겠습니다.');
+                setShowMenu(false);
+            } catch (err) {
+                console.error('Report error:', err);
+                toastError('신고 처리 중 오류가 발생했습니다.');
             }
-
-            // Create a copy with a new custom ID if needed
-            const newRoutine = {
-                ...routine,
-                id: routine.id.startsWith('custom-') ? routine.id : `custom-saved-${routine.id}-${Date.now()}`,
-                title: routine.title,
-                isSaved: true,
-                savedFromFeed: true
-            };
-
-            localStorage.setItem('my_custom_routines', JSON.stringify([...customRoutines, newRoutine]));
-            alert('나만의 루틴에 저장되었습니다!');
-        } catch (e) {
-            console.error('Error saving routine:', e);
-            alert('루틴 저장 중 오류가 발생했습니다.');
         }
     };
 
@@ -143,7 +122,6 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                 console.log('Share cancelled');
             }
         } else {
-            // Fallback: copy to clipboard
             navigator.clipboard.writeText(postUrl);
             alert('링크가 복사되었습니다!');
         }
@@ -178,13 +156,19 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
             const { data, error } = await createComment(post.id, user.id, commentText.trim());
 
             if (error) {
-                toastError('댓글 작성 중 오류가 발생했습니다.');
+                toastError(error.message || '댓글 작성 중 오류가 발생했습니다.');
                 return;
             }
 
             if (data) {
-                // Add comment to list
-                setComments([...comments, { ...data, user: { name: user.user_metadata?.name || 'User' } }]);
+                // Add comment to list with avatar
+                setComments([...comments, {
+                    ...data,
+                    user: {
+                        name: user.user_metadata?.name || 'User',
+                        avatar_url: user.user_metadata?.avatar_url
+                    }
+                }]);
                 setCommentText('');
                 success('댓글이 작성되었습니다!');
 
@@ -197,294 +181,189 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     };
 
+    // Determine images to display
+    const images: string[] = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
+        ? post.metadata.images
+        : (post.mediaUrl ? [post.mediaUrl] : []);
+
+    // Video handling (single video for now)
+    const isVideo = post.mediaType === 'video' || (post.mediaUrl && (post.mediaUrl.includes('.mp4') || post.mediaUrl.includes('.mov'))) || post.youtubeUrl;
+
+    const nextImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex(prev => (prev + 1) % images.length);
+    };
+
+    const prevImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length);
+    };
+
     return (
-        <div className="py-6 px-4 sm:px-6 hover:bg-slate-900/30 transition-colors cursor-pointer border-b border-slate-800/50">
-            <div className="flex gap-4">
-                    {/* Avatar */}
-                <div className="flex-shrink-0 pt-1">
-                    <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-slate-800">
-                        {post.userAvatar ? (
-                            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                                <span className="text-white font-bold text-lg">
-                                    {post.userName?.[0]?.toUpperCase() || '?'}
-                                </span>
+        <div className="bg-slate-950 border-b border-slate-900 last:border-0 hover:bg-slate-900/10 transition-colors">
+            <div className="p-4 sm:p-5">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex gap-3 items-center group cursor-pointer" onClick={() => navigate(`/profile/${post.userId}`)}>
+                        <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden ring-2 ring-transparent group-hover:ring-blue-500 transition-all">
+                            {post.userAvatar ? (
+                                <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold">
+                                    {post.userName?.[0]}
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-white text-[15px] group-hover:text-blue-400 transition-colors">{post.userName}</h3>
+                                {post.user?.belt && !post.user?.isInstructor && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 uppercase tracking-wide">
+                                        {post.user.belt}
+                                    </span>
+                                )}
+                                {post.user?.isInstructor && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white flex items-center gap-0.5">
+                                        <Sparkles className="w-2 h-2" />
+                                        인스트럭터
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-slate-500 text-xs">
+                                {formatDistanceToNow(new Date(post.date), { addSuffix: true, locale: ko })}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="relative">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                            className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
+                        >
+                            <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                        {showMenu && (
+                            <div className="absolute right-0 mt-2 w-32 bg-slate-900 rounded-lg shadow-xl border border-slate-800 py-1 z-10">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleReport();
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800"
+                                >
+                                    신고하기
+                                </button>
+                                {post.metadata?.sharedRoutine && (
+                                    <button
+                                        onClick={handleSaveRoutine}
+                                        className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-slate-800 flex items-center gap-2"
+                                    >
+                                        <Save className="w-3 h-3" />
+                                        루틴 저장
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-2">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-bold text-white text-base">{post.userName || 'Unknown User'}</span>
-                                {post.userBelt && (
-                                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 font-medium uppercase tracking-wide">
-                                        {post.userBelt}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-slate-500 text-sm">
-                                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: ko })}
-                                {post.location && !post.location.startsWith('__FEED__') && (
-                                    <>
-                                        <span className="mx-1">·</span>
-                                        <span>{post.location}</span>
-                                    </>
-                                )}
-                            </span>
-                        </div>
-                        <div className="relative">
-                            <button 
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    setShowMenu(!showMenu); 
-                                }}
-                                className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
-                            >
-                                <MoreHorizontal className="w-5 h-5" />
-                            </button>
-                            {showMenu && (
-                                <div 
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-slate-700 py-1 z-50"
-                                >
-                                    <button 
-                                        onClick={() => {
-                                            setShowMenu(false);
-                                            alert('신고 기능은 곧 추가될 예정입니다.');
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 transition-colors"
-                                    >
-                                        게시물 신고
-                                    </button>
-
-                                    <button 
-                                        onClick={() => {
-                                            setShowMenu(false);
-                                            if (confirm('정말 삭제하시겠습니까?')) {
-                                                alert('삭제 기능은 곧 추가될 예정입니다.');
-                                            }
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 transition-colors"
-                                    >
-                                        삭제하기
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
+                <div className="pl-[52px]">
                     {/* Text Body */}
                     <div className="mb-4">
-                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 100 && !isExpanded ? 'line-clamp-4' : ''}`}>
+                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
                             {post.notes}
                         </p>
-                        {post.notes.length > 100 && !isExpanded && (
+                        {post.notes.length > 200 && !isExpanded && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                                className="text-blue-400 text-sm mt-1 hover:text-blue-300 font-medium"
+                                className="text-slate-500 text-sm mt-1 hover:text-slate-300"
                             >
                                 더 보기
                             </button>
                         )}
-                        {isExpanded && post.notes.length > 100 && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
-                                className="text-blue-400 text-sm mt-1 hover:text-blue-300 font-medium"
-                            >
-                                접기
-                            </button>
-                        )}
                     </div>
 
-                    {/* Technique Tags */}
+                    {/* Technique Tags with Search */}
                     {post.techniques && post.techniques.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-4">
                             {post.techniques.map((tech, idx) => (
-                                <span
+                                <button
                                     key={idx}
-                                    className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/search?q=${encodeURIComponent(tech)}`);
+                                    }}
+                                    className="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-blue-400 text-sm font-medium hover:bg-blue-900/20 hover:border-blue-800 transition-colors"
                                 >
                                     #{tech}
-                                </span>
+                                </button>
                             ))}
                         </div>
                     )}
 
-                    {/* Dynamic Content based on Type */}
-                    {post.type === 'level_up' && post.metadata ? (
-                        <div className="mb-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Sparkles className="w-24 h-24 text-yellow-500" />
-                            </div>
-                            <div className="relative z-10">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-bold mb-3">
-                                    <Sparkles className="w-3 h-3" />
-                                    LEVEL UP
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-1">Level {post.metadata.newLevel} 달성!</h3>
-                                <p className="text-slate-400 text-sm mb-3">
-                                    {post.metadata.beltName} 벨트로 한 단계 더 성장했습니다.
-                                </p>
-                                <div className="flex items-center gap-3 text-sm">
-                                    <span className="text-slate-500 line-through">Lv.{post.metadata.oldLevel}</span>
-                                    <span className="text-yellow-500 font-bold">Lv.{post.metadata.newLevel}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : post.type === 'title_earned' && post.metadata ? (
-                        <div className="mb-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Trophy className="w-24 h-24 text-purple-500" />
-                            </div>
-                            <div className="relative z-10">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold mb-3">
-                                    <Trophy className="w-3 h-3" />
-                                    TITLE EARNED
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-1">{post.metadata.titleName}</h3>
-                                <p className="text-slate-400 text-sm">
-                                    {post.metadata.description}
-                                </p>
-                            </div>
-                        </div>
-                    ) : post.type === 'routine' && post.metadata ? (
-                        <div 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (post.metadata?.routineId) {
-                                    navigate(`/routines/${post.metadata.routineId}`);
-                                } else {
-                                    // Fallback for old posts without ID
-                                    alert('이 루틴의 상세 정보를 찾을 수 없습니다.');
-                                }
-                            }}
-                            className="mb-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4 cursor-pointer hover:border-blue-500/50 transition-colors"
-                        >
-                            <div className="flex gap-4 items-start mb-3">
-                                <div className="w-16 h-16 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <Dumbbell className="w-8 h-8 text-blue-500" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-white text-lg leading-tight mb-1">{post.metadata.routineTitle}</h3>
-                                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                                        <span>⏱ {post.metadata.durationMinutes}분</span>
-                                        <span className="text-yellow-500 font-bold">+{post.metadata.xpEarned} XP</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {post.metadata.sharedRoutine && (
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSaveRoutine();
-                                    }}
-                                    className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold rounded-lg border border-blue-500/30 flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    루틴 저장하기
-                                </button>
-                            )}
-                        </div>
-                    ) : post.type === 'sparring' && post.metadata ? (
-                        <div className={`mb-4 border rounded-xl p-4 ${post.metadata.result === 'win' ? 'bg-green-500/5 border-green-500/20' :
-                            post.metadata.result === 'loss' ? 'bg-red-500/5 border-red-500/20' :
-                                'bg-blue-500/5 border-blue-500/20'
-                            }`}>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${post.metadata.result === 'win' ? 'bg-green-500/20 text-green-400' :
-                                    post.metadata.result === 'loss' ? 'bg-red-500/20 text-red-400' :
-                                        'bg-blue-500/20 text-blue-400'
-                                    }`}>
-                                    {post.metadata.result === 'win' ? 'WIN' : post.metadata.result === 'loss' ? 'LOSS' : 'DRAW'}
-                                </span>
-                                <span className="text-xs text-slate-500">{post.metadata.rounds} 라운드</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-slate-400 text-sm">vs</span>
-                                <span className="font-bold text-white">{post.metadata.opponentName}</span>
-                                <span className="text-xs text-slate-500">({post.metadata.opponentBelt})</span>
-                            </div>
-                            
-                            {/* Video if available */}
-                            {post.metadata.videoUrl && (
-                                <div className="mt-3 rounded-lg overflow-hidden border border-slate-700">
-                                    <iframe
-                                        src={getYouTubeEmbedUrl(post.metadata.videoUrl)}
-                                        className="w-full aspect-video"
-                                        frameBorder="0"
-                                        allow="autoplay; fullscreen; picture-in-picture"
-                                        allowFullScreen
-                                    ></iframe>
-                                </div>
-                            )}
-                            
-                            {/* What Worked / To Improve */}
-                            {(post.metadata.whatWorked || post.metadata.whatToImprove) && (
-                                <div className="grid md:grid-cols-2 gap-3 mt-3">
-                                    {post.metadata.whatWorked && (
-                                        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                                </svg>
-                                                <span className="text-xs font-semibold text-green-400">효과적이었던 것</span>
-                                            </div>
-                                            <p className="text-sm text-slate-300">{post.metadata.whatWorked}</p>
-                                        </div>
-                                    )}
-                                    {post.metadata.whatToImprove && (
-                                        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                                <span className="text-xs font-semibold text-blue-400">개선할 점</span>
-                                            </div>
-                                            <p className="text-sm text-slate-300">{post.metadata.whatToImprove}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    ) : (post.mediaUrl || post.youtubeUrl) && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg max-h-[600px]">
-                            {post.mediaType === 'video' || post.youtubeUrl ? (
-                                <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
-                                    <video
-                                        src={post.mediaUrl || post.youtubeUrl}
-                                        className="w-full h-full object-cover"
-                                        loop
-                                        muted={isMuted}
-                                        onClick={togglePlay}
-                                        playsInline
-                                    />
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                                        className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-colors"
-                                    >
-                                        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                                    </button>
-                                    {!isPlaying && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
-                                            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30">
-                                                <Play className="w-8 h-8 text-white ml-1 fill-white" />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
+                    {/* Media Content */}
+                    {images.length > 0 && !isVideo && (
+                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-800 bg-black relative shadow-lg">
+                            <div className="relative w-full">
                                 <img
-                                    src={post.mediaUrl}
-                                    alt="Post content"
-                                    className="w-full h-auto object-cover"
+                                    src={images[currentImageIndex]}
+                                    alt={`Post content ${currentImageIndex + 1}`}
+                                    className="w-full h-auto max-h-[600px] object-cover"
                                 />
-                            )}
+                                {/* Navigation Arrows */}
+                                {images.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={prevImage}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={nextImage}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                            {images.map((_, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`w-1.5 h-1.5 rounded-full transition-colors ${currentImageIndex === idx ? 'bg-white' : 'bg-white/30'}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {isVideo && (
+                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-800 bg-black relative shadow-lg">
+                            <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
+                                <video
+                                    src={post.mediaUrl || post.youtubeUrl}
+                                    className="w-full h-full object-cover"
+                                    loop
+                                    muted={isMuted}
+                                    onClick={togglePlay}
+                                    playsInline
+                                />
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                                    className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-colors"
+                                >
+                                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                </button>
+                                {!isPlaying && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
+                                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30">
+                                            <Play className="w-8 h-8 text-white ml-1 fill-white" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -497,14 +376,14 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             <Heart className={`w-5 h-5 ${liked ? 'fill-pink-500' : ''}`} />
                             <span>{likeCount}</span>
                         </button>
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }}
                             className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors"
                         >
                             <MessageCircle className="w-5 h-5" />
                             <span>{post.comments || 0}</span>
                         </button>
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); handleShare(); }}
                             className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-colors ml-auto"
                         >
@@ -514,29 +393,38 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
                     {/* Comments Section */}
                     {showComments && (
-                        <div className="mt-4 pt-4 border-t border-slate-800">
-                            <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                        <div className="mt-4 pt-4 border-t border-slate-900">
+                            <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-800">
                                 {loadingComments ? (
-                                    <div className="text-sm text-slate-400 text-center py-4">
+                                    <div className="text-sm text-slate-500 text-center py-4">
                                         로딩 중...
                                     </div>
                                 ) : comments.length === 0 ? (
-                                    <div className="text-sm text-slate-400 text-center py-4">
+                                    <div className="text-sm text-slate-500 text-center py-4">
                                         아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
                                     </div>
                                 ) : (
                                     comments.map((comment: any) => (
-                                        <div key={comment.id} className="flex gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-white text-xs font-bold">
-                                                    {comment.user?.name?.[0]?.toUpperCase() || '?'}
-                                                </span>
+                                        <div key={comment.id} className="flex gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                {comment.user?.avatar_url ? (
+                                                    <img src={comment.user.avatar_url} alt="User" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-slate-400 text-xs font-bold">
+                                                        {comment.user?.name?.[0]?.toUpperCase() || '?'}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="flex-1 bg-slate-800/50 rounded-lg px-3 py-2">
-                                                <div className="text-xs text-slate-400 mb-1">
-                                                    {comment.user?.name || 'User'}
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-xs font-bold text-slate-300">
+                                                        {comment.user?.name || 'User'}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500">
+                                                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })}
+                                                    </span>
                                                 </div>
-                                                <div className="text-sm text-slate-200">
+                                                <div className="text-sm text-slate-300 bg-slate-900/50 p-2 rounded-lg rounded-tl-none">
                                                     {comment.content}
                                                 </div>
                                             </div>
@@ -544,7 +432,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     ))
                                 )}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 relative">
                                 <input
                                     type="text"
                                     value={commentText}
@@ -556,7 +444,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         }
                                     }}
                                     placeholder="댓글을 입력하세요..."
-                                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-600 focus:bg-slate-800/80 transition-all"
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 <button
@@ -565,7 +453,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         handleAddComment();
                                     }}
                                     disabled={!commentText.trim()}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap"
                                 >
                                     게시
                                 </button>

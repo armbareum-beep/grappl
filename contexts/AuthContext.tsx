@@ -166,9 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 }
             } else if (event === 'SIGNED_OUT') {
-                // setUser(null); // Ignored for debugging
-                // setLoading(false);
-                console.warn('SIGNED_OUT event received but ignored to prevent crash.');
+                setUser(null);
+                setIsCreator(false);
+                setIsAdmin(false);
+                setIsSubscribed(false);
+                localStorage.removeItem(`user_status_${session?.user?.id}`); // Clear cache if possible, though session might be null
+                setLoading(false);
             }
         });
 

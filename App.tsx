@@ -51,6 +51,8 @@ import { Bundles } from './pages/Bundles';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { Contact } from './pages/Contact';
+import { GlobalSearch } from './pages/GlobalSearch';
+import UserProfile from './pages/UserProfile';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -136,10 +138,12 @@ const App: React.FC = () => {
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                 <Route path="/lessons/:id" element={<LessonDetail />} />
                 <Route path="/instructors" element={<Instructors />} />
+                <Route path="/profile/:userId" element={<UserProfile />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/search" element={<GlobalSearch />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/dashboard" element={

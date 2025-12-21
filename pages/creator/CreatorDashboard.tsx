@@ -256,21 +256,7 @@ export const CreatorDashboard: React.FC = () => {
                                                 </Link>
                                             </div>
 
-                                            {(course.lessonCount || 0) > 0 && (
-                                                <div className="border-t border-slate-800 bg-slate-950/30 px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-hide">
-                                                    <span className="text-xs font-medium text-slate-500 flex-shrink-0">포함된 레슨:</span>
-                                                    {Array.from({ length: Math.min(course.lessonCount || 0, 5) }).map((_, idx) => (
-                                                        <div key={idx} className="flex-shrink-0 px-3 py-1 bg-slate-800 rounded text-xs text-slate-400 border border-slate-700">
-                                                            레슨 {idx + 1}
-                                                        </div>
-                                                    ))}
-                                                    {(course.lessonCount || 0) > 5 && (
-                                                        <span className="text-xs text-slate-500 flex-shrink-0">
-                                                            +{(course.lessonCount || 0) - 5} 더보기
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
+
                                         </div>
                                     ))}
                                 </div>
@@ -468,7 +454,7 @@ export const CreatorDashboard: React.FC = () => {
                                             className={`flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group ${index !== drills.length - 1 ? 'border-b border-slate-800' : ''
                                                 }`}
                                         >
-                                            {drill.vimeoUrl && drill.vimeoUrl.length > 5 && !drill.vimeoUrl.includes('placeholder') ? (
+                                            {((drill.vimeoUrl && (/^\d+$/.test(drill.vimeoUrl) || /vimeo\.com\/(?:video\/)?(\d+)/.test(drill.vimeoUrl))) || (drill.videoUrl && !drill.videoUrl.includes('placeholder') && !drill.videoUrl.includes('placehold.co'))) ? (
                                                 <Link
                                                     to={`/drills/${drill.id}`}
                                                     className="flex items-center gap-4 flex-1 min-w-0 group"

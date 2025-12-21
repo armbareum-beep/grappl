@@ -63,20 +63,24 @@ export const CreatorProfile: React.FC = () => {
         }
 
         setSubmitting(true);
-        const { data, error } = await createFeedbackRequest({
-            studentId: user.id,
-            instructorId: id,
-            videoUrl: videoUrl.trim(),
-            description: description.trim(),
-            price: feedbackSettings.price
-        });
+        try {
+            const { data, error } = await createFeedbackRequest({
+                studentId: user.id,
+                instructorId: id,
+                videoUrl: videoUrl.trim(),
+                description: description.trim(),
+                price: feedbackSettings.price
+            });
 
-        if (error || !data) {
-            alert('요청 중 오류가 발생했습니다.');
-            setSubmitting(false);
-        } else {
+            if (error) throw error;
+            if (!data) throw new Error('데이터가 생성되지 않았습니다.');
+
             // Redirect to checkout
             navigate(`/checkout/feedback/${data.id}`);
+        } catch (error: any) {
+            console.error('Feedback request failed:', error);
+            alert(`요청 중 오류가 발생했습니다: ${error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'}`);
+            setSubmitting(false);
         }
     };
 

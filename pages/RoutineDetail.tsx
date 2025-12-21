@@ -636,7 +636,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             // Fallback to Vimeo iframe
                             <iframe
                                 key={`${currentDrill.id}-${videoType}`}
-                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&background=1`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
                                 className="w-full h-full"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"

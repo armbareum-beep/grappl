@@ -24,7 +24,6 @@ export const MyLibrary: React.FC = () => {
 
   // Routines State
   const [purchasedRoutines, setPurchasedRoutines] = useState<DrillRoutine[]>([]);
-  const [customRoutines, setCustomRoutines] = useState<DrillRoutine[]>([]);
   const [routinesLoading, setRoutinesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +65,6 @@ export const MyLibrary: React.FC = () => {
         if (routinesData.data) {
           setPurchasedRoutines(routinesData.data);
         }
-
-        const localCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-        setCustomRoutines(localCustomRoutines);
       } catch (err: any) {
         console.error('Error fetching user routines:', err);
         setError(err.message || '라이브러리를 불러오는 중 오류가 발생했습니다.');
@@ -128,7 +124,7 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('routines')}
             className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'routines' ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
           >
-            루틴 ({purchasedRoutines.length + customRoutines.length})
+            루틴 ({purchasedRoutines.length})
           </button>
         </div>
 
@@ -187,35 +183,11 @@ export const MyLibrary: React.FC = () => {
 
         {activeTab === 'routines' && (
           <div className="space-y-12">
-            {/* Custom Routines Section */}
-            <div>
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <Dumbbell className="w-6 h-6 text-blue-500" />
-                나만의 커스텀 루틴
-              </h2>
-              {customRoutines.length === 0 ? (
-                <div className="bg-slate-900 rounded-xl p-8 border border-slate-800 text-center">
-                  <p className="text-slate-400 mb-4">아직 생성한 커스텀 루틴이 없습니다.</p>
-                  <Link to="/arena?tab=routines">
-                    <Button variant="outline">
-                      저장된 드릴로 루틴 만들기
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {customRoutines.map((routine) => (
-                    <RoutineCard key={routine.id} routine={routine} isCustom />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Purchased Routines Section */}
+            {/* My Routines Section */}
             <div>
               <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                 <PlaySquare className="w-6 h-6 text-purple-500" />
-                구매한 루틴
+                내 루틴
               </h2>
               {routinesLoading ? (
                 <div className="text-center py-12">
@@ -224,7 +196,7 @@ export const MyLibrary: React.FC = () => {
                 </div>
               ) : purchasedRoutines.length === 0 ? (
                 <div className="bg-slate-900 rounded-xl p-8 border border-slate-800 text-center">
-                  <p className="text-slate-400 mb-4">구매한 루틴이 없습니다.</p>
+                  <p className="text-slate-400 mb-4">보유한 루틴이 없습니다.</p>
                   <Link to="/drills">
                     <Button variant="primary">
                       새로운 루틴 찾아보기

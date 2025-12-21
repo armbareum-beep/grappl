@@ -288,8 +288,8 @@ export const Pricing: React.FC = () => {
 
         <div className="mt-16 text-center">
           <p className="text-slate-500 mb-4">구독이 부담스러우신가요?</p>
-          <Link to="/browse" className="text-blue-600 font-semibold hover:underline">
-            단품 강좌 둘러보기 &rarr;
+          <Link to="/bundles" className="text-blue-600 font-semibold hover:underline">
+            번들 패키지 둘러보기 &rarr;
           </Link>
         </div>
       </div>

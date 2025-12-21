@@ -31,10 +31,15 @@ export default defineConfig({
                     }
                 ]
             }
-        })
+        }),
     ],
+    esbuild: {
+        drop: ['console', 'debugger'],
+    },
     server: {
         port: 8080,
         open: true
     }
 })
+
+// Touch to force reload

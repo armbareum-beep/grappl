@@ -1,16 +1,19 @@
 import React from 'react';
 import { useBackgroundUpload } from '../contexts/BackgroundUploadContext';
-import { Upload, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 
 export const GlobalUploadProgress: React.FC = () => {
-    const { tasks, cancelUpload, retryUpload } = useBackgroundUpload();
+    const { tasks, cancelUpload, retryUpload, dismissTask } = useBackgroundUpload();
+
+    // Filter out dismissed tasks
+    const activeTasks = tasks.filter(task => !task.isDismissed);
 
     // Only show if there are tasks
-    if (tasks.length === 0) return null;
+    if (activeTasks.length === 0) return null;
 
     return (
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80 max-h-[60vh] overflow-y-auto">
-            {tasks.map(task => (
+            {activeTasks.map(task => (
                 <div
                     key={task.id}
                     className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-4 animate-in slide-in-from-bottom-5 duration-300"
@@ -36,8 +39,9 @@ export const GlobalUploadProgress: React.FC = () => {
                             </div>
                         </div>
                         <button
-                            onClick={() => cancelUpload(task.id)}
+                            onClick={() => dismissTask(task.id)}
                             className="text-slate-500 hover:text-white transition-colors"
+                            title="알림 닫기 (업로드는 계속됨)"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -48,11 +52,27 @@ export const GlobalUploadProgress: React.FC = () => {
                         <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
                             <div
                                 className={`h-full transition-all duration-300 ${task.status === 'processing'
-                                        ? 'bg-purple-500 w-full animate-pulse'
-                                        : 'bg-blue-500'
+                                    ? 'bg-purple-500 w-full animate-pulse'
+                                    : 'bg-blue-500'
                                     }`}
                                 style={{ width: task.status === 'uploading' ? `${task.progress}%` : '100%' }}
                             />
+                        </div>
+                    )}
+
+                    {/* Cancel Link during Uploading */}
+                    {task.status === 'uploading' && (
+                        <div className="mt-2 text-[10px] text-slate-500 flex justify-end">
+                            <button
+                                onClick={() => {
+                                    if (confirm('업로드를 정말 취소하시겠습니까?')) {
+                                        cancelUpload(task.id);
+                                    }
+                                }}
+                                className="hover:text-red-400 underline transition-colors"
+                            >
+                                업로드 취소
+                            </button>
                         </div>
                     )}
 

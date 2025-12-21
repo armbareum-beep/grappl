@@ -10,6 +10,7 @@ import { ShareToFeedModal } from '../social/ShareToFeedModal';
 import { createFeedPost } from '../../lib/api';
 import { QuestCompleteModal } from '../QuestCompleteModal';
 import { ErrorScreen } from '../ErrorScreen';
+import { supabase } from '../../lib/supabase';
 
 interface SparringReview {
     id: string;
@@ -140,6 +141,9 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         metadata: Record<string, any>;
     } | null>(null);
 
+    // Subscription State
+    const [isSubscriber, setIsSubscriber] = useState(false);
+
     // Quest Complete Modal State
     const [showQuestModal, setShowQuestModal] = useState(false);
     const [xpEarned, setXpEarned] = useState(0);
@@ -161,12 +165,23 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     //     }
     // }, [shareModalData, showQuestModal, loading]);
 
-    // Load reviews
+    // Load reviews and subscription
     useEffect(() => {
         if (user) {
+            checkSubscription();
             loadReviews();
         }
     }, [user]);
+
+    const checkSubscription = async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from('users')
+            .select('is_subscriber')
+            .eq('id', user.id)
+            .single();
+        setIsSubscriber(data?.is_subscriber || false);
+    };
 
     const loadReviews = async () => {
         if (!user) return;
@@ -213,9 +228,36 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
 
         setLoading(true);
         try {
-            const { createSparringReview, createTrainingLog, updateQuestProgress } = await import('../../lib/api');
+            const { createSparringReview, createTrainingLog, updateQuestProgress, awardTrainingXP, getUserStreak } = await import('../../lib/api');
 
-            // 1. Create sparring review
+            // 1. Award training XP FIRST (before creating log)
+            console.log('Awarding training XP...');
+            let earnedXp = 0;
+            let streak = 0;
+            let bonusXp = 0;
+
+            try {
+                const xpResult = await awardTrainingXP(user.id, 'sparring_review', 20);
+
+                if (xpResult.data) {
+                    if (xpResult.data.alreadyCompletedToday) {
+                        console.log('Already completed training activity today');
+                    } else {
+                        earnedXp = xpResult.data.xpEarned;
+                        streak = xpResult.data.streak;
+                        bonusXp = xpResult.data.bonusXP;
+                    }
+                }
+
+                if (streak === 0) {
+                    const { data: currentStreak } = await getUserStreak(user.id);
+                    if (currentStreak) streak = currentStreak;
+                }
+            } catch (error) {
+                console.error('Error awarding XP:', error);
+            }
+
+            // 2. Create sparring review
             const { data: newReview, error: reviewError } = await createSparringReview({
                 userId: user.id,
                 ...formData
@@ -239,40 +281,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 location: 'Gym'
             }, true); // Skip daily check
 
-            // 3. Award training XP with daily limit and streak bonus
-            console.log('Awarding training XP...');
-            let earnedXp = 0;
-            let streak = 0;
-            let bonusXp = 0;
 
-            try {
-                const { awardTrainingXP } = await import('../../lib/api');
-                const xpResult = await awardTrainingXP(user.id, 'sparring_review', 20);
-
-                if (xpResult.data) {
-                    if (xpResult.data.alreadyCompletedToday) {
-                        // Already completed a training activity today
-                        console.log('Already completed training activity today');
-                        earnedXp = 0;
-                        streak = xpResult.data.streak;
-                    } else {
-                        earnedXp = xpResult.data.xpEarned;
-                        streak = xpResult.data.streak;
-                        bonusXp = xpResult.data.bonusXP;
-                    }
-                }
-
-                // Fallback: If streak is 0 (e.g. first day or error), fetch it directly
-                if (streak === 0) {
-                    const { getUserStreak } = await import('../../lib/api');
-                    const { data: currentStreak } = await getUserStreak(user.id);
-                    if (currentStreak) {
-                        streak = currentStreak;
-                    }
-                }
-            } catch (error) {
-                console.error('Error awarding XP:', error);
-            }
 
             // Also update daily quest progress
             try {
@@ -400,7 +409,7 @@ ${formData.whatWorked ? `✅ 잘된 점: ${formData.whatWorked}` : ''}`;
             </div>
 
             {/* AI Coach Widget */}
-            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} isLocked={true} />
+            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} isLocked={!isSubscriber} />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-4">

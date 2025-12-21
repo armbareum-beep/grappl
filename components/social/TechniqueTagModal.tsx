@@ -8,10 +8,10 @@ interface TechniqueTagModalProps {
 }
 
 const TECHNIQUE_CATEGORIES = {
-    'Guard': ['Closed Guard', 'Half Guard', 'Spider Guard', 'De La Riva', 'Butterfly Guard'],
-    'Pass': ['Knee Cut', 'Torreando', 'Smash Pass', 'Leg Drag', 'Over Under'],
-    'Submission': ['Armbar', 'Triangle Choke', 'Kimura', 'Rear Naked Choke', 'Guillotine'],
-    'Takedown': ['Single Leg', 'Double Leg', 'Arm Drag', 'Collar Drag', 'Tomoe Nage']
+    '가드': ['클로즈 가드', '하프 가드', '스파이더 가드', '델라리바', '버터플라이 가드'],
+    '패스': ['니컷 패스', '토레안도', '스매쉬 패스', '레그 드래그', '오버 언더'],
+    '서브미션': ['암바', '트라이앵글 초크', '키무라', '리어 네이키드 초크', '길로틴'],
+    '테이크다운': ['싱글렉', '더블렉', '암 드래그', '칼라 드래그', '배대뒤치기']
 };
 
 export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTechniques, onSelect, onClose }) => {
@@ -58,14 +58,46 @@ export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTe
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="기술 검색..."
-                            className="w-full bg-slate-800 text-white pl-9 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="기술 검색 또는 직접 입력..."
+                            className="w-full bg-slate-800 text-white pl-9 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-600"
                         />
                     </div>
                 </div>
 
                 {/* List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    {/* Display Custom Added Tags */}
+                    {tempSelected.filter(t => !Object.values(TECHNIQUE_CATEGORIES).flat().includes(t)).length > 0 && (
+                        <div>
+                            <h4 className="text-slate-500 text-xs font-bold uppercase mb-2 px-1">직접 입력</h4>
+                            <div className="space-y-1">
+                                {tempSelected.filter(t => !Object.values(TECHNIQUE_CATEGORIES).flat().includes(t)).map(tech => (
+                                    <button
+                                        key={tech}
+                                        onClick={() => toggleTechnique(tech)}
+                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors bg-slate-700 text-white"
+                                    >
+                                        <span>{tech}</span>
+                                        <Check className="w-4 h-4" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Add New Tag Option */}
+                    {search.trim() && !Object.values(TECHNIQUE_CATEGORIES).flat().some(t => t.toLowerCase() === search.toLowerCase()) && !tempSelected.includes(search.trim()) && (
+                        <button
+                            onClick={() => {
+                                toggleTechnique(search.trim());
+                                setSearch('');
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 transition-colors border border-dashed border-slate-700"
+                        >
+                            <span>+ "{search}" 추가하기</span>
+                        </button>
+                    )}
+
                     {Object.entries(filteredCategories).map(([category, techs]) => (
                         <div key={category}>
                             <h4 className="text-slate-500 text-xs font-bold uppercase mb-2 px-1">{category}</h4>
@@ -75,8 +107,8 @@ export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTe
                                         key={tech}
                                         onClick={() => toggleTechnique(tech)}
                                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${tempSelected.includes(tech)
-                                                ? 'bg-blue-600/20 text-blue-400'
-                                                : 'text-slate-300 hover:bg-slate-800'
+                                            ? 'bg-slate-700 text-white'
+                                            : 'text-slate-300 hover:bg-slate-800'
                                             }`}
                                     >
                                         <span>{tech}</span>
@@ -92,7 +124,7 @@ export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTe
                 <div className="p-4 border-t border-slate-800">
                     <button
                         onClick={handleConfirm}
-                        className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
+                        className="w-full bg-slate-700 text-white py-3 rounded-xl font-bold hover:bg-slate-600 transition-colors"
                     >
                         선택 완료 ({tempSelected.length})
                     </button>

@@ -464,7 +464,7 @@ export const CourseEditor: React.FC = () => {
         <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/creator/courses')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                    <button onClick={() => navigate('/creator')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                         <ArrowLeft className="w-6 h-6 text-slate-400" />
                     </button>
                     <h1 className="text-2xl font-bold text-white">
