@@ -460,12 +460,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </div>
             </div>
 
-            {/* Video Click Overlay (Handles all interactions except buttons) */}
-            <div
-                className="absolute inset-0 z-35"
-                onClick={() => togglePlayPause()}
-            />
-
             {/* Video Container - 9:16 aspect ratio */}
             <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
@@ -495,6 +489,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                             onLoadStart={() => setIsVideoReady(false)}
                         />
                     )}
+
+                    {/* Video Click Overlay - Must be AFTER video/iframe to appear on top */}
+                    <div
+                        className="absolute inset-0 z-30"
+                        onClick={() => togglePlayPause()}
+                    />
 
                     {/* Thumbnail Overlay */}
                     {!isVideoReady && !useVimeo && (
