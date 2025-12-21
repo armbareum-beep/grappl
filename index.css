@@ -1,2 +1,18 @@
   
 html { scroll-padding-top: 8rem; } 
+
+/* Hide Vimeo branding */
+iframe[src*="vimeo.com"] {
+  pointer-events: auto;
+}
+
+/* Force hide Vimeo logo/badge if it appears */
+.vp-badge,
+.vp-logo,
+.vp-share-button,
+[class*="vimeo-logo"],
+[class*="vimeo-badge"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}

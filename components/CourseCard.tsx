@@ -161,7 +161,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                     <div className="absolute inset-0 z-10 bg-black animate-fade-in">
                         <iframe
                             ref={iframeRef}
-                            src={`https://player.vimeo.com/video/${vimeoId}?background=1&muted=1&controls=0`}
+                            src={`https://player.vimeo.com/video/${vimeoId}?background=1&muted=1&controls=0&badge=0&title=0&byline=0&portrait=0&dnt=1`}
                             className="absolute inset-0 w-full h-full pointer-events-none"
                             frameBorder="0"
                             allow="autoplay"
