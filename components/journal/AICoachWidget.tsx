@@ -312,7 +312,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                 AI 코치 분석
                                 {isLocked && <Lock className="w-3 h-3 text-slate-500" />}
                             </h3>
-                            <p className="text-xs text-slate-400">Gemini Pro 기반 플레이 분석</p>
+                            <p className="text-xs text-slate-400">
+                                {isLocked ? 'PRO 멤버십 전용 기능' : 'Gemini Pro 기반 플레이 분석'}
+                            </p>
                         </div>
                     </div>
 
@@ -327,7 +329,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                 }`}
                         >
                             <Sparkles className="w-4 h-4" />
-                            {isLocked ? '잠금됨' : '분석 시작'}
+                            {isLocked ? 'PRO 전용 기능' : '분석 시작'}
                         </button>
                     )}
                 </div>
