@@ -44,7 +44,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
     const [availableRoutines, setAvailableRoutines] = useState<DrillRoutine[]>([]);
 
     const hasRunRef = useRef(false);
-    const { success, error: showError } = useToast();
+    const { success } = useToast();
 
     // Fetch Real Data on Mount
     useEffect(() => {
@@ -54,8 +54,12 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                     getCourses(),
                     getDrillRoutines()
                 ]);
-                if (courses) setAvailableCourses(courses);
-                if (routines.data) setAvailableRoutines(routines.data);
+                if (courses && Array.isArray(courses)) setAvailableCourses(courses);
+                if (routines && (routines as any).data) {
+                    setAvailableRoutines((routines as any).data);
+                } else if (Array.isArray(routines)) {
+                    setAvailableRoutines(routines);
+                }
             } catch (e) {
                 console.error("Failed to fetch recommendation content", e);
             }
@@ -229,7 +233,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                         recommendedRoutine: {
                             id: availableRoutines[0].id,
                             title: availableRoutines[0].title,
-                            difficulty: availableRoutines[0].difficulty,
+                            difficulty: (availableRoutines[0].difficulty as any) || 'Beginner',
                             duration: `${availableRoutines[0].totalDurationMinutes || 10}분`,
                             thumbnail: 'bg-slate-800'
                         }
@@ -250,7 +254,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                 try {
                     const { awardTrainingXP } = await import('../../lib/api');
                     if (logs.length > 0) {
-                        const xpResult = await awardTrainingXP(logs[0].userId, 'sparring_review', 30);
+                        const xpResult = await awardTrainingXP(logs[0].userId, 'sparring_review', 30) as any;
                         if (xpResult?.data?.xpEarned > 0) {
                             success(`AI 분석 완료! +${xpResult.data.xpEarned} XP 획득`);
                         }
@@ -336,7 +340,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                             <Brain className="absolute inset-0 m-auto w-6 h-6 text-indigo-400 animate-pulse" />
                         </div>
                         <p className="text-sm font-medium text-slate-300 animate-pulse">
-                            최근 스파링 데이터를 분석하고 있습니다...
+                            최근 수련 데이터를 분석하고 있습니다...
                         </p>
                     </div>
                 )}
@@ -365,8 +369,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                 >
                                     <div className="flex items-start gap-3 mb-3">
                                         <div className={`p-2 rounded-lg ${result.type === 'strength' ? 'bg-emerald-500/10 text-emerald-400' :
-                                                result.type === 'weakness' ? 'bg-red-500/10 text-red-400' :
-                                                    'bg-blue-500/10 text-blue-400'
+                                            result.type === 'weakness' ? 'bg-red-500/10 text-red-400' :
+                                                'bg-blue-500/10 text-blue-400'
                                             }`}>
                                             {result.type === 'strength' ? <TrendingUpIcon /> :
                                                 result.type === 'weakness' ? <AlertTriangle className="w-5 h-5" /> :
@@ -375,8 +379,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-1">
                                                 <h4 className={`font-bold text-sm ${result.type === 'strength' ? 'text-emerald-400' :
-                                                        result.type === 'weakness' ? 'text-red-400' :
-                                                            'text-blue-400'
+                                                    result.type === 'weakness' ? 'text-red-400' :
+                                                        'text-blue-400'
                                                     }`}>
                                                     {result.message}
                                                 </h4>
@@ -396,9 +400,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                             <div className="bg-slate-900 rounded-lg p-2 flex items-center gap-3 border border-slate-800 hover:border-indigo-500/50 transition-colors group/card cursor-pointer">
                                                 <div
                                                     className="w-10 h-10 rounded bg-slate-800 bg-cover bg-center flex items-center justify-center flex-shrink-0 group-hover/card:scale-105 transition-transform"
-                                                    style={{ backgroundImage: result.recommendedCourse.thumbnail.startsWith('http') ? `url(${result.recommendedCourse.thumbnail})` : undefined }}
+                                                    style={{ backgroundImage: result.recommendedCourse.thumbnail && result.recommendedCourse.thumbnail.startsWith('http') ? `url(${result.recommendedCourse.thumbnail})` : undefined }}
                                                 >
-                                                    {!result.recommendedCourse.thumbnail.startsWith('http') && <PlayCircle className="w-5 h-5 text-white/80" />}
+                                                    {(!result.recommendedCourse.thumbnail || !result.recommendedCourse.thumbnail.startsWith('http')) && <PlayCircle className="w-5 h-5 text-white/80" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-[10px] text-indigo-400 font-bold mb-0.5">추천 강의</div>

@@ -70,10 +70,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             if (iframe && iframe.contentWindow) {
                 const message = playing ? '{"method":"play"}' : '{"method":"pause"}';
                 iframe.contentWindow.postMessage(message, '*');
-
-                // Also ensures volume is synced
-                const volumeMessage = `{"method":"setVolume", "value": ${isMuted ? 0 : 1}}`;
-                iframe.contentWindow.postMessage(volumeMessage, '*');
             }
         } else {
             const video = videoRef.current;
@@ -90,11 +86,17 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     // Auto-play current video and sync state changes
     useEffect(() => {
         applyPlaybackState(isPlaying);
-    }, [currentIndex, isPlaying, currentVideoType, useVimeo, isMuted]);
+    }, [currentIndex, isPlaying, currentVideoType, useVimeo]);
 
-    // Sync volume/muted state for HTML5 video
+    // Sync volume/muted state separately to avoid restarting video
     useEffect(() => {
-        if (videoRef.current && !useVimeo) {
+        if (useVimeo) {
+            const iframe = iframeRef.current;
+            if (iframe && iframe.contentWindow) {
+                const volumeMessage = `{"method":"setVolume", "value": ${isMuted ? 0 : 1}}`;
+                iframe.contentWindow.postMessage(volumeMessage, '*');
+            }
+        } else if (videoRef.current) {
             videoRef.current.muted = isMuted;
         }
     }, [isMuted, useVimeo]);

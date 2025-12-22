@@ -189,12 +189,12 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         id: review.id,
         userId: review.userId,
         date: review.date,
-        durationMinutes: review.rounds * 5,
+        durationMinutes: (review?.rounds || 0) * 5,
         type: 'sparring' as const,
-        notes: `${review.notes} ${review.whatWorked} ${review.whatToImprove}`, // Combine notes for better analysis
-        techniques: review.techniques,
-        sparringRounds: review.rounds,
-        createdAt: review.createdAt,
+        notes: `${review?.notes || ''} ${review?.whatWorked || ''} ${review?.whatToImprove || ''}`, // Combine notes for better analysis
+        techniques: review?.techniques || [],
+        sparringRounds: review?.rounds || 0,
+        createdAt: review?.createdAt || new Date().toISOString(),
         isPublic: false,
         location: 'Gym'
     }));
@@ -388,19 +388,19 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                     <div className="text-2xl font-bold text-green-400 mb-1">
-                        {reviews.filter(r => r.result === 'win').length}
+                        {reviews.filter(r => r?.result === 'win').length}
                     </div>
                     <div className="text-xs text-slate-400">승리</div>
                 </div>
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                     <div className="text-2xl font-bold text-red-400 mb-1">
-                        {reviews.filter(r => r.result === 'loss').length}
+                        {reviews.filter(r => r?.result === 'loss').length}
                     </div>
                     <div className="text-xs text-slate-400">패배</div>
                 </div>
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                     <div className="text-2xl font-bold text-blue-400 mb-1">
-                        {reviews.filter(r => r.result === 'draw').length}
+                        {reviews.filter(r => r?.result === 'draw').length}
                     </div>
                     <div className="text-xs text-slate-400">무승부</div>
                 </div>
@@ -428,8 +428,8 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                                             {review.result === 'win' ? 'W' : review.result === 'loss' ? 'L' : 'D'}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-white">vs {review.opponentName}</div>
-                                            <div className="text-xs text-slate-400">{review.date} • {review.opponentBelt} Belt • {review.rounds} 라운드</div>
+                                            <div className="font-bold text-white">vs {review?.opponentName || 'Unknown'}</div>
+                                            <div className="text-xs text-slate-400">{review?.date} • {review?.opponentBelt} Belt • {review?.rounds || 0} 라운드</div>
                                         </div>
                                     </div>
                                 </div>
@@ -477,7 +477,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                                 </div>
 
                                 {/* Techniques */}
-                                {review.techniques.length > 0 && (
+                                {review?.techniques && review.techniques.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {review.techniques.map((tech, idx) => (
                                             <span key={idx} className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-md border border-slate-700">

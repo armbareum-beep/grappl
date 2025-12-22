@@ -12,7 +12,7 @@ export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
-    You are an expert BJJ (Brazilian Jiu-Jitsu) coach. Analyze the following sparring logs and identify 3 key insights:
+    You are an expert BJJ (Brazilian Jiu-Jitsu) coach. Analyze the following sparring logs to identify 3 key insights:
     1. A Strength (what they are doing well)
     2. A Weakness (what they are struggling with)
     3. A Suggestion (what they should focus on)
