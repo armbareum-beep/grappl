@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Image as ImageIcon, Video, Hash, ChevronDown, Check, Globe, Lock, Sparkles, Plus } from 'lucide-react';
+import { X, Image as ImageIcon, Hash, Globe, Sparkles, Plus, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { TrainingLog } from '../../types';
-import { Button } from '../Button';
 import { TechniqueTagModal } from './TechniqueTagModal';
 import { QuestCompleteModal } from '../QuestCompleteModal';
 import { supabase } from '../../lib/supabase';
@@ -15,7 +14,7 @@ interface CreatePostModalProps {
 
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPostCreated }) => {
     const { user } = useAuth();
-    const { success, error: toastError } = useToast();
+    const { error: toastError } = useToast();
     const [content, setContent] = useState('');
     const [selectedTechniques, setSelectedTechniques] = useState<string[]>([]);
     const [addToJournal, setAddToJournal] = useState(true);
@@ -330,16 +329,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                         <button
                             onClick={() => setAddToJournal(!addToJournal)}
                             className={`px-4 py-2 rounded-full text-xs font-bold transition-all border flex items-center gap-2 ${addToJournal
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                                : 'bg-slate-800 border-slate-700 text-slate-500 hover:bg-slate-700 hover:text-slate-400'
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                                : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-400'
                                 }`}
                         >
-                            {addToJournal ? (
-                                <Check className="w-3.5 h-3.5" />
-                            ) : (
-                                <div className="w-3.5 h-3.5 rounded-full border border-slate-500" />
-                            )}
-                            수련 일지 {addToJournal ? '기록함' : '기록 안함'}
+                            <BookOpen className={`w-3.5 h-3.5 transition-transform ${addToJournal ? 'scale-110' : 'scale-100 opacity-60'}`} />
+                            <span>수련 일지에 기록</span>
+                            <div className={`w-1.5 h-1.5 rounded-full transition-all ${addToJournal ? 'bg-white scale-100' : 'bg-slate-600 scale-50'}`} />
                         </button>
                     </div>
 

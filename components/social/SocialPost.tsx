@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { TrainingLog } from '../../types';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Dumbbell, Save, ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { supabase } from '../../lib/supabase';
 
 interface SocialPostProps {
     post: TrainingLog;
@@ -283,6 +284,52 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         )}
                     </div>
 
+                    {/* Sparring Summary Card (if it's a sparring review) */}
+                    {post.notes.includes('🥋') && post.notes.includes('Sparring Session Summary') && (
+                        <div className="mb-4 p-4 rounded-2xl bg-gradient-to-br from-blue-600/10 to-indigo-600/10 border border-blue-500/20 backdrop-blur-sm shadow-inner group">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Trophy className="w-4 h-4 text-yellow-500" />
+                                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">스파링 요약</span>
+                            </div>
+                            <div className="space-y-2">
+                                {post.notes.split('\n').filter(line => line.includes('vs')).slice(0, 3).map((session, idx) => {
+                                    const match = session.match(/vs (.*?) \((.*?)\): (.*?) rounds - (.*)/);
+                                    if (!match) return null;
+                                    const [_, opponent, belt, rounds, result] = match;
+                                    return (
+                                        <div key={idx} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-200 font-medium">{opponent}</span>
+                                                <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase ${belt === 'black' ? 'bg-black text-white' :
+                                                    belt === 'brown' ? 'bg-amber-900 text-amber-200' :
+                                                        belt === 'purple' ? 'bg-purple-900 text-purple-200' :
+                                                            belt === 'blue' ? 'bg-blue-900 text-blue-200' :
+                                                                'bg-slate-800 text-slate-400'
+                                                    }`}>
+                                                    {belt}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-slate-500 text-xs">{rounds}R</span>
+                                                <span className={`font-bold ${result.includes('승') ? 'text-emerald-400' :
+                                                    result.includes('패') ? 'text-rose-400' :
+                                                        'text-slate-400'
+                                                    }`}>
+                                                    {result}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {post.notes.split('\n').filter(line => line.includes('vs')).length > 3 && (
+                                    <div className="text-[10px] text-slate-500 text-center pt-1 border-t border-white/5">
+                                        외 {post.notes.split('\n').filter(line => line.includes('vs')).length - 3}명의 상대와 더 스파링했습니다
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Technique Tags with Search */}
                     {post.techniques && post.techniques.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -293,7 +340,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         e.stopPropagation();
                                         navigate(`/search?q=${encodeURIComponent(tech)}`);
                                     }}
-                                    className="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-blue-400 text-sm font-medium hover:bg-blue-900/20 hover:border-blue-800 transition-colors"
+                                    className="px-3 py-1.5 rounded-full bg-slate-900/50 border border-slate-800/50 text-blue-400 text-sm font-medium hover:bg-blue-900/20 hover:border-blue-800 transition-all hover:scale-105 active:scale-95"
                                 >
                                     #{tech}
                                 </button>
@@ -303,33 +350,33 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
                     {/* Media Content */}
                     {images.length > 0 && !isVideo && (
-                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-800 bg-black relative shadow-lg">
+                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/media">
                             <div className="relative w-full">
                                 <img
                                     src={images[currentImageIndex]}
                                     alt={`Post content ${currentImageIndex + 1}`}
-                                    className="w-full h-auto max-h-[600px] object-cover"
+                                    className="w-full h-auto max-h-[600px] object-cover transition-transform duration-500 group-hover/media:scale-102"
                                 />
                                 {/* Navigation Arrows */}
                                 {images.length > 1 && (
                                     <>
                                         <button
                                             onClick={prevImage}
-                                            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                                            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition-opacity"
                                         >
                                             <ChevronLeft className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={nextImage}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition-opacity"
                                         >
                                             <ChevronRight className="w-5 h-5" />
                                         </button>
-                                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
                                             {images.map((_, idx) => (
                                                 <div
                                                     key={idx}
-                                                    className={`w-1.5 h-1.5 rounded-full transition-colors ${currentImageIndex === idx ? 'bg-white' : 'bg-white/30'}`}
+                                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${currentImageIndex === idx ? 'bg-white w-4' : 'bg-white/30'}`}
                                                 />
                                             ))}
                                         </div>
@@ -340,7 +387,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     )}
 
                     {isVideo && (
-                        <div className="mb-4 rounded-xl overflow-hidden border border-slate-800 bg-black relative shadow-lg">
+                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/video">
                             <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
                                 <video
                                     src={post.mediaUrl || post.youtubeUrl}
@@ -352,13 +399,13 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                                    className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-colors"
+                                    className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-all scale-90 group-hover/video:scale-100"
                                 >
                                     {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                                 </button>
                                 {!isPlaying && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
-                                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30">
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20 group-hover/video:bg-black/40 transition-colors">
+                                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 transition-transform group-hover/video:scale-110">
                                             <Play className="w-8 h-8 text-white ml-1 fill-white" />
                                         </div>
                                     </div>
@@ -368,24 +415,24 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-6 pt-2">
+                    <div className="flex items-center gap-8 pt-2">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className={`flex items-center gap-2 text-sm font-medium transition-colors ${liked ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
+                            className={`flex items-center gap-2 text-sm font-medium transition-all hover:scale-110 active:scale-90 ${liked ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
                         >
                             <Heart className={`w-5 h-5 ${liked ? 'fill-pink-500' : ''}`} />
                             <span>{likeCount}</span>
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }}
-                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors"
+                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-all hover:scale-110 active:scale-90"
                         >
                             <MessageCircle className="w-5 h-5" />
                             <span>{post.comments || 0}</span>
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-colors ml-auto"
+                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-all hover:scale-110 active:scale-90 ml-auto"
                         >
                             <Share2 className="w-5 h-5" />
                         </button>

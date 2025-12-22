@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '../Button';
 import { TrainingLog } from '../../types';
-import { X, Plus } from 'lucide-react';
+import { X, Hash } from 'lucide-react';
+import { TechniqueTagModal } from '../social/TechniqueTagModal';
 
 interface TrainingLogFormProps {
     onSubmit: (log: Omit<TrainingLog, 'id' | 'createdAt'>) => Promise<void>;
@@ -16,19 +17,12 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     const [sparringRounds, setSparringRounds] = useState(initialData?.sparringRounds || 3);
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [location, setLocation] = useState(initialData?.location || '');
-    const [techniqueInput, setTechniqueInput] = useState('');
     const [techniques, setTechniques] = useState<string[]>(initialData?.techniques || []);
     const [submitting, setSubmitting] = useState(false);
+    const [showTechModal, setShowTechModal] = useState(false);
 
-    const handleAddTechnique = () => {
-        if (techniqueInput.trim()) {
-            setTechniques([...techniques, techniqueInput.trim()]);
-            setTechniqueInput('');
-        }
-    };
-
-    const handleRemoveTechnique = (index: number) => {
-        setTechniques(techniques.filter((_, i) => i !== index));
+    const handleRemoveTechnique = (tech: string) => {
+        setTechniques(techniques.filter(t => t !== tech));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +45,7 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+        <form onSubmit={handleSubmit} className="bg-slate-900 rounded-xl border border-slate-800 p-6 relative">
             <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">날짜</label>
@@ -94,32 +88,33 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
             </div>
 
             <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">배운 기술</label>
-                <div className="flex gap-2 mb-3">
-                    <input
-                        type="text"
-                        value={techniqueInput}
-                        onChange={(e) => setTechniqueInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTechnique())}
-                        placeholder="기술 이름 입력 (예: 암바, 트라이앵글)"
-                        className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                    <Button type="button" onClick={handleAddTechnique} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white">
-                        <Plus className="w-5 h-5" />
+                <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-slate-300">배운 기술</label>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowTechModal(true)}
+                        className="border-slate-700 hover:bg-slate-800 text-blue-400 gap-1.5"
+                    >
+                        <Hash className="w-4 h-4" />
+                        기술 선택
                     </Button>
                 </div>
-                <div className="flex flex-wrap gap-2 min-h-[2.5rem]">
-                    {techniques.length === 0 && (
-                        <p className="text-sm text-slate-500 py-1">아직 등록된 기술이 없습니다.</p>
+
+                <div className="flex flex-wrap gap-2 min-h-[2.5rem] p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                    {techniques.length === 0 ? (
+                        <p className="text-sm text-slate-500 py-1">아직 선택된 기술이 없습니다.</p>
+                    ) : (
+                        techniques.map((tech, index) => (
+                            <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-sm font-medium animate-in zoom-in duration-200">
+                                #{tech}
+                                <button type="button" onClick={() => handleRemoveTechnique(tech)} className="hover:text-blue-300 transition-colors">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </span>
+                        ))
                     )}
-                    {techniques.map((tech, index) => (
-                        <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-sm font-medium">
-                            {tech}
-                            <button type="button" onClick={() => handleRemoveTechnique(index)} className="hover:text-blue-300 transition-colors">
-                                <X className="w-3.5 h-3.5" />
-                            </button>
-                        </span>
-                    ))}
                 </div>
             </div>
 
@@ -144,14 +139,24 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 />
             </div>
 
-
-
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
                 <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white hover:bg-slate-800">취소</Button>
                 <Button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white px-6">
                     {submitting ? '저장 중...' : '저장하기'}
                 </Button>
             </div>
+
+            {/* Technique Selector Modal */}
+            {showTechModal && (
+                <TechniqueTagModal
+                    selectedTechniques={techniques}
+                    onClose={() => setShowTechModal(false)}
+                    onSelect={(selected) => {
+                        setTechniques(selected);
+                        setShowTechModal(false);
+                    }}
+                />
+            )}
         </form>
     );
 };

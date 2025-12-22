@@ -3132,8 +3132,16 @@ export async function updateQuestProgress(
         return { completed: false, xpEarned: 0 };
     }
 
+    // Handle cascading updates for write_log
+    const handleCascadingUpdates = async () => {
+        if (questType === 'complete_routine' || questType === 'sparring_review') {
+            await updateQuestProgress(userId, 'write_log');
+        }
+    };
+
     // Already completed
     if (quest.completed) {
+        await handleCascadingUpdates();
         return { completed: true, xpEarned: 0 };
     }
 
@@ -3153,6 +3161,9 @@ export async function updateQuestProgress(
         console.error('Error updating quest:', updateError);
         return { completed: false, xpEarned: 0 };
     }
+
+    // Trigger cascading update even if this quest was just partially updated
+    await handleCascadingUpdates();
 
     // If completed, award XP
     if (isCompleted) {
