@@ -306,7 +306,7 @@ export interface UserProgress {
   updatedAt: string;
 }
 
-export type QuestType = 'watch_lesson' | 'write_log' | 'tournament' | 'add_skill' | 'play_match' | 'sparring_review' | 'complete_routine' | 'give_feedback';
+export type QuestType = 'write_log' | 'add_skill' | 'play_match' | 'sparring_review' | 'complete_routine' | 'give_feedback';
 
 export interface DailyQuest {
   id: string;

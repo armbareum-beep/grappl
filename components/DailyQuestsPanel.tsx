@@ -1,30 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { getDailyQuests } from '../lib/api';
 import type { DailyQuest } from '../types';
-import { PlayCircle, PenTool, Swords, Target, CheckCircle2, Ticket } from 'lucide-react';
+import { PenTool, Swords, Target, CheckCircle2, Ticket } from 'lucide-react';
 
 interface DailyQuestsPanelProps {
     userId: string;
 }
 
 const QUEST_INFO: Record<string, { icon: React.ElementType; name: string; description: string; color: string }> = {
-    watch_lesson: {
-        icon: PlayCircle,
-        name: '영상 학습',
-        description: '강좌/기술 영상 1개 시청',
-        color: 'text-blue-400'
-    },
     write_log: {
         icon: PenTool,
         name: '수련 일지',
         description: '오늘의 훈련 기록하기',
         color: 'text-emerald-400'
-    },
-    tournament: {
-        icon: Swords,
-        name: '실전 스파링',
-        description: '시합/스파링 3판 완료',
-        color: 'text-red-400'
     },
     add_skill: {
         icon: Target,
@@ -138,8 +126,8 @@ export const DailyQuestsPanel: React.FC<DailyQuestsPanelProps> = ({ userId }) =>
 
             {/* Quest List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative z-10 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent content-start">
-                {quests.map((quest) => {
-                    const info = QUEST_INFO[quest.questType] || { icon: Ticket, name: quest.questType, description: '미션 수행', color: 'text-slate-400' };
+                {quests.filter(q => QUEST_INFO[q.questType]).map((quest) => {
+                    const info = QUEST_INFO[quest.questType];
                     const Icon = info.icon;
                     const isCompleted = quest.completed;
                     const itemProgress = quest.targetCount > 0 ? (quest.currentCount / quest.targetCount) * 100 : 0;

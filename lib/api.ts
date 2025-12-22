@@ -3063,12 +3063,10 @@ export async function getDailyQuests(userId: string): Promise<DailyQuest[]> {
     // If no quests for today, create them
     if (!data || data.length === 0) {
         const questTemplates = [
-            { type: 'watch_lesson', target: 1, reward: 10 },
             { type: 'write_log', target: 1, reward: 20 },
             { type: 'give_feedback', target: 1, reward: 15 },
             { type: 'sparring_review', target: 1, reward: 30 },
-            { type: 'complete_routine', target: 1, reward: 50 },
-            { type: 'tournament', target: 1, reward: 30 }
+            { type: 'complete_routine', target: 1, reward: 50 }
         ];
 
         const newQuests = questTemplates.map(q => ({
@@ -3568,7 +3566,7 @@ export async function getRoutineById(id: string) {
 
     // Transform to match DrillRoutine interface with items
     const routine = {
-        ...data,
+        ...transformDrillRoutine(data),
         creatorName: creatorName,
         drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
             ...transformDrill(item.drill),
@@ -3580,7 +3578,8 @@ export async function getRoutineById(id: string) {
         id: routine.id,
         title: routine.title,
         creatorName: routine.creatorName,
-        drillCount: routine.drills?.length || 0
+        drillCount: routine.drills?.length || 0,
+        totalDuration: routine.totalDurationMinutes
     });
 
     return { data: routine as DrillRoutine, error: null };
@@ -3815,10 +3814,11 @@ function transformDrill(data: any): Drill {
         thumbnailUrl: data.thumbnail_url,
         videoUrl: data.video_url,
         vimeoUrl: data.vimeo_url,
-        descriptionVideoUrl: data.description_video_url, // Added this line
+        descriptionVideoUrl: data.description_video_url,
         aspectRatio: '9:16' as const,
         views: data.views || 0,
         durationMinutes: data.duration_minutes || 0,
+        duration: data.duration || data.length, // Ensure duration is mapped for list display
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
