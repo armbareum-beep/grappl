@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { createRoutine, getDrills, Drill } from '../../lib/api';
-import { VideoCategory, Difficulty } from '../../types';
+import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
+import { VideoCategory, Difficulty, Drill } from '../../types';
 import { Button } from '../../components/Button';
-import { Upload, Image as ImageIcon, DollarSign, Type, AlignLeft, Plus, X, GripVertical } from 'lucide-react';
+import { Image as ImageIcon, DollarSign, Type, AlignLeft } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditMode = !!id;
     const [loading, setLoading] = useState(false);
     const [drills, setDrills] = useState<Drill[]>([]);
     const [selectedDrillIds, setSelectedDrillIds] = useState<string[]>([]);
@@ -30,6 +32,52 @@ export const CreateRoutine: React.FC = () => {
             loadDrills();
         }
     }, [user]);
+
+    useEffect(() => {
+        if (id && user) {
+            loadRoutine();
+        }
+    }, [id, user]);
+
+    const loadRoutine = async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { data, error } = await getRoutineById(id);
+            if (error || !data) {
+                toastError('루틴을 불러오는데 실패했습니다.');
+                navigate('/creator');
+                return;
+            }
+
+            // Verify ownership
+            if (data.creatorId !== user?.id) {
+                toastError('수정 권한이 없습니다.');
+                navigate('/creator');
+                return;
+            }
+
+            setFormData({
+                title: data.title || '',
+                description: data.description || '',
+                price: data.price || 0,
+                thumbnailUrl: data.thumbnailUrl || '',
+                difficulty: data.difficulty || Difficulty.Beginner,
+                category: data.category || VideoCategory.Standing,
+                totalDurationMinutes: data.totalDurationMinutes || 0
+            });
+
+            if (data.drills) {
+                setSelectedDrillIds(data.drills.map(d => d.id));
+            }
+
+        } catch (error) {
+            console.error('Error loading routine:', error);
+            toastError('루틴 정보를 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const loadDrills = async () => {
         if (!user) return;
@@ -90,26 +138,37 @@ export const CreateRoutine: React.FC = () => {
 
         setLoading(true);
         try {
-            const { data, error } = await createRoutine({
-                ...formData,
-                creatorId: user.id,
-                creatorName: user.user_metadata?.name || 'Unknown Creator'
-            }, selectedDrillIds);
+            let result;
+
+            if (isEditMode && id) {
+                result = await updateRoutine(id, {
+                    ...formData,
+                    // Remove fields that shouldn't be updated or are handled separately
+                }, selectedDrillIds);
+            } else {
+                result = await createRoutine({
+                    ...formData,
+                    creatorId: user.id,
+                    creatorName: user.user_metadata?.name || 'Unknown Creator'
+                }, selectedDrillIds);
+            }
+
+            const { data, error } = result;
 
             if (error) {
-                console.error('Routine creation error:', error);
-                toastError(error.message || '루틴 생성 중 오류가 발생했습니다.');
+                console.error('Routine save error:', error);
+                toastError(error.message || `루틴 ${isEditMode ? '수정' : '생성'} 중 오류가 발생했습니다.`);
                 return;
             }
 
             if (!data) {
-                console.error('No data returned from createRoutine');
-                toastError('루틴이 생성되지 않았습니다. 다시 시도해주세요.');
+                console.error('No data returned');
+                toastError(`루틴이 ${isEditMode ? '수정' : '생성'}되지 않았습니다. 다시 시도해주세요.`);
                 return;
             }
 
-            console.log('Routine created successfully:', data);
-            success('루틴이 성공적으로 생성되었습니다!');
+            console.log(`Routine ${isEditMode ? 'updated' : 'created'} successfully:`, data);
+            success(`루틴이 성공적으로 ${isEditMode ? '수정' : '생성'}되었습니다!`);
 
             // Wait a bit for the toast to show before navigating
             setTimeout(() => {
@@ -127,8 +186,8 @@ export const CreateRoutine: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white">새로운 루틴 만들기</h1>
-                <p className="text-slate-400">여러 드릴을 묶어 체계적인 훈련 루틴을 만드세요.</p>
+                <h1 className="text-2xl font-bold text-white">{isEditMode ? '루틴 수정하기' : '새로운 루틴 만들기'}</h1>
+                <p className="text-slate-400">여러 드릴을 묶어 체계적인 훈련 루틴을 {isEditMode ? '수정하세요' : '만드세요'}.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -328,7 +387,7 @@ export const CreateRoutine: React.FC = () => {
                         취소
                     </Button>
                     <Button type="submit" disabled={loading}>
-                        {loading ? '생성 중...' : '루틴 생성하기'}
+                        {loading ? '저장 중...' : (isEditMode ? '루틴 수정하기' : '루틴 생성하기')}
                     </Button>
                 </div>
             </form>

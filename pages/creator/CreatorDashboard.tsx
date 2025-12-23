@@ -318,6 +318,9 @@ export const CreatorDashboard: React.FC = () => {
                                                 </div>
 
                                                 <div className="flex items-center gap-2">
+                                                    <Link to={`/creator/routines/${routine.id}/edit`}>
+                                                        <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-700">관리</Button>
+                                                    </Link>
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"

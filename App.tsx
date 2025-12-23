@@ -123,6 +123,7 @@ const App: React.FC = () => {
                 <Route path="/creator/lessons/new" element={<UploadLesson />} />
                 <Route path="/creator/lessons/:id/edit" element={<UploadLesson />} />
                 <Route path="/creator/create-routine" element={<CreateRoutine />} />
+                <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
                 <Route path="/become-creator" element={<BecomeCreator />} />
                 <Route path="/creator/:id" element={<CreatorProfile />} />
                 <Route path="/library" element={<MyLibrary />} />
