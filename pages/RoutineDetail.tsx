@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, addXP, checkDailyRoutineXP, createTrainingLog, updateQuestProgress, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, getUserLikedDrills, getUserSavedDrills } from '../lib/api';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, getDrillById, createFeedPost, checkDailyRoutineXP, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, ThumbsUp, MessageSquare, Share2, CheckCircle, ChevronRight, Lock, CalendarCheck, Save, Heart, Bookmark, MoreVertical } from 'lucide-react';
+import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Save, Heart, Bookmark, Share2 } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -176,9 +176,9 @@ export const RoutineDetail: React.FC = () => {
         // Always try to fetch fresh data from DB to ensure sync
         try {
             const drillData = await getDrillById(drillId);
-            if (drillData) {
+            if (drillData && !('error' in drillData)) {
                 console.log('Fetched fresh drill data:', drillData);
-                setCurrentDrill(drillData);
+                setCurrentDrill(drillData as Drill);
                 return;
             }
         } catch (e) {
@@ -519,7 +519,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const progress = (completedDrills.size / (routine.drills?.length || 1)) * 100;
 
     // Theme colors based on routine type
-    const themeColor = isCustomRoutine ? 'purple' : 'blue';
+
     const accentColor = isCustomRoutine ? 'text-purple-400' : 'text-blue-400';
     const activeBg = isCustomRoutine ? 'bg-purple-600/20' : 'bg-blue-600/20';
     const activeBorder = isCustomRoutine ? 'border-purple-500/50' : 'border-blue-500/50';
@@ -566,6 +566,37 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const hasVimeo = !!vimeoId;
     const hasDirectVideo = !!directVideoUrl;
     const hasValidVideoUrl = hasDirectVideo || hasVimeo;
+
+    // Calculate total duration if not provided by backend
+    const totalDurationMinutes = useMemo(() => {
+        if (routine?.totalDurationMinutes && routine.totalDurationMinutes > 0) {
+            return routine.totalDurationMinutes;
+        }
+
+        if (!routine?.drills || routine.drills.length === 0) return 0;
+
+        const totalSeconds = routine.drills.reduce((acc, drill) => {
+            if (typeof drill === 'string') return acc;
+
+            // 1. Try numeric durationMinutes
+            if (drill.durationMinutes) {
+                return acc + (drill.durationMinutes * 60);
+            }
+
+            // 2. Try parsing string duration (mm:ss)
+            const durationStr = drill.duration || drill.length;
+            if (durationStr && typeof durationStr === 'string' && durationStr.includes(':')) {
+                const parts = durationStr.split(':').map(Number);
+                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    return acc + (parts[0] * 60 + parts[1]);
+                }
+            }
+
+            return acc;
+        }, 0);
+
+        return Math.ceil(totalSeconds / 60);
+    }, [routine]);
 
     // Allow access if:
     // 1. User owns the routine
@@ -847,7 +878,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         </div>
                         <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            <span>{routine.totalDurationMinutes || 0}분</span>
+                            <span>{totalDurationMinutes}분</span>
                         </div>
                     </div>
                 </div>
