@@ -224,9 +224,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 </div>
             </div>
 
-            {/* Video Type Toggles (Top Center) - Only show if active */}
+            {/* Video Type Toggles (Top Left) - Only show if active */}
             {isActive && (
-                <div className="absolute top-24 left-0 right-0 z-40 flex justify-center pointer-events-none">
+                <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
                     <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
                         <button
                             onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
