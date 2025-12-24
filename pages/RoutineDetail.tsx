@@ -932,10 +932,12 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             <PlayCircle className="w-3 h-3" />
                             <span>{routine.drillCount || routine.drills?.length || 0}개 드릴</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{totalDurationMinutes}분</span>
-                        </div>
+                        {totalDurationMinutes > 0 && (
+                            <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{totalDurationMinutes}분</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -1003,7 +1005,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                                 }`}>
                                                 {drillData?.title || `드릴 ${index + 1}`}
                                             </h5>
-                                            <p className="text-xs text-zinc-500">{drillData?.duration || '0:00'}</p>
+                                            {drillData?.duration && drillData.duration !== '0:00' && (
+                                                <p className="text-xs text-zinc-500">{drillData.duration}</p>
+                                            )}
                                         </div>
                                         {isCurrent && (
                                             <div className="flex-shrink-0">
