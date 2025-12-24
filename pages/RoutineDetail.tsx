@@ -612,6 +612,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const hasDirectVideo = !!directVideoUrl;
     const hasValidVideoUrl = hasDirectVideo || hasVimeo;
 
+    /*
     // Calculate total duration if not provided by backend
     const totalDurationMinutes = useMemo(() => {
         try {
@@ -651,6 +652,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
             return 0;
         }
     }, [routine]);
+    */
 
     // Allow access if:
     // 1. User owns the routine
