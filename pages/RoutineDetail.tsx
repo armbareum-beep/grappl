@@ -57,6 +57,46 @@ export const RoutineDetail: React.FC = () => {
         setVideoType('main');
     }, [currentDrillIndex]);
 
+    // Calculate total duration if not provided by backend
+    const totalDurationMinutes = useMemo(() => {
+        try {
+            if (routine?.totalDurationMinutes && routine.totalDurationMinutes > 0) {
+                return routine.totalDurationMinutes;
+            }
+
+            if (!routine || !routine.drills || !Array.isArray(routine.drills) || routine.drills.length === 0) return 0;
+
+            const totalSeconds = routine.drills.reduce((acc, drill) => {
+                if (!drill || typeof drill === 'string') return acc;
+
+                try {
+                    // 1. Try numeric durationMinutes
+                    if (typeof drill.durationMinutes === 'number') {
+                        return acc + (drill.durationMinutes * 60);
+                    }
+
+                    // 2. Try parsing string duration (mm:ss)
+                    const durationStr = drill.duration || drill.length;
+                    if (durationStr && typeof durationStr === 'string' && durationStr.includes(':')) {
+                        const parts = durationStr.split(':').map(Number);
+                        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                            return acc + (parts[0] * 60 + parts[1]);
+                        }
+                    }
+                } catch (err) {
+                    return acc;
+                }
+
+                return acc;
+            }, 0);
+
+            return Math.ceil(totalSeconds / 60);
+        } catch (e) {
+            console.error('Error calculating run time:', e);
+            return 0;
+        }
+    }, [routine]);
+
     const isCustomRoutine = id?.startsWith('custom-');
 
     useEffect(() => {
