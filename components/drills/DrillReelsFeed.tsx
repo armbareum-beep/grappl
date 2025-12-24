@@ -160,7 +160,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     return (
         <div
             ref={containerRef}
-            className="relative h-screen w-screen bg-black overflow-hidden"
+            className="relative h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] w-full bg-black overflow-hidden overscroll-y-none touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
         >
