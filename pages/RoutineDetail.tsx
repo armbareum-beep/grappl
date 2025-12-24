@@ -60,6 +60,7 @@ export const RoutineDetail: React.FC = () => {
     const isCustomRoutine = id?.startsWith('custom-');
 
     useEffect(() => {
+        console.log('RoutineDetail loaded - Version: CrashFix_v3');
         if (authLoading) return;
         if (id) {
             fetchRoutine();
