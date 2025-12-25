@@ -3514,7 +3514,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
 export async function getSparringVideos(limit = 20, creatorId?: string) {
     let query = supabase
         .from('sparring_videos')
-        .select('*, profiles(*)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 

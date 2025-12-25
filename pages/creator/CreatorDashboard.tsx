@@ -727,34 +727,51 @@ export const CreatorDashboard: React.FC = () => {
                                         {sparringControls.paginatedData.map((video) => (
                                             <div key={video.id} className="border border-slate-800 rounded-lg overflow-hidden hover:border-blue-500/50 transition-all bg-slate-800/50">
                                                 <div className="p-4 flex items-center gap-4">
-                                                    <div className="w-20 h-32 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 relative group">
-                                                        {video.thumbnailUrl ? (
-                                                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                                                                <Clapperboard className="w-8 h-8 text-slate-600" />
+                                                    {video.videoUrl ? (
+                                                        <>
+                                                            <div className="w-20 h-32 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 relative group">
+                                                                {video.thumbnailUrl ? (
+                                                                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                                                                        <Clapperboard className="w-8 h-8 text-slate-600" />
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
 
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="font-bold text-lg text-white truncate">{video.title}</h3>
-                                                        <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 whitespace-nowrap flex-wrap">
-                                                            <span className="flex items-center gap-1">
-                                                                <Eye className="w-4 h-4" />
-                                                                {video.views?.toLocaleString() || 0} 조회
-                                                            </span>
-                                                            <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                                                            <span className="text-slate-400">
-                                                                {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : '-'}
-                                                            </span>
-                                                        </div>
-                                                        {video.relatedItems && video.relatedItems.length > 0 && (
-                                                            <div className="mt-2 text-xs text-blue-400">
-                                                                연관 기술 {video.relatedItems.length}개 태그됨
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="font-bold text-lg text-white truncate">{video.title}</h3>
+                                                                <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 whitespace-nowrap flex-wrap">
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Eye className="w-4 h-4" />
+                                                                        {video.views?.toLocaleString() || 0} 조회
+                                                                    </span>
+                                                                    <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                                                    <span className="text-slate-400">
+                                                                        {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : '-'}
+                                                                    </span>
+                                                                </div>
+                                                                {video.relatedItems && video.relatedItems.length > 0 && (
+                                                                    <div className="mt-2 text-xs text-blue-400">
+                                                                        연관 기술 {video.relatedItems.length}개 태그됨
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-20 h-32 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 flex items-center justify-center text-slate-500">
+                                                                <div className="w-6 h-6 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0 opacity-60">
+                                                                <h3 className="font-bold text-lg text-white truncate">{video.title}</h3>
+                                                                <div className="flex items-center gap-2 mt-2 text-sm text-slate-400">
+                                                                    <span className="text-yellow-500 font-medium">처리 중...</span>
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
 
                                                     <div className="flex items-center gap-2">
                                                         <Button

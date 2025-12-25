@@ -1,4 +1,5 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://grapplay-backend.onrender.com';
+// Use localhost in development, otherwise use environment variable or fallback to production
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3002' : 'https://grapplay-backend.onrender.com');
 
 export interface UploadResponse {
     success: boolean;
