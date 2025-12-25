@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, checkDailyRoutineXP, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
@@ -665,16 +665,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const isPlayable = hasAccess && hasValidVideoUrl;
 
     return (
-        <div className="h-[calc(100vh-64px)] bg-black flex overflow-hidden">
+        <div className="h-[calc(100vh-64px)] bg-black flex flex-col md:flex-row overflow-hidden">
             {/* Left: Video Stage */}
-            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative">
+            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative min-h-0">
                 {/* Ambient Glow */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] ${isCustomRoutine ? 'bg-purple-500/10' : 'bg-blue-500/10'} blur-[120px] rounded-full`}></div>
                 </div>
 
                 {/* Video Player - Full Height 9:16 */}
-                <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10">
+                <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 max-h-full">
                     {/* Video Type Toggle */}
                     {isPlayable && !isTrainingMode && (
                         <div className="absolute top-6 left-6 z-30 flex gap-2">
@@ -724,16 +724,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     )}
 
                     {isTrainingMode ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
-                            <div className="text-slate-400 mb-4 text-lg animate-pulse">Training in Progress...</div>
-                            <div className="text-8xl font-black text-white tabular-nums tracking-wider mb-8 font-mono">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 px-4 text-center">
+                            <div className="text-slate-400 mb-4 text-sm md:text-lg animate-pulse">Training in Progress...</div>
+                            <div className="text-6xl md:text-8xl font-black text-white tabular-nums tracking-wider mb-8 font-mono">
                                 {formatTime(elapsedSeconds)}
                             </div>
                             <Button
                                 onClick={handleFinishTraining}
-                                className={`text-white px-12 py-6 text-xl rounded-full shadow-lg transform hover:scale-105 transition-all bg-gradient-to-r ${buttonGradient}`}
+                                className={`text-white px-8 py-4 md:px-12 md:py-6 text-lg md:text-xl rounded-full shadow-lg transform hover:scale-105 transition-all bg-gradient-to-r ${buttonGradient}`}
                             >
-                                <CheckCircle className="w-6 h-6 mr-3" />
+                                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 mr-3" />
                                 훈련 완료하기
                             </Button>
                         </div>
@@ -781,13 +781,23 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                         : '이 루틴의 모든 드릴을 마스터하세요. \n지금 바로 시작하세요.'}
                                 </p>
                                 {!owns && !isFirstDrill && (
-                                    <Button
-                                        onClick={handlePurchase}
-                                        size="lg"
-                                        className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
-                                    >
-                                        ₩{routine.price.toLocaleString()}에 잠금 해제
-                                    </Button>
+                                    <div className="flex flex-col gap-3 w-full max-w-xs">
+                                        <Button
+                                            onClick={handlePurchase}
+                                            size="lg"
+                                            className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-4 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
+                                        >
+                                            ₩{routine.price.toLocaleString()}에 잠금 해제
+                                        </Button>
+                                        <Link to="/pricing" className="w-full">
+                                            <Button
+                                                variant="secondary"
+                                                className="w-full bg-white/10 hover:bg-white/20 text-white rounded-full px-8 py-3 text-sm border border-white/20 backdrop-blur-md transition-all"
+                                            >
+                                                멤버십 구독으로 전체 보기
+                                            </Button>
+                                        </Link>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -876,7 +886,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
             </div>
 
             {/* Right: Info Panel - Full Height */}
-            <div className="w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full">
+            <div className="w-full md:w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-1/2 md:h-full flex-shrink-0">
                 {/* Header */}
                 <div className="p-6 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md flex-shrink-0">
                     <div className="flex items-center gap-3 mb-4">
@@ -1033,12 +1043,22 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             드릴 완료 & 다음으로
                         </Button>
                     ) : (
-                        <Button
-                            onClick={handlePurchase}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-900/20"
-                        >
-                            ₩{routine.price.toLocaleString()} • 루틴 구매하기
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                            <Button
+                                onClick={handlePurchase}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20"
+                            >
+                                ₩{routine.price.toLocaleString()} • 루틴 구매하기
+                            </Button>
+                            <Link to="/pricing" className="w-full">
+                                <Button
+                                    variant="outline"
+                                    className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 py-3 rounded-xl"
+                                >
+                                    멤버십 구독으로 전체 보기
+                                </Button>
+                            </Link>
+                        </div>
                     )}
                 </div>
             </div>
