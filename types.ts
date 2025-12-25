@@ -172,6 +172,24 @@ export interface TrainingLog {
   };
 }
 
+export interface SparringVideo {
+  id: string;
+  creatorId: string;
+  title: string;
+  description: string;
+  videoUrl: string; // Vimeo ID or full URL
+  thumbnailUrl: string;
+  relatedItems: {
+    type: 'drill' | 'lesson' | 'course';
+    id: string;
+    title: string;
+  }[];
+  views: number;
+  likes: number;
+  creator?: Creator; // Joined creator profile
+  createdAt?: string; // Standardized to camelCase
+}
+
 export interface LogFeedback {
   id: string;
   logId: string;

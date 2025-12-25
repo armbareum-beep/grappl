@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles } from '../lib/api';
-import { Course, Lesson, Creator, Drill } from '../types';
+import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos } from '../lib/api';
+import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
@@ -27,7 +27,8 @@ export const CourseDetail: React.FC = () => {
     const [purchasing, setPurchasing] = useState(false);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
-    const [activeTab, setActiveTab] = useState<'lessons' | 'drills'>('lessons');
+    const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
+    const [activeTab, setActiveTab] = useState<'lessons' | 'drills' | 'sparring'>('lessons');
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -54,6 +55,16 @@ export const CourseDetail: React.FC = () => {
                     }
                 } catch (e) {
                     console.warn('Failed to fetch bundled drills:', e);
+                }
+
+                // Fetch bundled sparring videos
+                try {
+                    const { data: sparringData } = await getCourseSparringVideos(id);
+                    if (sparringData) {
+                        setBundledSparringVideos(sparringData);
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch bundled sparring videos:', e);
                 }
 
                 if (lessonsData.length > 0) {
@@ -215,8 +226,17 @@ export const CourseDetail: React.FC = () => {
     }).format(course.price);
 
     const totalDuration = lessons.reduce((total, lesson) => {
-        const [mins, secs] = lesson.length.split(':').map(Number);
-        return total + mins * 60 + secs;
+        if (!lesson.length) return total;
+
+        // Handle "MM:SS" format
+        if (lesson.length.includes(':')) {
+            const parts = lesson.length.split(':').map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                return total + parts[0] * 60 + parts[1];
+            }
+        }
+
+        return total;
     }, 0);
     const totalHours = Math.floor(totalDuration / 3600);
     const totalMins = Math.floor((totalDuration % 3600) / 60);
@@ -379,6 +399,15 @@ export const CourseDetail: React.FC = () => {
                                         >
                                             보너스 드릴 ({bundledDrills.length})
                                         </button>
+                                        <button
+                                            onClick={() => setActiveTab('sparring')}
+                                            className={`flex-1 py-4 text-sm font-bold text-center transition-colors border-b-2 ${activeTab === 'sparring'
+                                                ? 'border-blue-500 text-blue-400'
+                                                : 'border-transparent text-zinc-400 hover:text-white'
+                                                }`}
+                                        >
+                                            관련 스파링 ({bundledSparringVideos.length})
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="p-4">
@@ -447,7 +476,7 @@ export const CourseDetail: React.FC = () => {
                                             </button>
                                         ))}
                                     </div>
-                                ) : (
+                                ) : activeTab === 'drills' ? (
                                     <div className="divide-y divide-zinc-800">
                                         {bundledDrills.map((drill) => (
                                             <Link
@@ -478,7 +507,50 @@ export const CourseDetail: React.FC = () => {
                                             </Link>
                                         ))}
                                     </div>
-                                )}
+                                ) : activeTab === 'sparring' ? (
+                                    <div className="divide-y divide-zinc-800">
+                                        {bundledSparringVideos.map((video) => (
+                                            <Link
+                                                key={video.id}
+                                                to={`/sparring`}
+                                                state={{ highlightVideoId: video.id }}
+                                                className="block w-full p-4 text-left transition-all hover:bg-zinc-800/50 border-l-4 border-transparent hover:border-zinc-700"
+                                            >
+                                                <div className="flex gap-3">
+                                                    <div className="w-20 h-12 bg-zinc-800 rounded overflow-hidden flex-shrink-0 relative">
+                                                        {video.thumbnailUrl ? (
+                                                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                                <div className="w-4 h-4 bg-zinc-700 rounded-full" />
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                            <div className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                                                                <svg className="w-3 h-3 text-white fill-current" viewBox="0 0 24 24">
+                                                                    <path d="M8 5v14l11-7z" />
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-semibold text-sm text-zinc-300 mb-1 truncate">
+                                                            {video.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                                            <span>{new Date(video.createdAt || '').toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        {bundledSparringVideos.length === 0 && (
+                                            <div className="p-8 text-center text-zinc-500 text-sm">
+                                                등록된 관련 스파링 영상이 없습니다.
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null}
                             </div>
 
                             {/* Purchase Options in Sidebar */}

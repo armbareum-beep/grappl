@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 export interface UploadTask {
     id: string; // Unique ID for this task
     file: File;
-    type: 'action' | 'desc';
+    type: 'action' | 'desc' | 'sparring';
     progress: number;
     status: 'uploading' | 'processing' | 'completed' | 'error';
     error?: string;
@@ -21,7 +21,8 @@ export interface UploadTask {
         description: string;
         drillId?: string; // For drill uploads
         lessonId?: string; // For lesson uploads
-        videoType: 'action' | 'desc';
+        sparringId?: string; // For sparring uploads
+        videoType: 'action' | 'desc' | 'sparring';
     };
 }
 
@@ -29,7 +30,7 @@ interface BackgroundUploadContextType {
     tasks: UploadTask[];
     queueUpload: (
         file: File,
-        type: 'action' | 'desc',
+        type: 'action' | 'desc' | 'sparring',
         processingParams: UploadTask['processingParams']
     ) => Promise<void>;
     retryUpload: (taskId: string) => void;
@@ -45,7 +46,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
     const queueUpload = async (
         file: File,
-        type: 'action' | 'desc',
+        type: 'action' | 'desc' | 'sparring',
         processingParams: UploadTask['processingParams']
     ) => {
         // Create a new task entry
@@ -120,7 +121,8 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                             task.processingParams.description,
                             task.processingParams.drillId,
                             task.processingParams.lessonId,
-                            task.processingParams.videoType
+                            task.processingParams.videoType,
+                            task.processingParams.sparringId
                         )
                             .then(() => {
                                 updateTaskStatus(task.id, 'completed');

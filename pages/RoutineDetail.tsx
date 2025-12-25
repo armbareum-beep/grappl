@@ -1,13 +1,57 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, checkDailyRoutineXP, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, checkDailyRoutineXP, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
+import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Save, Heart, Bookmark, Share2 } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import { useAuth } from '../contexts/AuthContext';
+
+// Internal component for Vimeo tracking
+const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentDrillId: string; videoType: string }> = ({ vimeoId, onProgress, currentDrillId, videoType }) => {
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const playerRef = useRef<Player | null>(null);
+
+    useEffect(() => {
+        if (!iframeRef.current) return;
+
+        let player: Player;
+        try {
+            player = new Player(iframeRef.current);
+            playerRef.current = player;
+
+            player.on('timeupdate', () => {
+                onProgress();
+            });
+        } catch (e) {
+            console.error('Vimeo init error:', e);
+        }
+
+        return () => {
+            if (player) {
+                player.off('timeupdate');
+                // Don't destroy possibly as we are just unmounting logic, iframe stays? 
+                // Actually iframe removes too. destroy() removes the iframe from DOM usually if connected to div, 
+                // but here we wrap existing iframe? No, Player(iframe) wraps it.
+                // Safest to just off events.
+            }
+        };
+    }, [vimeoId, currentDrillId, videoType]);
+
+    return (
+        <iframe
+            ref={iframeRef}
+            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
+            className="w-full h-full"
+            frameBorder="0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+        ></iframe>
+    );
+};
 
 export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -52,9 +96,51 @@ export const RoutineDetail: React.FC = () => {
     // Video type state
     const [videoType, setVideoType] = useState<'main' | 'description'>('main');
 
+    // Watch time tracking
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+
+    const handleProgress = async () => {
+        // Only track for subscribers who DON'T own the routine (settlement logic)
+        // If they own it, no need to pay creator from pool (already paid via purchase)
+        if (!user || owns || !isSubscriber) return;
+        if (!currentDrill) return;
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        // Ignore jumps or pauses (too large gap)
+        if (elapsed > 0 && elapsed < 5) {
+            accumulatedTimeRef.current += elapsed;
+        }
+
+        // Record every 10 seconds
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+
+            try {
+                // Pass currentDrill.id as videoId (assuming drills map to videos mostly one-to-one for settlement)
+                // Or use specific field if needed. API expects videoId or lessonId.
+                await recordWatchTime(user.id, timeToSend, currentDrill.id);
+            } catch (e) {
+                console.warn('Failed to record watch time:', e);
+            }
+        }
+    };
+
     // Reset video type when drill changes
     useEffect(() => {
         setVideoType('main');
+        // Reset tracking on drill change
+        lastTickRef.current = 0;
+        accumulatedTimeRef.current = 0;
     }, [currentDrillIndex]);
 
     // Calculate total duration if not provided by backend
@@ -748,18 +834,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 loop
                                 autoPlay
                                 playsInline
+                                onTimeUpdate={handleProgress}
                             />
                         ) : (
                             // Fallback to Vimeo iframe
-                            <iframe
-                                key={`${currentDrill.id}-${videoType}`}
-                                ref={iframeRef}
-                                src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
-                                className="w-full h-full"
-                                frameBorder="0"
-                                allow="autoplay; fullscreen; picture-in-picture"
-                                allowFullScreen
-                            ></iframe>
+                            <VimeoWrapper
+                                vimeoId={vimeoId!}
+                                onProgress={handleProgress}
+                                currentDrillId={currentDrill.id}
+                                videoType={videoType}
+                            />
                         )
                     ) : (
                         <div className="w-full h-full relative group">

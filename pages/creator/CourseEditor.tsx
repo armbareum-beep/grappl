@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons } from '../../lib/api';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Course, Lesson, VideoCategory, Difficulty, Drill } from '../../types';
+import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
@@ -99,7 +99,7 @@ export const CourseEditor: React.FC = () => {
     const { success, error: toastError } = useToast();
     const isNew = !id || id === 'new';
 
-    const [activeTab, setActiveTab] = useState<'basic' | 'curriculum' | 'drills'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'curriculum' | 'drills' | 'sparring'>('basic');
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
 
@@ -124,6 +124,11 @@ export const CourseEditor: React.FC = () => {
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
     const [loadingDrills, setLoadingDrills] = useState(false);
+
+    // Sparring State
+    const [availableSparringVideos, setAvailableSparringVideos] = useState<SparringVideo[]>([]);
+    const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
+    const [loadingSparringVideos, setLoadingSparringVideos] = useState(false);
 
     // Import Lesson State
     const [showImportModal, setShowImportModal] = useState(false);
@@ -180,6 +185,8 @@ export const CourseEditor: React.FC = () => {
             fetchCourseData(id);
             loadDrills();
             loadBundledDrills();
+            loadSparringVideos();
+            loadBundledSparringVideos();
         }
     }, [id, isNew]);
 
@@ -257,8 +264,79 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
+    const loadSparringVideos = async () => {
+        if (!user) return;
+        setLoadingSparringVideos(true);
+        try {
+            // Fetch all sparring videos by this creator
+            const { data } = await getSparringVideos(50, user.id);
+            if (data) {
+                setAvailableSparringVideos(data);
+            }
+        } catch (error) {
+            console.error('Error loading sparring videos:', error);
+            toastError('스파링 영상 목록을 불러오는데 실패했습니다.');
+        } finally {
+            setLoadingSparringVideos(false);
+        }
+    };
+
+    const loadBundledSparringVideos = async () => {
+        if (!id || isNew) return;
+        try {
+            const { data } = await getCourseSparringVideos(id);
+            if (data) {
+                setBundledSparringVideos(data);
+            }
+        } catch (error) {
+            console.error('Error loading bundled sparring videos:', error);
+        }
+    };
+
+    const toggleSparringBundle = async (video: SparringVideo) => {
+        const isCurrentlyBundled = bundledSparringVideos.some(v => v.id === video.id);
+
+        if (isNew) {
+            // Local state update for new course
+            if (isCurrentlyBundled) {
+                setBundledSparringVideos(prev => prev.filter(v => v.id !== video.id));
+            } else {
+                setBundledSparringVideos(prev => [...prev, video]);
+            }
+            return;
+        }
+
+        // API update for existing course
+        if (!id) return;
+
+        try {
+            if (isCurrentlyBundled) {
+                const { error } = await removeCourseSparringVideo(id, video.id);
+                if (error) throw error;
+                setBundledSparringVideos(prev => prev.filter(v => v.id !== video.id));
+                success('스파링 영상이 제외되었습니다.');
+            } else {
+                const { error } = await addCourseSparringVideo(id, video.id, courseData.title || 'Untitled Course');
+                if (error) throw error;
+                setBundledSparringVideos(prev => [...prev, video]);
+                success('스파링 영상이 추가되었습니다.');
+            }
+        } catch (error) {
+            console.error('Error toggling sparring bundle:', error);
+            toastError('스파링 영상 연결 중 오류가 발생했습니다.');
+        }
+    };
+
+    const [isThumbnailValid, setIsThumbnailValid] = useState(true);
+
     const handleSaveCourse = async () => {
         if (!user) return;
+
+        // Validation: Thumbnail must be valid
+        if (!isThumbnailValid) {
+            toastError('썸네일 이미지가 올바르지 않습니다. 다시 업로드해주세요.');
+            return;
+        }
 
         // Validation: Course must have at least one lesson to be created
         if (isNew && lessons.length === 0) {
@@ -310,6 +388,13 @@ export const CourseEditor: React.FC = () => {
                     if (bundledDrills.length > 0) {
                         for (const drill of bundledDrills) {
                             await addCourseDrillBundle(data.id, drill.id);
+                        }
+                    }
+
+                    // Link bundled sparring videos for the new course
+                    if (bundledSparringVideos.length > 0) {
+                        for (const video of bundledSparringVideos) {
+                            await addCourseSparringVideo(data.id, video.id, data.title);
                         }
                     }
 
@@ -529,6 +614,15 @@ export const CourseEditor: React.FC = () => {
                     >
                         🎁 보너스 드릴
                     </button>
+                    <button
+                        onClick={() => setActiveTab('sparring')}
+                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'sparring'
+                            ? 'border-blue-500 text-blue-400'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        ⚔️ 관련 스파링
+                    </button>
                 </div>
 
                 <div className="p-6">
@@ -632,15 +726,9 @@ export const CourseEditor: React.FC = () => {
                                     <ImageUploader
                                         currentImageUrl={courseData.thumbnailUrl}
                                         onUploadComplete={(url) => setCourseData({ ...courseData, thumbnailUrl: url })}
+                                        onValidityChange={setIsThumbnailValid}
                                     />
                                     <div className="mt-3">
-                                        <button
-                                            type="button"
-                                            onClick={autoCaptureThumbnail}
-                                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                                        >
-                                            첫 번째 레슨에서 자동 캡처
-                                        </button>
                                         <p className="text-xs text-slate-500 mt-2">
                                             썸네일을 업로드하지 않으면 첫 번째 레슨 영상에서 자동으로 캡처됩니다
                                         </p>
@@ -915,6 +1003,80 @@ export const CourseEditor: React.FC = () => {
                                                 <div className="w-16 h-16 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
                                                     {drill.thumbnailUrl && (
                                                         <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ) : activeTab === 'sparring' ? (
+                        <div>
+                            <div className="mb-6">
+                                <h3 className="font-bold text-lg text-white mb-2">관련 스파링 설정</h3>
+                                <p className="text-sm text-slate-400">
+                                    이 강좌와 관련된 스파링 영상을 선택하세요. 선택한 영상은 강좌 상세 페이지에 노출됩니다.
+                                </p>
+                            </div>
+
+                            {bundledSparringVideos.length > 0 && (
+                                <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                                    <h4 className="text-sm font-medium text-blue-400 mb-2">✅ 연결된 스파링 ({bundledSparringVideos.length}개)</h4>
+                                    <div className="space-y-2">
+                                        {bundledSparringVideos.map(video => (
+                                            <div key={video.id} className="flex items-center gap-3 text-sm text-slate-300">
+                                                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                                                <span className="flex-1">{video.title}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {loadingSparringVideos ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    로딩 중...
+                                </div>
+                            ) : availableSparringVideos.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
+                                    등록된 스파링 영상이 없습니다. 먼저 스파링 영상을 올려주세요.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {availableSparringVideos.map(video => {
+                                        const isBundled = bundledSparringVideos.some(v => v.id === video.id);
+                                        return (
+                                            <div
+                                                key={video.id}
+                                                onClick={() => toggleSparringBundle(video)}
+                                                className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${isBundled
+                                                    ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
+                                                    : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${isBundled
+                                                    ? 'bg-blue-500 border-blue-500'
+                                                    : 'border-slate-600 bg-slate-800'
+                                                    }`}>
+                                                    {isBundled && (
+                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-medium text-white truncate">{video.title}</h4>
+                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{video.description}</p>
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                            {new Date(video.createdAt || '').toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-24 h-14 rounded bg-slate-800 flex-shrink-0 overflow-hidden transform transition-transform border border-slate-700">
+                                                    {video.thumbnailUrl && (
+                                                        <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                                                     )}
                                                 </div>
                                             </div>

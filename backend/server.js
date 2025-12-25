@@ -264,15 +264,15 @@ async function logToDB(processId, level, message, details = {}) {
 
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
-    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType } = req.body;
+    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType, sparringId } = req.body;
 
-    // Validate: exactly one of drillId or lessonId must be present
-    if (!drillId && !lessonId) {
-        return res.status(400).json({ error: 'Either drillId or lessonId is required' });
+    // Validate: exactly one of drillId, lessonId, or sparringId must be present
+    const idCount = [drillId, lessonId, sparringId].filter(id => !!id).length;
+    if (idCount === 0) {
+        return res.status(400).json({ error: 'One of drillId, lessonId, or sparringId is required' });
     }
-
-    if (drillId && lessonId) {
-        return res.status(400).json({ error: 'Cannot specify both drillId and lessonId' });
+    if (idCount > 1) {
+        return res.status(400).json({ error: 'Cannot specify multiple content IDs (drill, lesson, sparring)' });
     }
 
     if (!videoId || !filename || !cuts) {
@@ -280,8 +280,9 @@ app.post('/process', async (req, res) => {
     }
 
     const isLesson = !!lessonId;
-    const contentId = isLesson ? lessonId : drillId;
-    const tableName = isLesson ? 'lessons' : 'drills';
+    const isSparring = !!sparringId;
+    const contentId = isLesson ? lessonId : (isSparring ? sparringId : drillId);
+    const tableName = isLesson ? 'lessons' : (isSparring ? 'sparring_videos' : 'drills');
     const processId = uuidv4();
 
     // Immediate response
@@ -513,6 +514,26 @@ app.post('/process', async (req, res) => {
                                 videoType
                             });
                         }
+                    } else if (isSparring) {
+                        // Update sparring_videos table
+                        const { error: updateError } = await supabase.from('sparring_videos')
+                            .update({
+                                video_url: vimeoId, // Note: using video_url specifically for sparring
+                                thumbnail_url: thumbnailUrl
+                            })
+                            .eq('id', sparringId);
+
+                        if (updateError) {
+                            console.error('Supabase Update Error:', updateError);
+                            logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                        } else {
+                            console.log(`Supabase updated for sparring ${sparringId}`);
+                            logToDB(processId, 'info', 'Job Fully Complete', {
+                                sparringId,
+                                vimeoId,
+                                videoType
+                            });
+                        }
                     } else {
                         // Update drills table
                         const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
@@ -566,6 +587,13 @@ app.post('/process', async (req, res) => {
                             thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
                         })
                         .eq('id', lessonId);
+                } else if (isSparring) {
+                    await supabase.from('sparring_videos')
+                        .update({
+                            video_url: 'error',
+                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
+                        })
+                        .eq('id', sparringId);
                 } else {
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     await supabase.from('drills')
@@ -594,6 +622,13 @@ app.post('/process', async (req, res) => {
                             thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error'
                         })
                         .eq('id', lessonId);
+                } else if (isSparring) {
+                    await supabase.from('sparring_videos')
+                        .update({
+                            video_url: `ERROR: ${error.message}`.substring(0, 100),
+                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error'
+                        })
+                        .eq('id', sparringId);
                 } else {
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     await supabase.from('drills')

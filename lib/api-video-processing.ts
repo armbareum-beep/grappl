@@ -153,7 +153,8 @@ export const videoProcessingApi = {
         description: string,
         drillId?: string,
         lessonId?: string,
-        videoType?: 'action' | 'desc'
+        videoType?: 'action' | 'desc' | 'sparring',
+        sparringId?: string
     ): Promise<ProcessResponse> => {
         const requestId = crypto.randomUUID();
 
@@ -172,7 +173,8 @@ export const videoProcessingApi = {
                     description,
                     drillId,
                     lessonId,
-                    videoType
+                    videoType,
+                    sparringId
                 })
             });
 

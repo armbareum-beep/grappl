@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview, Testimonial } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview, Testimonial, SparringVideo } from '../types';
 
 
 // Revenue split constants
@@ -3393,6 +3393,7 @@ export async function createDrill(drillData: Partial<Drill>) {
         vimeo_url: drillData.vimeoUrl,
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
+        length: drillData.length,
     };
 
     let attempts = 0;
@@ -3437,6 +3438,7 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
+    if (drillData.length) dbData.length = drillData.length;
 
     const { data, error } = await supabase
         .from('drills')
@@ -3465,6 +3467,148 @@ export async function deleteDrill(drillId: string) {
     }
 
     return { error: null };
+}
+
+// Sparring Video APIs
+
+function transformSparringVideo(data: any): SparringVideo {
+    return {
+        id: data.id,
+        creatorId: data.creator_id,
+        title: data.title,
+        description: data.description,
+        videoUrl: data.video_url,
+        thumbnailUrl: data.thumbnail_url,
+        relatedItems: data.related_items || [],
+        views: data.views,
+        likes: data.likes,
+        creator: data.profiles ? transformCreator(data.profiles) : undefined,
+        createdAt: data.created_at,
+    };
+}
+
+export async function createSparringVideo(videoData: Partial<SparringVideo>) {
+    const dbData = {
+        creator_id: videoData.creatorId,
+        title: videoData.title,
+        description: videoData.description,
+        video_url: videoData.videoUrl,
+        thumbnail_url: videoData.thumbnailUrl,
+        related_items: videoData.relatedItems,
+    };
+
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .insert(dbData)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating sparring video:', error);
+        return { data: null, error };
+    }
+
+    return { data: transformSparringVideo(data), error: null };
+}
+
+export async function getSparringVideos(limit = 20, creatorId?: string) {
+    let query = supabase
+        .from('sparring_videos')
+        .select('*, profiles(*)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (creatorId) {
+        query = query.eq('creator_id', creatorId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error('Error fetching sparring videos:', error);
+        return { data: null, error };
+    }
+
+    return { data: (data || []).map(transformSparringVideo), error: null };
+}
+
+export async function deleteSparringVideo(id: string) {
+    const { error } = await supabase
+        .from('sparring_videos')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting sparring video:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+export async function getSparringVideoById(id: string) {
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .select('*, profiles(*)')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching sparring video:', error);
+        return { data: null, error };
+    }
+
+    return { data: transformSparringVideo(data), error: null };
+}
+
+export async function updateSparringVideo(id: string, updates: Partial<SparringVideo>) {
+    const dbData: any = {};
+    if (updates.title) dbData.title = updates.title;
+    if (updates.description) dbData.description = updates.description;
+    if (updates.videoUrl) dbData.video_url = updates.videoUrl;
+    if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
+    if (updates.relatedItems) dbData.related_items = updates.relatedItems;
+
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .update(dbData)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating sparring video:', error);
+        return { data: null, error };
+    }
+
+    return { data: transformSparringVideo(data), error: null };
+}
+
+export async function searchDrillsAndLessons(query: string) {
+    if (!query || query.length < 2) return { data: [], error: null };
+
+    // Search Drills
+    const drillsReq = supabase
+        .from('drills')
+        .select('id, title, category')
+        .ilike('title', `%${query}%`)
+        .limit(5);
+
+    // Search Lessons
+    const lessonsReq = supabase
+        .from('lessons')
+        .select('id, title')
+        .ilike('title', `%${query}%`)
+        .limit(5);
+
+    const [drillsRes, lessonsRes] = await Promise.all([drillsReq, lessonsReq]);
+
+    const results = [
+        ...(drillsRes.data || []).map((d: any) => ({ ...d, type: 'drill' })),
+        ...(lessonsRes.data || []).map((l: any) => ({ ...l, type: 'lesson' }))
+    ];
+
+    return { data: results, error: null };
 }
 
 export async function getRoutines(creatorId?: string) {
@@ -5070,6 +5214,96 @@ export async function deleteTestimonial(id: string) {
         .eq('id', id);
 
     return { error };
+}
+
+// ============================================================================
+// Course-Sparring Video Bundles (via related_items)
+// ============================================================================
+
+/**
+ * Get sparring videos related to a course
+ */
+export async function getCourseSparringVideos(courseId: string) {
+    // Queries videos that have this course in related_items JSON array
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .select('*, profiles(*)')
+        .contains('related_items', JSON.stringify([{ type: 'course', id: courseId }]));
+
+    if (error) {
+        console.error('Error fetching course sparring videos:', error);
+        return { data: null, error };
+    }
+
+    return { data: (data || []).map(transformSparringVideo), error: null };
+}
+
+/**
+ * Add a course relation to a sparring video
+ */
+export async function addCourseSparringVideo(courseId: string, sparringId: string, courseTitle: string) {
+    // 1. Get current video to check/append related items
+    const { data: video, error: fetchError } = await supabase
+        .from('sparring_videos')
+        .select('related_items')
+        .eq('id', sparringId)
+        .single();
+
+    if (fetchError) {
+        return { error: fetchError };
+    }
+
+    if (!video) return { error: new Error('Video not found') };
+
+    const currentItems = (video.related_items || []) as any[];
+
+    // Check if already exists to prevent duplicates
+    if (currentItems.some(item => item.type === 'course' && item.id === courseId)) {
+        return { error: null }; // Already linked
+    }
+
+    // Add new relation item
+    const newItems = [
+        ...currentItems,
+        { type: 'course', id: courseId, title: courseTitle }
+    ];
+
+    // 2. Update the video record
+    const { error: updateError } = await supabase
+        .from('sparring_videos')
+        .update({ related_items: newItems })
+        .eq('id', sparringId);
+
+    return { error: updateError };
+}
+
+/**
+ * Remove a course relation from a sparring video
+ */
+export async function removeCourseSparringVideo(courseId: string, sparringId: string) {
+    // 1. Get current video
+    const { data: video, error: fetchError } = await supabase
+        .from('sparring_videos')
+        .select('related_items')
+        .eq('id', sparringId)
+        .single();
+
+    if (fetchError || !video) {
+        return { error: fetchError || new Error('Video not found') };
+    }
+
+    const currentItems = (video.related_items || []) as any[];
+
+    // Filter out the course relation
+    const newItems = currentItems.filter(item => !(item.type === 'course' && item.id === courseId));
+
+    // 2. Update the video record
+    const { error: updateError } = await supabase
+        .from('sparring_videos')
+        .update({ related_items: newItems })
+        .eq('id', sparringId);
+
+    return { error: updateError };
 }
 
 

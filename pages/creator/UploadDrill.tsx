@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, Drill } from '../../types';
 import { createDrill, getDrillById, updateDrill } from '../../lib/api';
+import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, AlertCircle, CheckCircle, Scissors, FileVideo, Trash2 } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
@@ -330,7 +331,7 @@ export const UploadDrill: React.FC = () => {
 
         try {
             // 1. Create OR Update Drill Record
-            const currentDrillId = id || createdDrillId;
+            let currentDrillId = id || createdDrillId;
             let drillId = currentDrillId;
 
             if (!currentDrillId) {
@@ -348,6 +349,7 @@ export const UploadDrill: React.FC = () => {
                     descriptionVideoUrl: '',
                     thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
                     durationMinutes: durationMinutes,
+                    length: formatDuration(totalSeconds),
                 });
                 if (dbError || !drill) throw dbError;
                 drillId = drill.id;
@@ -364,6 +366,7 @@ export const UploadDrill: React.FC = () => {
                 if (actionVideo.cuts) {
                     const totalSeconds = actionVideo.cuts.reduce((acc, cut) => acc + (cut.end - cut.start), 0);
                     updateParams.durationMinutes = Math.floor(totalSeconds / 60);
+                    updateParams.length = formatDuration(totalSeconds);
                 }
 
                 // If a new video is being uploaded, reset the corresponding URL in DB 

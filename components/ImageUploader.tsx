@@ -6,15 +6,18 @@ interface ImageUploaderProps {
     onUploadComplete: (url: string) => void;
     currentImageUrl?: string;
     bucketName?: string;
+    onValidityChange?: (isValid: boolean) => void;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
     onUploadComplete,
     currentImageUrl,
-    bucketName = 'course-thumbnails'
+    bucketName = 'course-thumbnails',
+    onValidityChange
 }) => {
-    const [uploading, setUploading] = useState(false);
+    const [isValid, setIsValid] = useState(true);
     const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
+    const [uploading, setUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +31,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         const reader = new FileReader();
         reader.onloadend = () => {
             setPreviewUrl(reader.result as string);
+            setIsValid(true); // Reset validity on new file
+            onValidityChange?.(true);
         };
         reader.readAsDataURL(file);
 
@@ -91,6 +96,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     const clearPreview = () => {
         setPreviewUrl(null);
+        setIsValid(true);
+        onValidityChange?.(true);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -111,8 +118,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     <img
                         src={previewUrl}
                         alt="Preview"
-                        className="w-full h-48 object-cover rounded-lg border border-slate-700"
+                        className={`w-full h-48 object-cover rounded-lg border ${isValid ? 'border-slate-700' : 'border-red-500 opacity-50'}`}
+                        onError={() => {
+                            setIsValid(false);
+                            onValidityChange?.(false);
+                        }}
+                        onLoad={() => {
+                            setIsValid(true);
+                            onValidityChange?.(true);
+                        }}
                     />
+                    {!isValid && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="bg-red-500/90 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                                이미지 로드 실패
+                            </span>
+                        </div>
+                    )}
                     <button
                         onClick={clearPreview}
                         className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
@@ -128,8 +150,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${dragActive
-                            ? 'border-blue-500 bg-blue-900/20'
-                            : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'
+                        ? 'border-blue-500 bg-blue-900/20'
+                        : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'
                         }`}
                 >
                     <div className="flex flex-col items-center gap-3">

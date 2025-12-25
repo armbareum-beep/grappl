@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Difficulty } from '../../types';
 import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
 import { Button } from '../../components/Button';
+import { formatDuration } from '../../lib/vimeo';
 import { ArrowLeft, Upload, FileVideo, Scissors, Loader } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
@@ -130,17 +131,35 @@ export const UploadLesson: React.FC = () => {
             let lessonId = id;
             let finalVideoId = videoState.videoId;
 
+            // Calculate duration from cuts
+            let durationMinutes = 0;
+            let totalSeconds = 0;
+            if (videoState.cuts && videoState.cuts.length > 0) {
+                totalSeconds = videoState.cuts.reduce((acc, cut) => acc + (cut.end - cut.start), 0);
+                durationMinutes = Math.floor(totalSeconds / 60);
+            } else if (videoState.file) {
+                // If no cuts but file exists, likely full video if we had duration.
+                // But without cuts/metadata loaded we might not know it yet if user skips editor.
+                // However, editor auto-opens.
+            }
+
             // 1. Database Operation
             if (isEditMode && lessonId) {
                 // UPDATE
-                const { error } = await updateLesson(lessonId, {
+                const updatePayload: any = {
                     title: formData.title,
                     description: formData.description,
                     difficulty: formData.difficulty,
                     // Only update video fields if a new video is being uploaded
-                    // If videoState.videoId is set, it means new video prepared
                     vimeoUrl: videoState.videoId ? '' : undefined, // Reset vimeoUrl if new video
-                });
+                };
+
+                if (videoState.videoId) {
+                    updatePayload.durationMinutes = durationMinutes;
+                    updatePayload.length = formatDuration(totalSeconds); // Update length string too
+                }
+
+                const { error } = await updateLesson(lessonId, updatePayload);
                 if (error) throw error;
             } else {
                 // CREATE
@@ -153,8 +172,18 @@ export const UploadLesson: React.FC = () => {
                     description: formData.description,
                     lessonNumber: 1,
                     vimeoUrl: '',
-                    length: 0,
+                    length: formatDuration(totalSeconds), // Passing number, will be formatted inside API or I should format here if API expects string? API logic I wrote: length: String(data.length). So if I pass seconds, it becomes "300". 
+                    // I MUST CHANGE API TO EXPECT STRING OR FORMAT HERE. 
+                    // Let's format here and update API signature to string/number union or just string?
+                    // Better: Update this call to pass formatDuration(totalSeconds) but createLesson expects number currently (based on my read/edit).
+                    // Wait, I updated createLesson signature to accept `length: number` in step 145.
+                    // But inside createLesson I did `length: String(lessonData.length)`.
+                    // So I should pass raw seconds/number to createLesson, AND createLesson should format it? 
+                    // NO, `formatDuration` is in `lib/vimeo`. `api-lessons` might not have it.
+                    // BEST PATH: Update createLesson signature to `length: string | number`.
+                    // AND pass `formatDuration(totalSeconds)` here.
                     difficulty: formData.difficulty,
+                    durationMinutes: durationMinutes,
                 });
                 if (error || !newLesson) throw error || new Error('Failed to create lesson');
                 lessonId = newLesson.id;

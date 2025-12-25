@@ -10,19 +10,21 @@ export async function createLesson(lessonData: {
     description: string;
     lessonNumber: number;
     vimeoUrl: string;
-    length: number;
+    length: string | number;
     difficulty: Difficulty;
+    durationMinutes?: number;
 }) {
     const { data, error } = await supabase
         .from('lessons')
         .insert([{
-            course_id: lessonData.courseId || null, // Allow null for standalone lessons
+            course_id: lessonData.courseId || null,
             title: lessonData.title,
             description: lessonData.description,
             lesson_number: lessonData.lessonNumber,
             vimeo_url: lessonData.vimeoUrl,
-            length: lessonData.length,
+            length: String(lessonData.length), // Ensure string if DB expects it, or number. Types says string.
             difficulty: lessonData.difficulty,
+            duration_minutes: lessonData.durationMinutes,
         }])
         .select()
         .single();
@@ -41,6 +43,7 @@ export async function updateLesson(id: string, updates: Partial<Lesson>) {
             vimeo_url: updates.vimeoUrl,
             length: updates.length,
             difficulty: updates.difficulty,
+            duration_minutes: updates.durationMinutes,
         })
         .eq('id', id)
         .select()

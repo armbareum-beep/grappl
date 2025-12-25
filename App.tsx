@@ -11,6 +11,8 @@ import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { UploadDrill } from './pages/creator/UploadDrill';
 import { UploadLesson } from './pages/creator/UploadLesson';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
+import { UploadSparring } from './pages/creator/UploadSparring';
+import { SparringFeed } from './pages/SparringFeed';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
@@ -135,6 +137,9 @@ const App: React.FC = () => {
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                 <Route path="/arena" element={<Arena />} />
                 <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
+
+                <Route path="/sparring" element={<SparringFeed />} />
+                <Route path="/creator/sparring/new" element={<UploadSparring />} />
 
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                 <Route path="/lessons/:id" element={<LessonDetail />} />
