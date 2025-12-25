@@ -268,10 +268,26 @@ export const CourseEditor: React.FC = () => {
 
         setSaving(true);
 
+        let courseToSave = { ...courseData };
+
+        // Auto-capture thumbnail if missing
+        if (!courseToSave.thumbnailUrl && lessons.length > 0 && lessons[0].vimeoUrl) {
+            try {
+                const videoInfo = await getVimeoVideoInfo(lessons[0].vimeoUrl);
+                if (videoInfo && videoInfo.thumbnail) {
+                    courseToSave.thumbnailUrl = videoInfo.thumbnail;
+                    setCourseData(prev => ({ ...prev, thumbnailUrl: videoInfo.thumbnail }));
+                    success('썸네일이 없어 첫 번째 레슨에서 자동으로 설정되었습니다.');
+                }
+            } catch (error) {
+                console.warn('Auto-thumbnail capture failed:', error);
+            }
+        }
+
         try {
             if (isNew) {
                 const { data, error } = await createCourse({
-                    ...courseData,
+                    ...courseToSave,
                     creatorId: user.id,
                 });
                 if (error) throw error;
@@ -297,14 +313,15 @@ export const CourseEditor: React.FC = () => {
                         }
                     }
 
-                    navigate(`/creator/courses/${data.id}/edit`, { replace: true });
-                    setActiveTab('curriculum');
-                    success('강좌가 개설되었습니다!');
+                    // Redirect to Public Course Page
+                    navigate(`/courses/${data.id}`);
+                    success('강좌가 개설되었습니다! 강좌 페이지로 이동합니다.');
                 }
             } else if (id) {
-                const { error } = await updateCourse(id, courseData);
+                const { error } = await updateCourse(id, courseToSave);
                 if (error) throw error;
-                success('저장되었습니다.');
+                success('저장되었습니다. 강좌 페이지로 이동합니다.');
+                navigate(`/courses/${id}`);
             }
         } catch (error) {
             console.error('Error saving course:', error);

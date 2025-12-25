@@ -77,25 +77,25 @@ export const LandingPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
             {/* Navigation Header */}
-            <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4">
+            <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img
-                            src="/logo_v2_transparent.png"
+                            src="/logo_v2.png"
                             alt="Grapplay"
-                            className="h-14 w-auto object-contain"
+                            className="h-10 md:h-14 w-auto object-contain mix-blend-screen"
                         />
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 md:gap-4">
                         <Button
                             variant="ghost"
-                            className="text-slate-300 hover:text-white hover:bg-white/10"
+                            className="text-slate-300 hover:text-white hover:bg-white/10 text-sm px-3 md:px-4"
                             onClick={() => navigate('/login')}
                         >
                             로그인
                         </Button>
                         <Button
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-6 transition-colors"
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-4 md:px-6 text-sm md:text-base transition-colors"
                             onClick={() => navigate('/pricing')}
                         >
                             시작하기
@@ -105,7 +105,7 @@ export const LandingPage: React.FC = () => {
             </header>
 
             {/* 1. Hero Section */}
-            <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+            <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-0">
                 {/* Cosmic Background */}
                 <div className="absolute inset-0 z-0">
                     <img
@@ -132,7 +132,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="relative z-10 text-center px-4 max-w-5xl mx-auto py-12 md:py-20">
+                <div className="relative z-10 text-center px-4 max-w-5xl mx-auto py-12 md:py-20 mt-10 md:mt-0">
                     {/* Badge */}
                     <div className="inline-block px-4 py-2 mb-8 border border-blue-500/40 rounded-full bg-blue-500/10 backdrop-blur-md">
                         <span className="text-blue-300 text-sm font-semibold tracking-wider uppercase flex items-center gap-2">

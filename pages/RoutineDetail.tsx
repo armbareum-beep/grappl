@@ -657,10 +657,11 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     // Allow access if:
     // 1. User owns the routine
     // 2. User is a premium subscriber
-    // 3. Drill price is 0 (free)
+    // 3. Routine itself is free
     // 4. It is the FIRST drill in the routine (preview)
     const isFirstDrill = currentDrillIndex === 0;
-    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || currentDrill.price === 0 || isFirstDrill;
+    // Fix: Remove currentDrill.price === 0 check to prevent individual free drills from bypassing routine paywall
+    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || (routine?.price === 0) || isFirstDrill;
     const isPlayable = hasAccess && hasValidVideoUrl;
 
     return (
