@@ -55,6 +55,12 @@ async function downloadFile(url, dest) {
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('[DEBUG] Env Loading Check:');
+console.log('SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+console.log('SUPABASE_SERVICE_KEY present:', !!process.env.SUPABASE_SERVICE_KEY);
+console.log('VITE_SUPABASE_ANON_KEY present:', !!process.env.VITE_SUPABASE_ANON_KEY);
+console.log('Selected supabaseKey length:', supabaseKey ? supabaseKey.length : 0);
+
 let supabase = null;
 
 if (!supabaseUrl || !supabaseKey) {
@@ -69,7 +75,7 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const app = express();
-const PORT = process.env.PORT || process.env.BACKEND_PORT || 3002;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3003;
 
 // Middleware (MUST be before routes)
 app.use(cors({
@@ -110,6 +116,60 @@ app.get('/version', (req, res) => {
         }
     });
 });
+
+// Public Sparring API (Bypass RLS for Landing Page)
+app.get('/api/sparring/public', async (req, res) => {
+    try {
+        console.log('[API] Fetching public sparring videos via Service Role');
+
+        // 1. Fetch videos directly (no join)
+        const { data: videos, error: videoError } = await supabase
+            .from('sparring_videos')
+            .select('*')
+            .limit(20)
+            .order('created_at', { ascending: false });
+
+        if (videoError) throw videoError;
+
+        if (!videos || videos.length === 0) {
+            return res.json([]);
+        }
+
+        // 2. Extract creator IDs
+        const creatorIds = [...new Set(videos.map(v => v.creator_id))];
+
+        // 3. Fetch creators manually
+        const { data: creators, error: creatorError } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', creatorIds);
+
+        if (creatorError) {
+            console.warn('Failed to fetch creators for manual join', creatorError);
+            // Return videos without creator info if creator fetch fails
+            return res.json(videos.map(v => ({ ...v, creator: null })));
+        }
+
+        // 4. Map creators to videos
+        const creatorMap = (creators || []).reduce((acc, c) => {
+            acc[c.id] = c;
+            return acc;
+        }, {});
+
+        const joinedData = videos.map(video => ({
+            ...video,
+            creator: creatorMap[video.creator_id] || { name: 'Unknown', profile_image: '' }
+        }));
+
+        res.json(joinedData);
+    } catch (error) {
+        console.error('Failed to fetch public sparring videos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure temp directories exist
 const TEMP_DIR = path.join(__dirname, 'temp');
@@ -359,49 +419,86 @@ app.post('/process', async (req, res) => {
                 logToDB(processId, 'info', 'Using Local File');
             }
 
-            // Step 1: Create segments
-            logToDB(processId, 'info', 'Step 2: Cutting Video', { cuts });
-            const segmentPaths = [];
-            const inputPath = localInputPath;
-
-            for (let i = 0; i < cuts.length; i++) {
-                const cut = cuts[i];
-                const segmentPath = path.join(processDir, `part_${i}.mp4`);
-
-                await new Promise((resolve, reject) => {
-                    ffmpeg(inputPath)
-                        .setStartTime(cut.start)
-                        .setDuration(cut.end - cut.start)
-                        .outputOptions(['-c copy', '-avoid_negative_ts 1'])
-                        .output(segmentPath)
-                        .on('end', resolve)
-                        .on('error', reject)
-                        .run();
-                });
-                segmentPaths.push(segmentPath);
-            }
-            logToDB(processId, 'info', 'Cuts Created');
-
-            // Step 2: Create concat list
-            const concatListPath = path.join(processDir, 'concat_list.txt');
-            const concatFileContent = segmentPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n');
-            fs.writeFileSync(concatListPath, concatFileContent);
-
-            // Step 3: Concat segments
-            logToDB(processId, 'info', 'Step 3: Concatenating');
+            // Start Processing
             const finalPath = path.join(processDir, 'final.mp4');
-            await new Promise((resolve, reject) => {
-                ffmpeg()
-                    .input(concatListPath)
-                    .inputOptions(['-f concat', '-safe 0'])
-                    .outputOptions(['-c copy'])
-                    .output(finalPath)
-                    .on('end', resolve)
-                    .on('error', reject)
-                    .run();
-            });
-            logToDB(processId, 'info', 'Concatenation Complete', { finalPath });
 
+            if (cuts && cuts.length > 0) {
+                // Step 1: Create segments
+                logToDB(processId, 'info', 'Step 2: Cutting Video', { cuts });
+                const segmentPaths = [];
+                const inputPath = localInputPath;
+
+                // Log Input File Stats
+                try {
+                    const stats = fs.statSync(localInputPath);
+                    console.log(`[DEBUG] Input file size: ${stats.size} bytes`);
+                    if (stats.size === 0) throw new Error('Input file is empty (0 bytes)');
+                } catch (e) {
+                    console.error('[DEBUG] Input file error:', e);
+                    throw new Error(`Input file invalid: ${e.message}`);
+                }
+
+                for (let i = 0; i < cuts.length; i++) {
+                    const cut = cuts[i];
+                    const segmentFileName = `part_${i}.mp4`;
+                    const segmentPath = path.join(processDir, segmentFileName);
+
+                    await new Promise((resolve, reject) => {
+                        ffmpeg(inputPath)
+                            .setStartTime(cut.start)
+                            .setDuration(cut.end - cut.start)
+                            .outputOptions(['-c copy', '-avoid_negative_ts 1'])
+                            .output(segmentPath)
+                            .on('end', resolve)
+                            .on('error', (err) => {
+                                console.error(`[DEBUG] Error cutting part ${i}:`, err);
+                                reject(err);
+                            })
+                            .run();
+                    });
+                    segmentPaths.push(segmentFileName); // Store filename only for relative path
+                }
+                logToDB(processId, 'info', 'Cuts Created');
+
+                // Step 2: Create concat list with RELATIVE paths (Debugging)
+                const concatListPath = path.join(processDir, 'concat_list.txt');
+                // FFmpeg concat requires 'file keyword'
+                const concatFileContent = segmentPaths.map(filename => `file '${filename}'`).join('\n');
+
+                console.log('[DEBUG] Concat List Content:\n', concatFileContent);
+                fs.writeFileSync(concatListPath, concatFileContent);
+
+                // Log Segment Stats
+                segmentPaths.forEach(seg => {
+                    try {
+                        const segPath = path.join(processDir, seg);
+                        const stats = fs.statSync(segPath);
+                        console.log(`[DEBUG] Segment ${seg} size: ${stats.size}`);
+                    } catch (e) { console.error(`[DEBUG] Segment ${seg} missing/error`, e); }
+                });
+
+                // Step 3: Concat segments (Using Direct Exec for stability)
+                logToDB(processId, 'info', 'Step 3: Concatenating');
+
+                // Construct command manually to ensure -f concat comes BEFORE -i
+                const ffmpegCmd = `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c copy "${finalPath}"`;
+                console.log('[DEBUG] Manual FFmpeg Command:', ffmpegCmd);
+                logToDB(processId, 'info', 'Exec Command', { ffmpegCmd });
+
+                const execPromise = require('util').promisify(require('child_process').exec);
+                try {
+                    await execPromise(ffmpegCmd);
+                    logToDB(processId, 'info', 'Concatenation Complete', { finalPath });
+                } catch (err) {
+                    console.error('[DEBUG] Manual Exec Error:', err);
+                    throw new Error(`FFmpeg Concat Failed: ${err.message}`);
+                }
+            } else {
+                // No cuts - just copy the original file
+                logToDB(processId, 'info', 'No cuts provided, using original file');
+                console.log('[DEBUG] No cuts provided, copying input to final path');
+                fs.copyFileSync(localInputPath, finalPath);
+            }
 
             // Step 4: Upload to Vimeo with Timeout and Retry
             logToDB(processId, 'info', 'Step 4: Uploading to Vimeo');
@@ -612,6 +709,10 @@ app.post('/process', async (req, res) => {
 
         } catch (error) {
             console.error('Processing failed:', error);
+            try {
+                fs.writeFileSync(path.join(__dirname, 'processing_error.log'), `[${new Date().toISOString()}] ${error.message}\n${error.stack}\n\n`, { flag: 'a' });
+            } catch (e) { console.error('Failed to write error log', e); }
+
             logToDB(processId, 'error', 'Processing Crash', { message: error.message, stack: error.stack });
 
             try {
@@ -645,6 +746,7 @@ app.post('/process', async (req, res) => {
     })();
 });
 
-app.listen(PORT, () => {
+// Start Server
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

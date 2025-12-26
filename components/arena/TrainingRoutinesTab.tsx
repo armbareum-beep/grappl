@@ -119,7 +119,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             createdAt: new Date().toISOString(),
             difficulty: Difficulty.Intermediate,
             category: VideoCategory.Standing,
-            totalDurationMinutes: selectedDrillsList.reduce((acc, curr) => acc + (parseInt(curr.length?.split(':')[0] || '0') || 1), 0)
+            totalDurationMinutes: selectedDrillsList.length // 1 drill = 1 minute rule
         };
 
         const existingCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
@@ -244,27 +244,28 @@ export const TrainingRoutinesTab: React.FC = () => {
     return (
         <div className="space-y-8 min-h-screen">
             {/* Create Routine Section - MOVED TO TOP */}
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-                <div className="flex items-center justify-between mb-6">
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0">
                     <div>
                         <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
-                        <p className="text-slate-400 text-sm">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
+                        <p className="text-slate-400 text-sm break-keep">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
                     </div>
                     {isSelectionMode ? (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full sm:w-auto">
                             <Button
                                 variant="outline"
                                 onClick={() => {
                                     setIsSelectionMode(false);
                                     setSelectedDrills(new Set());
                                 }}
+                                className="flex-1 sm:flex-none"
                             >
                                 취소
                             </Button>
                             <Button
                                 onClick={handleCreateRoutine}
                                 disabled={selectedDrills.size === 0}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
                             >
                                 {selectedDrills.size}개 선택됨 - 루틴 생성
                             </Button>
@@ -272,7 +273,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                     ) : (
                         <Button
                             onClick={() => setIsSelectionMode(true)}
-                            className="bg-slate-800 hover:bg-slate-700"
+                            className="bg-slate-800 hover:bg-slate-700 w-full sm:w-auto whitespace-nowrap"
                         >
                             드릴 선택하기
                         </Button>

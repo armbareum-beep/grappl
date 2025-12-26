@@ -385,6 +385,47 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
     return (data || []).map(transformVideo);
 }
 
+export async function getPublicSparringVideos(): Promise<SparringVideo[]> {
+    try {
+        // Use Backend Proxy to bypass RLS
+        // Use 127.0.0.1 to avoid localhost resolution issues
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const response = await fetch('http://127.0.0.1:3003/api/sparring/public', {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error('Failed to fetch from proxy');
+
+        const data = await response.json();
+
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            creatorId: item.creator_id,
+            title: item.title,
+            description: item.description,
+            videoUrl: item.video_url,
+            thumbnailUrl: item.thumbnail_url,
+            relatedItems: item.related_items || [],
+            views: item.views,
+            likes: item.likes,
+            creator: item.creator ? {
+                id: item.creator_id,
+                name: item.creator.name,
+                profileImage: item.creator.profile_image,
+                bio: '', // minimal data
+                subscriberCount: 0
+            } : undefined,
+            createdAt: item.created_at
+        }));
+    } catch (error) {
+        console.warn('Error fetching sparring_videos via proxy, trying fallback:', error);
+        return [];
+    }
+}
+
 // Increment views
 export async function incrementVideoViews(videoId: string): Promise<void> {
     const { error } = await supabase.rpc('increment_video_views', {
@@ -394,6 +435,71 @@ export async function incrementVideoViews(videoId: string): Promise<void> {
     if (error) {
         console.error('Error incrementing video views:', error);
     }
+}
+
+// Sparring Interactions
+export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
+    // Check if already followed
+    const { data } = await supabase
+        .from('creator_follows')
+        .select('*')
+        .eq('follower_id', userId)
+        .eq('creator_id', creatorId)
+        .maybeSingle();
+
+    if (data) {
+        // Unfollow
+        await supabase
+            .from('creator_follows')
+            .delete()
+            .eq('follower_id', userId)
+            .eq('creator_id', creatorId);
+        return { followed: false };
+    } else {
+        // Follow
+        await supabase
+            .from('creator_follows')
+            .insert({ follower_id: userId, creator_id: creatorId });
+        return { followed: true };
+    }
+}
+
+export async function toggleSparringLike(userId: string, videoId: string): Promise<{ liked: boolean }> {
+    // Check if already liked
+    const { data } = await supabase
+        .from('user_sparring_likes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
+
+    if (data) {
+        // Unlike
+        await supabase
+            .from('user_sparring_likes')
+            .delete()
+            .eq('user_id', userId)
+            .eq('video_id', videoId);
+        return { liked: false };
+    } else {
+        // Like
+        await supabase
+            .from('user_sparring_likes')
+            .insert({ user_id: userId, video_id: videoId });
+        return { liked: true };
+    }
+}
+
+export async function getSparringInteractionStatus(userId: string, videoId: string, creatorId: string) {
+    const [likeData, followData] = await Promise.all([
+        supabase.from('user_sparring_likes').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle(),
+        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle()
+    ]);
+
+    return {
+        liked: !!likeData.data,
+        followed: !!followData.data
+    };
 }
 
 export async function incrementCourseViews(courseId: string): Promise<void> {
@@ -3995,7 +4101,7 @@ function transformDrillRoutine(data: any): DrillRoutine {
         price: data.price,
         difficulty: data.difficulty,
         category: data.category,
-        totalDurationMinutes: data.total_duration_minutes,
+        totalDurationMinutes: data.drill_count, // 1 drill = 1 minute rule
         drillCount: data.drill_count,
         views: data.views || 0,
         createdAt: data.created_at,

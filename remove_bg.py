@@ -9,10 +9,10 @@ def remove_background(input_path, output_path):
 
         newData = []
         for item in datas:
-            # Change all white (also shades of whites)
+            # Change all black (also shades of blacks)
             # to transparent
-            if item[0] > 240 and item[1] > 240 and item[2] > 240:
-                newData.append((255, 255, 255, 0))
+            if item[0] < 30 and item[1] < 30 and item[2] < 30:
+                newData.append((0, 0, 0, 0))
             else:
                 newData.append(item)
 
@@ -23,7 +23,7 @@ def remove_background(input_path, output_path):
         print(f"Error: {e}")
 
 input_path = "public/logo_v2.png"
-output_path = "public/logo_v2_transparent.png"
+output_path = "public/logo_v2_final.png"
 
 if os.path.exists(input_path):
     remove_background(input_path, output_path)

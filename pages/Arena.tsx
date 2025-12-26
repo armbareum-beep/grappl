@@ -57,9 +57,9 @@ export const Arena: React.FC = () => {
                                 BETA
                             </span>
                         </h1>
-                        <p className="text-slate-400 text-sm max-w-xl leading-relaxed">
+                        <p className="text-slate-400 text-sm max-w-xl leading-relaxed break-keep">
                             체계적인 훈련과 데이터 기반의 분석으로 당신의 주짓수를 완성하세요.
-                            <br className="hidden md:block" />
+                            <br className="block" />
                             매일의 루틴이 챔피언을 만듭니다.
                         </p>
                     </div>

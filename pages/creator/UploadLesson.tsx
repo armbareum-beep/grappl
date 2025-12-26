@@ -209,7 +209,7 @@ export const UploadLesson: React.FC = () => {
             }
 
             // 3. Finish
-            navigate('/creator'); // Go back to dashboard to see "Processing"
+            navigate('/creator?tab=materials'); // Go back to dashboard to see "Processing"
 
         } catch (error: any) {
             console.error('Submission error:', error);

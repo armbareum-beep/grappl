@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo } from '../../lib/api';
 import { Course, Drill, Lesson, DrillRoutine, SparringVideo } from '../../types';
@@ -17,6 +17,7 @@ import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [courses, setCourses] = useState<Course[]>([]);
     const [drills, setDrills] = useState<Drill[]>([]);
     const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -24,7 +25,14 @@ export const CreatorDashboard: React.FC = () => {
     const [sparringVideos, setSparringVideos] = useState<SparringVideo[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>('content');
+
+    const initialTab = (searchParams.get('tab') as any) || 'content';
+    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>(initialTab);
+
+    // Sync tab state to URL
+    useEffect(() => {
+        setSearchParams({ tab: activeTab });
+    }, [activeTab, setSearchParams]);
 
     // --- Data Controls Support ---
 
@@ -145,7 +153,34 @@ export const CreatorDashboard: React.FC = () => {
         }
 
         fetchData();
-    }, [user]);
+
+        // Polling for processing items
+        const intervalId = setInterval(() => {
+            // Check if we need to poll (if any active uploads or processing items exist)
+            // For now, simpler to just poll sparring and drills if they have missing URLs
+            // But to avoid slamming the server, we'll just re-fetch sparring and drills every 10s
+            // properly we should check state but state is inside closure of previous render, 
+            // so we rely on the fact that this effect runs once.
+            // Actually, we need to inspect the *current* state to decide to poll, 
+            // or just always poll every 10s while on this page. 
+            // Let's do a lightweight focused fetch every 5s if we detect "processing" items in the last fetch.
+
+            // To be safe and simple: just re-fetch sparring and drills every 10s while dashboard is active.
+            // A more optimized approach would be to only fetch if `sparringVideos.some(v => !v.videoUrl)`
+
+            if (user) {
+                getSparringVideos(100, user.id).then(res => {
+                    if (res.data) setSparringVideos(res.data);
+                });
+                getDrills(user.id).then(res => {
+                    if (res.data) setDrills(res.data);
+                });
+            }
+        }, 5000); // 5 seconds interval
+
+        return () => clearInterval(intervalId);
+
+    }, [user]); // Keeping dependency array minimal to avoid loops
 
     const handleDeleteDrill = async (drillId: string, drillTitle: string) => {
         if (!confirm(`"${drillTitle}" 드릴을 삭제하시겠습니까?`)) return;

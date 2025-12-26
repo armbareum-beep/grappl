@@ -436,14 +436,45 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
 
                                 {/* Video */}
                                 {review.videoUrl && (
-                                    <div className="mb-4 rounded-lg overflow-hidden border border-slate-800">
-                                        <iframe
-                                            src={getYouTubeEmbedUrl(review.videoUrl)}
-                                            className="w-full aspect-video"
-                                            frameBorder="0"
-                                            allow="autoplay; fullscreen; picture-in-picture"
-                                            allowFullScreen
-                                        ></iframe>
+                                    <div className="mb-4 rounded-lg overflow-hidden border border-slate-800 relative bg-black aspect-video">
+                                        {(() => {
+                                            const url = review.videoUrl || '';
+                                            const isVimeo = url.includes('vimeo') || /^\d+$/.test(url);
+
+                                            if (isVimeo) {
+                                                let vimeoId = url;
+                                                // If URL, extract ID
+                                                if (!/^\d+$/.test(url)) {
+                                                    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                                                    vimeoId = match ? match[1] : '';
+                                                }
+
+                                                if (vimeoId) {
+                                                    return (
+                                                        <iframe
+                                                            src={`https://player.vimeo.com/video/${vimeoId}`}
+                                                            className="absolute inset-0 w-full h-full"
+                                                            frameBorder="0"
+                                                            allow="autoplay; fullscreen; picture-in-picture"
+                                                            allowFullScreen
+                                                            title="Vimeo Video"
+                                                        />
+                                                    );
+                                                }
+                                            }
+
+                                            // Fallback to YouTube check
+                                            return (
+                                                <iframe
+                                                    src={getYouTubeEmbedUrl(url)}
+                                                    className="absolute inset-0 w-full h-full"
+                                                    frameBorder="0"
+                                                    allow="autoplay; fullscreen; picture-in-picture"
+                                                    allowFullScreen
+                                                    title="Video"
+                                                />
+                                            );
+                                        })()}
                                     </div>
                                 )}
 

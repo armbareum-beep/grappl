@@ -1,0 +1,67 @@
+[2025-12-26T07:44:23.364Z] ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\87977b0f-74ee-49a4-894e-2c25f38c3542\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+Error: ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\87977b0f-74ee-49a4-894e-2c25f38c3542\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+    at ChildProcess.<anonymous> (C:\Users\armba\Documents\grapplay\backend\node_modules\fluent-ffmpeg\lib\processor.js:180:22)
+    at ChildProcess.emit (node:events:508:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12)
+
+[2025-12-26T07:46:35.980Z] ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\eefcf71c-621e-4941-a0d5-ed32d1ed5cf1\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+Error: ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\eefcf71c-621e-4941-a0d5-ed32d1ed5cf1\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+    at ChildProcess.<anonymous> (C:\Users\armba\Documents\grapplay\backend\node_modules\fluent-ffmpeg\lib\processor.js:180:22)
+    at ChildProcess.emit (node:events:508:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12)
+
+[2025-12-26T07:50:44.748Z] ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\af7868d6-05e1-4dfd-b021-e1ec7a08cac3\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+Error: ffmpeg exited with code 3199971767: Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\af7868d6-05e1-4dfd-b021-e1ec7a08cac3\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+    at ChildProcess.<anonymous> (C:\Users\armba\Documents\grapplay\backend\node_modules\fluent-ffmpeg\lib\processor.js:180:22)
+    at ChildProcess.emit (node:events:508:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12)
+
+[2025-12-26T07:53:58.182Z] FFmpeg Concat Failed: Command failed: "C:\Users\armba\Documents\grapplay\backend\node_modules\ffmpeg-static\ffmpeg.exe" -f concat -safe 0 -i "C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\concat_list.txt" -c copy "C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\final.mp4"
+ffmpeg version 6.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 12.2.0 (Rev10, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --pkg-config=pkgconf --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-ffnvcodec --enable-nvdec --enable-nvenc --enable-dxva2 --enable-d3d11va --enable-libvpl --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+[concat @ 000002867f2b2c00] No files to concat
+[in#0 @ 000002867f2b2a40] Error opening input: Invalid data found when processing input
+Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+Error: FFmpeg Concat Failed: Command failed: "C:\Users\armba\Documents\grapplay\backend\node_modules\ffmpeg-static\ffmpeg.exe" -f concat -safe 0 -i "C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\concat_list.txt" -c copy "C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\final.mp4"
+ffmpeg version 6.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 12.2.0 (Rev10, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --pkg-config=pkgconf --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-ffnvcodec --enable-nvdec --enable-nvenc --enable-dxva2 --enable-d3d11va --enable-libvpl --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+[concat @ 000002867f2b2c00] No files to concat
+[in#0 @ 000002867f2b2a40] Error opening input: Invalid data found when processing input
+Error opening input file C:\Users\armba\Documents\grapplay\backend\temp\processing\06cfa4aa-37c2-453a-925e-987936c28a97\concat_list.txt.
+Error opening input files: Invalid data found when processing input
+
+    at C:\Users\armba\Documents\grapplay\backend\server.js:437:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+

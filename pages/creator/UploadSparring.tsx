@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createSparringVideo, searchDrillsAndLessons } from '../../lib/api';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, Search, X, Plus } from 'lucide-react';
+import { ArrowLeft, Upload, Search, X, Plus, Scissors, CheckCircle, AlertCircle } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { SparringVideo } from '../../types';
+import { VideoEditor } from '../../components/VideoEditor';
 
 export const UploadSparring: React.FC = () => {
     const { user, loading } = useAuth();
@@ -24,6 +25,10 @@ export const UploadSparring: React.FC = () => {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [relatedItems, setRelatedItems] = useState<SparringVideo['relatedItems']>([]);
 
+    // Editor State
+    const [cuts, setCuts] = useState<{ start: number; end: number }[] | null>(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -34,6 +39,9 @@ export const UploadSparring: React.FC = () => {
             const selectedFile = e.target.files[0];
             setFile(selectedFile);
             setPreviewUrl(URL.createObjectURL(selectedFile));
+            // Reset cuts when new file is selected
+            setCuts(null);
+            // Auto open editor? Maybe optional. For now let user click edit.
         }
     };
 
@@ -95,19 +103,46 @@ export const UploadSparring: React.FC = () => {
             await queueUpload(file, 'sparring', {
                 videoId,
                 filename,
-                cuts: [],
+                cuts: cuts || [], // Pass cuts to processor
                 title: `[Sparring] ${title}`,
                 description,
                 sparringId: video.id, // Custom field for sparring handler
                 videoType: 'sparring'
             });
 
-            navigate('/creator');
+            navigate('/creator?tab=materials');
         } catch (err) {
             console.error('Upload failed:', err);
             alert('업로드 중 오류가 발생했습니다.');
         }
     };
+
+    // Render Editor
+    if (isEditorOpen && previewUrl) {
+        return (
+            <div className="min-h-screen bg-slate-950 p-4">
+                <div className="max-w-5xl mx-auto space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white">
+                            스파링 영상 편집
+                        </h2>
+                        <Button variant="secondary" onClick={() => setIsEditorOpen(false)}>
+                            취소
+                        </Button>
+                    </div>
+                    <VideoEditor
+                        videoUrl={previewUrl}
+                        onSave={(newCuts) => {
+                            setCuts(newCuts);
+                            setIsEditorOpen(false);
+                        }}
+                        onCancel={() => setIsEditorOpen(false)}
+                        aspectRatio="16:9"
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-950 text-white p-4 sm:p-6 pb-24">
@@ -126,26 +161,65 @@ export const UploadSparring: React.FC = () => {
                     {/* File Upload */}
                     <div className="aspect-video max-h-[500px] bg-slate-900 border-2 border-dashed border-slate-800 rounded-xl overflow-hidden relative group mx-auto w-full">
                         {previewUrl ? (
-                            <video
-                                src={previewUrl}
-                                className="w-full h-full object-contain"
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                            />
-                        ) : (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
-                                <Upload className="w-10 h-10 mb-2" />
-                                <span className="text-sm">영상 선택 (16:9 가로 권장)</span>
+                            <div className="relative w-full h-full">
+                                <video
+                                    src={previewUrl}
+                                    className="w-full h-full object-contain bg-black"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                />
+                                {/* Overlay Controls */}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-white/90 bg-black/60 p-2 rounded-lg backdrop-blur-sm">
+                                        {cuts ? (
+                                            <>
+                                                <CheckCircle className="w-4 h-4 text-green-400" />
+                                                <span>{cuts.length}개 구간 선택됨</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertCircle className="w-4 h-4 text-yellow-400" />
+                                                <span>원본 전체 업로드 (편집 없음)</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        onClick={() => setIsEditorOpen(true)}
+                                        className="shadow-xl"
+                                    >
+                                        <Scissors className="w-4 h-4 mr-2" />
+                                        {cuts ? '편집 구간 수정하기' : '영상 자르기 / 편집'}
+                                    </Button>
+                                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                                        <Upload className="w-4 h-4" />
+                                        <span>다른 영상으로 교체</span>
+                                        <input
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={handleFileSelect}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
                             </div>
+                        ) : (
+                            <>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 pointer-events-none">
+                                    <Upload className="w-10 h-10 mb-2" />
+                                    <span className="text-sm">영상 선택 (16:9 가로 권장)</span>
+                                </div>
+                                <input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={handleFileSelect}
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                />
+                            </>
                         )}
-                        <input
-                            type="file"
-                            accept="video/*"
-                            onChange={handleFileSelect}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                        />
                     </div>
 
                     {/* Meta Data */}

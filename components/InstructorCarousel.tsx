@@ -28,8 +28,11 @@ export const InstructorCarousel: React.FC = () => {
 
             if (error) throw error;
 
+            // Randomize the data
+            const shuffledData = data ? [...data].sort(() => Math.random() - 0.5) : [];
+
             // Duplicate for infinite scroll (Triple for smoother 33% scroll)
-            const duplicatedData = data ? [...data, ...data, ...data] : [];
+            const duplicatedData = [...shuffledData, ...shuffledData, ...shuffledData];
             setCreators(duplicatedData);
             setLoading(false);
         } catch (error) {
@@ -52,6 +55,7 @@ export const InstructorCarousel: React.FC = () => {
                     <div
                         key={`${creator.id}-${index}`}
                         className="group relative flex-shrink-0 w-[260px] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer"
+                        onClick={() => window.location.href = `/creator/${creator.id}`}
                     >
                         {/* Card Header Background */}
                         <div className="h-24 bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden">
@@ -101,10 +105,6 @@ export const InstructorCarousel: React.FC = () => {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.location.href = `/creator/${creator.id}`;
-                                    }}
                                     className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs font-bold rounded-lg transition-colors"
                                 >
                                     프로필
@@ -121,11 +121,12 @@ export const InstructorCarousel: React.FC = () => {
                     100% { transform: translateX(-33.333%); }
                 }
                 .instructor-scroll-container {
-                    animation: scroll-left 40s linear infinite;
+                    animation: scroll-left 20s linear infinite;
+                    width: max-content;
                 }
                 @media (max-width: 768px) {
                     .instructor-scroll-container {
-                        animation: scroll-left 30s linear infinite;
+                        animation: scroll-left 15s linear infinite;
                     }
                 }
                 .instructor-scroll-container:hover {

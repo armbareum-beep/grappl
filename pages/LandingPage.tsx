@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Play, Shield, Trophy, Star, ChevronRight, Zap, Users, BookOpen, Award, Target, CheckCircle } from 'lucide-react';
+import { Play, Star, ChevronRight, Zap, Users, BookOpen, Award, Clapperboard, Map, Trophy } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
+import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { getTestimonials } from '../lib/api';
 import { Testimonial } from '../types';
 
@@ -81,9 +82,9 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img
-                            src="/logo_v2.png"
+                            src="/logo_v2_final.png"
                             alt="Grapplay"
-                            className="h-10 md:h-14 w-auto object-contain mix-blend-screen"
+                            className="h-10 md:h-14 w-auto object-contain"
                         />
                     </div>
                     <div className="flex items-center gap-2 md:gap-4">
@@ -198,6 +199,9 @@ export const LandingPage: React.FC = () => {
                     <ChevronRight className="w-6 h-6 text-slate-400 rotate-90" />
                 </div>
             </section>
+
+            {/* 1.5 Sparring Showcase Section */}
+            <RandomSparringShowcase />
 
             {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
             <section id="instructors" className="py-16 md:py-32 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
@@ -321,23 +325,27 @@ export const LandingPage: React.FC = () => {
                             </h2>
 
                             <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed break-keep">
-                                수련일지를 쓰고, 퀘스트를 완료하고, 랭킹을 올리세요. <br className="hidden md:block" />
-                                아레나 시스템이 당신의 주짓수 여정을 <br className="md:hidden" />
-                                RPG 게임처럼 재미있게 만들어드립니다.
+                                수련일지, 훈련루틴, 테크닉로드맵, 스파링복기. <br className="hidden md:block" />
+                                이 4가지 강력한 도구가 당신의 주짓수 성장을 <br className="md:hidden" />
+                                체계적으로 돕습니다.
                             </p>
 
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
-                                    <Target className="w-5 h-5 text-blue-400" />
-                                    <span className="font-medium">전투력 측정</span>
+                            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
+                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                                    <BookOpen className="w-4 h-4 text-blue-400" />
+                                    <span className="font-medium text-sm">수련일지</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
-                                    <Trophy className="w-5 h-5 text-purple-400" />
-                                    <span className="font-medium">랭킹 시스템</span>
+                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                                    <Zap className="w-4 h-4 text-yellow-400" />
+                                    <span className="font-medium text-sm">훈련루틴</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-slate-400 bg-slate-800/50 px-5 py-3 rounded-xl border border-slate-700">
-                                    <Zap className="w-5 h-5 text-yellow-400" />
-                                    <span className="font-medium">오늘의 훈련</span>
+                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                                    <Map className="w-4 h-4 text-green-400" />
+                                    <span className="font-medium text-sm">테크닉로드맵</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                                    <Clapperboard className="w-4 h-4 text-red-400" />
+                                    <span className="font-medium text-sm">스파링복기</span>
                                 </div>
                             </div>
 

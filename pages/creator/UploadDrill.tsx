@@ -423,9 +423,9 @@ export const UploadDrill: React.FC = () => {
                 });
             }
 
-            // 3. Navigate Immediately to Detail Page
-            setSubmissionProgress('완료! 드릴 페이지로 이동합니다.');
-            navigate(`/drills/${drillId}`);
+            // 3. Navigate Immediately to Dashboard (Materials Tab)
+            setSubmissionProgress('완료! 대시보드로 이동합니다.');
+            navigate('/creator?tab=materials');
 
         } catch (err: any) {
             console.error(err);
