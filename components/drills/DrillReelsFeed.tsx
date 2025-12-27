@@ -177,8 +177,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 </div>
             </div>
 
-            {/* Sliding Window Rendering */}
-            {[-1, 0, 1].map(offset => {
+            {/* Sliding Window Rendering - Expanded for better prefetch */}
+            {[-2, -1, 0, 1, 2].map(offset => {
                 const index = currentIndex + offset;
                 if (index < 0 || index >= drills.length) return null;
 
