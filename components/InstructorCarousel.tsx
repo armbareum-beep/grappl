@@ -8,6 +8,7 @@ interface Creator {
     bio: string;
     profile_image: string;
     subscriber_count: number;
+    course_count: number;
 }
 
 export const InstructorCarousel: React.FC = () => {
@@ -20,16 +21,32 @@ export const InstructorCarousel: React.FC = () => {
 
     const fetchCreators = async () => {
         try {
-            const { data, error } = await supabase
+            // Fetch creators with course count
+            const { data: creatorsData, error: creatorsError } = await supabase
                 .from('creators')
                 .select('id, name, bio, profile_image, subscriber_count')
                 .eq('approved', true)
                 .order('subscriber_count', { ascending: false });
 
-            if (error) throw error;
+            if (creatorsError) throw creatorsError;
+
+            // Get course counts for each creator
+            const creatorsWithCounts = await Promise.all(
+                (creatorsData || []).map(async (creator) => {
+                    const { count } = await supabase
+                        .from('courses')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('creator_id', creator.id);
+
+                    return {
+                        ...creator,
+                        course_count: count || 0
+                    };
+                })
+            );
 
             // Randomize the data
-            const shuffledData = data ? [...data].sort(() => Math.random() - 0.5) : [];
+            const shuffledData = creatorsWithCounts.sort(() => Math.random() - 0.5);
 
             // Duplicate for infinite scroll (Triple for smoother 33% scroll)
             const duplicatedData = [...shuffledData, ...shuffledData, ...shuffledData];
@@ -104,11 +121,12 @@ export const InstructorCarousel: React.FC = () => {
                                         <span>{creator.subscriber_count.toLocaleString()}</span>
                                     </div>
                                 </div>
-                                <button
-                                    className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs font-bold rounded-lg transition-colors"
-                                >
-                                    프로필
-                                </button>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">강좌</span>
+                                    <div className="text-sm font-bold text-indigo-400">
+                                        {creator.course_count}개
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
