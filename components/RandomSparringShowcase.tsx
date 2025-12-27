@@ -107,18 +107,9 @@ export function RandomSparringShowcase() {
                             {/* Overlay Info */}
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80 pointer-events-none"></div>
 
-                            <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between pointer-events-none">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden">
-                                        {video.creator?.profileImage && (
-                                            <img src={video.creator.profileImage} alt={video.creator.name} className="w-full h-full object-cover" />
-                                        )}
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-white font-bold text-sm">{video.title}</p>
-                                        <p className="text-indigo-400 text-xs font-semibold">{video.creator?.name}</p>
-                                    </div>
-                                </div>
+                            {/* Title Overlay */}
+                            <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
+                                <p className="text-white font-bold text-lg text-left">{video.title}</p>
                             </div>
 
                             {/* Unmute Hint */}

@@ -123,10 +123,9 @@ export const FreeDrillShowcase: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Info Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-4">
-                        <h4 className="font-bold text-white mb-1 line-clamp-2">{drill.title}</h4>
-                        <p className="text-xs text-slate-300">{drill.creator_name}</p>
+                    {/* Title Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4">
+                        <h4 className="font-bold text-white text-left line-clamp-2">{drill.title}</h4>
                     </div>
 
                     {/* Free Badge */}
