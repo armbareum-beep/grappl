@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign, Shield } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
-import { Creator, Course, FeedbackSettings } from '../types';
+import { getCreatorById, getCoursesByCreator, getRoutines, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
+import { Creator, Course, FeedbackSettings, DrillRoutine } from '../types';
 import { CourseCard } from '../components/CourseCard';
+import { DrillRoutineCard } from '../components/DrillRoutineCard';
 import { Button } from '../components/Button';
 
 export const CreatorProfile: React.FC = () => {
@@ -13,6 +14,8 @@ export const CreatorProfile: React.FC = () => {
     const { user } = useAuth();
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [routines, setRoutines] = useState<DrillRoutine[]>([]);
+    const [activeTab, setActiveTab] = useState<'courses' | 'routines'>('courses');
     const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -27,13 +30,15 @@ export const CreatorProfile: React.FC = () => {
             if (!id) return;
 
             try {
-                const [creatorData, coursesData, feedbackData] = await Promise.all([
+                const [creatorData, coursesData, routinesData, feedbackData] = await Promise.all([
                     getCreatorById(id),
                     getCoursesByCreator(id),
+                    getRoutines(id),
                     getFeedbackSettings(id)
                 ]);
                 setCreator(creatorData);
                 setCourses(coursesData);
+                setRoutines(routinesData);
                 if (feedbackData.data) {
                     setFeedbackSettings(feedbackData.data);
                 }
@@ -366,29 +371,80 @@ export const CreatorProfile: React.FC = () => {
                 </div>
             )}
 
-            {/* Creator Courses */}
+            {/* Creator Content - Courses and Routines */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="flex items-center gap-3 mb-6">
-                    <BookOpen className="w-6 h-6 text-indigo-500" />
-                    <h2 className="text-2xl font-bold text-white">
-                        개설 강좌 <span className="text-slate-500 text-lg font-medium ml-1">({courses.length})</span>
-                    </h2>
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-4 mb-6 border-b border-slate-800">
+                    <button
+                        onClick={() => setActiveTab('courses')}
+                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative ${activeTab === 'courses'
+                                ? 'text-white'
+                                : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                    >
+                        <BookOpen className="w-5 h-5" />
+                        <span>강좌</span>
+                        <span className="text-sm">({courses.length})</span>
+                        {activeTab === 'courses' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('routines')}
+                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative ${activeTab === 'routines'
+                                ? 'text-white'
+                                : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                    >
+                        <Zap className="w-5 h-5" />
+                        <span>루틴</span>
+                        <span className="text-sm">({routines.length})</span>
+                        {activeTab === 'routines' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                        )}
+                    </button>
                 </div>
 
-                {courses.length > 0 ? (
-                    <div className="grid md:grid-cols-3 gap-6">
-                        {courses.map((course) => (
-                            <CourseCard key={course.id} course={course} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <BookOpen className="w-8 h-8 text-slate-600" />
-                        </div>
-                        <p className="text-slate-400 font-medium">아직 개설된 강좌가 없습니다.</p>
-                        <p className="text-slate-600 text-sm mt-1">새로운 강좌가 곧 올라올 예정입니다.</p>
-                    </div>
+                {/* Courses Tab */}
+                {activeTab === 'courses' && (
+                    <>
+                        {courses.length > 0 ? (
+                            <div className="grid md:grid-cols-3 gap-6">
+                                {courses.map((course) => (
+                                    <CourseCard key={course.id} course={course} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+                                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <BookOpen className="w-8 h-8 text-slate-600" />
+                                </div>
+                                <p className="text-slate-400 font-medium">아직 개설된 강좌가 없습니다.</p>
+                                <p className="text-slate-600 text-sm mt-1">새로운 강좌가 곧 올라올 예정입니다.</p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Routines Tab */}
+                {activeTab === 'routines' && (
+                    <>
+                        {routines.length > 0 ? (
+                            <div className="grid md:grid-cols-3 gap-6">
+                                {routines.map((routine) => (
+                                    <DrillRoutineCard key={routine.id} routine={routine} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
+                                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Zap className="w-8 h-8 text-slate-600" />
+                                </div>
+                                <p className="text-slate-400 font-medium">아직 개설된 루틴이 없습니다.</p>
+                                <p className="text-slate-600 text-sm mt-1">새로운 루틴이 곧 올라올 예정입니다.</p>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
