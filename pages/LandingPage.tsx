@@ -6,7 +6,7 @@ import { Play, Star, ChevronRight, Zap, Users, BookOpen, Award, Clapperboard, Ma
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
-import { getTestimonials } from '../lib/api';
+import { getTestimonials, getPlatformStats } from '../lib/api';
 import { Testimonial } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -22,9 +22,11 @@ export const LandingPage: React.FC = () => {
     }, [user, loading, navigate]);
 
     const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+    const [stats, setStats] = useState({ totalUsers: 1000, totalCourses: 100, totalRoutines: 50 });
 
     useEffect(() => {
         loadTestimonials();
+        loadStats();
     }, []);
 
     const loadTestimonials = async () => {
@@ -60,6 +62,11 @@ export const LandingPage: React.FC = () => {
                 }
             ]);
         }
+    };
+
+    const loadStats = async () => {
+        const platformStats = await getPlatformStats();
+        setStats(platformStats);
     };
 
     if (loading) {
@@ -181,11 +188,11 @@ export const LandingPage: React.FC = () => {
                     <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-slate-400">
                         <div className="flex items-center gap-2">
                             <Users className="w-5 h-5 text-blue-400" />
-                            <span>1,000+ 수련생</span>
+                            <span>{stats.totalUsers.toLocaleString()}+ 수련생</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <BookOpen className="w-5 h-5 text-blue-400" />
-                            <span>100+ 강좌</span>
+                            <span>{stats.totalCourses + stats.totalRoutines}+ 강좌</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Award className="w-5 h-5 text-blue-400" />
