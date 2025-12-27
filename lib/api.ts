@@ -265,7 +265,7 @@ export async function getLessons(limit: number = 200): Promise<(Lesson & { cours
     const { data, error } = await supabase
         .from('lessons')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('lesson_number', { ascending: true })
         .limit(limit);
 
     if (error) {

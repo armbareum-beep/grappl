@@ -320,7 +320,7 @@ const VideoItem: React.FC<{
                     {/* Related Technique Link (The "Hook") */}
                     {video.relatedItems && video.relatedItems.length > 0 && (
                         <div className="w-full max-w-md pointer-events-auto mb-2">
-                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient-right">
+                            <div className="flex gap-2 overflow-x-auto pb-1 mask-gradient-right scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                                 {video.relatedItems.map((item, idx) => (
                                     <Link
                                         key={idx}
