@@ -254,9 +254,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 )}
 
                 {/* Content & Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none">
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none md:pointer-events-auto">
                     <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                        {/* Info */}
+                        {/* Info - Always inside video */}
                         <div className="flex-1 pr-4">
                             <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
                                 {drill.title}
@@ -278,8 +278,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             )}
                         </div>
 
-                        {/* Right Side Actions */}
-                        <div className="flex flex-col gap-6 items-center pb-4">
+                        {/* Right Side Actions - Mobile only (inside video) */}
+                        <div className="flex flex-col gap-6 items-center pb-4 md:hidden">
                             {/* Like */}
                             <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
                                 <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
@@ -321,6 +321,49 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             </button>
                         </div>
                     </div>
+                </div>
+
+                {/* Desktop Actions - Outside video on the right */}
+                <div className="hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 z-50 flex-col gap-6 items-center">
+                    {/* Like */}
+                    <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
+                            <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                        </div>
+                        <span className="text-white text-sm font-medium">{likeCount}</span>
+                    </button>
+
+                    {/* Save */}
+                    <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="flex flex-col items-center gap-1 group">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
+                            <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+                        </div>
+                        <span className="text-white text-xs">저장</span>
+                    </button>
+
+                    {/* Share */}
+                    <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
+                            <Share2 className="w-7 h-7 text-white" />
+                        </div>
+                        <span className="text-white text-xs">공유</span>
+                    </button>
+
+                    {/* Mute */}
+                    <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="flex flex-col items-center gap-1 group">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
+                            {isMuted ? <VolumeX className="w-7 h-7 text-white" /> : <Volume2 className="w-7 h-7 text-white" />}
+                        </div>
+                        <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
+                    </button>
+
+                    {/* View Routine */}
+                    <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="flex flex-col items-center gap-1 group">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
+                            <MoreVertical className="w-7 h-7 text-white" />
+                        </div>
+                        <span className="text-white text-xs">루틴</span>
+                    </button>
                 </div>
             </div>
 
