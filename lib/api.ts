@@ -72,26 +72,30 @@ function transformLesson(data: any): Lesson {
     };
 }
 
+
 // Platform Statistics
 export async function getPlatformStats() {
     try {
-        const [usersResult, coursesResult, routinesResult] = await Promise.all([
+        const [usersResult, coursesResult, routinesResult, sparringResult] = await Promise.all([
             supabase.from('users').select('id', { count: 'exact', head: true }),
             supabase.from('courses').select('id', { count: 'exact', head: true }),
-            supabase.from('routines').select('id', { count: 'exact', head: true })
+            supabase.from('routines').select('id', { count: 'exact', head: true }),
+            supabase.from('sparring_videos').select('id', { count: 'exact', head: true })
         ]);
 
         return {
             totalUsers: usersResult.count || 0,
             totalCourses: coursesResult.count || 0,
-            totalRoutines: routinesResult.count || 0
+            totalRoutines: routinesResult.count || 0,
+            totalSparring: sparringResult.count || 0
         };
     } catch (error) {
         console.error('Error fetching platform stats:', error);
         return {
             totalUsers: 1000,
             totalCourses: 100,
-            totalRoutines: 50
+            totalRoutines: 50,
+            totalSparring: 20
         };
     }
 }

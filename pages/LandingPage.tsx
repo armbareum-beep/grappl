@@ -22,7 +22,7 @@ export const LandingPage: React.FC = () => {
     }, [user, loading, navigate]);
 
     const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-    const [stats, setStats] = useState({ totalUsers: 1000, totalCourses: 100, totalRoutines: 50 });
+    const [stats, setStats] = useState({ totalUsers: 1000, totalCourses: 100, totalRoutines: 50, totalSparring: 20 });
 
     useEffect(() => {
         loadTestimonials();
@@ -208,7 +208,15 @@ export const LandingPage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             <BookOpen className="w-5 h-5 text-blue-400" />
-                            <span>{stats.totalCourses + stats.totalRoutines}+ 강좌</span>
+                            <span>{stats.totalCourses.toLocaleString()}+ 강좌</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-blue-400" />
+                            <span>{stats.totalRoutines.toLocaleString()}+ 루틴</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Clapperboard className="w-5 h-5 text-blue-400" />
+                            <span>{stats.totalSparring.toLocaleString()}+ 스파링</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Award className="w-5 h-5 text-blue-400" />
