@@ -422,13 +422,13 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
     return (data || []).map(transformVideo);
 }
 
-export async function getPublicSparringVideos(): Promise<SparringVideo[]> {
+export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[]> {
     try {
         const { data, error } = await supabase
             .from('sparring_videos')
-            .select('*')
+            .select('id, creator_id, title, description, video_url, thumbnail_url, related_items, views, likes, created_at')
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(limit);
 
         if (error) {
             console.error('Error fetching public sparring videos:', error);
@@ -3704,10 +3704,10 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
     return { data: transformSparringVideo(data), error: null };
 }
 
-export async function getSparringVideos(limit = 20, creatorId?: string) {
+export async function getSparringVideos(limit = 10, creatorId?: string) {
     let query = supabase
         .from('sparring_videos')
-        .select('*')
+        .select('id, creator_id, title, description, video_url, thumbnail_url, related_items, views, likes, created_at')
         .order('created_at', { ascending: false })
         .limit(limit);
 
