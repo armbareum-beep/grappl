@@ -2882,7 +2882,6 @@ export async function submitFeedbackResponse(requestId: string, content: string)
     return { error };
 }
 
-
 // ==================== REPORTING ====================
 
 /**
@@ -4269,8 +4268,6 @@ export async function getDrillById(id: string) {
     }
 }
 
-
-
 /**
  * Find the routine that contains a specific drill
  * Returns the first routine found that contains this drill
@@ -5578,4 +5575,3 @@ export async function removeCourseSparringVideo(courseId: string, sparringId: st
 
     return { error: updateError };
 }
-
