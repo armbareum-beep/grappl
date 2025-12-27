@@ -36,11 +36,45 @@ export const LandingPage: React.FC = () => {
         // Landing page only needs 1 sparring video for showcase
         // Prefetch 3 routines and 3 sparring videos for their respective pages
         try {
-            await Promise.all([
+            const [sparringData, routinesData, sparringFeedData] = await Promise.all([
                 getPublicSparringVideos(1),  // Landing page showcase - only 1 needed
                 getRoutines().then(routines => routines.slice(0, 3)),  // Routines page - first 3
                 getSparringVideos(3)  // Sparring feed - first 3
             ]);
+
+            // Preload actual video files for instant playback
+            const videosToPreload: string[] = [];
+
+            // Add routine videos
+            routinesData.forEach(routine => {
+                if (routine.drills && routine.drills.length > 0) {
+                    const firstDrill = routine.drills[0];
+                    if (typeof firstDrill !== 'string' && firstDrill.videoUrl) {
+                        videosToPreload.push(firstDrill.videoUrl);
+                    }
+                }
+            });
+
+            // Add sparring videos
+            sparringFeedData.forEach(video => {
+                if (video.video_url) {
+                    videosToPreload.push(video.video_url);
+                }
+            });
+
+            // Create hidden video elements to trigger browser cache
+            videosToPreload.slice(0, 6).forEach(videoUrl => {
+                const video = document.createElement('video');
+                video.src = videoUrl;
+                video.preload = 'auto';
+                video.style.display = 'none';
+                document.body.appendChild(video);
+
+                // Remove after 30 seconds to free memory
+                setTimeout(() => {
+                    document.body.removeChild(video);
+                }, 30000);
+            });
         } catch (error) {
             // Silent fail - prefetching is optional
             console.log('Prefetch completed');
