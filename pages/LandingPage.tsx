@@ -220,10 +220,6 @@ export const LandingPage: React.FC = () => {
                             <Clapperboard className="w-5 h-5 text-blue-400" />
                             <span>{stats.totalSparring.toLocaleString()}+ 스파링</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Award className="w-5 h-5 text-blue-400" />
-                            <span>세계적인 블랙벨트 인스트럭터</span>
-                        </div>
                     </div>
                 </div>
 

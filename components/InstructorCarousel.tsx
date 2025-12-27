@@ -9,6 +9,7 @@ interface Creator {
     profile_image: string;
     subscriber_count: number;
     course_count: number;
+    routine_count: number;
 }
 
 export const InstructorCarousel: React.FC = () => {
@@ -30,17 +31,24 @@ export const InstructorCarousel: React.FC = () => {
 
             if (creatorsError) throw creatorsError;
 
-            // Get course counts for each creator
+            // Get course and routine counts for each creator
             const creatorsWithCounts = await Promise.all(
                 (creatorsData || []).map(async (creator) => {
-                    const { count } = await supabase
-                        .from('courses')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('creator_id', creator.id);
+                    const [coursesResult, routinesResult] = await Promise.all([
+                        supabase
+                            .from('courses')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('creator_id', creator.id),
+                        supabase
+                            .from('routines')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('creator_id', creator.id)
+                    ]);
 
                     return {
                         ...creator,
-                        course_count: count || 0
+                        course_count: coursesResult.count || 0,
+                        routine_count: routinesResult.count || 0
                     };
                 })
             );
@@ -121,10 +129,18 @@ export const InstructorCarousel: React.FC = () => {
                                         <span>{creator.subscriber_count.toLocaleString()}</span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">강좌</span>
-                                    <div className="text-sm font-bold text-indigo-400">
-                                        {creator.course_count}개
+                                <div className="flex gap-3">
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">강좌</span>
+                                        <div className="text-sm font-bold text-indigo-400">
+                                            {creator.course_count}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">루틴</span>
+                                        <div className="text-sm font-bold text-indigo-400">
+                                            {creator.routine_count}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
