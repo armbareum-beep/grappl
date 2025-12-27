@@ -379,8 +379,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             />
                         )}
                     </React.Suspense>
-                </>
-                );
+                </div>
+            </div>
+        </>
+    );
 };
+
 // Lazy load
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
