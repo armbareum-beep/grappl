@@ -487,10 +487,10 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                 relatedItems: v.related_items || [],
                 views: v.views || 0,
                 likes: v.likes || 0,
-                creator: v.users ? {
+                creator: (v as any).users ? {
                     id: v.creator_id,
-                    name: v.users.name || 'Unknown',
-                    profileImage: v.users.avatar_url || '',
+                    name: (v as any).users.name || 'Unknown',
+                    profileImage: (v as any).users.avatar_url || '',
                     bio: '',
                     subscriberCount: 0
                 } : undefined,
