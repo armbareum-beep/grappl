@@ -32,10 +32,7 @@ export const FreeDrillShowcase: React.FC = () => {
                         id,
                         title,
                         thumbnail_url,
-                        creator_id,
-                        users:creator_id (
-                            name
-                        )
+                        creator_id
                     )
                 `)
                 .eq('order_index', 0)
@@ -55,7 +52,7 @@ export const FreeDrillShowcase: React.FC = () => {
                     title: rd.drills.title,
                     thumbnail_url: rd.drills.thumbnail_url,
                     creator_id: rd.drills.creator_id,
-                    creator_name: rd.drills.users?.name || '익명'
+                    creator_name: 'Free Drill'
                 }));
 
             // Remove duplicates (same drill might be first in multiple routines)
