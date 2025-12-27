@@ -264,10 +264,7 @@ export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
 export async function getLessons(limit: number = 200): Promise<(Lesson & { course?: { title: string } })[]> {
     const { data, error } = await supabase
         .from('lessons')
-        .select(`
-            *,
-            course:courses(title)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -276,9 +273,27 @@ export async function getLessons(limit: number = 200): Promise<(Lesson & { cours
         return [];
     }
 
-    return (data || []).map(d => ({
-        ...transformLesson(d),
-        course: d.course
+    // Transform lessons and fetch course titles
+    const lessons = (data || []).map(transformLesson);
+
+    // Get unique course IDs
+    const courseIds = [...new Set(lessons.map(l => l.courseId).filter(Boolean))];
+
+    if (courseIds.length === 0) {
+        return lessons.map(l => ({ ...l, course: undefined }));
+    }
+
+    // Fetch course titles
+    const { data: courses } = await supabase
+        .from('courses')
+        .select('id, title')
+        .in('id', courseIds);
+
+    const courseMap = new Map((courses || []).map(c => [c.id, c.title]));
+
+    return lessons.map(lesson => ({
+        ...lesson,
+        course: lesson.courseId ? { title: courseMap.get(lesson.courseId) || 'Unknown Course' } : undefined
     }));
 }
 
