@@ -18,6 +18,7 @@ export function RandomSparringShowcase() {
         return match ? match[1] : null;
     };
 
+
     useEffect(() => {
         const fetchVideo = async () => {
             try {
@@ -30,48 +31,9 @@ export function RandomSparringShowcase() {
                     // Random selection from valid videos only
                     const randomVideo = validVideos[Math.floor(Math.random() * validVideos.length)];
                     setVideo(randomVideo);
-                } else {
-                    // Fallback for demo if no valid DB data
-                    setVideo({
-                        id: 'demo',
-                        creatorId: 'demo',
-                        title: 'Gi Sparring Highlights',
-                        description: 'Sample sparring session',
-                        videoUrl: 'https://vimeo.com/76979871', // Public demo video
-                        thumbnailUrl: '',
-                        relatedItems: [],
-                        views: 0,
-                        likes: 0,
-                        creator: {
-                            id: 'demo',
-                            name: 'Grapplay Team',
-                            profileImage: '',
-                            bio: '',
-                            subscriberCount: 0
-                        }
-                    });
                 }
             } catch (error) {
                 console.error('Failed to load sparring video', error);
-                // Ensure fallback is set even on error
-                setVideo({
-                    id: 'demo',
-                    creatorId: 'demo',
-                    title: 'Gi Sparring Highlights',
-                    description: 'Sample sparring session',
-                    videoUrl: 'https://vimeo.com/76979871', // Public demo video
-                    thumbnailUrl: '',
-                    relatedItems: [],
-                    views: 0,
-                    likes: 0,
-                    creator: {
-                        id: 'demo',
-                        name: 'Grapplay Team',
-                        profileImage: '',
-                        bio: '',
-                        subscriberCount: 0
-                    }
-                });
             } finally {
                 setLoading(false);
             }
