@@ -6,7 +6,7 @@ import { Play, Star, ChevronRight, Zap, Users, BookOpen, Award, Clapperboard, Ma
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
-import { getTestimonials, getPlatformStats } from '../lib/api';
+import { getTestimonials, getPlatformStats, getRoutines, getPublicSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -27,7 +27,23 @@ export const LandingPage: React.FC = () => {
     useEffect(() => {
         loadTestimonials();
         loadStats();
+        // Prefetch data for faster page loads
+        prefetchData();
     }, []);
+
+    const prefetchData = async () => {
+        // Prefetch routines and sparring videos in the background
+        // This will cache the data so when users navigate to those pages, they load instantly
+        try {
+            await Promise.all([
+                getRoutines(),
+                getPublicSparringVideos(10)
+            ]);
+        } catch (error) {
+            // Silent fail - prefetching is optional
+            console.log('Prefetch completed');
+        }
+    };
 
     const loadTestimonials = async () => {
         const { data } = await getTestimonials();
