@@ -450,22 +450,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
     try {
         const { data, error } = await supabase
             .from('sparring_videos')
-            .select(`
-                id, 
-                creator_id, 
-                title, 
-                description, 
-                video_url, 
-                thumbnail_url, 
-                related_items, 
-                views, 
-                likes, 
-                created_at,
-                users:creator_id (
-                    name,
-                    avatar_url
-                )
-            `)
+            .select('id, creator_id, title, description, video_url, thumbnail_url, related_items, views, likes, created_at')
             .order('created_at', { ascending: false })
             .limit(limit);
 
@@ -487,13 +472,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                 relatedItems: v.related_items || [],
                 views: v.views || 0,
                 likes: v.likes || 0,
-                creator: (v as any).users ? {
-                    id: v.creator_id,
-                    name: (v as any).users.name || 'Unknown',
-                    profileImage: (v as any).users.avatar_url || '',
-                    bio: '',
-                    subscriberCount: 0
-                } : undefined,
+                creator: undefined,
                 createdAt: v.created_at
             }));
 
