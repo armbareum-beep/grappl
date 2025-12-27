@@ -132,7 +132,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .from('courses')
                 .select(`
                     *,
-                    creator:creators(name),
+                    creator:creators(name, profile_image),
                     lessons:lessons(count)
                 `)
                 .eq('published', true) // Re-enable published filter
@@ -148,7 +148,8 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
 
         return (data || []).map((d: any) => ({
             ...transformCourse(d),
-            lessonCount: d.lessons?.[0]?.count || 0
+            lessonCount: d.lessons?.[0]?.count || 0,
+            creatorProfileImage: d.creator?.profile_image || null
         }));
     } catch (e) {
         console.error('getCourses timeout/fail:', e);
@@ -258,6 +259,27 @@ export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
     }
 
     return (data || []).map(transformLesson);
+}
+
+export async function getLessons(limit: number = 200): Promise<(Lesson & { course?: { title: string } })[]> {
+    const { data, error } = await supabase
+        .from('lessons')
+        .select(`
+            *,
+            course:courses(title)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching all lessons:', error);
+        return [];
+    }
+
+    return (data || []).map(d => ({
+        ...transformLesson(d),
+        course: d.course
+    }));
 }
 
 export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]> {
@@ -387,41 +409,37 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
 
 export async function getPublicSparringVideos(): Promise<SparringVideo[]> {
     try {
-        // Use Backend Proxy to bypass RLS
-        // Use 127.0.0.1 to avoid localhost resolution issues
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        const { data, error } = await supabase
+            .from('sparring_videos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(10);
 
-        const response = await fetch('http://127.0.0.1:3003/api/sparring/public', {
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+        if (error) {
+            console.error('Error fetching public sparring videos:', error);
+            return [];
+        }
 
-        if (!response.ok) throw new Error('Failed to fetch from proxy');
+        // Filter out videos with invalid URLs (FFmpeg errors) and map to SparringVideo type
+        const validVideos = (data || [])
+            .filter(v => v.video_url && !v.video_url.includes('ERROR'))
+            .map(v => ({
+                id: v.id,
+                creatorId: v.creator_id,
+                title: v.title || 'Sparring Video',
+                description: v.description || '',
+                videoUrl: v.video_url,
+                thumbnailUrl: v.thumbnail_url,
+                relatedItems: v.related_items || [],
+                views: v.views || 0,
+                likes: v.likes || 0,
+                creator: undefined, // Skip creator info for now since relationship doesn't exist
+                createdAt: v.created_at
+            }));
 
-        const data = await response.json();
-
-        return (data || []).map((item: any) => ({
-            id: item.id,
-            creatorId: item.creator_id,
-            title: item.title,
-            description: item.description,
-            videoUrl: item.video_url,
-            thumbnailUrl: item.thumbnail_url,
-            relatedItems: item.related_items || [],
-            views: item.views,
-            likes: item.likes,
-            creator: item.creator ? {
-                id: item.creator_id,
-                name: item.creator.name,
-                profileImage: item.creator.profile_image,
-                bio: '', // minimal data
-                subscriberCount: 0
-            } : undefined,
-            createdAt: item.created_at
-        }));
+        return validVideos;
     } catch (error) {
-        console.warn('Error fetching sparring_videos via proxy, trying fallback:', error);
+        console.error('Error in getPublicSparringVideos:', error);
         return [];
     }
 }
@@ -491,15 +509,69 @@ export async function toggleSparringLike(userId: string, videoId: string): Promi
 }
 
 export async function getSparringInteractionStatus(userId: string, videoId: string, creatorId: string) {
-    const [likeData, followData] = await Promise.all([
+    const [likeData, followData, saveData] = await Promise.all([
         supabase.from('user_sparring_likes').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle(),
-        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle()
+        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle(),
+        supabase.from('user_saved_sparring').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle()
     ]);
 
     return {
         liked: !!likeData.data,
-        followed: !!followData.data
+        followed: !!followData.data,
+        saved: !!saveData.data
     };
+}
+
+export async function toggleSparringSave(userId: string, videoId: string) {
+    // Check if already saved
+    const { data } = await supabase
+        .from('user_saved_sparring')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
+
+    if (data) {
+        // Unsave
+        await supabase
+            .from('user_saved_sparring')
+            .delete()
+            .eq('id', data.id);
+        return { saved: false };
+    } else {
+        // Save
+        await supabase
+            .from('user_saved_sparring')
+            .insert({ user_id: userId, video_id: videoId });
+        return { saved: true };
+    }
+}
+
+export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
+    const { data } = await supabase
+        .from('user_saved_sparring')
+        .select(`
+            video_id,
+            sparring_videos!inner (
+                *,
+                creator:creators(*)
+            )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (!data) return [];
+
+    // Transform to flat SparringVideo array
+    return data.map((item: any) => ({
+        ...item.sparring_videos,
+        creator: item.sparring_videos.creator,
+        // Ensure camelCase
+        videoUrl: item.sparring_videos.video_url,
+        thumbnailUrl: item.sparring_videos.thumbnail_url,
+        creatorId: item.sparring_videos.creator_id,
+        relatedItems: item.sparring_videos.related_items || []
+    }));
 }
 
 export async function incrementCourseViews(courseId: string): Promise<void> {
@@ -3588,7 +3660,7 @@ function transformSparringVideo(data: any): SparringVideo {
         relatedItems: data.related_items || [],
         views: data.views,
         likes: data.likes,
-        creator: data.profiles ? transformCreator(data.profiles) : undefined,
+        creator: data.creators ? transformCreator(data.creators) : undefined,
         createdAt: data.created_at,
     };
 }
@@ -4444,6 +4516,8 @@ export async function createFeedPost(post: {
     content: string;
     type: 'sparring' | 'routine' | 'mastery' | 'general' | 'title_earned' | 'level_up' | 'technique';
     metadata?: any;
+    mediaUrl?: string;
+    youtubeUrl?: string;
 }) {
     // First, ensure user exists in users table
     try {
@@ -4480,7 +4554,9 @@ export async function createFeedPost(post: {
             is_public: true,
             // type: post.type, // REMOVED: Causing insert error if column is missing
             location: `__FEED__${post.type}`,
-            metadata: post.metadata || {}
+            metadata: post.metadata || {},
+            media_url: post.mediaUrl,
+            youtube_url: post.youtubeUrl
         })
         .select()
         .single();
@@ -4502,7 +4578,9 @@ export async function createFeedPost(post: {
             isPublic: data.is_public,
             type: data.type,
             metadata: data.metadata,
-            createdAt: data.created_at
+            createdAt: data.created_at,
+            mediaUrl: data.media_url,
+            youtubeUrl: data.youtube_url
         } as TrainingLog,
         error: null
     };
@@ -5345,6 +5423,52 @@ export async function getCourseSparringVideos(courseId: string) {
 }
 
 /**
+ * Toggle like on a course
+ */
+export async function toggleCourseLike(userId: string, courseId: string): Promise<{ liked: boolean; error?: any }> {
+    try {
+        const { data: existing } = await supabase
+            .from('user_course_likes')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('course_id', courseId)
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            const { error } = await supabase
+                .from('user_course_likes')
+                .delete()
+                .eq('user_id', userId)
+                .eq('course_id', courseId);
+            return { liked: false, error };
+        } else {
+            const { error } = await supabase
+                .from('user_course_likes')
+                .insert({ user_id: userId, course_id: courseId });
+            return { liked: true, error };
+        }
+    } catch (error) {
+        console.error('Error toggling course like:', error);
+        return { liked: false, error };
+    }
+}
+
+/**
+ * Check if user has liked a course
+ */
+export async function checkCourseLiked(userId: string, courseId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('user_course_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+        .limit(1);
+
+    if (error && error.code !== 'PGRST116') console.error('Error checking course liked:', error);
+    return !!(data && data.length > 0);
+}
+
+/**
  * Add a course relation to a sparring video
  */
 export async function addCourseSparringVideo(courseId: string, sparringId: string, courseTitle: string) {
@@ -5411,5 +5535,4 @@ export async function removeCourseSparringVideo(courseId: string, sparringId: st
 
     return { error: updateError };
 }
-
 

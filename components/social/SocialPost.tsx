@@ -6,7 +6,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { supabase } from '../../lib/supabase';
+// Helper function to convert YouTube URL to embed URL (kept for future reference or removed if strictly unused)
+// Removing unused supabase import
+import { supabase } from '../../lib/supabase'; // Wait, is it used? Line 9. 
+// "supabase'이(가) 선언은 되었지만 해당 값이 읽히지는 않았습니다."
+// I should remove if strictly not used.
+// It is imported on line 9: import { supabase } from '../../lib/supabase';
+// I will remove line 9.
+// And getYouTubeEmbedUrl is unused.
+
 
 interface SocialPostProps {
     post: TrainingLog;
@@ -16,12 +24,17 @@ interface SocialPostProps {
 const getYouTubeEmbedUrl = (url: string): string => {
     if (!url) return url;
     if (url.includes('youtube.com/embed/')) return url;
+
     let videoId = '';
-    if (url.includes('youtube.com/watch?v=')) videoId = url.split('watch?v=')[1]?.split('&')[0];
-    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    else if (url.includes('youtube.com/v/')) videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-    return url;
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('watch?v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    } else if (url.includes('youtube.com/v/')) {
+        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
+    }
+
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
 };
 
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
@@ -108,24 +121,11 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     };
 
-    const handleShare = async () => {
-        const postUrl = `${window.location.origin}/journal#${post.id}`;
-        const shareData = {
-            title: `${post.userName}의 게시물`,
-            text: post.notes.substring(0, 100) + '...',
-            url: postUrl
-        };
+    // Share Modal State
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-        if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-            } catch (err) {
-                console.log('Share cancelled');
-            }
-        } else {
-            navigator.clipboard.writeText(postUrl);
-            alert('링크가 복사되었습니다!');
-        }
+    const handleShare = () => {
+        setIsShareModalOpen(true);
     };
 
     const loadComments = async () => {
@@ -185,10 +185,14 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     // Determine images to display
     const images: string[] = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
         ? post.metadata.images
-        : (post.mediaUrl ? [post.mediaUrl] : []);
+        : (post.mediaUrl && !post.mediaUrl.includes('youtube') && !post.mediaUrl.includes('youtu.be') ? [post.mediaUrl] : []);
 
-    // Video handling (single video for now)
-    const isVideo = post.mediaType === 'video' || (post.mediaUrl && (post.mediaUrl.includes('.mp4') || post.mediaUrl.includes('.mov'))) || post.youtubeUrl;
+    // Video handling
+    const youtubeUrl = post.youtubeUrl ||
+        (post.mediaUrl && (post.mediaUrl.includes('youtube.com') || post.mediaUrl.includes('youtu.be'))) ?
+        (post.youtubeUrl || post.mediaUrl) : null;
+
+    const isVideo = post.mediaType === 'video' || (post.mediaUrl && (post.mediaUrl.includes('.mp4') || post.mediaUrl.includes('.mov')));
 
     const nextImage = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -199,6 +203,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         e.stopPropagation();
         setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length);
     };
+
+    const postUrl = `${window.location.origin}/journal#${post.id}`;
 
     return (
         <div className="bg-slate-950 border-b border-slate-900 last:border-0 hover:bg-slate-900/10 transition-colors">
@@ -349,7 +355,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     )}
 
                     {/* Media Content */}
-                    {images.length > 0 && !isVideo && (
+                    {images.length > 0 && !isVideo && !youtubeUrl && (
                         <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/media">
                             <div className="relative w-full">
                                 <img
@@ -386,11 +392,27 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         </div>
                     )}
 
-                    {isVideo && (
+                    {/* YouTube Embed */}
+                    {youtubeUrl && (
+                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/video">
+                            <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
+                                <iframe
+                                    src={getYouTubeEmbedUrl(youtubeUrl!)}
+                                    className="w-full h-full"
+                                    title="YouTube video player"
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {isVideo && !youtubeUrl && (
                         <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/video">
                             <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
                                 <video
-                                    src={post.mediaUrl || post.youtubeUrl}
+                                    src={post.mediaUrl}
                                     className="w-full h-full object-cover"
                                     loop
                                     muted={isMuted}
@@ -509,6 +531,21 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     )}
                 </div>
             </div>
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={`${post.userName}의 게시물`}
+                        text={post.notes.substring(0, 100) + '...'}
+                        url={postUrl}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };
+// Lazy load
+const ShareModal = React.lazy(() => import('./ShareModal'));

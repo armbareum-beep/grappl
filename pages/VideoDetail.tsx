@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { BeltUpModal } from '../components/BeltUpModal';
-import { Lock, Heart, Share2, Clock, Eye } from 'lucide-react';
+import { Lock, Share2, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const VideoDetail: React.FC = () => {
@@ -19,6 +19,7 @@ export const VideoDetail: React.FC = () => {
   const [ownsVideo, setOwnsVideo] = useState(false);
   const [showBeltUp, setShowBeltUp] = useState(false);
   const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const lastTickRef = useRef<number>(0);
   const accumulatedTimeRef = useRef<number>(0);
@@ -170,88 +171,106 @@ export const VideoDetail: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
-                  <Heart className="w-6 h-6" />
-                </button>
-                <button className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
-                  <Share2 className="w-6 h-6" />
-                </button>
-              </div>
             </div>
-
-            <div className="prose max-w-none text-slate-600 mb-8">
-              <p>{video.description}</p>
-              <p className="mt-4">
-                이 강좌에서는 {video.category} 상황에서의 핵심 원리와 디테일한 메커니즘을 다룹니다.
-                특히 {video.difficulty === 'Beginner' ? '입문자' : '숙련자'}가 범하기 쉬운 실수들을 교정하고,
-                실전 스파링에서 바로 사용할 수 있는 팁들을 제공합니다.
-              </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                <Share2 className="w-6 h-6" />
+              </button>
             </div>
-
-            {/* Creator Profile Small */}
-            {creator && (
-              <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 flex items-center mb-8">
-                <img src={creator.profileImage} alt={creator.name} className="w-16 h-16 rounded-full object-cover mr-4" />
-                <div className="flex-grow">
-                  <h3 className="font-bold text-lg text-slate-900">{creator.name}</h3>
-                  <p className="text-slate-500 text-sm">{creator.bio}</p>
-                </div>
-                <Link to={`/creator/${creator.id}`}>
-                  <Button variant="outline" size="sm">채널 보기</Button>
-                </Link>
-              </div>
-            )}
-
-            {/* Related Videos */}
-            {relatedVideos.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">관련 영상</h2>
-                <div className="grid md:grid-cols-3 gap-6">
-                  {relatedVideos.map((relatedVideo) => (
-                    <VideoCard key={relatedVideo.id} video={relatedVideo} />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Sidebar CTA */}
-          <div className="lg:w-1/3">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-6 sticky top-24">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">구매 옵션</h3>
+          <div className="prose max-w-none text-slate-600 mb-8">
+            <p>{video.description}</p>
+            <p className="mt-4">
+              이 강좌에서는 {video.category} 상황에서의 핵심 원리와 디테일한 메커니즘을 다룹니다.
+              특히 {video.difficulty === 'Beginner' ? '입문자' : '숙련자'}가 범하기 쉬운 실수들을 교정하고,
+              실전 스파링에서 바로 사용할 수 있는 팁들을 제공합니다.
+            </p>
+          </div>
 
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-slate-600">단품 구매</span>
-                  <span className="text-2xl font-bold text-slate-900">{formattedPrice}</span>
-                </div>
-                <Button className="w-full mb-2">이 영상만 구매하기</Button>
-                <p className="text-xs text-slate-400 text-center">평생 소장 및 무제한 시청</p>
+          {/* Creator Profile Small */}
+          {creator && (
+            <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 flex items-center mb-8">
+              <img src={creator.profileImage} alt={creator.name} className="w-16 h-16 rounded-full object-cover mr-4" />
+              <div className="flex-grow">
+                <h3 className="font-bold text-lg text-slate-900">{creator.name}</h3>
+                <p className="text-slate-500 text-sm">{creator.bio}</p>
               </div>
+              <Link to={`/creator/${creator.id}`}>
+                <Button variant="outline" size="sm">채널 보기</Button>
+              </Link>
+            </div>
+          )}
 
-              <div className="border-t border-slate-100 pt-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-slate-600">월간 구독</span>
-                  <span className="text-xl font-bold text-blue-600">₩29,000<span className="text-sm text-slate-400 font-normal">/월</span></span>
-                </div>
-                <Link to="/pricing">
-                  <Button variant="secondary" className="w-full mb-2">구독하고 전체 영상 보기</Button>
-                </Link>
-                <p className="text-xs text-slate-400 text-center">모든 강좌 무제한 접근</p>
+          {/* Related Videos */}
+          {relatedVideos.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">관련 영상</h2>
+              <div className="grid md:grid-cols-3 gap-6">
+                {relatedVideos.map((relatedVideo) => (
+                  <VideoCard key={relatedVideo.id} video={relatedVideo} />
+                ))}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar CTA */}
+        <div className="lg:w-1/3">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-6 sticky top-24">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">구매 옵션</h3>
+
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-600">단품 구매</span>
+                <span className="text-2xl font-bold text-slate-900">{formattedPrice}</span>
+              </div>
+              <Button className="w-full mb-2">이 영상만 구매하기</Button>
+              <p className="text-xs text-slate-400 text-center">평생 소장 및 무제한 시청</p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-600">월간 구독</span>
+                <span className="text-xl font-bold text-blue-600">₩29,000<span className="text-sm text-slate-400 font-normal">/월</span></span>
+              </div>
+              <Link to="/pricing">
+                <Button variant="secondary" className="w-full mb-2">구독하고 전체 영상 보기</Button>
+              </Link>
+              <p className="text-xs text-slate-400 text-center">모든 강좌 무제한 접근</p>
             </div>
           </div>
         </div>
       </div>
 
-      {showBeltUp && beltUpData && (
-        <BeltUpModal
-          oldLevel={beltUpData.old}
-          newLevel={beltUpData.new}
-          onClose={() => setShowBeltUp(false)}
-        />
-      )}
-    </div>
+
+      {
+        showBeltUp && beltUpData && (
+          <BeltUpModal
+            oldLevel={beltUpData.old}
+            newLevel={beltUpData.new}
+            onClose={() => setShowBeltUp(false)}
+          />
+        )
+      }
+
+      {/* Share Modal Portal */}
+      <React.Suspense fallback={null}>
+        {isShareModalOpen && video && (
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            title={video.title}
+            text={video.description}
+            url={window.location.href}
+          />
+        )}
+      </React.Suspense>
+    </div >
   );
 };
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));

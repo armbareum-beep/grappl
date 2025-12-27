@@ -131,8 +131,15 @@ export const Home: React.FC = () => {
         if (bundlesData) setRecommendedBundles(bundlesData.slice(0, 3));
 
         // Fetch Pro Routines (Mocking "Pro" by selecting Intermediate/Advanced or specific Logic)
-        const { data: allRoutines } = await getDrillRoutines();
-        if (allRoutines) {
+        const allRoutines = await getDrillRoutines();
+        if (allRoutines && allRoutines.length > 0) {
+          // Shuffle all routines first for random Pro/Daily fallback
+          const shuffledRoutines = [...allRoutines];
+          for (let i = shuffledRoutines.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledRoutines[i], shuffledRoutines[j]] = [shuffledRoutines[j], shuffledRoutines[i]];
+          }
+
           // 🧠 AI Recommendation Check
           const savedRecommendations = localStorage.getItem('gemini_recommendations');
           const aiRecs = savedRecommendations ? JSON.parse(savedRecommendations) : null;
@@ -152,13 +159,13 @@ export const Home: React.FC = () => {
             if (transformedRecs.length > 0) {
               setProRoutines(transformedRecs.slice(0, 2));
             } else {
-              // Fallback if AI suggested courses but no routines
-              const pros = allRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+              // Fallback if AI suggested courses but no routines - Use shuffled list
+              const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
               setProRoutines(pros);
             }
           } else {
-            // Standard Pro Logic (Intermediate/Advanced)
-            const pros = allRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+            // Standard Pro Logic (Intermediate/Advanced) - Use shuffled list
+            const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
             setProRoutines(pros);
           }
         }

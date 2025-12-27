@@ -41,3 +41,13 @@ CREATE POLICY "Everyone can view basic user info"
 ON users FOR SELECT TO public 
 USING (true); 
 -- Note: In a real prod app, you might want to restrict this further or use a public profile table.
+
+-- 7. Sparring Videos (Published videos for landing page)
+DROP POLICY IF EXISTS "Everyone can view published sparring videos" ON sparring_videos;
+CREATE POLICY "Everyone can view published sparring videos" 
+ON sparring_videos FOR SELECT TO public 
+USING (published = true);
+
+-- 8. Profiles (For creator info in sparring videos)
+DROP POLICY IF EXISTS "Everyone can view profiles" ON profiles;
+CREATE POLICY "Everyone can view profiles" ON profiles FOR SELECT TO public USING (true);

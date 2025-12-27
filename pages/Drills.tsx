@@ -56,7 +56,14 @@ export const Drills: React.FC = () => {
                     );
                 }
 
-                setDrills(filteredDrills);
+                // Shuffle drills randomly using Fisher-Yates algorithm
+                const shuffled = [...filteredDrills];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+
+                setDrills(shuffled);
 
                 // 2. Fetch creators in background for filtered items
                 const creatorIds = filteredDrills.map((d: Drill) => d.creatorId);

@@ -137,6 +137,14 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         setTouchStart(null);
     };
 
+    // Share Modal State
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    const handleShare = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setIsShareModalOpen(true);
+    };
+
     // Detect Processing State
     const isProcessing = !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
 
@@ -157,162 +165,178 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     }
 
     return (
-        <div
-            className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
-            style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-        >
-            {/* Video Container */}
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <div className="relative w-full h-full max-w-[56.25vh]">
-                    {useVimeo ? (
-                        <iframe
-                            ref={iframeRef}
-                            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=0&loop=1&autopause=0&muted=1&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
-                            className="absolute inset-0 w-full h-full"
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
-                            style={{ opacity: isActive ? 1 : 0 }} // Hide inactive iframes to save resources but keep loaded
-                        />
-                    ) : (
-                        <video
-                            ref={videoRef}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            loop
-                            playsInline
-                            muted={isMuted}
-                            src={videoSrc}
-                            poster={drill.thumbnailUrl}
-                            preload="auto"
-                            onPlaying={() => setVideoReady(true)}
-                            onWaiting={() => setVideoReady(false)}
-                        />
-                    )}
-
-                    {/* Click Overlay for Play/Pause */}
-                    <div
-                        className="absolute inset-0 z-30"
-                        onClick={() => setIsPlaying(!isPlaying)}
-                    />
-
-                    {/* Thumbnail Overlay (while loading) */}
-                    {!videoReady && !useVimeo && (
-                        <div className="absolute inset-0 z-20 pointer-events-none">
-                            <img
-                                src={drill.thumbnailUrl}
-                                className="w-full h-full object-cover"
-                                alt=""
+        <>
+            <div
+                className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
+                style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
+                {/* Video Container */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                    <div className="relative w-full h-full max-w-[56.25vh]">
+                        {useVimeo ? (
+                            <iframe
+                                ref={iframeRef}
+                                src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=0&loop=1&autopause=0&muted=1&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
+                                className="absolute inset-0 w-full h-full"
+                                frameBorder="0"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                allowFullScreen
+                                style={{ opacity: isActive ? 1 : 0 }} // Hide inactive iframes to save resources but keep loaded
                             />
-                            {isActive && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
-                                    <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        ) : (
+                            <video
+                                ref={videoRef}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                loop
+                                playsInline
+                                muted={isMuted}
+                                src={videoSrc}
+                                poster={drill.thumbnailUrl}
+                                preload="auto"
+                                onPlaying={() => setVideoReady(true)}
+                                onWaiting={() => setVideoReady(false)}
+                            />
+                        )}
 
-                    {/* Play/Pause Icon Overlay */}
-                    {!isPlaying && isActive && (
-                        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 pointer-events-none">
-                            <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
-                                <Play className="w-10 h-10 text-black ml-1" />
+                        {/* Click Overlay for Play/Pause */}
+                        <div
+                            className="absolute inset-0 z-30"
+                            onClick={() => setIsPlaying(!isPlaying)}
+                        />
+
+                        {/* Thumbnail Overlay (while loading) */}
+                        {!videoReady && !useVimeo && (
+                            <div className="absolute inset-0 z-20 pointer-events-none">
+                                <img
+                                    src={drill.thumbnailUrl}
+                                    className="w-full h-full object-cover"
+                                    alt=""
+                                />
+                                {isActive && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+                                        <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+                        )}
 
-            {/* Video Type Toggles (Top Left) - Only show if active */}
-            {isActive && (
-                <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
-                    <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                        >
-                            동작
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                        >
-                            설명
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Content & Actions */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                    {/* Info */}
-                    <div className="flex-1 pr-4">
-                        <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
-                            {drill.title}
-                            {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
-                        </h2>
-                        <p className="text-white/80 text-sm mb-3">
-                            @{drill.creatorName || 'Instructor'}
-                        </p>
-
-                        {/* Tags */}
-                        {drill.tags && drill.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
-                                    <span key={idx} className="text-white/90 text-sm">
-                                        #{tag}
-                                    </span>
-                                ))}
+                        {/* Play/Pause Icon Overlay */}
+                        {!isPlaying && isActive && (
+                            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 pointer-events-none">
+                                <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
+                                    <Play className="w-10 h-10 text-black ml-1" />
+                                </div>
                             </div>
                         )}
                     </div>
+                </div>
 
-                    {/* Right Side Actions */}
-                    <div className="flex flex-col gap-6 items-center pb-4">
-                        {/* Like */}
-                        <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <Heart className={`w-6 h-6 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                            </div>
-                            <span className="text-white text-xs">{likeCount}</span>
-                        </button>
+                {/* Video Type Toggles (Top Left) - Only show if active */}
+                {isActive && (
+                    <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
+                        <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
+                            >
+                                동작
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
+                            >
+                                설명
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-                        {/* Save */}
-                        <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="flex flex-col items-center gap-1 group">
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-                            </div>
-                            <span className="text-white text-xs">저장</span>
-                        </button>
+                {/* Content & Actions */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none">
+                    <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
+                        {/* Info */}
+                        <div className="flex-1 pr-4">
+                            <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
+                                {drill.title}
+                                {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
+                            </h2>
+                            <p className="text-white/80 text-sm mb-3">
+                                @{drill.creatorName || 'Instructor'}
+                            </p>
 
-                        {/* Share */}
-                        <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="flex flex-col items-center gap-1 group">
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <Share2 className="w-6 h-6 text-white" />
-                            </div>
-                            <span className="text-white text-xs">공유</span>
-                        </button>
+                            {/* Tags */}
+                            {drill.tags && drill.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                        <span key={idx} className="text-white/90 text-sm">
+                                            #{tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
-                        {/* Mute */}
-                        <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="flex flex-col items-center gap-1 group">
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                {isMuted ? <VolumeX className="w-6 h-6 text-white" /> : <Volume2 className="w-6 h-6 text-white" />}
-                            </div>
-                            <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
-                        </button>
+                        {/* Right Side Actions */}
+                        <div className="flex flex-col gap-6 items-center pb-4">
+                            {/* Like */}
+                            <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    <Heart className={`w-6 h-6 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                                </div>
+                                <span className="text-white text-xs">{likeCount}</span>
+                            </button>
 
-                        {/* View Routine */}
-                        <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="flex flex-col items-center gap-1 group">
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <MoreVertical className="w-6 h-6 text-white" />
-                            </div>
-                            <span className="text-white text-xs">루틴</span>
-                        </button>
+                            {/* Save */}
+                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+                                </div>
+                                <span className="text-white text-xs">저장</span>
+                            </button>
+
+                            {/* Share */}
+                            <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    <Share2 className="w-6 h-6 text-white" />
+                                </div>
+                                <span className="text-white text-xs">공유</span>
+                            </button>
+
+                            {/* Mute */}
+                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    {isMuted ? <VolumeX className="w-6 h-6 text-white" /> : <Volume2 className="w-6 h-6 text-white" />}
+                                </div>
+                                <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
+                            </button>
+
+                            {/* View Routine */}
+                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    <MoreVertical className="w-6 h-6 text-white" />
+                                </div>
+                                <span className="text-white text-xs">루틴</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={drill.title}
+                        text={`Check out this BJJ drill: ${drill.title}`}
+                    />
+                )}
+            </React.Suspense>
+        </>
     );
 };
+// Lazy load
+const ShareModal = React.lazy(() => import('../social/ShareModal'));

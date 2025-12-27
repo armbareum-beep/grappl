@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getUserCourses, getCourseProgress, getUserRoutines } from '../lib/api';
-import { Course, DrillRoutine } from '../types';
+import { getUserCourses, getCourseProgress, getUserRoutines, getSavedSparringVideos } from '../lib/api';
+import { Course, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play } from 'lucide-react';
@@ -16,7 +16,7 @@ interface CourseWithProgress extends Course {
 
 export const MyLibrary: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'courses' | 'routines'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
 
   // Courses State
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
@@ -25,6 +25,11 @@ export const MyLibrary: React.FC = () => {
   // Routines State
   const [purchasedRoutines, setPurchasedRoutines] = useState<DrillRoutine[]>([]);
   const [routinesLoading, setRoutinesLoading] = useState(true);
+
+  // Sparring State
+  const [savedSparring, setSavedSparring] = useState<SparringVideo[]>([]);
+  const [sparringLoading, setSparringLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +37,7 @@ export const MyLibrary: React.FC = () => {
       if (!user) {
         setCoursesLoading(false);
         setRoutinesLoading(false);
+        setSparringLoading(false);
         return;
       }
 
@@ -40,6 +46,8 @@ export const MyLibrary: React.FC = () => {
         setError(null);
         setCoursesLoading(true);
         setRoutinesLoading(true);
+        setSparringLoading(true);
+
         const coursesData = await getUserCourses(user.id);
         const coursesWithProgress = await Promise.all(
           coursesData.map(async (course) => {
@@ -70,6 +78,16 @@ export const MyLibrary: React.FC = () => {
         setError(err.message || '라이브러리를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setRoutinesLoading(false);
+      }
+
+      // Fetch Sparring
+      try {
+        const sparringData = await getSavedSparringVideos(user.id);
+        setSavedSparring(sparringData);
+      } catch (err) {
+        console.error('Error fetching saved sparring:', err);
+      } finally {
+        setSparringLoading(false);
       }
     }
 
@@ -125,6 +143,12 @@ export const MyLibrary: React.FC = () => {
             className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'routines' ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
           >
             루틴 ({purchasedRoutines.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('sparring')}
+            className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'sparring' ? 'border-green-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
+          >
+            스파링 ({savedSparring.length})
           </button>
         </div>
 
@@ -211,6 +235,52 @@ export const MyLibrary: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'sparring' && (
+          <div className="space-y-12">
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Dumbbell className="w-6 h-6 text-green-500" />
+              저장된 스파링
+            </h2>
+            {sparringLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-slate-400">저장된 스파링 불러오는 중...</p>
+              </div>
+            ) : savedSparring.length === 0 ? (
+              <div className="bg-slate-900 rounded-xl p-8 border border-slate-800 text-center">
+                <p className="text-slate-400 mb-4">저장된 스파링 영상이 없습니다.</p>
+                <Link to="/sparring">
+                  <Button variant="primary">
+                    스파링 영상 보러가기
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {savedSparring.map((video) => (
+                  <Link key={video.id} to={`/sparring?id=${video.id}`} className="block group">
+                    <div className="relative aspect-[9/16] rounded-xl overflow-hidden bg-slate-800 mb-3 border border-slate-800 group-hover:border-blue-500 transition-colors">
+                      <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <h3 className="text-white font-bold text-lg line-clamp-2 mb-1">{video.title}</h3>
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <span>{video.creator?.name || 'Unknown User'}</span>
+                          <span>•</span>
+                          <span>{video.views?.toLocaleString()} 조회</span>
+                        </div>
+                      </div>
+                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Play className="w-6 h-6 text-white fill-current" />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

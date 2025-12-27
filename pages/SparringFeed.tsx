@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, MessageCircle, Share2, MoreVertical, BookOpen, ArrowLeft } from 'lucide-react';
+import { Heart, Share2, BookOpen, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,6 +22,7 @@ const VideoItem: React.FC<{
     const { user } = useAuth();
     const [isFollowed, setIsFollowed] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
     const navigate = useNavigate();
 
@@ -33,6 +34,7 @@ const VideoItem: React.FC<{
                     .then(status => {
                         setIsFollowed(status.followed);
                         setIsLiked(status.liked);
+                        setIsSaved(status.saved);
                     })
                     .catch(console.error);
             });
@@ -77,23 +79,29 @@ const VideoItem: React.FC<{
         }
     };
 
-    const handleShare = async () => {
-        const url = window.location.href; // Or specific URL if available
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: video.title,
-                    text: `Check out this sparring video by ${video.creator?.name}`,
-                    url
-                });
-            } catch (err) {
-                console.log('Share aborted', err);
-            }
-        } else {
-            // Fallback
-            navigator.clipboard.writeText(url);
-            alert('링크가 복사되었습니다!');
+    const handleSave = async () => {
+        if (!user) { navigate('/login'); return; }
+
+        // Optimistic UI
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+
+        try {
+            const { toggleSparringSave } = await import('../lib/api');
+            const result = await toggleSparringSave(user.id, video.id);
+            setIsSaved(result.saved);
+        } catch (error) {
+            console.error('Save failed', error);
+            setIsSaved(!newStatus); // Revert
         }
+    };
+
+    // Share Modal State
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    const handleShare = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setIsShareModalOpen(true);
     };
 
     // Helper to get Vimeo ID
@@ -180,6 +188,24 @@ const VideoItem: React.FC<{
 
     // Render Content
     const renderVideoContent = () => {
+        // 0. Error Check
+        if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
+            return (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
+                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-2xl">⚠️</span>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">영상 처리 실패</h3>
+                    <p className="text-sm text-center text-zinc-400 mb-4 max-w-xs break-all">
+                        {video.videoUrl.replace('ERROR:', '').trim()}
+                    </p>
+                    <div className="text-xs text-zinc-500 text-center">
+                        영상을 처리할 수 없습니다. 대시보드에서 삭제 후 다시 시도해주세요.
+                    </div>
+                </div>
+            );
+        }
+
         // 1. Vimeo Player
         if (vimeoId) {
             return (
@@ -197,17 +223,16 @@ const VideoItem: React.FC<{
                 ref={(el) => {
                     // Type casting/assertion workaround if needed, or simple ref callback
                     // We can reuse container logic or just manage it simply
-                    if (el) {
-                        if (isActive) el.play().catch(() => {
+                    if (el && isActive) {
+                        el.play().catch(() => {
                             setMuted(true);
-                            el.muted = true;
-                            el.play();
+                            if (el) el.muted = true;
+                            if (el) el.play();
                         });
-                        else {
-                            el.pause();
-                            el.currentTime = 0;
-                        }
                         el.muted = muted;
+                    } else if (el) {
+                        el.pause();
+                        el.currentTime = 0;
                     }
                 }}
                 src={video.videoUrl}
@@ -220,113 +245,147 @@ const VideoItem: React.FC<{
     };
 
     return (
-        <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-center justify-center overflow-hidden">
-            {/* Aspect Ratio Video Container */}
-            <div className="relative w-full h-full">
-                {renderVideoContent()}
+        <>
+            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-center justify-center overflow-hidden">
+                {/* Aspect Ratio Video Container */}
+                <div className="relative w-full h-full">
+                    {renderVideoContent()}
 
-                {/* CLICK OVERLAY FIX: Explicit layer for click-to-pause (actually mute toggle here as per req?) 
+                    {/* CLICK OVERLAY FIX: Explicit layer for click-to-pause (actually mute toggle here as per req?)
                     The user complained about "pause" but the current code calls toggleMute on click.
                     I'll keep it as toggleMute unless requested otherwise, but ensure it covers everything.
                 */}
-                <div
-                    className="absolute inset-0 z-10"
-                    onClick={toggleMute}
-                />
-            </div>
-
-            {/* Gradient Overlay - pointer-events-none */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-20" />
-
-            {/* Mute Indicator */}
-            <div className="absolute top-4 right-4 z-40 pointer-events-none">
-                {muted && (
-                    <div className="bg-black/50 p-2 rounded-full backdrop-blur-sm animate-pulse">
-                        <span className="text-white text-xs font-bold px-2">Click to Unmute</span>
-                    </div>
-                )}
-            </div>
-
-            {/* Right Sidebar Actions - pointer-events-auto */}
-            <div className="absolute right-4 bottom-24 flex flex-col gap-6 items-center z-30 pointer-events-auto">
-                <div className="flex flex-col items-center gap-1">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                    >
-                        <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
-                    </button>
-                    <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
+                    <div
+                        className="absolute inset-0 z-10"
+                        onClick={toggleMute}
+                    />
                 </div>
 
-                {/* Removed Comment Button as requested */}
+                {/* Gradient Overlay - pointer-events-none */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-20" />
 
-                <button
-                    onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                    className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
-                >
-                    <Share2 className="w-7 h-7" />
-                </button>
+                {/* Mute Indicator */}
+                <div className="absolute top-4 right-4 z-40 pointer-events-none">
+                    {muted && (
+                        <div className="bg-black/50 p-2 rounded-full backdrop-blur-sm animate-pulse">
+                            <span className="text-white text-xs font-bold px-2">소리 켜기</span>
+                        </div>
+                    )}
+                </div>
 
-                <button className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors">
-                    <MoreVertical className="w-6 h-6" />
-                </button>
-            </div>
-
-            {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
-            <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-4 pointer-events-none">
-                {/* Related Technique Link (The "Hook") */}
-                {video.relatedItems && video.relatedItems.length > 0 && (
-                    <div className="flex flex-col gap-2 w-full max-w-sm pointer-events-auto">
-                        {video.relatedItems.map((item, idx) => (
-                            <Link
-                                key={idx}
-                                to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                className="flex items-center gap-3 bg-black/60 backdrop-blur-md border border-white/20 p-3 rounded-xl hover:bg-black/80 transition-all group"
-                            >
-                                <div className="bg-blue-600 p-2 rounded-lg group-hover:bg-blue-500 transition-colors">
-                                    <BookOpen className="w-4 h-4 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-xs text-blue-300 font-bold uppercase mb-0.5">이 기술 배우기</p>
-                                    <p className="text-sm font-semibold truncate text-white">{item.title}</p>
-                                </div>
-                                <div className="px-3 py-1.5 bg-white/10 rounded-lg text-xs font-bold group-hover:bg-white/20">
-                                    이동
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Metadata */}
-                <div className="max-w-[85%] pointer-events-auto">
-                    <div className="flex items-center gap-3 mb-3">
-                        {video.creator && (
-                            <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80">
-                                <img
-                                    src={video.creator.profileImage || 'https://via.placeholder.com/40'}
-                                    alt={video.creator.name}
-                                    className="w-10 h-10 rounded-full border border-white/20"
-                                />
-                                <span className="font-bold text-shadow-sm">{video.creator.name}</span>
-                            </Link>
-                        )}
+                {/* Right Sidebar Actions - pointer-events-auto */}
+                <div className="absolute right-4 bottom-24 flex flex-col gap-6 items-center z-30 pointer-events-auto">
+                    <div className="flex flex-col items-center gap-1">
                         <button
-                            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-                            className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm border border-white/10 transition-all ${isFollowed ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30 text-white'}`}
+                            onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
                         >
-                            {isFollowed ? 'Following' : 'Follow'}
+                            <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
+                        </button>
+                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
+                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill={isSaved ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`w-7 h-7 ${isSaved ? 'text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
+                            >
+                                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                            </svg>
                         </button>
                     </div>
 
-                    <h3 className="font-bold text-lg mb-2 line-clamp-2 leading-tight text-shadow-sm">{video.title}</h3>
-                    <p className="text-sm text-white/80 line-clamp-2 text-shadow-sm">{video.description}</p>
+                    <button
+                        onClick={handleShare}
+                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
+                    >
+                        <Share2 className="w-7 h-7" />
+                    </button>
+                </div>
+
+                {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
+                <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-4 pointer-events-none">
+                    {/* Related Technique Link (The "Hook") */}
+                    {video.relatedItems && video.relatedItems.length > 0 && (
+                        <div className="w-full max-w-md pointer-events-auto mb-2">
+                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mask-gradient-right">
+                                {video.relatedItems.map((item, idx) => (
+                                    <Link
+                                        key={idx}
+                                        to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
+                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/20 transition-all group whitespace-nowrap shrink-0"
+                                    >
+                                        <div className="bg-blue-600 p-1 rounded-full group-hover:bg-blue-500 transition-colors">
+                                            <BookOpen className="w-3 h-3 text-white" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-blue-300 font-bold leading-none">이 기술 배우기</span>
+                                            <span className="text-xs font-semibold text-white leading-none mt-0.5">{item.title}</span>
+                                        </div>
+                                        <div className="w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100">
+                                            <ArrowLeft className="w-3 h-3 rotate-180" />
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Metadata */}
+                    <div className="max-w-[85%] pointer-events-auto">
+                        <div className="flex items-center gap-3 mb-3">
+                            {video.creator && (
+                                <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80">
+                                    <img
+                                        src={video.creator.profileImage || 'https://via.placeholder.com/40'}
+                                        alt={video.creator.name}
+                                        className="w-10 h-10 rounded-full border border-white/20"
+                                    />
+                                    <span className="font-bold text-shadow-sm">{video.creator.name}</span>
+                                </Link>
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+                                className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm border border-white/10 transition-all ${isFollowed ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30 text-white'}`}
+                            >
+                                {isFollowed ? '팔로잉' : '팔로우'}
+                            </button>
+                        </div>
+
+                        <h3 className="font-bold text-lg mb-2 line-clamp-2 leading-tight text-shadow-sm">{video.title}</h3>
+                        <p className="text-sm text-white/80 line-clamp-2 text-shadow-sm">{video.description}</p>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={video.title}
+                        text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                    />
+                )}
+            </React.Suspense>
+        </>
     );
 };
+// Lazy load Modal to avoid circular dependency or bundle issues if needed
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
 export const SparringFeed: React.FC = () => {
     const { user, isCreator } = useAuth();
@@ -341,7 +400,15 @@ export const SparringFeed: React.FC = () => {
 
     const loadVideos = async () => {
         const { data } = await getSparringVideos();
-        if (data) setVideos(data);
+        if (data) {
+            // Shuffle videos randomly using Fisher-Yates algorithm
+            const shuffled = [...data];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            setVideos(shuffled);
+        }
     };
 
     // Scroll Observer to detect active video

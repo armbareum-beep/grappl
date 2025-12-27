@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, incrementCourseViews } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -29,6 +29,8 @@ export const CourseDetail: React.FC = () => {
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
     const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
     const [activeTab, setActiveTab] = useState<'lessons' | 'drills' | 'sparring'>('lessons');
+    const [isLiked, setIsLiked] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -88,7 +90,14 @@ export const CourseDetail: React.FC = () => {
                             }
                         }
                         setCompletedLessons(completed);
+
+                        // Check if course is liked
+                        const liked = await checkCourseLiked(user.id, id);
+                        setIsLiked(liked);
                     }
+
+                    // Increment views
+                    incrementCourseViews(id);
                 }
             } catch (error: any) {
                 console.error('Error fetching course details:', error);
@@ -268,6 +277,33 @@ export const CourseDetail: React.FC = () => {
             }
         }
     };
+
+    const handleLike = async () => {
+        if (!user) {
+            toastError('좋아요를 누르려면 로그인이 필요합니다.');
+            return;
+        }
+        if (!id) return;
+
+        // Optimistic UI
+        const newStatus = !isLiked;
+        setIsLiked(newStatus);
+
+        const { liked, error } = await toggleCourseLike(user.id, id);
+        if (error) {
+            console.error('Like failed:', error);
+            setIsLiked(!newStatus); // Revert
+        } else {
+            setIsLiked(liked);
+            if (liked) {
+                success('좋아요!');
+            }
+        }
+    };
+
+    const handleShare = () => {
+        setIsShareModalOpen(true);
+    };
     return (
         <div className="bg-black min-h-screen text-white">
             {/* Header */}
@@ -330,10 +366,17 @@ export const CourseDetail: React.FC = () => {
                                         </div>
                                     </Link>
                                     <div className="flex gap-2 ml-4">
-                                        <button className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors">
-                                            <Heart className="w-5 h-5" />
+                                        <button
+                                            onClick={handleLike}
+                                            className={`p-2 rounded-full hover:bg-zinc-800 transition-colors ${isLiked ? 'text-red-500' : 'text-zinc-400'
+                                                }`}
+                                        >
+                                            <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
                                         </button>
-                                        <button className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors">
+                                        <button
+                                            onClick={handleShare}
+                                            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                                        >
                                             <Share2 className="w-5 h-5" />
                                         </button>
                                     </div>
@@ -629,7 +672,21 @@ export const CourseDetail: React.FC = () => {
                 </div>
             </div>
 
-
+            {/* Share Modal */}
+            {isShareModalOpen && course && (
+                <React.Suspense fallback={null}>
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={course.title}
+                        text={course.description}
+                        url={window.location.href}
+                    />
+                </React.Suspense>
+            )}
         </div>
     );
 };
+
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));

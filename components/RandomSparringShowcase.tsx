@@ -95,7 +95,7 @@ export function RandomSparringShowcase() {
                 <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
 
                     {/* Text Section */}
-                    <div className="flex-1 text-center lg:text-left order-2 lg:order-1">
+                    <div className="flex-1 text-center lg:text-left order-1 lg:order-2">
                         <div className="inline-block px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-full mb-6">
                             <span className="text-indigo-400 text-sm font-bold uppercase tracking-wider">
                                 Real Combat Experience
@@ -132,10 +132,10 @@ export function RandomSparringShowcase() {
                     </div>
 
                     {/* Video Section */}
-                    <div className="flex-1 w-full max-w-2xl order-1 lg:order-2">
+                    <div className="flex-1 w-full max-w-2xl order-2 lg:order-1">
                         <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-indigo-500/20 border border-slate-800 bg-slate-900 aspect-video group">
                             <iframe
-                                src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&muted=1`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1`}
                                 className="absolute inset-0 w-full h-full transform scale-105"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"

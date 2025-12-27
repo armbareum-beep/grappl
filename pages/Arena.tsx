@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Trophy, Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
-import { SkillTreeTab } from '../components/journal/SkillTreeTab';
+import { Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
+import { TechniqueSkillTree } from '../components/technique/TechniqueSkillTree';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
 import { TrainingRoutinesTab } from '../components/arena/TrainingRoutinesTab';
-import { MobileTabSelector } from '../components/MobileTabSelector';
 import { useAuth } from '../contexts/AuthContext';
 
 type ArenaTab = 'routines' | 'sparring' | 'skills' | 'journal';
 
 export const Arena: React.FC = () => {
-    const { user } = useAuth();
+    const { } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<ArenaTab>('journal');
 
@@ -183,7 +182,7 @@ export const Arena: React.FC = () => {
                             autoRunAI={searchParams.get('action') === 'analyze'}
                         />
                     )}
-                    {activeTab === 'skills' && <SkillTreeTab />}
+                    {activeTab === 'skills' && <TechniqueSkillTree />}
                     {activeTab === 'journal' && <JournalTab />}
                 </div>
             </div>

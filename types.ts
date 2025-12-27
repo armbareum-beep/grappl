@@ -36,6 +36,7 @@ export interface Course {
   description: string;
   creatorId: string;
   creatorName: string;
+  creatorProfileImage?: string;
   category: VideoCategory;
   difficulty: Difficulty;
   thumbnailUrl: string;
@@ -577,6 +578,32 @@ export interface TechniqueRecommendation {
   technique: Technique;
   reason: 'weakest' | 'trending' | 'related' | 'goal';
   priority: number;
+}
+
+// ==================== Skill Tree Types ====================
+
+export interface SkillTreeNode {
+  id: string;
+  contentType: 'technique' | 'lesson' | 'drill';
+  contentId: string;
+  position: { x: number; y: number };
+  type: 'content';
+}
+
+export interface SkillTreeEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: 'default' | 'animated';
+}
+
+export interface UserSkillTree {
+  id: string;
+  userId: string;
+  nodes: SkillTreeNode[];
+  edges: SkillTreeEdge[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ==================== Admin & Reporting ====================

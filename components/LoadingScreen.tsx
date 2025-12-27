@@ -10,7 +10,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '로딩 
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowReset(true);
-        }, 5000); // Show reset option after 5 seconds
+        }, 3000); // Show reset option after 3 seconds
 
         return () => clearTimeout(timer);
     }, []);
@@ -39,7 +39,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '로딩 
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
-                                <h3 className="text-white font-bold text-lg">앱이 업데이트되었습니다</h3>
+                                <h3 className="text-white font-bold text-lg">앱 업데이트 필요</h3>
                             </div>
                             <p className="text-slate-300 text-sm mb-4 leading-relaxed">
                                 새로운 기능과 개선사항이 적용되었습니다.<br />

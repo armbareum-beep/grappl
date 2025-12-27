@@ -73,9 +73,15 @@ export const RoutineDetail: React.FC = () => {
     // Completion & Sharing State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shareModalData, setShareModalData] = useState<{
         defaultContent: string;
         metadata: any;
+    } | null>(null);
+    const [shareModalData2, setShareModalData2] = useState<{
+        title: string;
+        text: string;
+        url: string;
     } | null>(null);
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
     const [earnedXpToday, setEarnedXpToday] = useState(false);
@@ -607,21 +613,12 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
     const handleShare = async () => {
         if (!currentDrill) return;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: currentDrill.title,
-                    text: `Check out this drill: ${currentDrill.title}`,
-                    url: window.location.href
-                });
-            } catch (err) {
-                console.log('Share error:', err);
-            }
-        } else {
-            navigator.clipboard.writeText(window.location.href);
-            alert('링크가 복사되었습니다!');
-        }
+        setShareModalData2({
+            title: currentDrill.title,
+            text: `Check out this drill: ${currentDrill.title}`,
+            url: window.location.href
+        });
+        setIsShareModalOpen(true);
     };
 
     const handleDrillSelect = (index: number) => {
@@ -788,7 +785,6 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     {/* Video Click Overlay for Routine Detail */}
                     {!isTrainingMode && isPlayable && (
                         <div
-                            className="absolute inset-0 z-35"
                             onClick={() => {
                                 const nextPlaying = !isPlaying;
                                 setIsPlaying(nextPlaying);
@@ -798,91 +794,96 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                         const message = nextPlaying ? '{"method":"play"}' : '{"method":"pause"}';
                                         iframe.contentWindow.postMessage(message, '*');
                                     }
-                                } else {
-                                    const video = videoRef.current;
-                                    if (video) {
-                                        if (nextPlaying) video.play();
-                                        else video.pause();
-                                    }
+                                } else if (videoRef.current) {
+                                    if (nextPlaying) videoRef.current.play();
+                                    else videoRef.current.pause();
                                 }
                             }}
-                        />
+                            className="w-full h-full cursor-pointer"
+                        ></div>
                     )}
 
-                    {isTrainingMode ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 px-4 text-center">
-                            <div className="text-slate-400 mb-4 text-sm md:text-lg animate-pulse">Training in Progress...</div>
-                            <div className="text-6xl md:text-8xl font-black text-white tabular-nums tracking-wider mb-8 font-mono">
-                                {formatTime(elapsedSeconds)}
-                            </div>
-                            <Button
-                                onClick={handleFinishTraining}
-                                className={`text-white px-8 py-4 md:px-12 md:py-6 text-lg md:text-xl rounded-full shadow-lg transform hover:scale-105 transition-all bg-gradient-to-r ${buttonGradient}`}
-                            >
-                                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 mr-3" />
-                                훈련 완료하기
-                            </Button>
+                    {/* Draggable Progress Bar (Optional, can be added here) */}
+
+                    {/* Play/Pause Center Icon */}
+                    {!isPlaying && !isTrainingMode && isPlayable && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full backpack-blur-sm pointer-events-none">
+                            <PlayCircle className="w-16 h-16 text-white opacity-90" />
                         </div>
-                    ) : isPlayable && (hasDirectVideo || hasVimeo) ? (
-                        hasDirectVideo ? (
-                            // Use direct video URL for 9:16 vertical format (same as drill reels)
-                            <video
-                                key={`${currentDrill.id}-${videoType}`}
-                                ref={videoRef}
-                                src={directVideoUrl}
-                                className="w-full h-full object-cover"
-                                loop
-                                autoPlay
-                                playsInline
-                                onTimeUpdate={handleProgress}
-                            />
-                        ) : (
-                            // Fallback to Vimeo iframe
+                    )}
+
+                    {!isPlayable && (
+                        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center">
+                            <Lock className="w-16 h-16 text-zinc-500 mb-4" />
+                            <h3 className="text-xl font-bold text-white mb-2">잠긴 컨텐츠입니다</h3>
+                            <p className="text-zinc-400 mb-6 max-w-sm">
+                                이 드릴을 시청하려면 루틴을 구매하거나 멤버십을 구독하세요.
+                            </p>
+                            <div className="flex gap-3">
+                                <Button onClick={handlePurchase} className={`bg-gradient-to-r ${buttonGradient} border-0`}>
+                                    {routine?.price === 0 ? '무료로 시작하기' : '구매하기'}
+                                </Button>
+                                {!user?.isSubscriber && (
+                                    <Link to="/pricing">
+                                        <Button variant="outline" className="border-zinc-600 text-white hover:bg-zinc-800">
+                                            멤버십 구독
+                                        </Button>
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {hasDirectVideo && videoType === 'main' && (
+                        <video
+                            key={`${currentDrill.id}-${videoType}`}
+                            ref={videoRef}
+                            src={directVideoUrl}
+                            className="w-full h-full object-cover"
+                            loop
+                            autoPlay
+                            playsInline
+                            muted={false} // Unmuted by default on detail page?? User can mute.
+                            onTimeUpdate={handleProgress}
+                        />
+                    )}
+                    {hasVimeo && (
+                        <div className={`w-full h-full ${videoType !== 'main' && isActionVideo ? 'hidden' : ''}`}>
                             <VimeoWrapper
                                 vimeoId={vimeoId!}
                                 onProgress={handleProgress}
                                 currentDrillId={currentDrill.id}
                                 videoType={videoType}
                             />
-                        )
-                    ) : (
-                        <div className="w-full h-full relative group">
-                            <img
-                                src={currentDrill.thumbnailUrl}
-                                alt={currentDrill.title}
-                                className="w-full h-full object-cover opacity-60 transition-opacity group-hover:opacity-40"
-                            />
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center bg-black/20 backdrop-blur-sm">
-                                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform">
-                                    <Lock className="w-10 h-10 text-white" />
-                                </div>
-                                <h3 className="text-2xl font-bold mb-3 tracking-tight">
-                                    {isFirstDrill ? '비디오 없음' : '루틴 구매 필요'}
-                                </h3>
-                                <p className="text-zinc-300 mb-8 max-w-xs text-sm">
-                                    {isFirstDrill
-                                        ? '이 드릴의 재생 가능한 비디오가 없습니다.'
-                                        : '이 루틴의 모든 드릴을 마스터하세요. \n지금 바로 시작하세요.'}
-                                </p>
-                                {!owns && !isFirstDrill && (
-                                    <div className="flex flex-col gap-3 w-full max-w-xs">
-                                        <Button
-                                            onClick={handlePurchase}
-                                            size="lg"
-                                            className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-4 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
-                                        >
-                                            ₩{routine.price.toLocaleString()}에 잠금 해제
-                                        </Button>
-                                        <Link to="/pricing" className="w-full">
-                                            <Button
-                                                variant="secondary"
-                                                className="w-full bg-white/10 hover:bg-white/20 text-white rounded-full px-8 py-3 text-sm border border-white/20 backdrop-blur-md transition-all"
-                                            >
-                                                멤버십 구독으로 전체 보기
-                                            </Button>
-                                        </Link>
-                                    </div>
-                                )}
+                        </div>
+                    )}
+
+                    {/* Description Video Overlay (if exists and selected) */}
+                    {hasDirectVideo && videoType === 'description' && (
+                        <video
+                            src={currentDrill.descriptionVideoUrl || directVideoUrl} // Fallback to main if no desc video, but logic above handles effective URL
+                            className="w-full h-full object-cover"
+                            loop
+                            playsInline
+                            autoPlay
+                            controls
+                        />
+                    )}
+
+                    {/* Training Mode Timer Overlay */}
+                    {isTrainingMode && (
+                        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center">
+                            <div className={`text-6xl font-bold ${accentColor} mb-8 font-mono tracking-widest`}>
+                                {formatTime(elapsedSeconds)}
+                            </div>
+                            <div className="flex flex-col items-center gap-4">
+                                <p className="text-zinc-400 animate-pulse">훈련 진행 중...</p>
+                                <Button
+                                    onClick={handleFinishTraining}
+                                    className={`px-12 py-6 text-xl bg-gradient-to-r ${buttonGradient} border-0 rounded-2xl`}
+                                >
+                                    훈련 완료
+                                </Button>
                             </div>
                         </div>
                     )}

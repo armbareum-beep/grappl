@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Image as ImageIcon, Hash, Globe, Sparkles, Plus, BookOpen } from 'lucide-react';
+import { X, Image as ImageIcon, Hash, Globe, Sparkles, Plus, BookOpen, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { TrainingLog } from '../../types';
@@ -25,6 +25,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
     const [showQuestComplete, setShowQuestComplete] = useState(false);
     const [questCompleteData, setQuestCompleteData] = useState<{ questName: string; xpEarned: number } | null>(null);
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
+    const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [showYoutubeInput, setShowYoutubeInput] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +123,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                 isPublic: true,
                 location: `__FEED__`,
                 mediaUrl: uploadedUrls[0],
+                youtubeUrl: youtubeUrl || undefined,
                 metadata: {
                     images: uploadedUrls
                 }
@@ -139,6 +142,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     notes: content,
                     isPublic: false,
                     mediaUrl: uploadedUrls[0],
+                    youtubeUrl: youtubeUrl || undefined,
                     metadata: {
                         images: uploadedUrls,
                         source: 'feed_post'
@@ -250,6 +254,32 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                         autoFocus
                     />
 
+                    {/* YouTube Link Input */}
+                    {showYoutubeInput && (
+                        <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-3 focus-within:border-blue-500/50 focus-within:bg-slate-900 transition-all">
+                                <LinkIcon className="w-5 h-5 text-red-500" />
+                                <input
+                                    type="text"
+                                    value={youtubeUrl}
+                                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                                    placeholder="YouTube 영상 링크를 붙여넣으세요"
+                                    className="flex-1 bg-transparent border-none focus:outline-none text-slate-200 placeholder:text-slate-600 text-sm"
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={() => {
+                                        setYoutubeUrl('');
+                                        setShowYoutubeInput(false);
+                                    }}
+                                    className="text-slate-500 hover:text-white"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Media Previews */}
                     {mediaPreviews.length > 0 && (
                         <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
@@ -322,6 +352,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                                 title="기술 태그"
                             >
                                 <Hash className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            </button>
+                            <button
+                                onClick={() => setShowYoutubeInput(!showYoutubeInput)}
+                                className={`p-2.5 rounded-full transition-all group relative ${showYoutubeInput ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20' : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'}`}
+                                title="YouTube 링크"
+                            >
+                                <LinkIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             </button>
                         </div>
 

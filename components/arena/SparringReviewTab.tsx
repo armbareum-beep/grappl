@@ -85,7 +85,8 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         techniques: [] as string[],
         whatWorked: '',
         whatToImprove: '',
-        videoUrl: ''
+        videoUrl: '',
+        shareToFeed: false
     });
     const [showTechModal, setShowTechModal] = useState(false);
 
@@ -123,6 +124,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     const [shareModalData, setShareModalData] = useState<{
         defaultContent: string;
         metadata: Record<string, any>;
+        videoUrl?: string;
     } | null>(null);
 
     // Subscription State
@@ -301,7 +303,8 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                     opponentName: mainOpponent.opponentName,
                     rounds: totalRounds,
                     belt: mainOpponent.opponentBelt
-                }
+                },
+                videoUrl: formData.videoUrl // Store for sharing
             });
 
             setXpEarned(earnedXpResult);
@@ -321,6 +324,23 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             setIsCreating(false);
             success('스파링 복기가 저장되었습니다!');
 
+            // Auto-share to feed if checkbox was checked
+            if (formData.shareToFeed && shareModalData) {
+                try {
+                    await createFeedPost({
+                        userId: user.id,
+                        content: shareModalData.defaultContent,
+                        type: 'sparring',
+                        metadata: shareModalData.metadata,
+                        mediaUrl: shareModalData.videoUrl,
+                        youtubeUrl: getYouTubeEmbedUrl(shareModalData.videoUrl || '') || undefined
+                    });
+                } catch (feedError) {
+                    console.error('Error sharing to feed:', feedError);
+                    // Don't show error to user, review was saved successfully
+                }
+            }
+
             // Re-load reviews to match DB state
             loadReviews();
         } catch (err: any) {
@@ -339,7 +359,9 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 userId: user.id,
                 content: comment,
                 type: 'sparring',
-                metadata: shareModalData.metadata
+                metadata: shareModalData.metadata,
+                mediaUrl: shareModalData.videoUrl, // Legacy/Direct video support
+                youtubeUrl: getYouTubeEmbedUrl(shareModalData.videoUrl || '') || undefined
             });
             navigate('/journal');
         } catch (error) {
@@ -537,7 +559,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
 
             {/* Create Modal */}
             {isCreating && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/70 flex items-center justify-center z-50 p-4">
                     <div className="bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-800">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
@@ -711,6 +733,21 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                                     />
                                 </div>
 
+                                <div className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/50">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.shareToFeed}
+                                            onChange={(e) => setFormData({ ...formData, shareToFeed: e.target.checked })}
+                                            className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                                        />
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">공개 피드에 공유</span>
+                                            <p className="text-xs text-slate-500 mt-0.5">체크하면 저장과 동시에 피드에 게시됩니다</p>
+                                        </div>
+                                    </label>
+                                </div>
+
                                 <div className="flex justify-end gap-3 pt-6 border-t border-slate-800">
                                     <Button type="button" variant="ghost" onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white hover:bg-slate-800">
                                         취소
@@ -731,10 +768,6 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 onClose={() => setShowQuestModal(false)}
                 onContinue={() => {
                     setShowQuestModal(false);
-                    // Add a small delay to ensure smooth transition and prevent state conflicts
-                    setTimeout(() => {
-                        setShowShareModal(true);
-                    }, 500);
                 }}
                 questName="스파링 복기 완료"
                 xpEarned={xpEarned}

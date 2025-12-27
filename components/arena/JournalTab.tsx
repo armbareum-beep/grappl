@@ -40,6 +40,8 @@ export const JournalTab: React.FC = () => {
     const [shareModalData, setShareModalData] = useState<{
         defaultContent: string;
         metadata: Record<string, any>;
+        mediaUrl?: string;
+        youtubeUrl?: string;
     } | null>(null);
 
     // Heatmap Scroll Ref
@@ -189,7 +191,9 @@ ${logData.notes}`;
                             sparringRounds: logData.sparringRounds,
                             techniques: logData.techniques,
                             xpEarned: earnedXp
-                        }
+                        },
+                        mediaUrl: data.mediaUrl,
+                        youtubeUrl: data.youtubeUrl
                     });
 
                     // Show quest complete modal with bonus if exists
@@ -208,6 +212,23 @@ ${logData.notes}`;
 
                     setQuestCompleteData(questData);
                     setShowQuestComplete(true);
+
+                    // Auto-share to feed if checkbox was checked (isPublic = true)
+                    if (logData.isPublic && shareModalData) {
+                        try {
+                            await createFeedPost({
+                                userId: user.id,
+                                content: shareModalData.defaultContent,
+                                type: 'general',
+                                metadata: shareModalData.metadata,
+                                mediaUrl: shareModalData.mediaUrl,
+                                youtubeUrl: shareModalData.youtubeUrl
+                            });
+                        } catch (feedError) {
+                            console.error('Error sharing to feed:', feedError);
+                            // Don't show error to user, log was saved successfully
+                        }
+                    }
                 } catch (error) {
                     console.error('Error processing quest/streak:', error);
                     // Still show modal even if XP fetch fails
@@ -253,7 +274,9 @@ ${logData.notes}`;
                 userId: user.id,
                 content: comment,
                 type: 'general',
-                metadata: shareModalData.metadata
+                metadata: shareModalData.metadata,
+                mediaUrl: shareModalData.mediaUrl,
+                youtubeUrl: shareModalData.youtubeUrl
             });
             navigate('/journal');
         } catch (error) {
@@ -504,7 +527,7 @@ ${logData.notes}`;
             {/* Create Modal */}
             {
                 isCreating && (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <div className="bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-800 shadow-2xl">
                             <div className="p-6">
                                 <div className="flex justify-between items-center mb-6">
@@ -544,9 +567,6 @@ ${logData.notes}`;
                     onClose={() => setShowQuestComplete(false)}
                     onContinue={() => {
                         setShowQuestComplete(false);
-                        setTimeout(() => {
-                            setShowShareModal(true);
-                        }, 500);
                     }}
                     questName={questCompleteData.questName}
                     xpEarned={questCompleteData.xpEarned}

@@ -18,6 +18,8 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [location, setLocation] = useState(initialData?.location || '');
     const [techniques, setTechniques] = useState<string[]>(initialData?.techniques || []);
+    const [youtubeUrl, setYoutubeUrl] = useState(initialData?.youtubeUrl || '');
+    const [shareToFeed, setShareToFeed] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [showTechModal, setShowTechModal] = useState(false);
 
@@ -37,7 +39,8 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                 notes,
                 location,
                 techniques,
-                isPublic: false  // Always private, sharing handled via ShareToFeedModal
+                youtubeUrl: youtubeUrl || undefined,
+                isPublic: shareToFeed  // Share to feed if checked
             });
         } finally {
             setSubmitting(false);
@@ -137,6 +140,32 @@ export const TrainingLogForm: React.FC<TrainingLogFormProps> = ({ onSubmit, onCa
                     placeholder="오늘 수련에서 느낀 점이나 피드백을 기록하세요."
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all h-32 resize-none"
                 />
+            </div>
+
+            <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-300 mb-2">YouTube 영상 링크 (선택)</label>
+                <input
+                    type="url"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+            </div>
+
+            <div className="mb-6 p-4 bg-slate-800/30 rounded-lg border border-slate-700/50">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                        type="checkbox"
+                        checked={shareToFeed}
+                        onChange={(e) => setShareToFeed(e.target.checked)}
+                        className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                    />
+                    <div>
+                        <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">공개 피드에 공유</span>
+                        <p className="text-xs text-slate-500 mt-0.5">체크하면 저장과 동시에 피드에 게시됩니다</p>
+                    </div>
+                </label>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">

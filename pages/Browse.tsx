@@ -31,12 +31,71 @@ export const Browse: React.FC = () => {
     fetchCourses();
   }, []);
 
-  const filteredCourses = courses.filter((course) => {
-    const categoryMatch = selectedCategory === 'All' || course.category === selectedCategory;
-    const difficultyMatch = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
+  // Define categories and difficulties before any conditional returns
+  // Filter out 'Submission' from categories
+  const categories = ['All', ...Object.values(VideoCategory).filter(cat => cat !== 'Submission')];
+  const difficulties = ['All', ...Object.values(Difficulty)];
 
-    return categoryMatch && difficultyMatch;
-  });
+  // Create combined filter chips for mobile (categories + difficulties)
+  const mobileFilters = React.useMemo(() => {
+    // "전체" chip - always first
+    const allChip = {
+      type: 'category' as const,
+      value: 'All',
+      label: '전체',
+      isSelected: selectedCategory === 'All' && selectedDifficulty === 'All'
+    };
+
+    // Other category chips (excluding 'All')
+    const categoryChips = categories
+      .filter(cat => cat !== 'All')
+      .map(cat => ({
+        type: 'category' as const,
+        value: cat,
+        label: cat,
+        isSelected: selectedCategory === cat
+      }));
+
+    // Difficulty chips (excluding 'All')
+    const difficultyChips = difficulties
+      .filter(diff => diff !== 'All')
+      .map(diff => ({
+        type: 'difficulty' as const,
+        value: diff,
+        label: diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급',
+        isSelected: selectedDifficulty === diff
+      }));
+
+    // Combine categories and difficulties (excluding "전체")
+    const otherChips = [...categoryChips, ...difficultyChips];
+
+    // Shuffle only the other chips
+    for (let i = otherChips.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [otherChips[i], otherChips[j]] = [otherChips[j], otherChips[i]];
+    }
+
+    // Return with "전체" always first
+    return [allChip, ...otherChips];
+  }, [selectedCategory, selectedDifficulty]);
+
+  const filteredCourses = React.useMemo(() => {
+    const filtered = courses.filter((course) => {
+      const categoryMatch = selectedCategory === 'All' || course.category === selectedCategory;
+      const difficultyMatch = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
+
+      return categoryMatch && difficultyMatch;
+    });
+
+    // Shuffle the filtered courses for random display
+    const shuffled = [...filtered];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled;
+  }, [courses, selectedCategory, selectedDifficulty]);
 
   if (loading) {
     return <LoadingScreen message="콘텐츠 불러오는 중..." />;
@@ -45,10 +104,6 @@ export const Browse: React.FC = () => {
   if (error) {
     return <ErrorScreen error={error} resetMessage="강좌 목록을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
   }
-
-
-  const categories = ['All', ...Object.values(VideoCategory)];
-  const difficulties = ['All', ...Object.values(Difficulty)];
 
   return (
     <div className="flex w-full min-h-screen bg-slate-950">
@@ -105,19 +160,31 @@ export const Browse: React.FC = () => {
       {/* Main Content - Dark Theme */}
       <div className="flex-1 w-full min-w-0 transition-all duration-300">
         <div className="p-4 md:p-6">
-          {/* Mobile Filter Toggle */}
-          <div className="md:hidden mb-6">
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
+          {/* Mobile Filter Chips - YouTube Style Horizontal Scroll */}
+          <div className="md:hidden mb-6 -mx-4 px-4">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {mobileFilters.map((filter, index) => (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-sm border transition-all ${selectedCategory === cat
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  key={`${filter.type}-${filter.value}-${index}`}
+                  onClick={() => {
+                    if (filter.value === 'All') {
+                      // Reset both filters when clicking "전체"
+                      setSelectedCategory('All');
+                      setSelectedDifficulty('All');
+                    } else if (filter.type === 'category') {
+                      setSelectedCategory(filter.value);
+                      setSelectedDifficulty('All'); // Reset difficulty when selecting category
+                    } else {
+                      setSelectedDifficulty(filter.value);
+                      setSelectedCategory('All'); // Reset category when selecting difficulty
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap flex-shrink-0 transition-all ${filter.isSelected
+                    ? 'bg-white text-slate-900 font-medium'
+                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
                     }`}
                 >
-                  {cat === 'All' ? '전체' : cat}
+                  {filter.label}
                 </button>
               ))}
             </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Course } from '../types';
-import { Play, BookOpen } from 'lucide-react';
+import { Play } from 'lucide-react';
 import Player from '@vimeo/player';
 
 interface CourseCardProps {
@@ -128,32 +128,25 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         };
     }, [isDragging, duration]);
 
-    const difficultyLabel = course.difficulty === 'Beginner' ? '초급' :
-        course.difficulty === 'Intermediate' ? '중급' : '상급';
-
-    const difficultyColor = course.difficulty === 'Advanced' ? 'bg-red-500' :
-        course.difficulty === 'Intermediate' ? 'bg-yellow-500' : 'bg-green-500';
-
     const progressPercentage = duration > 0 ? (progress / duration) * 100 : 0;
 
     return (
-        <Link
-            to={`/courses/${course.id}`}
-            className="group block h-full relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-1"
+        <div
+            className="group block h-full"
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Aspect Ratio Container */}
-            <div
+            <Link
+                to={`/courses/${course.id}`}
                 ref={cardRef}
-                className="aspect-video w-full relative bg-slate-900"
+                className="aspect-video w-full relative bg-slate-900 rounded-xl overflow-hidden mb-3 block"
             >
-
                 {/* Background Image */}
                 <img
                     src={course.thumbnailUrl}
                     alt={course.title}
-                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${isHovering ? 'scale-110' : 'scale-100'}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${isHovering ? 'scale-105' : 'scale-100'}`}
                 />
 
                 {/* Video Preview Overlay */}
@@ -169,41 +162,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                     </div>
                 )}
 
-                {/* Gradient Overlay - only shows when NOT hovering */}
-                <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 ${!isHovering ? 'opacity-100' : 'opacity-0'}`} />
-
-                {/* Top Badges - always visible */}
-                <div className="absolute top-4 left-4 flex gap-2 z-20">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full text-white shadow-sm ${difficultyColor}`}>
-                        {difficultyLabel}
-                    </span>
-                    {course.lessonCount && (
-                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm flex items-center gap-1">
-                            <BookOpen className="w-3 h-3" />
-                            {course.lessonCount}
-                        </span>
-                    )}
-                </div>
-
-                {/* Content - only visible when NOT hovering */}
-                <div className={`absolute inset-0 p-5 flex flex-col justify-end z-20 transition-opacity duration-300 ${!isHovering ? 'opacity-100' : 'opacity-0'}`}>
-
-                    {/* Category */}
-                    <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                        {course.category}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="font-bold text-white text-xl mb-3 leading-tight line-clamp-2">
-                        {course.title}
-                    </h3>
-
-                    {/* Creator */}
-                    <div className="text-xs text-slate-300 font-medium">
-                        {course.creatorName}
-                    </div>
-                </div>
+                {/* Gradient Overlay - subtle */}
+                <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 transition-opacity duration-300`} />
 
                 {/* Seek Bar - only visible when hovering and video is playing */}
                 {showVideo && isHovering && (
@@ -232,11 +192,51 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                 {/* Play Button Overlay (Hidden when video plays) */}
                 {!showVideo && (
                     <div className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <div className="w-14 h-14 rounded-full bg-blue-600/90 backdrop-blur-sm flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                            <Play className="w-6 h-6 text-white fill-current ml-1" />
+                        <div className="w-16 h-16 rounded-full bg-blue-500/95 backdrop-blur-sm flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                            <Play className="w-7 h-7 text-white fill-current ml-1" />
                         </div>
                     </div>
                 )}
+            </Link>
+
+            {/* YouTube-style Info Section */}
+            <div className="flex gap-3">
+                {/* Creator Profile Image */}
+                <Link to={`/creator/${course.creatorId}`} className="flex-shrink-0 hover:opacity-80 transition-opacity">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+                        {course.creatorProfileImage ? (
+                            <img
+                                src={course.creatorProfileImage}
+                                alt={course.creatorName}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                                {course.creatorName?.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                    </div>
+                </Link>
+
+                {/* Title and Creator Info */}
+                <div className="flex-1 min-w-0">
+                    <Link to={`/courses/${course.id}`}>
+                        <h3 className="font-semibold text-white text-sm leading-tight line-clamp-2 mb-1 hover:text-blue-400 transition-colors">
+                            {course.title}
+                        </h3>
+                    </Link>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                        <Link to={`/creator/${course.creatorId}`} className="hover:text-white transition-colors">
+                            <span className="truncate">{course.creatorName}</span>
+                        </Link>
+                        {course.lessonCount && (
+                            <>
+                                <span>•</span>
+                                <span className="flex-shrink-0">{course.lessonCount}개 영상</span>
+                            </>
+                        )}
+                    </div>
+                </div>
             </div>
 
             <style>{`
@@ -248,6 +248,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                     animation: fade-in 0.5s ease-out forwards;
                 }
             `}</style>
-        </Link>
+        </div>
     );
 };

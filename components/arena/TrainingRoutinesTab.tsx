@@ -76,7 +76,13 @@ export const TrainingRoutinesTab: React.FC = () => {
 
             // Merge and set
             if (result.data) {
-                setRoutines([...customRoutines, ...result.data]);
+                const combined = [...customRoutines, ...result.data];
+                // Shuffle for dynamic display
+                for (let i = combined.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [combined[i], combined[j]] = [combined[j], combined[i]];
+                }
+                setRoutines(combined);
             } else {
                 setRoutines(customRoutines);
             }
