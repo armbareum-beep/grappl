@@ -848,14 +848,27 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         />
                     )}
                     {hasVimeo && (
-                        <div className={`w-full h-full ${videoType !== 'main' && isActionVideo ? 'hidden' : ''}`}>
-                            <VimeoWrapper
-                                vimeoId={vimeoId!}
-                                onProgress={handleProgress}
-                                currentDrillId={currentDrill.id}
-                                videoType={videoType}
-                            />
-                        </div>
+                        <>
+                            {/* Preload both video types for instant switching */}
+                            <div className={videoType === 'main' ? 'block w-full h-full' : 'hidden'}>
+                                <VimeoWrapper
+                                    key={`${currentDrill.id}-main`}
+                                    vimeoId={extractVimeoId(currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
+                                    onProgress={handleProgress}
+                                    currentDrillId={currentDrill.id}
+                                    videoType="main"
+                                />
+                            </div>
+                            <div className={videoType === 'description' ? 'block w-full h-full' : 'hidden'}>
+                                <VimeoWrapper
+                                    key={`${currentDrill.id}-description`}
+                                    vimeoId={extractVimeoId(currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
+                                    onProgress={handleProgress}
+                                    currentDrillId={currentDrill.id}
+                                    videoType="description"
+                                />
+                            </div>
+                        </>
                     )}
 
                     {/* Description Video Overlay (if exists and selected) */}

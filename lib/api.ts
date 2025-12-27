@@ -3807,7 +3807,7 @@ export async function searchDrillsAndLessons(query: string) {
 export async function getRoutines(creatorId?: string) {
     let query = supabase
         .from('routines')
-        .select('*')
+        .select('id, title, description, creator_id, creator_name, price, thumbnail_url, total_duration_minutes, created_at, views')
         .order('created_at', { ascending: false });
 
     if (creatorId) {
