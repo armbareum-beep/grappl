@@ -6,7 +6,7 @@ import { Play, Star, ChevronRight, Zap, Users, BookOpen, Award, Clapperboard, Ma
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
-import { getTestimonials, getPlatformStats, getRoutines, getPublicSparringVideos } from '../lib/api';
+import { getTestimonials, getPlatformStats, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -32,12 +32,14 @@ export const LandingPage: React.FC = () => {
     }, []);
 
     const prefetchData = async () => {
-        // Prefetch routines and sparring videos in the background
-        // This will cache the data so when users navigate to those pages, they load instantly
+        // Prefetch minimal data for instant page loads
+        // Landing page only needs 1 sparring video for showcase
+        // Prefetch 3 routines and 3 sparring videos for their respective pages
         try {
             await Promise.all([
-                getRoutines(),
-                getPublicSparringVideos(10)
+                getPublicSparringVideos(1),  // Landing page showcase - only 1 needed
+                getRoutines().then(routines => routines.slice(0, 3)),  // Routines page - first 3
+                getSparringVideos(3)  // Sparring feed - first 3
             ]);
         } catch (error) {
             // Silent fail - prefetching is optional
