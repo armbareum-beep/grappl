@@ -762,7 +762,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     {isPlayable && !isTrainingMode && (
                         <div className="absolute top-6 left-6 z-30 flex gap-2">
                             <button
-                                onClick={() => setVideoType('main')}
+                                onClick={() => {
+                                    setVideoType('main');
+                                    setIsPlaying(true);
+                                    // Force play after tab switch
+                                    setTimeout(() => {
+                                        if (videoRef.current) {
+                                            videoRef.current.play().catch(() => { });
+                                        }
+                                    }, 100);
+                                }}
                                 className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'main'
                                     ? 'bg-white text-black'
                                     : 'bg-black/40 text-white hover:bg-black/60'
@@ -771,7 +780,16 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                 동작
                             </button>
                             <button
-                                onClick={() => setVideoType('description')}
+                                onClick={() => {
+                                    setVideoType('description');
+                                    setIsPlaying(true);
+                                    // Force play after tab switch
+                                    setTimeout(() => {
+                                        if (videoRef.current) {
+                                            videoRef.current.play().catch(() => { });
+                                        }
+                                    }, 100);
+                                }}
                                 className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'description'
                                     ? 'bg-white text-black'
                                     : 'bg-black/40 text-white hover:bg-black/60'
