@@ -452,7 +452,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <PlaySquare className="w-5 h-5 text-blue-500" />
-                        나만의 루틴
+                        내 루틴 라이브러리
                     </h2>
                     {selectedRoutineForPlacement && (
                         <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2">
@@ -523,12 +523,27 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-slate-400">
+                                                <div className="flex items-center gap-3 text-xs text-slate-400 mb-1">
                                                     <span className="flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
                                                         {routine.totalDurationMinutes}분
                                                     </span>
                                                     <span>{routine.drillCount}개 드릴</span>
+                                                </div>
+                                                {/* Creator Info */}
+                                                <div
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
+                                                    }}
+                                                    className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-white transition-colors"
+                                                >
+                                                    <img
+                                                        src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
+                                                        className="w-4 h-4 rounded-full"
+                                                        alt={routine.creatorName}
+                                                    />
+                                                    <span className="truncate">{routine.creatorName}</span>
                                                 </div>
                                             </div>
 
@@ -616,9 +631,27 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 {routine.title}
                                             </h3>
                                             <p className="text-slate-400 text-sm line-clamp-1 mb-3">{routine.description}</p>
-                                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                            <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
                                                 <span>{routine.drillCount}개 드릴</span>
                                                 <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            {/* Creator Info Footer */}
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
+                                                }}
+                                                className="pt-3 border-t border-slate-800/50 flex items-center justify-between group/creator"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <img
+                                                        src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
+                                                        className="w-6 h-6 rounded-full ring-1 ring-slate-800 group-hover/creator:ring-blue-500 transition-all"
+                                                        alt={routine.creatorName}
+                                                    />
+                                                    <span className="text-xs font-semibold text-slate-400 group-hover/creator:text-white transition-colors">{routine.creatorName}</span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
                                             </div>
                                         </div>
                                     </div>

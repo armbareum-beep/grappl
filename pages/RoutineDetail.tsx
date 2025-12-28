@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, checkDailyRoutineXP, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Save, Heart, Bookmark, Share2, Volume2, VolumeX } from 'lucide-react';
+import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Heart, Bookmark, Share2, Volume2, VolumeX } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import ShareModal from '../components/social/ShareModal';
@@ -70,6 +70,11 @@ export const RoutineDetail: React.FC = () => {
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [muted, setMuted] = useState(true);
+
+    const toggleMute = () => {
+        setMuted(prev => !prev);
+    };
 
     // Completion & Sharing State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
@@ -85,7 +90,7 @@ export const RoutineDetail: React.FC = () => {
         url: string;
     } | null>(null);
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
-    const [earnedXpToday, setEarnedXpToday] = useState(false);
+
     const [isCompletedToday, setIsCompletedToday] = useState(false);
     const [streak, setStreak] = useState(0);
     const [xpEarned, setXpEarned] = useState(0);
@@ -102,6 +107,31 @@ export const RoutineDetail: React.FC = () => {
 
     // Video type state
     const [videoType, setVideoType] = useState<'main' | 'description'>('main');
+    const [isFollowing, setIsFollowing] = useState(false);
+
+    const navigateToCreator = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (routine?.creatorId) {
+            navigate(`/creator/${routine.creatorId}`);
+        }
+    };
+
+    const handleFollow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!contextUser) {
+            navigate('/login');
+            return;
+        }
+        if (!routine?.creatorId) return;
+
+        try {
+            const { toggleCreatorFollow } = await import('../lib/api');
+            const { followed } = await toggleCreatorFollow(contextUser.id, routine.creatorId);
+            setIsFollowing(followed);
+        } catch (error) {
+            console.error('Error toggling follow:', error);
+        }
+    };
 
     // Watch time tracking
     const lastTickRef = useRef<number>(0);
@@ -359,12 +389,20 @@ export const RoutineDetail: React.FC = () => {
                     setIsCompletedToday(true);
                 }
             }
-
-            // Check if user already earned XP today
-            const alreadyEarned = await checkDailyRoutineXP(contextUser.id);
-            setEarnedXpToday(alreadyEarned);
         }
     };
+
+    // Effect to check follow status once routine is loaded
+    useEffect(() => {
+        const checkFollow = async () => {
+            if (contextUser && routine?.creatorId) {
+                const { checkCreatorFollowStatus } = await import('../lib/api');
+                const followed = await checkCreatorFollowStatus(contextUser.id, routine.creatorId);
+                setIsFollowing(followed);
+            }
+        };
+        checkFollow();
+    }, [contextUser, routine?.creatorId]);
 
     const handlePurchase = () => {
         if (!user) {
@@ -398,7 +436,7 @@ export const RoutineDetail: React.FC = () => {
             };
 
             localStorage.setItem('my_custom_routines', JSON.stringify([...customRoutines, newRoutine]));
-            alert('나만의 루틴에 저장되었습니다!');
+            alert('내 라이브러리에 담겼습니다! 프로필에서 확인하세요.');
         } catch (e) {
             console.error('Error saving routine:', e);
             alert('루틴 저장 중 오류가 발생했습니다.');
@@ -431,7 +469,7 @@ export const RoutineDetail: React.FC = () => {
 
         if (user) {
             // 1. Create Training Log
-            const { data: log } = await createTrainingLog({
+            await createTrainingLog({
                 userId: user.id,
                 userName: user.user_metadata?.name || 'Unknown User',
                 date: new Date().toISOString().split('T')[0],
@@ -515,7 +553,6 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
             }
         });
 
-        setEarnedXpToday(true);
         setIsCompletedToday(true);
         setShowQuestComplete(true);
     };
@@ -566,7 +603,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                 if (!savedDrillsList.find((d: Drill) => d.id === currentDrill.id)) {
                     savedDrillsList.push(currentDrill);
                 }
-                alert('드릴이 저장되었습니다! 훈련 루틴 탭에서 확인할 수 있습니다.');
+                alert('드릴이 나만의 루틴에 저장되었습니다! 아레나 > 나만의 루틴 탭에서 확인하세요.');
             } else {
                 savedDrillsList = savedDrillsList.filter((d: Drill) => d.id !== currentDrill.id);
                 alert('저장된 드릴에서 제거되었습니다.');
@@ -862,7 +899,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             loop
                             autoPlay
                             playsInline
-                            muted={false} // Unmuted by default on detail page?? User can mute.
+                            muted={muted}
                             onTimeUpdate={handleProgress}
                         />
                     )}
@@ -922,131 +959,156 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
                     {/* Overlay UI - Match Drill Reels Feed */}
                     {isPlayable && !isTrainingMode && (
-                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
-                            <div className="flex items-end justify-between w-full pointer-events-auto">
-                                {/* Left: Info */}
-                                <div className="flex-1 pr-4">
-                                    <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
-                                        {currentDrill.title}
-                                    </h2>
-                                    <p className="text-white/80 text-sm mb-3">
-                                        @{currentDrill.creatorName || 'Instructor'}
-                                    </p>
-
-                                    {/* Tags */}
-                                    {currentDrill.tags && currentDrill.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 mb-3">
-                                            {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
-                                                <span key={idx} className="text-white/90 text-sm">
-                                                    #{tag}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Right: Action Buttons - 통합된 버튼 순서: 좋아요, 저장, 소리, 공유 (루틴 페이지이므로 루틴 버튼 없음) */}
-                                <div className="flex flex-col gap-6">
-                                    {/* Like */}
-                                    <div className="flex flex-col items-center gap-1">
-                                        <button
-                                            onClick={handleLikeDrill}
-                                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                                        >
-                                            <Heart
-                                                className={`w-7 h-7 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`}
-                                            />
-                                        </button>
-                                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
-                                            {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
-                                        </span>
-                                    </div>
-
-                                    {/* Save */}
-                                    <button
-                                        onClick={handleSaveDrill}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
-                                    >
-                                        <Bookmark
-                                            className={`w-7 h-7 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                                        />
-                                    </button>
-
-                                    {/* Mute */}
-                                    <button
-                                        onClick={toggleMute}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
-                                    >
-                                        {muted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
-                                    </button>
-
-                                    {/* Share */}
-                                    <button
-                                        onClick={handleShare}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
-                                    >
-                                        <Share2 className="w-7 h-7" />
-                                    </button>
-                                </div>
+                        <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-40 pointer-events-auto pb-8">
+                            {/* Like */}
+                            <div className="flex flex-col items-center gap-1">
+                                <button
+                                    onClick={handleLikeDrill}
+                                    className="text-white hover:text-red-500 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                >
+                                    <Heart
+                                        className={`w-8 h-8 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''}`}
+                                        strokeWidth={1.5}
+                                    />
+                                </button>
+                                <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
+                                    {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
+                                </span>
                             </div>
-                        </div>
-                    )}
 
-                    {/* Progress Indicator */}
-                    {owns && (
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
-                            <div
-                                className={`h-full bg-gradient-to-r ${progressGradient} transition-all duration-300`}
-                                style={{ width: `${progress}%` }}
-                            />
+                            {/* Save */}
+                            <button
+                                onClick={handleSaveDrill}
+                                className="text-white hover:text-yellow-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                title="나만의 루틴에 저장"
+                            >
+                                <Bookmark
+                                    className={`w-8 h-8 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''}`}
+                                    strokeWidth={1.5}
+                                />
+                            </button>
+
+
+
+                            {/* Mute */}
+                            <button
+                                onClick={toggleMute}
+                                className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            >
+                                {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
+                            </button>
+
+                            {/* Share */}
+                            <button
+                                onClick={handleShare}
+                                className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            >
+                                <Share2 className="w-8 h-8" strokeWidth={1.5} />
+                            </button>
                         </div>
                     )}
-                </div>
-            </div>
+                </div> {/* Video Frame 닫음 (line 766) */}
+
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                    <div className="flex items-end justify-between w-full pointer-events-auto">
+                        {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
+                        <div className="flex-1 pr-4">
+                            <div className="flex flex-row items-center gap-2 mb-2">
+                                <span
+                                    onClick={navigateToCreator}
+                                    className="font-bold text-[15px] text-white text-shadow-sm cursor-pointer hover:underline"
+                                >
+                                    {routine?.creatorName || 'Instructor'}
+                                </span>
+                                <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
+                                <button
+                                    onClick={handleFollow}
+                                    className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowing
+                                        ? 'border-white/20 bg-white/10 text-white/60'
+                                        : 'border-white/40 bg-transparent text-white hover:bg-white/10'
+                                        }`}
+                                >
+                                    {isFollowing ? '팔로잉' : '팔로우'}
+                                </button>
+                            </div>
+
+                            <h3 className="font-black text-xl leading-tight text-white text-shadow-md line-clamp-2">
+                                {currentDrill.title}
+                            </h3>
+
+                            {/* Tags */}
+                            {currentDrill.tags && currentDrill.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                        <span key={idx} className="text-white/80 text-xs drop-shadow-md font-medium">
+                                            #{tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Progress Indicator - Moved inside here for now or can be moved out */}
+                        {owns && (
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
+                                <div
+                                    className={`h-full bg-gradient-to-r ${progressGradient} transition-all duration-300`}
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div> {/* Bottom Info Overlay 닫음 */}
+            </div> {/* Video Stage 닫음 */}
 
             {/* Right: Info Panel - Full Height */}
             <div className="w-full md:w-[420px] bg-black border-l border-white/10 flex flex-col h-1/2 md:h-full flex-shrink-0">
                 {/* Header */}
                 <div className="p-6 border-b border-white/10 bg-black/80 backdrop-blur-md flex-shrink-0">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="relative">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div
+                            className="relative cursor-pointer group"
+                            onClick={navigateToCreator}
+                        >
                             <img
-                                src={`https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
-                                className="w-10 h-10 rounded-full ring-2 ring-zinc-800"
+                                src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
+                                className="w-14 h-14 rounded-full ring-2 ring-zinc-800 object-cover group-hover:ring-white/30 transition-all"
                                 alt={routine.creatorName}
                             />
-                            <div className={`absolute -bottom-1 -right-1 ${isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500'} text-[10px] text-white px-1.5 py-0.5 rounded-full border border-zinc-950 font-bold`}>
+                            <div className={`absolute -bottom-1 -right-1 ${isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500'} text-[9px] text-white px-1.5 py-0.5 rounded shadow-lg font-black tracking-tighter`}>
                                 {isCustomRoutine ? 'ME' : 'PRO'}
                             </div>
                         </div>
-                        <div className="flex-1">
-                            <p className="font-bold text-white text-sm hover:underline cursor-pointer">{routine.creatorName}</p>
-                            <p className="text-xs text-zinc-500">구독자 1.2만명</p>
+                        <div className="flex-1 min-w-0">
+                            <h3
+                                onClick={navigateToCreator}
+                                className="text-white font-bold text-lg tracking-tight truncate cursor-pointer hover:underline"
+                            >
+                                {routine.creatorName}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
+                            </div>
                         </div>
-
-                        {/* Save Routine Button */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSaveRoutine}
-                            className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8 flex items-center gap-1"
-                        >
-                            <Save className="w-3 h-3" />
-                            저장
-                        </Button>
-
-                        {!isCustomRoutine && (
-                            <Button variant="outline" size="sm" className="text-xs border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full h-8">
-                                구독하기
-                            </Button>
-                        )}
                     </div>
 
-                    {/* Routine Title */}
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-black text-white">{routine.title}</h2>
+                    {/* Routine Title & Save Action */}
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <h2 className="text-2xl font-black text-white truncate">{routine.title}</h2>
+                            <button
+                                onClick={handleSaveRoutine}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-xs font-bold ${owns
+                                    ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
+                                    : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                                    }`}
+                            >
+                                <Bookmark className={`w-3.5 h-3.5 ${owns ? 'fill-blue-500' : ''}`} />
+                                <span>{owns ? '담김' : '내 라이브러리에 담기'}</span>
+                            </button>
+                        </div>
                         {isCompletedToday && (
-                            <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30">
+                            <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30 shrink-0">
                                 <CalendarCheck className="w-3.5 h-3.5" />
                                 <span className="text-xs font-bold">오늘 완료함</span>
                             </div>
@@ -1162,19 +1224,23 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                             드릴 완료 & 다음으로
                         </Button>
                     ) : (
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between px-1 mb-1">
+                                <span className="text-zinc-500 text-xs font-medium">단품 구매</span>
+                                <span className="text-green-500 font-black text-sm">{routine.price === 0 ? '무료' : `₩${routine.price.toLocaleString()}`}</span>
+                            </div>
                             <Button
-                                onClick={handlePurchase}
-                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20"
+                                onClick={routine.price === 0 ? handleSaveRoutine : handlePurchase}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all"
                             >
-                                ₩{routine.price.toLocaleString()} • 루틴 구매하기
+                                내 라이브러리에 담기
                             </Button>
                             <Link to="/pricing" className="w-full">
                                 <Button
                                     variant="outline"
-                                    className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 py-3 rounded-xl"
+                                    className="w-full border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 py-3 rounded-xl text-sm"
                                 >
-                                    멤버십 구독으로 전체 보기
+                                    구독하고 전체 클래스 보기
                                 </Button>
                             </Link>
                         </div>

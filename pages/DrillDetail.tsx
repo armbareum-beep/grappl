@@ -4,7 +4,7 @@ import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, to
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -32,8 +32,38 @@ export const DrillDetail: React.FC = () => {
     const [liked, setLiked] = useState(false);
     const [saved, setSaved] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [muted, setMuted] = useState(true);
+
+    const navigateToCreator = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (drill?.creatorId) {
+            navigate(`/creator/${drill.creatorId}`);
+        }
+    };
+
+    const handleFollow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!contextUser) {
+            navigate('/login');
+            return;
+        }
+        if (!drill?.creatorId) return;
+
+        try {
+            const { toggleCreatorFollow } = await import('../lib/api');
+            const { followed } = await toggleCreatorFollow(contextUser.id, drill.creatorId);
+            setIsFollowing(followed);
+        } catch (error) {
+            console.error('Error toggling follow:', error);
+        }
+    };
+
+    const toggleMute = () => {
+        setMuted(prev => !prev);
+    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -365,7 +395,7 @@ export const DrillDetail: React.FC = () => {
                 if (drill && !savedDrills.find((d: Drill) => d.id === drill.id)) {
                     savedDrills.push(drill);
                 }
-                alert('드릴이 저장되었습니다!');
+                alert('드릴이 나만의 루틴에 저장되었습니다! 아레나 > 나만의 루틴 탭에서 확인하세요.');
             } else {
                 savedDrills = savedDrills.filter((d: Drill) => d.id !== drill?.id);
                 alert('저장된 드릴에서 제거되었습니다.');
@@ -489,7 +519,7 @@ export const DrillDetail: React.FC = () => {
                             <iframe
                                 key={`vimeo-${vimeoId}-${currentVideoType}`}
                                 ref={iframeRef}
-                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&autopause=0&muted=${muted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`}
                                 className="absolute inset-0 w-full h-full"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"
@@ -503,7 +533,7 @@ export const DrillDetail: React.FC = () => {
                                     className="absolute inset-0 w-full h-full object-cover"
                                     loop
                                     playsInline
-                                    muted={false}
+                                    muted={muted}
                                     autoPlay={isPlaying}
                                     onClick={togglePlayPause}
                                     src={videoSrc || undefined}
@@ -578,106 +608,119 @@ export const DrillDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Bottom Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                    {/* Left: Info */}
-                    <div className="flex-1 pr-4">
-                        <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
-                            {drill.title}
-                            {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
-                        </h2>
-                        <p className="text-white/80 text-sm mb-3">
-                            @{drill.creatorName || 'Unknown'}
-                        </p>
-
-                        {/* Tags */}
-                        {drill.tags && drill.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
-                                    <span key={idx} className="text-white/90 text-sm">
-                                        #{tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Drill Info */}
-                        <div className="flex items-center gap-4 text-white/70 text-xs">
-                            <span>{drill.length || drill.duration || '0:30'}</span>
-                            <span>•</span>
-                            <span>{drill.views || 0} views</span>
-                            <span>•</span>
-                            <span>{drill.difficulty}</span>
-                        </div>
-                    </div>
-
-                    {/* Right: Action Buttons */}
-                    <div className="flex flex-col gap-6">
+            {/* Vertical Actions Overlay */}
+            <div className="absolute inset-0 pointer-events-none flex justify-center z-40">
+                <div className="w-full h-full max-w-[56.25vh] relative">
+                    <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 pointer-events-auto">
                         {/* Like */}
-                        <button
-                            onClick={handleLike}
-                            className="flex flex-col items-center gap-1 group"
-                        >
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <div className="flex flex-col items-center gap-1">
+                            <button
+                                onClick={handleLike}
+                                className="text-white hover:text-red-500 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            >
                                 <Heart
-                                    className={`w-6 h-6 ${liked ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                                    className={`w-8 h-8 ${liked ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                                    strokeWidth={1.5}
                                 />
-                            </div>
-                            <span className="text-white text-xs">
-                                {(drill.likes || 0) + (liked ? 1 : 0)}
+                            </button>
+                            <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
+                                {(drill?.likes || 0) + (liked ? 1 : 0)}
                             </span>
-                        </button>
+                        </div>
 
                         {/* Save */}
                         <button
                             onClick={handleSave}
-                            className="flex flex-col items-center gap-1 group"
+                            className="text-white hover:text-yellow-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            title="나만의 루틴에 저장"
                         >
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <Bookmark
-                                    className={`w-6 h-6 ${saved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
-                                />
-                            </div>
-                            <span className="text-white text-xs">저장</span>
+                            <Bookmark
+                                className={`w-8 h-8 ${saved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
+                                strokeWidth={1.5}
+                            />
+                        </button>
+
+                        {/* Additional Icons: Routine / Mute / Share */}
+                        {/* Routine Link (if exists) */}
+                        {owns && associatedRoutineId && (
+                            <button
+                                onClick={() => navigate(`/routines/${associatedRoutineId}`)}
+                                className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            >
+                                <Play className="w-8 h-8" strokeWidth={1.5} />
+                            </button>
+                        )}
+                        {/* If no routine, show 'Add to Routine' maybe? Or omit as requested if none */}
+                        {owns && !associatedRoutineId && (
+                            <button
+                                onClick={() => setShowAddToRoutine(true)}
+                                className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                            >
+                                <MoreVertical className="w-8 h-8" strokeWidth={1.5} />
+                            </button>
+                        )}
+
+                        {/* Mute */}
+                        <button
+                            onClick={toggleMute}
+                            className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                        >
+                            {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
                         </button>
 
                         {/* Share */}
                         <button
                             onClick={handleShare}
-                            className="flex flex-col items-center gap-1 group"
+                            className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
                         >
-                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                <Share2 className="w-6 h-6 text-white" />
-                            </div>
-                            <span className="text-white text-xs">공유</span>
+                            <Share2 className="w-8 h-8" strokeWidth={1.5} />
                         </button>
+                    </div>
+                </div>
+            </div>
 
-                        {/* Add to Routine / Complete */}
-                        {owns && (
-                            <button
-                                onClick={async () => {
-                                    if (associatedRoutineId) {
-                                        navigate(`/routines/${associatedRoutineId}`);
-                                    } else {
-                                        setShowAddToRoutine(true);
-                                    }
-                                }}
-                                className="flex flex-col items-center gap-1 group"
+            {/* Bottom Info Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
+                    {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
+                    <div className="flex-1 pr-4">
+                        <div className="flex flex-row items-center gap-2 mb-2">
+                            <span
+                                onClick={navigateToCreator}
+                                className="font-bold text-[15px] text-white text-shadow-sm cursor-pointer hover:underline"
                             >
-                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                    {associatedRoutineId ? (
-                                        <Play className="w-6 h-6 text-white" />
-                                    ) : (
-                                        <MoreVertical className="w-6 h-6 text-white" />
-                                    )}
-                                </div>
-                                <span className="text-white text-xs">
-                                    {associatedRoutineId ? '루틴 보기' : '루틴'}
-                                </span>
+                                {drill?.creatorName || 'Instructor'}
+                            </span>
+                            <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
+                            <button
+                                onClick={handleFollow}
+                                className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowing
+                                    ? 'border-white/20 bg-white/10 text-white/60'
+                                    : 'border-white/40 bg-transparent text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                {isFollowing ? '팔로잉' : '팔로우'}
                             </button>
+                        </div>
+
+                        <h3 className="font-black text-xl leading-tight text-white text-shadow-md line-clamp-2">
+                            {drill.title}
+                            {currentVideoType === 'description' && <span className="text-[13px] font-medium text-white/60 ml-2 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded">설명</span>}
+                        </h3>
+
+                        {/* Tags */}
+                        {drill.tags && drill.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                    <span key={idx} className="text-white/80 text-xs drop-shadow-md font-medium">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
                         )}
                     </div>
+
+
                 </div>
             </div>
 

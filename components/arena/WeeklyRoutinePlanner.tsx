@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DrillRoutine } from '../../types';
-import { Calendar, Trash2, GripVertical, Clock } from 'lucide-react';
+import { Calendar, Trash2, Clock } from 'lucide-react';
 
 interface WeeklySchedule {
     [key: string]: DrillRoutine[];
@@ -11,9 +11,16 @@ const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 interface WeeklyRoutinePlannerProps {
     selectedRoutine?: DrillRoutine | null;
     onAddToDay?: (day: string) => void;
+    selectedDay?: string | null;
+    onSelectDay?: (day: string) => void;
 }
 
-export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({ selectedRoutine, onAddToDay }) => {
+export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
+    selectedRoutine,
+    onAddToDay,
+    selectedDay,
+    onSelectDay
+}) => {
     const [schedule, setSchedule] = useState<WeeklySchedule>({
         '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': []
     });
@@ -134,64 +141,72 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({ sele
             </div>
 
             <div className="flex flex-wrap gap-3">
-                {DAYS.map((day) => (
-                    <div
-                        key={day}
-                        className="flex flex-col gap-2 min-w-[140px] sm:min-w-[160px] flex-1"
-                    >
-                        <div className="text-center py-2 bg-slate-800 rounded-lg text-slate-400 font-bold text-sm">
-                            {day}
-                        </div>
+                {DAYS.map((day) => {
+                    const isTargetDay = selectedDay === day;
+                    return (
                         <div
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, day)}
-                            onClick={() => handleDayClick(day)}
-                            className={`
-                                flex-1 min-h-[160px] rounded-xl border-2 border-dashed p-3 transition-all cursor-pointer
-                                ${selectedRoutine
-                                    ? 'bg-blue-900/20 border-blue-500/50 hover:bg-blue-900/40 hover:border-blue-400 animate-pulse'
-                                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
-                                }
-                            `}
+                            key={day}
+                            className="flex flex-col gap-2 min-w-[140px] sm:min-w-[160px] flex-1"
                         >
-                            {schedule[day].length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2">
-                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
-                                        <span className="text-lg">+</span>
-                                    </div>
-                                    <span>{selectedRoutine ? "클릭하여 추가" : "드래그 또는 클릭"}</span>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {schedule[day].map((routine, idx) => (
-                                        <div
-                                            key={`${routine.id}-${idx}`}
-                                            className="bg-slate-800 rounded-lg p-2.5 group relative border border-slate-700 hover:border-purple-500/50 transition-colors"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <div className="flex items-start justify-between gap-2 mb-1.5">
-                                                <span className="text-xs font-bold text-white line-clamp-2 leading-tight flex-1">
-                                                    {routine.title}
-                                                </span>
-                                                <button
-                                                    onClick={() => removeRoutine(day, routine.id)}
-                                                    className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                                <Clock className="w-3 h-3" />
-                                                <span>{routine.totalDurationMinutes}분</span>
-                                            </div>
+                            <div className={`text-center py-2 rounded-lg font-bold text-sm transition-colors ${isTargetDay ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'
+                                }`}>
+                                {day}
+                            </div>
+                            <div
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, day)}
+                                onClick={() => {
+                                    handleDayClick(day);
+                                    if (onSelectDay) onSelectDay(day);
+                                }}
+                                className={`
+                                    flex-1 min-h-[160px] rounded-xl border-2 border-dashed p-3 transition-all cursor-pointer
+                                    ${selectedRoutine || isTargetDay
+                                        ? 'bg-blue-900/20 border-blue-500/50 hover:bg-blue-900/40 hover:border-blue-400 animate-pulse'
+                                        : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                                    }
+                                    ${isTargetDay ? 'ring-2 ring-purple-500 border-purple-500/50' : ''}
+                                `}
+                            >
+                                {schedule[day].length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2">
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
+                                            <span className="text-lg">+</span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        <span>{selectedRoutine ? "클릭하여 추가" : "드래그 또는 클릭"}</span>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {schedule[day].map((routine, idx) => (
+                                            <div
+                                                key={`${routine.id}-${idx}`}
+                                                className="bg-slate-800 rounded-lg p-2.5 group relative border border-slate-700 hover:border-purple-500/50 transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                                    <span className="text-xs font-bold text-white line-clamp-2 leading-tight flex-1">
+                                                        {routine.title}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => removeRoutine(day, routine.id)}
+                                                        className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>{routine.totalDurationMinutes}분</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

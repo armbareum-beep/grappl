@@ -4286,14 +4286,14 @@ export async function getRoutineById(id: string) {
         itemsCount: data.items?.length || 0
     });
 
-    // 2. Fetch creator info manually from 'users' table (since creators table might be deprecated or linked incorrectly)
+    // 2. Fetch creator info manually from 'users' table
     let creatorName = 'Unknown';
     let creatorProfileImage = null;
 
     if (data.creator_id) {
         try {
-            // Try fetching from users table first (as per recent changes)
-            const { data: userData, error: userError } = await supabase
+            // Priority 1: Fetch from users table (Actual user settings)
+            const { data: userData } = await supabase
                 .from('users')
                 .select('name, avatar_url')
                 .eq('id', data.creator_id)
@@ -4302,8 +4302,10 @@ export async function getRoutineById(id: string) {
             if (userData) {
                 creatorName = userData.name || 'Unknown';
                 creatorProfileImage = userData.avatar_url;
-            } else {
-                // Fallback: Check creators table if user not found (legacy support)
+            }
+
+            // Priority 2: If no image in users table, check creators table (Legacy/Creator settings)
+            if (!creatorProfileImage) {
                 const { data: creatorData } = await supabase
                     .from('creators')
                     .select('name, profile_image')
@@ -4311,7 +4313,7 @@ export async function getRoutineById(id: string) {
                     .single();
 
                 if (creatorData) {
-                    creatorName = creatorData.name;
+                    if (creatorName === 'Unknown') creatorName = creatorData.name;
                     creatorProfileImage = creatorData.profile_image;
                 }
             }
@@ -4324,6 +4326,7 @@ export async function getRoutineById(id: string) {
     const routine = {
         ...transformDrillRoutine(data),
         creatorName: creatorName,
+        creatorImage: creatorProfileImage, // Align with RoutineDetail.tsx
         creatorProfileImage: creatorProfileImage,
         drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
             ...transformDrill(item.drill),

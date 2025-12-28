@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Award, BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap } from 'lucide-react';
+import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator, getRoutines, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
-import { Creator, Course, FeedbackSettings, DrillRoutine } from '../types';
+import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
+import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
 import { Button } from '../components/Button';
@@ -15,7 +15,8 @@ export const CreatorProfile: React.FC = () => {
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
-    const [activeTab, setActiveTab] = useState<'courses' | 'routines'>('courses');
+    const [sparringVideos, setSparringVideos] = useState<SparringVideo[]>([]);
+    const [activeTab, setActiveTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
     const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -30,15 +31,18 @@ export const CreatorProfile: React.FC = () => {
             if (!id) return;
 
             try {
-                const [creatorData, coursesData, routinesData, feedbackData] = await Promise.all([
+                const [creatorData, coursesData, routinesData, sparringData, feedbackData] = await Promise.all([
                     getCreatorById(id),
                     getCoursesByCreator(id),
                     getRoutines(id),
+                    getSparringVideos(50, id), // Fetch up to 50 videos for the profile
                     getFeedbackSettings(id)
                 ]);
                 setCreator(creatorData);
                 setCourses(coursesData);
                 setRoutines(routinesData);
+                setSparringVideos(sparringData.data || []);
+
                 if (feedbackData.data) {
                     setFeedbackSettings(feedbackData.data);
                 }
@@ -128,10 +132,10 @@ export const CreatorProfile: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-950">
+            <div className="flex items-center justify-center min-h-screen bg-black">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-                    <p className="text-slate-400">로딩 중...</p>
+                    <p className="text-zinc-500">로딩 중...</p>
                 </div>
             </div>
         );
@@ -139,9 +143,9 @@ export const CreatorProfile: React.FC = () => {
 
     if (!creator) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-white mb-4">인스트럭터를 찾을 수 없습니다</h2>
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <div className="text-center text-white">
+                    <h2 className="text-2xl font-bold mb-4">인스트럭터를 찾을 수 없습니다</h2>
                     <Link to="/">
                         <Button>홈으로 돌아가기</Button>
                     </Link>
@@ -150,112 +154,89 @@ export const CreatorProfile: React.FC = () => {
         );
     }
 
-    const totalViews = courses.reduce((sum, course) => sum + course.views, 0);
-
     return (
-        <div className="min-h-screen bg-slate-950 text-white pb-20">
-            {/* Back Button */}
-            <div className="bg-slate-900/50 border-b border-slate-800 backdrop-blur-sm sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white transition-colors">
-                        <ArrowLeft className="w-5 h-5 mr-2" />
-                        <span className="font-medium">홈으로</span>
-                    </Link>
-                </div>
-            </div>
+        <div className="min-h-screen bg-black text-white pb-20">
+
 
             {/* Creator Header */}
-            <div className="relative bg-slate-900 border-b border-slate-800 overflow-hidden">
+            <div className="relative bg-zinc-900 border-b border-zinc-800 overflow-hidden">
                 {/* Background Pattern */}
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/10 to-slate-900 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/20 to-black pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                         {/* Profile Image */}
                         <div className="relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                             {creator.profileImage ? (
                                 <img
                                     src={creator.profileImage}
                                     alt={creator.name}
-                                    className="relative w-40 h-40 rounded-full object-cover border-4 border-slate-800 shadow-2xl"
+                                    className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-zinc-900 shadow-2xl"
                                 />
                             ) : (
-                                <div className="relative w-40 h-40 rounded-full bg-slate-800 border-4 border-slate-700 flex items-center justify-center">
-                                    <Shield className="w-16 h-16 text-slate-600" />
+                                <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full bg-zinc-800 border-4 border-zinc-700 flex items-center justify-center">
+                                    <Shield className="w-16 h-16 text-zinc-600" />
                                 </div>
                             )}
                         </div>
 
                         {/* Creator Info */}
-                        <div className="flex-1 text-center md:text-left">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
-                                <div>
-                                    <h1 className="text-4xl font-black text-white mb-2">{creator.name}</h1>
-                                    <div className="flex items-center justify-center md:justify-start gap-2">
-                                        <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded border border-indigo-500/20">INSTRUCTOR</span>
-                                        {isSubscribed && <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-xs font-bold rounded border border-green-500/20">SUBSCRIBED</span>}
-                                    </div>
+                        <div className="flex-1 text-center md:text-left w-full">
+                            {/* Top Row: Name, Badge, Actions */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                                <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4">
+                                    <h1 className="text-3xl md:text-4xl font-black text-white">{creator.name}</h1>
+                                    <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded border border-indigo-500/30 self-center">INSTRUCTOR</span>
                                 </div>
 
-                                {user?.id === creator.id && (
-                                    <div className="flex gap-2">
-                                        <Link to="/settings">
-                                            <Button variant="outline" size="sm">프로필 수정</Button>
-                                        </Link>
-                                        <Link to="/creator/courses/new">
-                                            <Button size="sm">새 강좌 만들기</Button>
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
-
-                            <p className="text-lg text-slate-400 mb-8 max-w-2xl leading-relaxed">{creator.bio || '소개가 없습니다.'}</p>
-
-                            {/* Stats */}
-                            <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-8">
-                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
-                                    <div className="p-2 bg-indigo-500/10 rounded-lg">
-                                        <Users className="w-5 h-5 text-indigo-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-slate-500 font-bold uppercase">구독자</div>
-                                        <div className="font-bold text-white text-lg">{creator.subscriberCount.toLocaleString()}</div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
-                                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                                        <BookOpen className="w-5 h-5 text-blue-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-slate-500 font-bold uppercase">강좌</div>
-                                        <div className="font-bold text-white text-lg">{courses.length}개</div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-5 py-3 rounded-xl hover:bg-slate-800 transition-colors">
-                                    <div className="p-2 bg-amber-500/10 rounded-lg">
-                                        <Award className="w-5 h-5 text-amber-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-slate-500 font-bold uppercase">총 조회수</div>
-                                        <div className="font-bold text-white text-lg">{totalViews.toLocaleString()}</div>
-                                    </div>
+                                {/* Actions (Follow / Edit) */}
+                                <div className="flex items-center gap-3">
+                                    {user?.id === creator.id ? (
+                                        <div className="flex gap-2">
+                                            <Link to="/settings">
+                                                <Button variant="outline" size="sm">프로필 수정</Button>
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            className={`shadow-lg transition-all px-6 font-bold ${isSubscribed
+                                                ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700'
+                                                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}`}
+                                            onClick={handleSubscribe}
+                                            disabled={subscribeLoading}
+                                        >
+                                            {isSubscribed ? '팔로잉' : '팔로우'}
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
-                            <Button
-                                size="lg"
-                                className={`shadow-lg transition-all min-w-[140px] ${isSubscribed
-                                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-                                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}`}
-                                onClick={handleSubscribe}
-                                disabled={subscribeLoading}
-                            >
-                                {isSubscribed ? '구독중' : '구독하기'}
-                            </Button>
+                            {/* Bio */}
+                            <p className="text-zinc-400 mb-6 max-w-2xl leading-relaxed text-sm md:text-base mx-auto md:mx-0 whitespace-pre-line">
+                                {creator.bio || '소개가 없습니다.'}
+                            </p>
+
+                            {/* Key Stats: Minimalist at Bottom */}
+                            <div className="flex flex-wrap justify-center md:justify-start gap-8 md:gap-12 py-2">
+                                <div className="text-center md:text-left">
+                                    <div className="font-black text-white text-xl md:text-2xl leading-none mb-1">{creator.subscriberCount}</div>
+                                    <div className="text-xs text-zinc-500 font-medium">수련생</div>
+                                </div>
+                                <div className="text-center md:text-left">
+                                    <div className="font-black text-white text-xl md:text-2xl leading-none mb-1">{courses.length}</div>
+                                    <div className="text-xs text-zinc-500 font-medium">클래스</div>
+                                </div>
+                                <div className="text-center md:text-left">
+                                    <div className="font-black text-white text-xl md:text-2xl leading-none mb-1">{routines.length}</div>
+                                    <div className="text-xs text-zinc-500 font-medium">루틴</div>
+                                </div>
+                                <div className="text-center md:text-left">
+                                    <div className="font-black text-white text-xl md:text-2xl leading-none mb-1">{sparringVideos.length}</div>
+                                    <div className="text-xs text-zinc-500 font-medium">스파링</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -263,34 +244,32 @@ export const CreatorProfile: React.FC = () => {
 
             {/* 1:1 Feedback Section */}
             {feedbackSettings?.enabled && user?.id !== creator.id && (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-2xl p-8 relative overflow-hidden group">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div className="bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 rounded-2xl p-6 relative overflow-hidden group">
                         <div className="absolute inset-0 bg-indigo-500/5 group-hover:bg-indigo-500/10 transition-colors"></div>
                         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="p-2 bg-indigo-500/20 rounded-lg">
-                                        <MessageSquare className="w-6 h-6 text-indigo-400" />
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white">1:1 피드백 받기</h3>
+                            <div className="flex-1 text-center md:text-left">
+                                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                                    <MessageSquare className="w-5 h-5 text-indigo-400" />
+                                    <h3 className="text-xl font-bold text-white">1:1 피드백 받기</h3>
                                 </div>
-                                <p className="text-slate-300 mb-4">
-                                    <span className="text-indigo-400 font-bold">{creator.name}</span> 인스트럭터에게 내 스파링/드릴 영상을 보내고 직접 피드백을 받아보세요.
+                                <p className="text-zinc-400 text-sm mb-4">
+                                    내 스파링 영상을 보내고 <span className="text-indigo-400 font-bold">{creator.name}</span>님에게 직접 피드백을 받아보세요.
                                 </p>
-                                <div className="flex flex-wrap gap-4 text-sm">
-                                    <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700">
-                                        <DollarSign className="w-4 h-4 text-green-400" />
-                                        <span className="text-slate-300">₩{feedbackSettings.price.toLocaleString()}</span>
+                                <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm">
+                                    <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                        <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                                        <span className="text-zinc-300">₩{feedbackSettings.price.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700">
-                                        <Clock className="w-4 h-4 text-blue-400" />
-                                        <span className="text-slate-300">{feedbackSettings.turnaroundDays}일 이내 응답</span>
+                                    <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                        <Clock className="w-3.5 h-3.5 text-blue-400" />
+                                        <span className="text-zinc-300">{feedbackSettings.turnaroundDays}일 이내</span>
                                     </div>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowFeedbackModal(true)}
-                                className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 hover:scale-105"
+                                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 hover:scale-105 active:scale-95 text-sm"
                             >
                                 피드백 요청하기
                             </button>
@@ -299,15 +278,143 @@ export const CreatorProfile: React.FC = () => {
                 </div>
             )}
 
+            {/* Content Tabs */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-1 mb-6 border-b border-zinc-800 overflow-x-auto no-scrollbar">
+                    <button
+                        onClick={() => setActiveTab('courses')}
+                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative whitespace-nowrap ${activeTab === 'courses'
+                            ? 'text-white'
+                            : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        <span>강좌</span>
+                        <span className="text-xs opacity-60">({courses.length})</span>
+                        {activeTab === 'courses' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('routines')}
+                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative whitespace-nowrap ${activeTab === 'routines'
+                            ? 'text-white'
+                            : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                    >
+                        <Zap className="w-4 h-4" />
+                        <span>루틴</span>
+                        <span className="text-xs opacity-60">({routines.length})</span>
+                        {activeTab === 'routines' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('sparring')}
+                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative whitespace-nowrap ${activeTab === 'sparring'
+                            ? 'text-white'
+                            : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                    >
+                        <PlayCircle className="w-4 h-4" />
+                        <span>스파링</span>
+                        <span className="text-xs opacity-60">({sparringVideos.length})</span>
+                        {activeTab === 'sparring' && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                        )}
+                    </button>
+                </div>
+
+                {/* Courses Tab */}
+                {activeTab === 'courses' && (
+                    <>
+                        {courses.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {courses.map((course) => (
+                                    <CourseCard key={course.id} course={course} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-20 bg-zinc-900/30 rounded-2xl border border-zinc-800 border-dashed">
+                                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <BookOpen className="w-8 h-8 text-zinc-600" />
+                                </div>
+                                <p className="text-zinc-400 font-medium">아직 개설된 강좌가 없습니다.</p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Routines Tab */}
+                {activeTab === 'routines' && (
+                    <>
+                        {routines.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {routines.map((routine) => (
+                                    <DrillRoutineCard key={routine.id} routine={routine} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-20 bg-zinc-900/30 rounded-2xl border border-zinc-800 border-dashed">
+                                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Zap className="w-8 h-8 text-zinc-600" />
+                                </div>
+                                <p className="text-zinc-400 font-medium">아직 개설된 루틴이 없습니다.</p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Sparring Tab */}
+                {activeTab === 'sparring' && (
+                    <>
+                        {sparringVideos.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {sparringVideos.map((video) => (
+                                    <Link key={video.id} to={`/sparring?id=${video.id}`} className="group block relative aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:shadow-lg hover:shadow-black/50 hover:border-zinc-700 transition-all">
+                                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+
+                                        {/* Play Icon Overlay */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                                                <PlayCircle className="w-8 h-8 text-white fill-white/20" />
+                                            </div>
+                                        </div>
+
+                                        <div className="absolute bottom-3 left-3 right-3">
+                                            <h4 className="font-bold text-zinc-100 text-sm line-clamp-2 leading-tight mb-1.5 group-hover:text-blue-400 transition-colors">{video.title}</h4>
+                                            <div className="flex items-center text-[10px] text-zinc-400 gap-2">
+                                                <span>{video.views.toLocaleString()} views</span>
+                                                <span>•</span>
+                                                <span>{new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-20 bg-zinc-900/30 rounded-2xl border border-zinc-800 border-dashed">
+                                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <PlayCircle className="w-8 h-8 text-zinc-600" />
+                                </div>
+                                <p className="text-zinc-400 font-medium">아직 업로드된 스파링 영상이 없습니다.</p>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+
             {/* Feedback Request Modal */}
             {showFeedbackModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
                         <h2 className="text-2xl font-bold text-white mb-6">피드백 요청하기</h2>
 
                         <div className="space-y-4 mb-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-2">
+                                <label className="block text-sm font-medium text-zinc-400 mb-2">
                                     YouTube 영상 URL *
                                 </label>
                                 <input
@@ -315,15 +422,15 @@ export const CreatorProfile: React.FC = () => {
                                     value={videoUrl}
                                     onChange={(e) => setVideoUrl(e.target.value)}
                                     placeholder="https://youtube.com/watch?v=..."
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-500"
+                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-zinc-600"
                                 />
-                                <p className="text-xs text-slate-500 mt-2">
+                                <p className="text-xs text-zinc-500 mt-2">
                                     YouTube에 업로드한 영상의 링크를 입력해주세요 (비공개/unlisted 가능)
                                 </p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-2">
+                                <label className="block text-sm font-medium text-zinc-400 mb-2">
                                     질문 / 설명 (선택사항)
                                 </label>
                                 <textarea
@@ -331,7 +438,7 @@ export const CreatorProfile: React.FC = () => {
                                     onChange={(e) => setDescription(e.target.value)}
                                     rows={4}
                                     placeholder="어떤 부분에 대한 피드백을 원하시나요?"
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-500 resize-none"
+                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-zinc-600 resize-none"
                                 />
                             </div>
 
@@ -355,7 +462,7 @@ export const CreatorProfile: React.FC = () => {
                                     setVideoUrl('');
                                     setDescription('');
                                 }}
-                                className="flex-1 px-4 py-3 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-800 transition-colors font-bold"
+                                className="flex-1 px-4 py-3 border border-zinc-700 text-zinc-300 rounded-xl hover:bg-zinc-800 transition-colors font-bold"
                             >
                                 취소
                             </button>
@@ -370,83 +477,6 @@ export const CreatorProfile: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* Creator Content - Courses and Routines */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {/* Tab Navigation */}
-                <div className="flex items-center gap-4 mb-6 border-b border-slate-800">
-                    <button
-                        onClick={() => setActiveTab('courses')}
-                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative ${activeTab === 'courses'
-                                ? 'text-white'
-                                : 'text-slate-500 hover:text-slate-300'
-                            }`}
-                    >
-                        <BookOpen className="w-5 h-5" />
-                        <span>강좌</span>
-                        <span className="text-sm">({courses.length})</span>
-                        {activeTab === 'courses' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('routines')}
-                        className={`flex items-center gap-2 px-4 py-3 font-bold transition-all relative ${activeTab === 'routines'
-                                ? 'text-white'
-                                : 'text-slate-500 hover:text-slate-300'
-                            }`}
-                    >
-                        <Zap className="w-5 h-5" />
-                        <span>루틴</span>
-                        <span className="text-sm">({routines.length})</span>
-                        {activeTab === 'routines' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
-                        )}
-                    </button>
-                </div>
-
-                {/* Courses Tab */}
-                {activeTab === 'courses' && (
-                    <>
-                        {courses.length > 0 ? (
-                            <div className="grid md:grid-cols-3 gap-6">
-                                {courses.map((course) => (
-                                    <CourseCard key={course.id} course={course} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <BookOpen className="w-8 h-8 text-slate-600" />
-                                </div>
-                                <p className="text-slate-400 font-medium">아직 개설된 강좌가 없습니다.</p>
-                                <p className="text-slate-600 text-sm mt-1">새로운 강좌가 곧 올라올 예정입니다.</p>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {/* Routines Tab */}
-                {activeTab === 'routines' && (
-                    <>
-                        {routines.length > 0 ? (
-                            <div className="grid md:grid-cols-3 gap-6">
-                                {routines.map((routine) => (
-                                    <DrillRoutineCard key={routine.id} routine={routine} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Zap className="w-8 h-8 text-slate-600" />
-                                </div>
-                                <p className="text-slate-400 font-medium">아직 개설된 루틴이 없습니다.</p>
-                                <p className="text-slate-600 text-sm mt-1">새로운 루틴이 곧 올라올 예정입니다.</p>
-                            </div>
-                        )}
-                    </>
-                )}
-            </div>
         </div>
     );
 };

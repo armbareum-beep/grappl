@@ -20,9 +20,10 @@ interface ShareModalProps {
     title: string;
     text: string;
     url?: string;
+    imageUrl?: string;
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url, imageUrl }) => {
     if (!isOpen) return null;
 
     const shareUrl = url || window.location.href;
@@ -103,9 +104,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                 </div>
 
                 {/* Preview */}
-                <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
-                    <p className="text-white font-medium text-sm line-clamp-2 mb-1">{title}</p>
-                    <p className="text-white/40 text-xs truncate">{shareUrl}</p>
+                <div className="bg-white/5 rounded-xl overflow-hidden mb-6 border border-white/5 flex gap-3">
+                    {imageUrl && (
+                        <div className="w-20 h-20 flex-shrink-0">
+                            <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                        </div>
+                    )}
+                    <div className="p-4 flex-1">
+                        <p className="text-white font-medium text-sm line-clamp-2 mb-1">{title}</p>
+                        <p className="text-white/40 text-[10px] truncate">{shareUrl}</p>
+                    </div>
                 </div>
 
                 {/* Grid */}
