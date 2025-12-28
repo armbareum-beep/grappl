@@ -5,10 +5,9 @@ import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Save, Heart, Bookmark, Share2, Volume2, VolumeX } from 'lucide-react';
+import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Save, Heart, Bookmark, Share2 } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
-import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
 
 // Internal component for Vimeo tracking
@@ -751,7 +750,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     return (
         <div className="h-[calc(100vh-64px)] bg-black flex flex-col md:flex-row overflow-hidden">
             {/* Left: Video Stage */}
-            <div className="flex-1 flex items-center justify-center bg-black relative min-h-0">
+            <div className="flex-1 flex items-center justify-center bg-zinc-900/30 relative min-h-0">
                 {/* Ambient Glow */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] ${isCustomRoutine ? 'bg-purple-500/10' : 'bg-blue-500/10'} blur-[120px] rounded-full`}></div>
@@ -945,47 +944,45 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                     )}
                                 </div>
 
-                                {/* Right: Action Buttons - 통합된 버튼 순서: 좋아요, 저장, 소리, 공유 (루틴 페이지이므로 루틴 버튼 없음) */}
+                                {/* Right: Action Buttons */}
                                 <div className="flex flex-col gap-6">
                                     {/* Like */}
-                                    <div className="flex flex-col items-center gap-1">
-                                        <button
-                                            onClick={handleLikeDrill}
-                                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                                        >
+                                    <button
+                                        onClick={handleLikeDrill}
+                                        className="flex flex-col items-center gap-1 group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
                                             <Heart
-                                                className={`w-7 h-7 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`}
+                                                className={`w-6 h-6 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : 'text-white'}`}
                                             />
-                                        </button>
-                                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
+                                        </div>
+                                        <span className="text-white text-xs">
                                             {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
                                         </span>
-                                    </div>
+                                    </button>
 
                                     {/* Save */}
                                     <button
                                         onClick={handleSaveDrill}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                                        className="flex flex-col items-center gap-1 group"
                                     >
-                                        <Bookmark
-                                            className={`w-7 h-7 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                                        />
-                                    </button>
-
-                                    {/* Mute */}
-                                    <button
-                                        onClick={toggleMute}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
-                                    >
-                                        {muted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                            <Bookmark
+                                                className={`w-6 h-6 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
+                                            />
+                                        </div>
+                                        <span className="text-white text-xs">저장</span>
                                     </button>
 
                                     {/* Share */}
                                     <button
                                         onClick={handleShare}
-                                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
+                                        className="flex flex-col items-center gap-1 group"
                                     >
-                                        <Share2 className="w-7 h-7" />
+                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                            <Share2 className="w-6 h-6 text-white" />
+                                        </div>
+                                        <span className="text-white text-xs">공유</span>
                                     </button>
                                 </div>
                             </div>
@@ -1005,9 +1002,9 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
             </div>
 
             {/* Right: Info Panel - Full Height */}
-            <div className="w-full md:w-[420px] bg-black border-l border-white/10 flex flex-col h-1/2 md:h-full flex-shrink-0">
+            <div className="w-full md:w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-1/2 md:h-full flex-shrink-0">
                 {/* Header */}
-                <div className="p-6 border-b border-white/10 bg-black/80 backdrop-blur-md flex-shrink-0">
+                <div className="p-6 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md flex-shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="relative">
                             <img
@@ -1208,30 +1205,6 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     activityType="routine"
                     defaultContent={shareModalData.defaultContent}
                     metadata={shareModalData.metadata}
-                />
-            )}
-
-            {/* Share Modal for Drill */}
-            {isShareModalOpen && shareModalData2 && currentDrill && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    title={shareModalData2.title}
-                    text={shareModalData2.text}
-                    url={shareModalData2.url}
-                    imageUrl={currentDrill.thumbnailUrl}
-                />
-            )}
-
-            {/* Share Modal for Routine */}
-            {isShareModalOpen && !shareModalData2 && routine && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    title={routine.title}
-                    text={routine.description || `Check out this routine: ${routine.title}`}
-                    url={window.location.href}
-                    imageUrl={routine.thumbnailUrl}
                 />
             )}
         </div>

@@ -31,79 +31,6 @@ const getYouTubeEmbedUrl = (url: string): string => {
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
 };
 
-// URL을 링크로 변환하는 컴포넌트
-const TextWithLinks: React.FC<{ 
-    text: string; 
-    isExpanded: boolean; 
-    onExpand: () => void;
-    metadata?: any;
-}> = ({ text, isExpanded, onExpand, metadata }) => {
-    const navigate = useNavigate();
-    
-    // URL 추출 및 링크 변환
-    const urlRegex = /(https?:\/\/[^\s]+|technique-roadmap[^\s]*|localhost[^\s]*)/g;
-    const parts = text.split(urlRegex);
-    
-    const handleUrlClick = (url: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        // technique-roadmap URL인 경우 올바른 경로로 이동
-        if (url.includes('technique-roadmap') || url.includes('technique_roadmap')) {
-            // URL에서 id 파라미터 추출
-            try {
-                const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
-                const id = urlObj.searchParams.get('id');
-                if (id) {
-                    navigate(`/technique-roadmap?id=${id}`);
-                } else {
-                    navigate('/technique-roadmap');
-                }
-            } catch {
-                // URL 파싱 실패 시 직접 처리
-                const idMatch = url.match(/[?&]id=([^&\s]+)/);
-                if (idMatch) {
-                    navigate(`/technique-roadmap?id=${idMatch[1]}`);
-                } else {
-                    navigate('/technique-roadmap');
-                }
-            }
-        } else if (url.startsWith('http://') || url.startsWith('https://')) {
-            window.open(url, '_blank');
-        } else {
-            // 상대 경로인 경우
-            navigate(url);
-        }
-    };
-    
-    return (
-        <>
-            <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${text.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
-                {parts.map((part, index) => {
-                    if (urlRegex.test(part)) {
-                        return (
-                            <button
-                                key={index}
-                                onClick={(e) => handleUrlClick(part, e)}
-                                className="text-blue-400 hover:text-blue-300 underline break-all"
-                            >
-                                {part}
-                            </button>
-                        );
-                    }
-                    return <span key={index}>{part}</span>;
-                })}
-            </p>
-            {text.length > 200 && !isExpanded && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); onExpand(); }}
-                    className="text-slate-500 text-sm mt-1 hover:text-slate-300"
-                >
-                    더 보기
-                </button>
-            )}
-        </>
-    );
-};
-
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -391,12 +318,17 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                 <div className="pl-[52px]">
                     {/* Text Body */}
                     <div className="mb-4">
-                        <TextWithLinks 
-                            text={post.notes} 
-                            isExpanded={isExpanded}
-                            onExpand={() => setIsExpanded(true)}
-                            metadata={post.metadata}
-                        />
+                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
+                            {post.notes}
+                        </p>
+                        {post.notes.length > 200 && !isExpanded && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                                className="text-slate-500 text-sm mt-1 hover:text-slate-300"
+                            >
+                                더 보기
+                            </button>
+                        )}
                     </div>
 
                     {/* Sparring Summary Card (if it's a sparring review) */}

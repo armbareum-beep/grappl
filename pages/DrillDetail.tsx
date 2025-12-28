@@ -4,14 +4,13 @@ import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, to
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX, ListVideo } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 
 import { useAuth } from '../contexts/AuthContext';
-import ShareModal from '../components/social/ShareModal';
 
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -33,7 +32,6 @@ export const DrillDetail: React.FC = () => {
     const [liked, setLiked] = useState(false);
     const [saved, setSaved] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
-    const [muted, setMuted] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -376,28 +374,21 @@ export const DrillDetail: React.FC = () => {
         }
     };
 
-    const toggleMute = () => {
-        const newMuted = !muted;
-        setMuted(newMuted);
-        
-        if (useVimeo) {
-            const iframe = iframeRef.current;
-            if (iframe?.contentWindow) {
-                iframe.contentWindow.postMessage(`{"method":"setVolume", "value": ${newMuted ? 0 : 1}}`, '*');
-                iframe.contentWindow.postMessage(`{"method":"setMuted", "value": ${newMuted}}`, '*');
+    const handleShare = async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: drill?.title,
+                    text: `Check out this drill: ${drill?.title}`,
+                    url: window.location.href
+                });
+            } catch (err) {
+                console.log('Share error:', err);
             }
         } else {
-            const video = videoRef.current;
-            if (video) {
-                video.muted = newMuted;
-            }
+            navigator.clipboard.writeText(window.location.href);
+            alert('링크가 복사되었습니다!');
         }
-    };
-
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
-    const handleShare = async () => {
-        setIsShareModalOpen(true);
     };
 
     if (loading) {
@@ -417,7 +408,7 @@ export const DrillDetail: React.FC = () => {
 
     if (isProcessing) {
         return (
-            <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4">
+            <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
                 <h2 className="text-xl font-bold text-white mb-2">영상 처리 중입니다...</h2>
                 <p className="text-slate-400 text-center max-w-xs mb-8">
@@ -621,60 +612,71 @@ export const DrillDetail: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Right: Action Buttons - 통합된 버튼 순서: 좋아요, 저장, 루틴, 소리, 공유 */}
+                    {/* Right: Action Buttons */}
                     <div className="flex flex-col gap-6">
                         {/* Like */}
-                        <div className="flex flex-col items-center gap-1">
-                            <button
-                                onClick={handleLike}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                            >
+                        <button
+                            onClick={handleLike}
+                            className="flex flex-col items-center gap-1 group"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
                                 <Heart
-                                    className={`w-7 h-7 ${liked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`}
+                                    className={`w-6 h-6 ${liked ? 'fill-red-500 text-red-500' : 'text-white'}`}
                                 />
-                            </button>
-                            <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
+                            </div>
+                            <span className="text-white text-xs">
                                 {(drill.likes || 0) + (liked ? 1 : 0)}
                             </span>
-                        </div>
+                        </button>
 
                         {/* Save */}
                         <button
                             onClick={handleSave}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                            className="flex flex-col items-center gap-1 group"
                         >
-                            <Bookmark
-                                className={`w-7 h-7 ${saved ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                            />
-                        </button>
-
-                        {/* Routine - 루틴이 있을 때만 표시 */}
-                        {associatedRoutineId && (
-                            <button
-                                onClick={async () => {
-                                    navigate(`/routines/${associatedRoutineId}`);
-                                }}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-400 transition-colors group"
-                            >
-                                <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
-                            </button>
-                        )}
-
-                        {/* Mute */}
-                        <button
-                            onClick={toggleMute}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
-                        >
-                            {muted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
+                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                <Bookmark
+                                    className={`w-6 h-6 ${saved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
+                                />
+                            </div>
+                            <span className="text-white text-xs">저장</span>
                         </button>
 
                         {/* Share */}
                         <button
                             onClick={handleShare}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
+                            className="flex flex-col items-center gap-1 group"
                         >
-                            <Share2 className="w-7 h-7" />
+                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                <Share2 className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-white text-xs">공유</span>
                         </button>
+
+                        {/* Add to Routine / Complete */}
+                        {owns && (
+                            <button
+                                onClick={async () => {
+                                    if (associatedRoutineId) {
+                                        navigate(`/routines/${associatedRoutineId}`);
+                                    } else {
+                                        setShowAddToRoutine(true);
+                                    }
+                                }}
+                                className="flex flex-col items-center gap-1 group"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                                    {associatedRoutineId ? (
+                                        <Play className="w-6 h-6 text-white" />
+                                    ) : (
+                                        <MoreVertical className="w-6 h-6 text-white" />
+                                    )}
+                                </div>
+                                <span className="text-white text-xs">
+                                    {associatedRoutineId ? '루틴 보기' : '루틴'}
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -699,18 +701,6 @@ export const DrillDetail: React.FC = () => {
                     onSuccess={() => {
                         // Optionally reload or update UI
                     }}
-                />
-            )}
-
-            {/* Share Modal */}
-            {isShareModalOpen && drill && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    title={drill.title}
-                    text={drill.description || `Check out this drill: ${drill.title}`}
-                    url={window.location.href}
-                    imageUrl={drill.thumbnailUrl}
                 />
             )}
         </div>

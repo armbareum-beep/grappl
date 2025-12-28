@@ -289,7 +289,7 @@ export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
     return (data || []).map(transformLesson);
 }
 
-export async function getLessons(limit: number = 200): Promise<(Lesson & { course?: { title: string; category?: string; creatorName?: string } })[]> {
+export async function getLessons(limit: number = 200): Promise<(Lesson & { course?: { title: string; creatorName?: string } })[]> {
     const { data, error } = await supabase
         .from('lessons')
         .select('*')
@@ -311,15 +311,14 @@ export async function getLessons(limit: number = 200): Promise<(Lesson & { cours
         return lessons.map(l => ({ ...l, course: undefined }));
     }
 
-    // Fetch course titles, creator names & categories
+    // Fetch course titles & creator names
     const { data: courses } = await supabase
         .from('courses')
-        .select('id, title, category, creator:creators(name)')
+        .select('id, title, creator:creators(name)')
         .in('id', courseIds);
 
     const courseMap = new Map((courses || []).map((c: any) => [c.id, {
         title: c.title,
-        category: c.category,
         creatorName: c.creator?.name
     }]));
 
@@ -607,59 +606,6 @@ export async function getSparringInteractionStatus(userId: string, videoId: stri
         followed: !!followData.data,
         saved: !!saveData.data
     };
-}
-
-export async function getSparringComments(videoId: string) {
-    const { data, error } = await supabase
-        .from('sparring_comments')
-        .select(`
-            *,
-            user:users (
-                id,
-                name,
-                avatar_url
-            )
-        `)
-        .eq('video_id', videoId)
-        .order('created_at', { ascending: true });
-
-    if (error) {
-        console.error('Error fetching sparring comments:', error);
-        return [];
-    }
-
-    return data;
-}
-
-export async function createSparringComment(videoId: string, userId: string, content: string) {
-    const { data, error } = await supabase
-        .from('sparring_comments')
-        .insert({
-            video_id: videoId,
-            user_id: userId,
-            content
-        })
-        .select(`
-            *,
-            user:users (
-                id,
-                name,
-                avatar_url
-            )
-        `)
-        .single();
-
-    if (error) throw error;
-    return data;
-}
-
-export async function deleteSparringComment(commentId: string) {
-    const { error } = await supabase
-        .from('sparring_comments')
-        .delete()
-        .eq('id', commentId);
-
-    if (error) throw error;
 }
 
 export async function toggleSparringSave(userId: string, videoId: string) {
@@ -4938,7 +4884,7 @@ export async function removeCourseDrillBundle(courseId: string, drillId: string)
 export async function createFeedPost(post: {
     userId: string;
     content: string;
-    type: 'sparring' | 'routine' | 'mastery' | 'general' | 'title_earned' | 'level_up' | 'technique' | 'lesson' | 'drill' | 'course' | 'technique_roadmap' | 'training_routine' | 'training';
+    type: 'sparring' | 'routine' | 'mastery' | 'general' | 'title_earned' | 'level_up' | 'technique';
     metadata?: any;
     mediaUrl?: string;
     youtubeUrl?: string;

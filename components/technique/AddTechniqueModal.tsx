@@ -10,7 +10,7 @@ interface AddContentItem {
 interface AddTechniqueModalProps {
     isOpen: boolean;
     onClose: () => void;
-    lessons: (Lesson & { course?: { title: string; category?: string; creatorName?: string } })[];
+    lessons: (Lesson & { course?: { title: string; creatorName?: string } })[];
     drills: Drill[];
     addedItems: AddContentItem[];
     onAddContent: (items: AddContentItem[]) => void;
@@ -51,32 +51,10 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
     const filterItem = (item: Lesson | Drill) => {
         const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        // If category filter is "All", only check search
-        if (activeCategory === 'All') {
-            return matchesSearch;
-        }
-        
-        // For lessons, use course category
-        if (!('category' in item)) {
-            const lesson = item as Lesson & { course?: { category?: string } };
-            const lessonCategory = lesson.course?.category;
-            if (!lessonCategory) {
-                // If lesson has no course or course has no category, exclude it when filtering by specific category
-                return false;
-            }
-            const activeCat = activeCategory.trim();
-            const matchesCategory = lessonCategory === activeCat || 
-                                   lessonCategory.toLowerCase() === activeCat.toLowerCase();
-            return matchesSearch && matchesCategory;
-        }
-        
-        // For drills, use drill category
-        const itemCategory = (item as Drill).category as string;
-        const activeCat = activeCategory.trim();
-        const matchesCategory = itemCategory === activeCat || 
-                               itemCategory.toLowerCase() === activeCat.toLowerCase();
-        
+        // Lessons don't have a category field directly, so we skip category filtering for them
+        // Only apply category filter to Drills
+        const matchesCategory = activeCategory === 'All' ||
+            ('category' in item && item.category === activeCategory);
         return matchesSearch && matchesCategory;
     };
 
@@ -92,8 +70,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
-            <div className="bg-slate-900 rounded-none md:rounded-2xl border-0 md:border border-slate-700 w-full max-w-2xl h-full md:h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/50">
                     <div>

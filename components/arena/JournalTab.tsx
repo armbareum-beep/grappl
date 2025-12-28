@@ -12,7 +12,6 @@ import { ko } from 'date-fns/locale';
 import { ErrorScreen } from '../ErrorScreen';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
-import { AICoachWidget } from '../journal/AICoachWidget';
 
 type TimelineItem =
     | { type: 'log'; data: TrainingLog }
@@ -292,16 +291,8 @@ export const JournalTab: React.FC = () => {
     const totalDuration = timelineItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : ((item.data.rounds || 0) * 5)), 0);
     const totalRounds = timelineItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
-    // Extract training logs for AI Coach
-    const trainingLogs = timelineItems
-        .filter(item => item.type === 'log')
-        .map(item => item.data as TrainingLog);
-
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20">
-            {/* AI Coach Widget - 맨 위에 배치 */}
-            <AICoachWidget logs={trainingLogs} />
-
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">

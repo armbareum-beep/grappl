@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, BookOpen, ArrowLeft, MessageCircle, X, Send } from 'lucide-react';
+import { Heart, Share2, BookOpen, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -98,8 +98,6 @@ const VideoItem: React.FC<{
 
     // Share Modal State
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    // Comment Overlay State
-    const [isCommentOpen, setIsCommentOpen] = useState(false);
 
     const handleShare = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -275,8 +273,8 @@ const VideoItem: React.FC<{
                     )}
                 </div>
 
-                {/* Right Sidebar Actions - pointer-events-auto */}
-                <div className="absolute right-4 bottom-24 flex flex-col gap-6 items-center z-30 pointer-events-auto">
+                {/* Right Sidebar Actions - Desktop only */}
+                <div className="hidden md:flex absolute right-4 bottom-24 flex-col gap-6 items-center z-30 pointer-events-auto">
                     <div className="flex flex-col items-center gap-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
@@ -309,12 +307,45 @@ const VideoItem: React.FC<{
                         </button>
                     </div>
 
+                    <button
+                        onClick={handleShare}
+                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
+                    >
+                        <Share2 className="w-7 h-7" />
+                    </button>
+                </div>
+
+                {/* Mobile Actions - Bottom right */}
+                <div className="md:hidden absolute right-4 bottom-4 flex flex-col gap-5 items-center z-30 pointer-events-auto">
                     <div className="flex flex-col items-center gap-1">
                         <button
-                            onClick={(e) => { e.stopPropagation(); setIsCommentOpen(true); }}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-500 transition-colors group"
+                            onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
                         >
-                            <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
+                            <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
+                        </button>
+                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
+                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill={isSaved ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`w-7 h-7 ${isSaved ? 'text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
+                            >
+                                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                            </svg>
                         </button>
                     </div>
 
@@ -326,125 +357,64 @@ const VideoItem: React.FC<{
                     </button>
                 </div>
 
-                {/* Content & Actions - 스파링은 16:9 비율 */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-20 pointer-events-none md:pointer-events-auto">
-                    <div className="flex items-end justify-between pointer-events-auto">
-                        {/* Info - Always inside video */}
-                        <div className="flex-1 pr-4">
-                            <div className="flex items-center gap-3 mb-3">
-                                {video.creator && (
-                                    <>
-                                        <Link
-                                            to={`/creator/${video.creator.id}`}
-                                            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                                        >
-                                            <img
-                                                src={video.creator.profileImage || 'https://via.placeholder.com/40'}
-                                                alt={video.creator.name}
-                                                className="w-8 h-8 rounded-full border border-white/20 object-cover"
-                                            />
-                                            <span className="text-white font-bold text-sm drop-shadow-sm">
-                                                {video.creator.name}
-                                            </span>
-                                        </Link>
-                                        <span className="text-white/60 text-xs leading-none mt-0.5">•</span>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-                                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all active:scale-95 ${isFollowed
-                                                ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
-                                                : 'bg-transparent text-white border-white/40 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            {isFollowed ? '팔로잉' : '팔로우'}
-                                        </button>
-                                    </>
-                                )}
+                {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
+                <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-4 pointer-events-none">
+                    {/* Related Technique Link (The "Hook") */}
+                    {video.relatedItems && video.relatedItems.length > 0 && (
+                        <div className="w-full max-w-md pointer-events-auto mb-2">
+                            <div className="flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap pb-1 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                {video.relatedItems.map((item, idx) => (
+                                    <Link
+                                        key={idx}
+                                        to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
+                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/20 transition-all group whitespace-nowrap shrink-0"
+                                    >
+                                        <div className="bg-blue-600 p-1 rounded-full group-hover:bg-blue-500 transition-colors">
+                                            <BookOpen className="w-3 h-3 text-white" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-blue-300 font-bold leading-none">이 기술 배우기</span>
+                                            <span className="text-xs font-semibold text-white leading-none mt-0.5">{item.title}</span>
+                                        </div>
+                                        <div className="w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100">
+                                            <ArrowLeft className="w-3 h-3 rotate-180" />
+                                        </div>
+                                    </Link>
+                                ))}
                             </div>
+                        </div>
+                    )}
 
-                            <h2 className="text-white font-bold text-base mb-2 line-clamp-2 drop-shadow-sm">
-                                {video.title}
-                            </h2>
+                    {/* Metadata */}
+                    <div className="max-w-[85%] pointer-events-auto">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                            <h3 className="font-bold text-lg leading-tight text-shadow-sm line-clamp-2">{video.title}</h3>
 
-                            {/* 설명 */}
-                            {video.description && (
-                                <p className="text-sm text-white/80 mb-3 line-clamp-2 drop-shadow-sm">
-                                    {video.description}
-                                </p>
-                            )}
-
-                            {/* 이 기술 배우기 - 제목과 설명 아래, 유튜브 스타일 반응형 그리드 */}
-                            {video.relatedItems && video.relatedItems.length > 0 && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                    {video.relatedItems.map((item, idx) => (
-                                        <Link
-                                            key={idx}
-                                            to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                            className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/20 transition-all group"
-                                        >
-                                            <div className="bg-blue-600 p-1 rounded-full group-hover:bg-blue-500 transition-colors flex-shrink-0">
-                                                <BookOpen className="w-3 h-3 text-white" />
-                                            </div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                                <span className="text-[10px] text-blue-300 font-bold leading-none">이 기술 배우기</span>
-                                                <span className="text-xs font-semibold text-white leading-none mt-0.5 truncate">{item.title}</span>
-                                            </div>
-                                            <div className="w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100 flex-shrink-0">
-                                                <ArrowLeft className="w-3 h-3 rotate-180" />
-                                            </div>
-                                        </Link>
-                                    ))}
+                            {video.creator && (
+                                <div className="flex flex-row items-center gap-2 flex-nowrap shrink-0">
+                                    <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
+                                        <img
+                                            src={video.creator.profileImage || 'https://via.placeholder.com/40'}
+                                            alt={video.creator.name}
+                                            className="w-6 h-6 rounded-full border border-white/20 object-cover flex-shrink-0"
+                                        />
+                                        <span className="font-bold text-sm text-shadow-sm truncate max-w-[100px]">{video.creator.name}</span>
+                                    </Link>
+                                    <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5 flex-shrink-0">•</span>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+                                        className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all active:scale-95 flex-shrink-0 ${isFollowed
+                                            ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
+                                            : 'bg-transparent text-white border-white/40 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        {isFollowed ? '팔로잉' : '팔로우'}
+                                    </button>
                                 </div>
                             )}
                         </div>
 
-                        {/* Right Side Actions - Mobile style (stacked bottom right) */}
-                        <div className="flex flex-col gap-5 items-center pb-8 md:hidden">
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                                    className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                                >
-                                    <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
-                                </button>
-                                <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
-                            </div>
-
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleSave(); }}
-                                    className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill={isSaved ? "currentColor" : "none"}
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        className={`w-7 h-7 ${isSaved ? 'text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                                    >
-                                        <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setIsCommentOpen(true); }}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-500 transition-colors group"
-                            >
-                                <MessageCircle className="w-7 h-7 group-hover:scale-110 transition-transform" />
-                            </button>
-
-                            <button
-                                onClick={handleShare}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
-                            >
-                                <Share2 className="w-7 h-7" />
-                            </button>
-                        </div>
+                        <p className="text-sm text-white/80 line-clamp-2 text-shadow-sm">{video.description}</p>
                     </div>
                 </div>
             </div>
@@ -457,166 +427,10 @@ const VideoItem: React.FC<{
                         onClose={() => setIsShareModalOpen(false)}
                         title={video.title}
                         text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
-                        url={`${window.location.origin}/sparring?id=${video.id}`}
-                        imageUrl={video.thumbnailUrl}
                     />
                 )}
             </React.Suspense>
-
-            {/* Comments Overlay */}
-            {isCommentOpen && (
-                <CommentsOverlay
-                    videoId={video.id}
-                    onClose={() => setIsCommentOpen(false)}
-                />
-            )}
         </>
-    );
-};
-
-// Comments Overlay Component
-const CommentsOverlay: React.FC<{ videoId: string; onClose: () => void }> = ({ videoId, onClose }) => {
-    const { user } = useAuth();
-    const [comments, setComments] = useState<any[]>([]);
-    const [newComment, setNewComment] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-
-    useEffect(() => {
-        loadComments();
-    }, [videoId]);
-
-    const loadComments = async () => {
-        try {
-            const { getSparringComments } = await import('../lib/api');
-            const data = await getSparringComments(videoId);
-            setComments(data || []);
-        } catch (error) {
-            console.error('Failed to load comments:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!user || !newComment.trim() || submitting) return;
-
-        setSubmitting(true);
-        try {
-            const { createSparringComment } = await import('../lib/api');
-            const comment = await createSparringComment(videoId, user.id, newComment.trim());
-            if (comment) {
-                setComments(prev => [...prev, comment]);
-                setNewComment('');
-            }
-        } catch (error) {
-            console.error('Failed to post comment:', error);
-            alert('댓글 작성에 실패했습니다.');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleDelete = async (commentId: string) => {
-        if (!confirm('댓글을 삭제하시겠습니까?')) return;
-        try {
-            const { deleteSparringComment } = await import('../lib/api');
-            await deleteSparringComment(commentId);
-            setComments(prev => prev.filter(c => c.id !== commentId));
-        } catch (error) {
-            console.error('Failed to delete comment:', error);
-        }
-    };
-
-    return (
-        <div className="absolute inset-0 z-50 flex flex-col justify-end pointer-events-none">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/50 pointer-events-auto transition-opacity"
-                onClick={onClose}
-            />
-
-            {/* Drawer */}
-            <div className="bg-zinc-900 rounded-t-2xl h-[70vh] w-full pointer-events-auto flex flex-col shadow-2xl animate-slide-up">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-white/10">
-                    <h3 className="text-white font-bold">댓글 {comments.length}</h3>
-                    <button onClick={onClose} className="p-1 text-zinc-400 hover:text-white">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-
-                {/* List */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {loading ? (
-                        <div className="flex justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        </div>
-                    ) : comments.length === 0 ? (
-                        <div className="text-center text-zinc-500 py-8">
-                            첫 번째 댓글을 남겨보세요!
-                        </div>
-                    ) : (
-                        comments.map(comment => (
-                            <div key={comment.id} className="flex gap-3">
-                                <img
-                                    src={comment.user?.avatar_url || 'https://via.placeholder.com/32'}
-                                    alt={comment.user?.name}
-                                    className="w-8 h-8 rounded-full object-cover bg-zinc-800 shrink-0"
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-zinc-300 text-sm font-bold">
-                                            {comment.user?.name || '알 수 없음'}
-                                        </span>
-                                        <span className="text-zinc-500 text-xs">
-                                            {new Date(comment.created_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                    <p className="text-zinc-200 text-sm break-words mt-0.5">
-                                        {comment.content}
-                                    </p>
-                                    {user?.id === comment.user_id && (
-                                        <button
-                                            onClick={() => handleDelete(comment.id)}
-                                            className="text-zinc-500 text-xs mt-1 hover:text-red-400"
-                                        >
-                                            삭제
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                {/* Input */}
-                <form onSubmit={handleSubmit} className="p-4 border-t border-white/10 bg-zinc-900 pb-safe">
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={newComment}
-                            onChange={e => setNewComment(e.target.value)}
-                            placeholder={user ? "댓글을 입력하세요..." : "로그인이 필요합니다"}
-                            disabled={!user || submitting}
-                            className="flex-1 bg-zinc-800 text-white rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-zinc-500"
-                        />
-                        <button
-                            type="submit"
-                            disabled={!user || !newComment.trim() || submitting}
-                            className="p-2.5 bg-blue-600 rounded-full text-white disabled:opacity-50 disabled:bg-zinc-700 transition-colors"
-                        >
-                            {submitting ? (
-                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <Send className="w-5 h-5" />
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
     );
 };
 // Lazy load Modal to avoid circular dependency or bundle issues if needed

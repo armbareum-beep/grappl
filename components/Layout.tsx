@@ -19,19 +19,8 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
-  const [isMobile, setIsMobile] = React.useState(false);
   const location = useLocation();
   const { user, signOut, isCreator, isAdmin } = useAuth();
-
-  // 모바일 감지
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Global Modals State
   const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);
@@ -61,15 +50,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '스파링', href: '/sparring', icon: Clapperboard },
     { name: '피드', href: '/journal', icon: Users },
     { name: '아레나', href: '/arena', icon: Trophy },
+    { name: '요금제', href: '/pricing', icon: DollarSign },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   const isLandingPage = location.pathname === '/';
-  const isTechniqueRoadmap = location.pathname === '/technique-roadmap' || location.pathname.startsWith('/technique-roadmap');
 
-  // 모바일에서 테크닉 로드맵은 전체화면으로 표시 (헤더 숨김)
-  if (isLandingPage || (isTechniqueRoadmap && isMobile)) {
+  if (isLandingPage) {
     return <>{children}</>;
   }
 

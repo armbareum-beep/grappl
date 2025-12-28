@@ -17,7 +17,7 @@ export const Journal: React.FC = () => {
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
     // Filter State
-    const [filter, setFilter] = useState<'all' | 'sparring' | 'training' | 'lesson' | 'routine' | 'drill' | 'course' | 'technique_roadmap' | 'training_routine'>('all');
+    const [filter, setFilter] = useState<'all' | 'sparring' | 'training'>('all');
     const [showFilterMenu, setShowFilterMenu] = useState(false);
 
     useEffect(() => {
@@ -83,35 +83,8 @@ export const Journal: React.FC = () => {
 
     const filteredPosts = posts.filter(post => {
         if (filter === 'all') return true;
-        
-        // location에서 타입 추출 (__FEED__{type} 형식)
-        const feedType = post.location?.replace('__FEED__', '') || post.type;
-        
-        if (filter === 'sparring') {
-            return feedType === 'sparring' || post.type === 'sparring' || (post.sparringRounds && post.sparringRounds > 0) || (post.metadata?.result);
-        }
-        if (filter === 'training') {
-            return feedType === 'training' || feedType === 'general' || (!feedType && !post.sparringRounds && (!post.type || post.type === 'general' || post.type === 'technique'));
-        }
-        if (filter === 'lesson') {
-            return feedType === 'lesson';
-        }
-        if (filter === 'routine') {
-            return feedType === 'routine';
-        }
-        if (filter === 'drill') {
-            return feedType === 'drill';
-        }
-        if (filter === 'course') {
-            return feedType === 'course';
-        }
-        if (filter === 'technique_roadmap') {
-            return feedType === 'technique_roadmap';
-        }
-        if (filter === 'training_routine') {
-            return feedType === 'training_routine';
-        }
-        
+        if (filter === 'sparring') return post.type === 'sparring' || (post.sparringRounds && post.sparringRounds > 0) || (post.metadata?.result);
+        if (filter === 'training') return (!post.type || post.type === 'general' || post.type === 'technique') && (!post.sparringRounds);
         return true;
     });
 
@@ -131,14 +104,7 @@ export const Journal: React.FC = () => {
                     >
                         <span className="text-white font-bold text-lg">
                             {filter === 'all' ? '추천' :
-                                filter === 'sparring' ? '스파링 복기' :
-                                filter === 'training' ? '수련 일지' :
-                                filter === 'lesson' ? '레슨' :
-                                filter === 'routine' ? '루틴' :
-                                filter === 'drill' ? '드릴' :
-                                filter === 'course' ? '클래스' :
-                                filter === 'technique_roadmap' ? '테크닉로드맵' :
-                                filter === 'training_routine' ? '훈련루틴' : '추천'}
+                                filter === 'sparring' ? '스파링 복기' : '수련 일지'}
                         </span>
                         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
                     </button>
@@ -152,12 +118,6 @@ export const Journal: React.FC = () => {
                                     { id: 'all', label: '추천' },
                                     { id: 'sparring', label: '스파링 복기' },
                                     { id: 'training', label: '수련 일지' },
-                                    { id: 'lesson', label: '레슨' },
-                                    { id: 'routine', label: '루틴' },
-                                    { id: 'drill', label: '드릴' },
-                                    { id: 'course', label: '클래스' },
-                                    { id: 'technique_roadmap', label: '테크닉로드맵' },
-                                    { id: 'training_routine', label: '훈련루틴' },
                                 ].map(option => (
                                     <button
                                         key={option.id}

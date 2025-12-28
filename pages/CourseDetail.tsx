@@ -725,7 +725,10 @@ export const CourseDetail: React.FC = () => {
                         title={course.title}
                         text={course.description}
                         url={window.location.href}
-                        imageUrl={course.thumbnailUrl}
+                        onShareToFeed={() => {
+                            setIsShareModalOpen(false);
+                            setShowShareToFeedModal(true);
+                        }}
                     />
                 </React.Suspense>
             )}

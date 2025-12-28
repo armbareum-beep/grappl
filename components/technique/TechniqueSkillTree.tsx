@@ -92,83 +92,16 @@ export const TechniqueSkillTree: React.FC = () => {
     }, [setNodes]);
 
     // Load data
-    const loadData = useCallback(async (treeId?: string, skipGuestCheck: boolean = false) => {
+    useEffect(() => {
+        const sharedTreeId = searchParams.get('id');
+        loadData(sharedTreeId || undefined);
+    }, [user, searchParams]);
+
+    const loadData = async (treeId?: string) => {
         setLoading(true);
         setError(null);
 
         try {
-            // 로그인 후 게스트 데이터가 있으면 먼저 복원 (서버 데이터 로드 전)
-            if (user && !treeId && !skipGuestCheck) {
-                const guestData = localStorage.getItem('guest_skill_tree');
-                if (guestData) {
-                    try {
-                        const parsed = JSON.parse(guestData);
-                        if (parsed.nodes && parsed.nodes.length > 0) {
-                            // 게스트 데이터가 있으면 서버 데이터를 로드하지 않고 게스트 데이터 사용
-                            // 먼저 lessons와 drills를 로드해야 함
-                            const [lessons, drills] = await Promise.all([
-                                getLessons(300).then(res => res),
-                                getDrills(undefined, 100).then(res => res.data || [])
-                            ]);
-                            setAllLessons(lessons);
-                            setAllDrills(drills);
-
-                            const flowNodes: Node[] = parsed.nodes.map((node: any) => {
-                                const type = node.type === 'text' ? 'text' : 'content';
-                                if (type === 'text') {
-                                    return {
-                                        id: node.id,
-                                        type: 'text',
-                                        position: node.position,
-                                        data: {
-                                            label: node.data?.label || 'Text',
-                                            style: node.data?.style || {},
-                                            onChange: (newData: any) => handleNodeDataChange(node.id, newData),
-                                            onDelete: () => {
-                                                setNodes((nds) => nds.filter((n) => n.id !== node.id));
-                                                setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
-                                            }
-                                        }
-                                    };
-                                }
-                                const contentId = node.contentId || '';
-                                const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                                const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
-                                return {
-                                    id: node.id,
-                                    type: 'content',
-                                    position: node.position,
-                                    data: {
-                                        contentType: node.contentType || 'technique',
-                                        contentId,
-                                        lesson,
-                                        drill
-                                    }
-                                };
-                            });
-                            const flowEdges: Edge[] = parsed.edges.map((edge: any) => ({
-                                id: edge.id,
-                                source: edge.source,
-                                target: edge.target,
-                                type: edge.type === 'animated' ? 'smoothstep' : 'default',
-                                animated: edge.type === 'animated',
-                                style: { stroke: '#facc15', strokeWidth: 3 }
-                            }));
-                            setNodes(flowNodes);
-                            setEdges(flowEdges);
-                            setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
-                            setIsReadOnly(false);
-                            setLoading(false);
-                            // 게스트 데이터는 유지 (사용자가 저장할 때까지)
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Error loading guest skill tree:', e);
-                        // 에러 발생 시 계속 진행
-                    }
-                }
-            }
-
             // 1. Fetch Public Data
             const [lessons, drills] = await Promise.all([
                 getLessons(300).then(res => res),
@@ -193,11 +126,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
-                
-                // 공유된 트리를 찾을 수 없으면 에러 표시
-                if (!treeRes.data && tr.error) {
-                    throw new Error(`공유된 스킬 트리를 찾을 수 없습니다. 링크가 올바른지 확인해주세요.`);
-                }
             } else if (user) {
                 // Case B: Logged-in User default view (Latest Tree)
                 const [tr, userSkillsRes, mastery] = await Promise.all([
@@ -301,10 +229,13 @@ export const TechniqueSkillTree: React.FC = () => {
                 if (!user) {
                     // Guest without tree ID -> Try to load from localStorage
                     const guestData = localStorage.getItem('guest_skill_tree');
+                    let hasGuestData = false;
+
                     if (guestData) {
                         try {
                             const parsed = JSON.parse(guestData);
-                            if (parsed.nodes && parsed.edges) {
+                            if (parsed.nodes && parsed.nodes.length > 0) {
+                                // Restore guest session
                                 const flowNodes: Node[] = parsed.nodes.map((node: any) => {
                                     const type = node.type === 'text' ? 'text' : 'content';
                                     if (type === 'text') {
@@ -349,15 +280,17 @@ export const TechniqueSkillTree: React.FC = () => {
                                 setNodes(flowNodes);
                                 setEdges(flowEdges);
                                 setCurrentTreeTitle(parsed.title || '자유롭게 기술트리를 만들어보세요');
+                                hasGuestData = true;
                             }
                         } catch (e) {
-                            console.error('Error loading guest skill tree from localStorage:', e);
+                            console.error('Error loading guest data:', e);
                         }
                     }
-                    if (nodes.length === 0) {
+
+                    if (!hasGuestData) {
                         setCurrentTreeTitle('자유롭게 기술트리를 만들어보세요');
                     }
-                    setIsReadOnly(false); // Allow guests to create and edit
+                    setIsReadOnly(false); // Guest can edit
                 } else {
                     // Logged in but no tree found -> Init new
                     setIsReadOnly(false);
@@ -369,71 +302,7 @@ export const TechniqueSkillTree: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, handleNodeDataChange]); // user와 handleNodeDataChange를 의존성에 추가
-
-    // 로그인 시 게스트 데이터 복원 (loadData 호출 전)
-    useEffect(() => {
-        if (user && nodes.length === 0 && edges.length === 0) {
-            // 로그인했고 현재 노드/엣지가 없으면 게스트 데이터 확인
-            const guestData = localStorage.getItem('guest_skill_tree');
-            if (guestData) {
-                try {
-                    const parsed = JSON.parse(guestData);
-                    if (parsed.nodes && parsed.nodes.length > 0) {
-                        // 게스트 데이터가 있으면 loadData를 호출하지 않고 게스트 데이터 사용
-                        // loadData는 나중에 필요할 때 호출
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Error parsing guest skill tree:', e);
-                }
-            }
-        }
-    }, [user, nodes.length, edges.length]);
-
-    useEffect(() => {
-        const sharedTreeId = searchParams.get('id');
-        // 공유된 링크가 있으면 항상 그 트리를 로드 (user 변경과 무관)
-        // 단, 게스트 데이터가 있으면 로드하지 않음
-        const guestData = localStorage.getItem('guest_skill_tree');
-        if (guestData && user && nodes.length === 0 && edges.length === 0) {
-            try {
-                const parsed = JSON.parse(guestData);
-                if (parsed.nodes && parsed.nodes.length > 0) {
-                    // 게스트 데이터가 있으면 loadData를 호출하지 않음
-                    return;
-                }
-            } catch (e) {
-                // 파싱 에러 시 계속 진행
-            }
-        }
-        loadData(sharedTreeId || undefined);
-    }, [searchParams, loadData, user, nodes.length, edges.length]); // user와 nodes/edges 길이도 의존성에 추가
-
-    // 게스트 모드에서 노드/엣지 변경 시 localStorage에 저장
-    useEffect(() => {
-        if (!user && !currentTreeId && (nodes.length > 0 || edges.length > 0)) {
-            // 게스트 모드이고 저장되지 않은 트리인 경우 localStorage에 저장
-            const guestData = {
-                title: currentTreeTitle,
-                nodes: nodes.map(node => ({
-                    id: node.id,
-                    type: node.type,
-                    position: node.position,
-                    contentType: node.data?.contentType || 'technique',
-                    contentId: node.data?.contentId || '',
-                    data: node.type === 'text' ? { label: node.data?.label, style: node.data?.style } : undefined
-                })),
-                edges: edges.map(edge => ({
-                    id: edge.id,
-                    source: edge.source,
-                    target: edge.target,
-                    type: edge.animated ? 'animated' : 'default'
-                }))
-            };
-            localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
-        }
-    }, [nodes, edges, currentTreeTitle, user, currentTreeId]);
+    };
 
     const loadTreeList = async () => {
         if (!user) {
@@ -846,14 +715,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 message: '게스트 모드에서는 저장할 수 없습니다.\n로그인 페이지로 이동하시겠습니까?',
                 confirmText: '로그인',
                 cancelText: '취소',
-                onConfirm: () => navigate('/login', { 
-                    state: { 
-                        from: { 
-                            pathname: window.location.pathname,
-                            search: window.location.search
-                        } 
-                    } 
-                })
+                onConfirm: () => navigate('/login')
             });
             return;
         }
@@ -947,7 +809,7 @@ export const TechniqueSkillTree: React.FC = () => {
     }
 
     return (
-        <div className="h-screen md:h-[calc(100vh-320px)] md:min-h-[600px] bg-slate-950 flex flex-col md:rounded-2xl overflow-hidden md:border md:border-slate-800">
+        <div className="h-[calc(100vh-320px)] min-h-[600px] bg-slate-950 flex flex-col rounded-2xl overflow-hidden border border-slate-800">
             {/* Toolbar */}
             {/* Toolbar */}
             <div className="bg-slate-900 border-b border-slate-800 p-4">
@@ -1015,73 +877,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
                         {/* Share */}
                         <button
-                            onClick={async () => {
-                                // 공유하기 전에 저장되지 않은 경우 자동 저장
-                                if (!currentTreeId && user) {
-                                    // 저장되지 않은 새 트리인 경우 자동 저장
-                                    const titleToUse = currentTreeTitle && currentTreeTitle.trim() && 
-                                                      currentTreeTitle.trim() !== '새 스킬 트리' && 
-                                                      currentTreeTitle.trim() !== '나의 첫 스킬 트리'
-                                        ? currentTreeTitle.trim()
-                                        : '나의 로드맵';
-                                    
-                                    try {
-                                        setSaving(true);
-                                        const skillTreeNodes: SkillTreeNode[] = nodes
-                                            .map(node => ({
-                                                id: node.id,
-                                                contentType: (node.type === 'text' ? 'text' : (node.data.contentType || 'technique')) as 'text' | 'technique' | 'lesson' | 'drill',
-                                                contentId: node.type === 'text' ? '' : (node.data.contentId || node.data.technique?.id || node.data.lesson?.id || node.data.drill?.id || ''),
-                                                position: node.position,
-                                                type: (node.type === 'text' ? 'text' : 'content') as 'text' | 'content',
-                                                data: node.type === 'text' ? { label: node.data.label, style: node.data.style } : undefined
-                                            }))
-                                            .filter(n => n.type === 'text' || (n.contentId && n.contentId.trim() !== ''));
-                                        
-                                        const skillTreeEdges = edges.map(edge => ({
-                                            id: edge.id,
-                                            source: edge.source as string,
-                                            target: edge.target as string,
-                                            type: edge.animated ? 'animated' as const : 'default' as const
-                                        }));
-                                        
-                                        const result = await createNewSkillTree(user.id, titleToUse, skillTreeNodes, skillTreeEdges);
-                                        if (result.data) {
-                                            setCurrentTreeId(result.data.id);
-                                            setCurrentTreeTitle(titleToUse);
-                                        }
-                                        setSaving(false);
-                                    } catch (error) {
-                                        console.error('Error auto-saving before share:', error);
-                                        setSaving(false);
-                                        setAlertConfig({
-                                            title: '저장 실패',
-                                            message: '공유하기 전에 저장하는 중 오류가 발생했습니다. 먼저 저장 버튼을 눌러주세요.',
-                                            confirmText: '확인'
-                                        });
-                                        return;
-                                    }
-                                } else if (!user) {
-                                    // 비로그인 사용자는 공유할 수 없음
-                                    setAlertConfig({
-                                        title: '로그인 필요',
-                                        message: '공유하려면 먼저 로그인하고 저장해주세요.',
-                                        confirmText: '로그인',
-                                        cancelText: '취소',
-                                        onConfirm: () => navigate('/login', { 
-                                            state: { 
-                                                from: { 
-                                                    pathname: window.location.pathname,
-                                                    search: window.location.search
-                                                } 
-                                            } 
-                                        })
-                                    });
-                                    return;
-                                }
-                                
-                                setIsShareModalOpen(true);
-                            }}
+                            onClick={() => setIsShareModalOpen(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
                         >
                             <Share2 className="w-4 h-4" />
@@ -1254,7 +1050,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 title={currentTreeTitle || '나의 스킬 트리'}
                 text={`${user?.user_metadata?.full_name || '사용자'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
                 url={currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined}
-                imageUrl="/logo_v2_final.png" // 기본 로고 이미지 사용
             />
 
             {/* Generic Alert/Confirm Modal */}

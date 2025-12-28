@@ -74,8 +74,7 @@ export function RandomSparringShowcase() {
                             기술이 실전에서 어떻게 통하는지 직접 볼 수 있습니다.
                         </p>
 
-                        {/* 버튼 - 데스크톱에서만 표시 */}
-                        <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                             <button
                                 className="group bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                                 onClick={() => navigate(`/sparring?id=${video.id}`)}
@@ -105,37 +104,18 @@ export function RandomSparringShowcase() {
                                 title={video.title}
                             ></iframe>
 
-                            {/* Overlay Info - 모바일에서 영상 위에 겹치지 않도록 수정 */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/50 to-transparent opacity-90 md:opacity-80 pointer-events-none"></div>
+                            {/* Overlay Info */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80 pointer-events-none"></div>
 
-                            {/* Title Overlay - 모바일에서 하단에 고정 */}
-                            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 pointer-events-none">
-                                <p className="text-white font-bold text-sm md:text-lg text-left line-clamp-2">{video.title}</p>
+                            {/* Title Overlay */}
+                            <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
+                                <p className="text-white font-bold text-lg text-left">{video.title}</p>
                             </div>
 
                             {/* Unmute Hint */}
                             <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 <VolumeX className="w-5 h-5 text-white" />
                             </div>
-                        </div>
-
-                        {/* 버튼 - 모바일에서만 영상 아래에 표시 */}
-                        <div className="flex lg:hidden flex-col sm:flex-row gap-4 justify-center mt-6">
-                            <button
-                                className="group bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-                                onClick={() => navigate(`/sparring?id=${video.id}`)}
-                            >
-                                <PlayCircle className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                                <span>이 스파링 전체 보기</span>
-                            </button>
-
-                            <button
-                                className="px-8 py-4 rounded-xl font-bold text-lg text-slate-400 hover:text-white border border-slate-800 hover:border-slate-600 transition-all flex items-center justify-center gap-2"
-                                onClick={() => navigate('/sparring')}
-                            >
-                                <span>더 많은 스파링</span>
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
                         </div>
 
                         {/* Decorative Elements */}
