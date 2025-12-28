@@ -4203,17 +4203,14 @@ export const getDrillRoutines = getRoutines;
 export async function getRoutineById(id: string) {
     console.log('[getRoutineById] Fetching routine:', id);
 
+    // 1. Remove unstable joins (creator:creators) to prevent API errors
     const { data, error } = await supabase
         .from('routines')
         .select(`
             *,
-            creator:creators(name, profile_image),
             items:routine_drills(
                 order_index,
-                drill:drills(
-                    *,
-                    creator:creators(name, profile_image)
-                )
+                drill:drills(*)
             )
         `)
         .eq('id', id)
@@ -4224,9 +4221,7 @@ export async function getRoutineById(id: string) {
             routineId: id,
             error: error,
             code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
+            message: error.message
         });
         return { data: null, error };
     }
@@ -4242,41 +4237,50 @@ export async function getRoutineById(id: string) {
         itemsCount: data.items?.length || 0
     });
 
-    // Fetch creator info separately to avoid join syntax issues
+    // 2. Fetch creator info manually from 'users' table (since creators table might be deprecated or linked incorrectly)
     let creatorName = 'Unknown';
+    let creatorProfileImage = null;
+
     if (data.creator_id) {
         try {
-            const { data: creatorData } = await supabase
-                .from('creators')
-                .select('name')
+            // Try fetching from users table first (as per recent changes)
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('name, avatar_url')
                 .eq('id', data.creator_id)
                 .single();
 
-            if (creatorData) {
-                creatorName = creatorData.name;
+            if (userData) {
+                creatorName = userData.name || 'Unknown';
+                creatorProfileImage = userData.avatar_url;
+            } else {
+                // Fallback: Check creators table if user not found (legacy support)
+                const { data: creatorData } = await supabase
+                    .from('creators')
+                    .select('name, profile_image')
+                    .eq('id', data.creator_id)
+                    .single();
+
+                if (creatorData) {
+                    creatorName = creatorData.name;
+                    creatorProfileImage = creatorData.profile_image;
+                }
             }
         } catch (e) {
             console.warn('[getRoutineById] Could not fetch creator:', e);
         }
     }
 
-    // Transform to match DrillRoutine interface with items
+    // 3. Transform to match DrillRoutine interface
     const routine = {
         ...transformDrillRoutine(data),
         creatorName: creatorName,
+        creatorProfileImage: creatorProfileImage,
         drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
             ...transformDrill(item.drill),
             orderIndex: item.order_index
         })) || []
     };
-
-    console.log('[getRoutineById] Transformed routine:', {
-        id: routine.id,
-        title: routine.title,
-        creatorName: routine.creatorName,
-        drillCount: routine.drills?.length || 0,
-        totalDuration: routine.totalDurationMinutes
-    });
 
     return { data: routine as DrillRoutine, error: null };
 }
@@ -4332,7 +4336,6 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
 
         if (drillsError) {
             console.error('Error adding drills to routine:', drillsError);
-            // Should probably rollback routine creation here in a real transaction
             return { data: null, error: drillsError };
         }
     }

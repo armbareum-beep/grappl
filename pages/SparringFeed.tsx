@@ -358,15 +358,15 @@ const VideoItem: React.FC<{
                 </div>
 
                 {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
-                {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
-                <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-4 pointer-events-none">
+                {/* Bottom Info Area */}
+                <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-1 pointer-events-none">
 
-                    {/* Metadata */}
-                    <div className="max-w-[85%] pointer-events-auto">
+                    {/* Metadata Container */}
+                    <div className="w-full pointer-events-auto">
 
                         {/* 1. Creator Info & Follow (Drill Reels Style) */}
                         {video.creator && (
-                            <div className="flex flex-row items-center gap-2 mb-2">
+                            <div className="flex flex-row items-center gap-2 mb-1">
                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                                     <span className="font-bold text-[15px] text-shadow-sm">{video.creator.name}</span>
                                 </Link>
@@ -384,35 +384,33 @@ const VideoItem: React.FC<{
                         )}
 
                         {/* 2. Title */}
-                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <div className="mb-3">
                             <h3 className="font-bold text-lg leading-tight text-shadow-sm line-clamp-2">{video.title}</h3>
                         </div>
 
-                        {/* 3. Related Technique Link (YouTube Product Style) - Moved Below Title */}
+                        {/* 3. Related Technique Link (YouTube Product Style - Horizontal Scroll) */}
                         {video.relatedItems && video.relatedItems.length > 0 && (
-                            <div className="w-full max-w-md pointer-events-auto mt-2 mb-3">
-                                <div className="flex gap-3 overflow-x-auto md:overflow-visible md:flex-wrap pb-1 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            <div className="w-full pointer-events-auto mb-3">
+                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 -mx-4 px-4 scrollbar-hide">
                                     {video.relatedItems.map((item, idx) => (
                                         <Link
                                             key={idx}
                                             to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                            className="flex items-center gap-3 bg-zinc-900/90 backdrop-blur-md rounded-lg p-3 hover:bg-zinc-800 transition-all group shrink-0 min-w-[200px] border border-white/5"
+                                            className="flex items-center gap-3 bg-zinc-900/95 backdrop-blur-md rounded-lg p-3 hover:bg-zinc-800 transition-all group shrink-0 w-[260px] border border-white/10 active:scale-95"
                                         >
-                                            {/* Thumbnail / Icon Placeholder */}
-                                            <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/30 transition-colors">
+                                            {/* Icon Placeholder */}
+                                            <div className="w-10 h-10 rounded-md bg-zinc-800/80 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/30 transition-colors">
                                                 <BookOpen className="w-5 h-5 text-blue-400" />
                                             </div>
 
                                             {/* Text Content */}
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[10px] text-zinc-400 font-medium mb-0.5">이 기술 배우기</span>
-                                                <span className="text-[13px] font-bold text-white truncate group-hover:text-blue-400 transition-colors">
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[10px] text-zinc-400 font-medium mb-0.5 flex items-center gap-1">
+                                                    이 기술 배우기 <ChevronRight className="w-3 h-3 opacity-50" />
+                                                </span>
+                                                <span className="text-[14px] font-bold text-white truncate leading-tight group-hover:text-blue-400 transition-colors">
                                                     {item.title}
                                                 </span>
-                                                <div className="flex items-center text-[10px] text-zinc-500 mt-0.5">
-                                                    <span>자세히 보기</span>
-                                                    <ChevronRight className="w-3 h-3 ml-0.5" />
-                                                </div>
                                             </div>
                                         </Link>
                                     ))}
@@ -420,7 +418,10 @@ const VideoItem: React.FC<{
                             </div>
                         )}
 
-                        <p className="text-sm text-white/80 line-clamp-2 text-shadow-sm">{video.description}</p>
+                        <p className="text-sm text-white/80 line-clamp-1 text-shadow-sm opacity-80" onClick={(e) => {
+                            // Expand description logic could go here
+                            e.stopPropagation();
+                        }}>{video.description}</p>
                     </div>
                 </div>
             </div>
