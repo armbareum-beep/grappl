@@ -91,17 +91,84 @@ export const TechniqueSkillTree: React.FC = () => {
         }));
     }, [setNodes]);
 
-    // Load data
-    useEffect(() => {
-        const sharedTreeId = searchParams.get('id');
-        loadData(sharedTreeId || undefined);
-    }, [user, searchParams]);
-
-    const loadData = async (treeId?: string) => {
+    // Load data definition (must be defined before useEffect uses it)
+    const loadData = useCallback(async (treeId?: string, skipGuestCheck: boolean = false) => {
         setLoading(true);
         setError(null);
 
         try {
+            // 로그인 후 게스트 데이터가 있으면 먼저 복원 (서버 데이터 로드 전)
+            if (user && !treeId && !skipGuestCheck) {
+                const guestData = localStorage.getItem('guest_skill_tree');
+                if (guestData) {
+                    try {
+                        const parsed = JSON.parse(guestData);
+                        if (parsed.nodes && parsed.nodes.length > 0) {
+                            // 게스트 데이터가 있으면 서버 데이터를 로드하지 않고 게스트 데이터 사용
+                            // 먼저 lessons와 drills를 로드해야 함
+                            const [lessons, drills] = await Promise.all([
+                                getLessons(300).then(res => res),
+                                getDrills(undefined, 100).then(res => res.data || [])
+                            ]);
+                            setAllLessons(lessons);
+                            setAllDrills(drills);
+
+                            const flowNodes: Node[] = parsed.nodes.map((node: any) => {
+                                const type = node.type === 'text' ? 'text' : 'content';
+                                if (type === 'text') {
+                                    return {
+                                        id: node.id,
+                                        type: 'text',
+                                        position: node.position,
+                                        data: {
+                                            label: node.data?.label || 'Text',
+                                            style: node.data?.style || {},
+                                            onChange: (newData: any) => handleNodeDataChange(node.id, newData),
+                                            onDelete: () => {
+                                                setNodes((nds) => nds.filter((n) => n.id !== node.id));
+                                                setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+                                            }
+                                        }
+                                    };
+                                }
+                                const contentId = node.contentId || '';
+                                const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
+                                const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                                return {
+                                    id: node.id,
+                                    type: 'content',
+                                    position: node.position,
+                                    data: {
+                                        contentType: node.contentType || 'technique',
+                                        contentId,
+                                        lesson,
+                                        drill
+                                    }
+                                };
+                            });
+                            const flowEdges: Edge[] = parsed.edges.map((edge: any) => ({
+                                id: edge.id,
+                                source: edge.source,
+                                target: edge.target,
+                                type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                                animated: edge.type === 'animated',
+                                style: { stroke: '#facc15', strokeWidth: 3 }
+                            }));
+                            setNodes(flowNodes);
+                            setEdges(flowEdges);
+                            setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
+                            setIsReadOnly(false);
+                            setLoading(false);
+                            // 게스트 데이터는 유지 (사용자가 저장할 때까지)
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error loading guest skill tree:', e);
+                        // 에러 발생 시 계속 진행
+                    }
+                }
+            }
+
             // 1. Fetch Public Data
             const [lessons, drills] = await Promise.all([
                 getLessons(300).then(res => res),
@@ -126,6 +193,11 @@ export const TechniqueSkillTree: React.FC = () => {
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
+
+                // 공유된 트리를 찾을 수 없으면 에러 표시
+                if (!treeRes.data && (tr as any).error) {
+                    throw new Error(`공유된 스킬 트리를 찾을 수 없습니다. 링크가 올바른지 확인해주세요.`);
+                }
             } else if (user) {
                 // Case B: Logged-in User default view (Latest Tree)
                 const [tr, userSkillsRes, mastery] = await Promise.all([
@@ -153,7 +225,6 @@ export const TechniqueSkillTree: React.FC = () => {
                     setIsReadOnly(false);
                 } else {
                     setIsReadOnly(true);
-                    // If we had owner name field in DB we'd set it here.
                     // For now, if no user logged in, or mismatch, allow view but no edit.
                     if (!user) {
                         // GUEST VIEWING SHARED TREE
@@ -217,7 +288,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     target: edge.target as string,
                     type: edge.type === 'animated' ? 'smoothstep' : 'default',
                     animated: edge.type === 'animated',
-                    sourceHandle: edge.sourceHandle, // Restore handle connections
+                    sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
                     style: { stroke: '#facc15', strokeWidth: 3 }
                 }));
@@ -292,7 +363,71 @@ export const TechniqueSkillTree: React.FC = () => {
                     }
                     setIsReadOnly(false); // Guest can edit
                 } else {
-                    // Logged in but no tree found -> Init new
+                    // Logged in but no tree found -> Check if there's guest data to migrate
+                    const guestData = localStorage.getItem('guest_skill_tree');
+                    if (guestData) {
+                        try {
+                            const parsed = JSON.parse(guestData);
+                            if (parsed.nodes && parsed.nodes.length > 0) {
+                                // Ask user if they want to keep guest data
+                                const keepGuestData = confirm('게스트 모드에서 만든 로드맵이 있습니다. 계속 사용하시겠습니까?');
+                                if (keepGuestData) {
+                                    // Convert guest nodes to flow format
+                                    const flowNodes: Node[] = parsed.nodes.map((node: any) => {
+                                        const type = node.type === 'text' ? 'text' : 'content';
+                                        if (type === 'text') {
+                                            return {
+                                                id: node.id,
+                                                type: 'text',
+                                                position: node.position,
+                                                data: {
+                                                    label: node.data?.label || 'Text',
+                                                    style: node.data?.style || {},
+                                                    onChange: (newData: any) => handleNodeDataChange(node.id, newData),
+                                                    onDelete: () => {
+                                                        setNodes((nds) => nds.filter((n) => n.id !== node.id));
+                                                        setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+                                                    }
+                                                }
+                                            };
+                                        }
+                                        const contentId = node.contentId || '';
+                                        const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
+                                        const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                                        return {
+                                            id: node.id,
+                                            type: 'content',
+                                            position: node.position,
+                                            data: {
+                                                contentType: node.contentType || 'technique',
+                                                contentId,
+                                                lesson,
+                                                drill
+                                            }
+                                        };
+                                    });
+                                    const flowEdges: Edge[] = parsed.edges.map((edge: any) => ({
+                                        id: edge.id,
+                                        source: edge.source,
+                                        target: edge.target,
+                                        type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                                        animated: edge.type === 'animated',
+                                        style: { stroke: '#facc15', strokeWidth: 3 }
+                                    }));
+                                    setNodes(flowNodes);
+                                    setEdges(flowEdges);
+                                    setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
+                                    // Clear guest data after migration
+                                    localStorage.removeItem('guest_skill_tree');
+                                } else {
+                                    localStorage.removeItem('guest_skill_tree');
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error migrating guest skill tree:', e);
+                            localStorage.removeItem('guest_skill_tree');
+                        }
+                    }
                     setIsReadOnly(false);
                 }
             }
@@ -302,7 +437,12 @@ export const TechniqueSkillTree: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user, handleNodeDataChange]);
+
+    useEffect(() => {
+        const sharedTreeId = searchParams.get('id');
+        loadData(sharedTreeId || undefined);
+    }, [user, searchParams, loadData]);
 
     const loadTreeList = async () => {
         if (!user) {

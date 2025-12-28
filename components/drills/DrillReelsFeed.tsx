@@ -6,6 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
 
+// Lazy load Modal to avoid circular dependency or bundle issues if needed
+const ShareModal = React.lazy(() => import('../social/ShareModal'));
+
 interface DrillReelsFeedProps {
     drills: Drill[];
     onChangeView: () => void;
@@ -19,6 +22,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [isMuted, setIsMuted] = useState(true);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -115,19 +120,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     };
 
     const handleShare = async (drill: Drill) => {
-        const url = window.location.href;
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: drill.title,
-                    text: `Check out this drill: ${drill.title}`,
-                    url
-                });
-            } catch (err) { console.log('Share error:', err); }
-        } else {
-            navigator.clipboard.writeText(url);
-            alert('링크가 복사되었습니다!');
-        }
+        setCurrentDrill(drill);
+        setIsShareModalOpen(true);
     };
 
     const handleViewRoutine = async (drill: Drill) => {
@@ -203,6 +197,23 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                     />
                 );
             })}
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && currentDrill && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => {
+                            setIsShareModalOpen(false);
+                            setCurrentDrill(null);
+                        }}
+                        title={currentDrill.title}
+                        text={currentDrill.description || `Check out this drill: ${currentDrill.title}`}
+                        url={`${window.location.origin}/drills/${currentDrill.id}`}
+                        imageUrl={currentDrill.thumbnailUrl}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };
