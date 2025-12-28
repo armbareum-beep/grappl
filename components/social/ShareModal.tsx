@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { X, Link2, Smartphone, Facebook, Twitter, Instagram } from 'lucide-react';
+import { X, Link2, Smartphone, Facebook, Twitter, Instagram, BookOpen } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { createFeedPost } from '../../lib/api';
+import { useToast } from '../../contexts/ToastContext';
 
 // Custom icons for specific platforms if Lucide doesn't have them
 const KakaoIcon = () => (
@@ -20,13 +24,18 @@ interface ShareModalProps {
     title: string;
     text: string;
     url?: string;
+    imageUrl?: string; // 썸네일 이미지 URL
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url, imageUrl }) => {
     if (!isOpen) return null;
 
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { success, error: toastError } = useToast();
     const shareUrl = url || window.location.href;
     const [copied, setCopied] = useState(false);
+    const [sharingToJournal, setSharingToJournal] = useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareUrl);
@@ -34,25 +43,79 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleShare = (platform: string) => {
+    const handleShareToJournal = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            setSharingToJournal(true);
+            const content = `${title}\n\n${text}\n\n${shareUrl}`;
+            
+            // URL에서 콘텐츠 타입 감지
+            let contentType: 'course' | 'drill' | 'routine' | 'technique_roadmap' | 'general' = 'general';
+            if (shareUrl.includes('/courses/')) {
+                contentType = 'course';
+            } else if (shareUrl.includes('/drills/')) {
+                contentType = 'drill';
+            } else if (shareUrl.includes('/drill-routines/') || shareUrl.includes('/routines/')) {
+                contentType = 'routine';
+            } else if (shareUrl.includes('technique') || shareUrl.includes('skill-tree')) {
+                contentType = 'technique_roadmap';
+            }
+            
+            await createFeedPost({
+                userId: user.id,
+                content: content,
+                type: contentType,
+                metadata: { 
+                    sharedUrl: shareUrl,
+                    sharedTitle: title
+                },
+                mediaUrl: imageUrl || undefined // 썸네일 이미지 포함
+            });
+
+            success('피드에 공유되었습니다!');
+            // 공유 후에도 현재 페이지 상태 유지 (리로드하지 않음)
+            onClose();
+        } catch (error) {
+            console.error('Error sharing to journal:', error);
+            toastError('공유 중 오류가 발생했습니다.');
+        } finally {
+            setSharingToJournal(false);
+        }
+    };
+
+    // 모바일 디바이스 감지
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     (window.innerWidth <= 768 && 'ontouchstart' in window);
+
+    const handleShare = async (platform: string) => {
         let openUrl = '';
         const encodedUrl = encodeURIComponent(shareUrl);
         const encodedText = encodeURIComponent(text);
 
         switch (platform) {
             case 'kakao':
-                // For a proper Kakao integration, we need the SDK.
-                // As a fallback for simple web sharing without API keys, we often just copy link or use intent if available.
-                // But generally Kakao requires Kakao JS SDK.
-                // Here we'll show an alert or just copy link if SDK isn't ready, but let's try a web intent if possible or just rely on copy.
-                // Since this is a "dark mode" cool app, we might want to just guide them to copy link for Kakao if we can't deep link.
-                // Actually, let's just alert for now or try to use a generic share if mobile.
-
-                // If mobile, try sharing via navigator.share (system) as a "Kakao" proxy often works there
-                // But user specifically asked for custom modal.
-                // Best fallback is simply copying link for Kakao if we don't have the SDK set up.
+                // 모바일에서만 navigator.share 사용 (데스크톱은 바로 복사)
+                if (isMobile && navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                            url: shareUrl
+                        });
+                        return;
+                    } catch (err: any) {
+                        // 사용자가 취소한 경우는 무시
+                        if (err.name === 'AbortError') return;
+                        // 다른 오류는 복사로 fallback
+                    }
+                }
+                // 데스크톱 또는 navigator.share 실패 시 복사
                 handleCopy();
-                alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
+                success('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
                 return;
 
             case 'facebook':
@@ -68,9 +131,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                 break;
 
             case 'instagram':
-                // Instagram doesn't have a direct web share URL for posts.
+                // 인스타그램은 웹에서 직접 공유 URL이 없음
+                // 모바일에서만 navigator.share 시도 (데스크톱은 바로 복사)
+                if (isMobile && navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                            url: shareUrl
+                        });
+                        return;
+                    } catch (err: any) {
+                        if (err.name === 'AbortError') return;
+                    }
+                }
+                // 데스크톱 또는 실패 시 복사
                 handleCopy();
-                alert('링크가 복사되었습니다. 인스타그램에 붙여넣기 해주세요!');
+                success('링크가 복사되었습니다. 인스타그램 앱에서 붙여넣기 해주세요!');
                 return;
 
             default:
@@ -119,10 +196,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                     />
 
                     <ShareButton
+                        icon={<BookOpen className="w-6 h-6" />}
+                        label={sharingToJournal ? "공유 중..." : "피드 공유"}
+                        onClick={handleShareToJournal}
+                        color="bg-blue-600 hover:bg-blue-500 text-white"
+                        disabled={sharingToJournal}
+                    />
+
+                    <ShareButton
                         icon={<KakaoIcon />}
                         label="카카오톡"
                         onClick={() => handleShare('kakao')}
                         color="bg-[#FEE500] hover:bg-[#FDD835] text-[#3c1e1e]"
+                        className="md:hidden"
                     />
 
                     <ShareButton
@@ -130,6 +216,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                         label="Instagram"
                         onClick={() => handleShare('instagram')}
                         color="bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] text-white hover:opacity-90"
+                        className="md:hidden"
                     />
 
                     <ShareButton
@@ -164,12 +251,15 @@ const ShareButton: React.FC<{
     onClick: () => void;
     color: string;
     active?: boolean;
-}> = ({ icon, label, onClick, color, active }) => (
+    disabled?: boolean;
+    className?: string;
+}> = ({ icon, label, onClick, color, active, disabled, className = '' }) => (
     <button
         onClick={onClick}
-        className="flex flex-col items-center gap-2 group"
+        disabled={disabled}
+        className={`flex flex-col items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform group-active:scale-95 ${color} ${active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black' : ''}`}>
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform group-active:scale-95 ${color} ${active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black' : ''} ${disabled ? 'opacity-50' : ''}`}>
             {icon}
         </div>
         <span className="text-[11px] text-white/60 font-medium group-hover:text-white/80 transition-colors">

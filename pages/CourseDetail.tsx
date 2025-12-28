@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, purchaseCourse, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, incrementCourseViews } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 
 
 
@@ -30,7 +31,9 @@ export const CourseDetail: React.FC = () => {
     const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
     const [activeTab, setActiveTab] = useState<'lessons' | 'drills' | 'sparring'>('lessons');
     const [isLiked, setIsLiked] = useState(false);
+    const [isFollowed, setIsFollowed] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [showShareToFeedModal, setShowShareToFeedModal] = useState(false);
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -94,6 +97,12 @@ export const CourseDetail: React.FC = () => {
                         // Check if course is liked
                         const liked = await checkCourseLiked(user.id, id);
                         setIsLiked(liked);
+
+                        // Check follow status
+                        if (courseData.creatorId) {
+                            const followed = await checkCreatorFollowStatus(user.id, courseData.creatorId);
+                            setIsFollowed(followed);
+                        }
                     }
 
                     // Increment views
@@ -101,7 +110,7 @@ export const CourseDetail: React.FC = () => {
                 }
             } catch (error: any) {
                 console.error('Error fetching course details:', error);
-                setError(error.message || '강좌 정보를 불러오는 중 오류가 발생했습니다.');
+                setError(error.message || '클래스 정보를 불러오는 중 오류가 발생했습니다.');
             } finally {
                 setLoading(false);
             }
@@ -177,7 +186,7 @@ export const CourseDetail: React.FC = () => {
         if (course) {
             const { data } = await checkCourseCompletion(user.id, course.id);
             if (data && data.newly_awarded) {
-                success(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+                success(`🎉 클래스 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
             }
         }
     };
@@ -202,26 +211,27 @@ export const CourseDetail: React.FC = () => {
         if (!isCompleted && course) {
             const { data } = await checkCourseCompletion(user.id, course.id);
             if (data && data.newly_awarded) {
-                success(`🎉 강좌 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+                success(`🎉 클래스 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
             }
         }
     };
 
     if (loading) {
-        return <LoadingScreen message="강좌 정보 불러오는 중..." />;
+        return <LoadingScreen message="클래스 정보 불러오는 중..." />;
     }
 
     if (error) {
-        return <ErrorScreen error={error} resetMessage="강좌 정보를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+        return <ErrorScreen error={error} resetMessage="클래스 정보를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
     }
 
     if (!course) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-4">강좌를 찾을 수 없습니다</h2>
+                    <h2 className="text-2xl font-bold text-slate-900 mb-4">클래스를 찾을 수 없습니다</h2>
+                    <p className="text-slate-600 mb-8 font-medium">찾으시는 클래스가 존재하지 않거나 비공개 상태입니다.</p>
                     <Link to="/browse">
-                        <Button>강좌 둘러보기</Button>
+                        <Button>클래스 둘러보기</Button>
                     </Link>
                 </div>
             </div>
@@ -250,7 +260,7 @@ export const CourseDetail: React.FC = () => {
     const totalHours = Math.floor(totalDuration / 3600);
     const totalMins = Math.floor((totalDuration % 3600) / 60);
 
-    const handleProgress = async (seconds: number) => {
+    const handleProgress = async () => {
         if (!user || !selectedLesson) return;
 
         const now = Date.now();
@@ -301,6 +311,28 @@ export const CourseDetail: React.FC = () => {
         }
     };
 
+    const handleFollow = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        if (!creator) return;
+
+        // Optimistic UI
+        const newStatus = !isFollowed;
+        setIsFollowed(newStatus);
+
+        try {
+            const { followed } = await toggleCreatorFollow(user.id, creator.id);
+            setIsFollowed(followed);
+        } catch (error) {
+            console.error('Follow failed:', error);
+            setIsFollowed(!newStatus); // Revert
+        }
+    };
+
     const handleShare = () => {
         setIsShareModalOpen(true);
     };
@@ -311,7 +343,7 @@ export const CourseDetail: React.FC = () => {
                 <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
                     <Link to="/browse" className="inline-flex items-center text-zinc-400 hover:text-white transition-colors">
                         <ArrowLeft className="w-5 h-5 mr-2" />
-                        <span className="font-medium">강좌 목록으로</span>
+                        <span className="font-medium">클래스 목록으로</span>
                     </Link>
                 </div>
             </div>
@@ -361,7 +393,19 @@ export const CourseDetail: React.FC = () => {
                                     <Link to={`/creator/${creator.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
                                         <img src={creator.profileImage} alt={creator.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-zinc-700" />
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-sm text-white">{creator.name}</h3>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold text-sm text-white">{creator.name}</h3>
+                                                <span className="text-zinc-600 text-xs leading-none mt-0.5">•</span>
+                                                <button
+                                                    onClick={handleFollow}
+                                                    className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all active:scale-95 ${isFollowed
+                                                        ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
+                                                        : 'bg-transparent text-white border-white/40 hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    {isFollowed ? '팔로잉' : '팔로우'}
+                                                </button>
+                                            </div>
                                             <p className="text-xs text-zinc-400 truncate">{creator.bio}</p>
                                         </div>
                                     </Link>
@@ -422,7 +466,7 @@ export const CourseDetail: React.FC = () => {
                         <div className="bg-zinc-900/50 border border-zinc-800 lg:rounded-xl shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 100px)' }}>
                             {/* Sidebar Header with Tabs */}
                             <div className="border-b border-zinc-800 bg-zinc-900/80">
-                                {bundledDrills.length > 0 ? (
+                                {(bundledDrills.length > 0 || bundledSparringVideos.length > 0) ? (
                                     <div className="flex">
                                         <button
                                             onClick={() => setActiveTab('lessons')}
@@ -431,7 +475,7 @@ export const CourseDetail: React.FC = () => {
                                                 : 'border-transparent text-zinc-400 hover:text-white'
                                                 }`}
                                         >
-                                            강좌 목차 ({lessons.length})
+                                            클래스 목차 ({lessons.length})
                                         </button>
                                         <button
                                             onClick={() => setActiveTab('drills')}
@@ -454,7 +498,7 @@ export const CourseDetail: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="p-4">
-                                        <h2 className="text-lg font-bold text-white">강좌 목차</h2>
+                                        <h2 className="text-lg font-bold text-white">클래스 목차</h2>
                                         <p className="text-sm text-zinc-500 mt-1">{lessons.length}개 레슨 • {totalHours > 0 ? `${totalHours}시간 ` : ''}{totalMins}분</p>
                                     </div>
                                 )}
@@ -631,7 +675,7 @@ export const CourseDetail: React.FC = () => {
                                         ) : (
                                             <Link to="/pricing">
                                                 <Button variant="secondary" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700" size="sm">
-                                                    구독하고 전체 강좌 보기
+                                                    구독하고 전체 클래스 보기
                                                 </Button>
                                             </Link>
                                         )}
@@ -648,7 +692,7 @@ export const CourseDetail: React.FC = () => {
                 <div className="flex items-center gap-4">
                     <div className="flex-1">
                         <p className="text-xs text-zinc-500 mb-0.5">
-                            {isFree ? '무료 강좌' : course.isSubscriptionExcluded ? '단품 전용' : '월간 구독 포함'}
+                            {isFree ? '무료 클래스' : course.isSubscriptionExcluded ? '단품 전용' : '월간 구독 포함'}
                         </p>
                         <p className="text-xl font-bold text-white">
                             {formattedPrice}
@@ -681,8 +725,25 @@ export const CourseDetail: React.FC = () => {
                         title={course.title}
                         text={course.description}
                         url={window.location.href}
+                        imageUrl={course.thumbnailUrl}
                     />
                 </React.Suspense>
+            )}
+
+            {/* Share to Feed Modal */}
+            {showShareToFeedModal && course && (
+                <ShareToFeedModal
+                    isOpen={showShareToFeedModal}
+                    onClose={() => setShowShareToFeedModal(false)}
+                    onShare={async () => { setShowShareToFeedModal(false); }}
+                    activityType="general"
+                    defaultContent={`${course.title}\n\n${course.description}\n\n${window.location.href}`}
+                    metadata={{
+                        type: 'course',
+                        courseId: course.id,
+                        courseTitle: course.title
+                    }}
+                />
             )}
         </div>
     );

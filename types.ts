@@ -188,6 +188,7 @@ export interface SparringVideo {
   views: number;
   likes: number;
   creator?: Creator; // Joined creator profile
+  creatorProfileImage?: string; // Add for consistent access
   createdAt?: string; // Standardized to camelCase
 }
 
@@ -230,13 +231,17 @@ export interface Bundle {
   id: string;
   creatorId: string;
   creatorName?: string;
+  creatorProfileImage?: string;
+  name?: string; // Optional for backward compatibility
   title: string;
   description: string;
   price: number;
   thumbnailUrl?: string;
   courseIds?: string[];
+  course_ids?: string[]; // Database field name compatibility
   courses?: Course[];
   drillIds?: string[];
+  drill_ids?: string[]; // Database field name compatibility
   drills?: Drill[];
   createdAt: string;
 }
@@ -245,6 +250,7 @@ export interface Coupon {
   id: string;
   code: string;
   creatorId: string;
+  creatorName?: string;
   discountType: 'percent' | 'fixed';
   value: number;
   maxUses?: number;
@@ -388,6 +394,7 @@ export interface DrillRoutine {
   difficulty?: Difficulty;
   category?: VideoCategory;
   totalDurationMinutes?: number;
+  creatorProfileImage?: string;
 }
 
 export interface DrillRoutineItem {
@@ -584,10 +591,11 @@ export interface TechniqueRecommendation {
 
 export interface SkillTreeNode {
   id: string;
-  contentType: 'technique' | 'lesson' | 'drill';
+  contentType: 'technique' | 'lesson' | 'drill' | 'text';
   contentId: string;
   position: { x: number; y: number };
-  type: 'content';
+  type: 'content' | 'text';
+  data?: any; // For text content, styles, etc.
 }
 
 export interface SkillTreeEdge {
@@ -696,35 +704,4 @@ export interface Testimonial {
   createdAt: string;
 }
 
-// ==================== Marketing ====================
 
-export interface Bundle {
-  id: string;
-  creatorId: string;
-  creatorName?: string;
-  name: string; // Added
-  title: string;
-  description: string;
-  price: number;
-  thumbnailUrl?: string;
-  courseIds?: string[];
-  course_ids?: string[]; // Database field name
-  courses?: Course[];
-  drillIds?: string[];
-  drill_ids?: string[]; // Database field name
-  drills?: Drill[];
-  createdAt: string;
-}
-
-export interface Coupon {
-  id: string;
-  code: string;
-  creatorId: string;
-  creatorName?: string;
-  discountType: 'percent' | 'fixed';
-  value: number;
-  maxUses?: number;
-  usedCount: number;
-  expiresAt?: string;
-  createdAt?: string;
-}

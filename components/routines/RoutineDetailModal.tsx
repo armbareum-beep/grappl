@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Clock, BarChart, Check, Lock, PlayCircle } from 'lucide-react';
-import { DrillRoutine } from '../types';
-import { Button } from './Button';
+import { DrillRoutine } from '../../types';
+import { Button } from '../Button';
 
 interface RoutineDetailModalProps {
     routine: DrillRoutine;

@@ -7,13 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 // Helper function to convert YouTube URL to embed URL (kept for future reference or removed if strictly unused)
-// Removing unused supabase import
-import { supabase } from '../../lib/supabase'; // Wait, is it used? Line 9. 
-// "supabase'이(가) 선언은 되었지만 해당 값이 읽히지는 않았습니다."
-// I should remove if strictly not used.
-// It is imported on line 9: import { supabase } from '../../lib/supabase';
-// I will remove line 9.
-// And getYouTubeEmbedUrl is unused.
+
 
 
 interface SocialPostProps {
@@ -35,6 +29,79 @@ const getYouTubeEmbedUrl = (url: string): string => {
     }
 
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+};
+
+// URL을 링크로 변환하는 컴포넌트
+const TextWithLinks: React.FC<{ 
+    text: string; 
+    isExpanded: boolean; 
+    onExpand: () => void;
+    metadata?: any;
+}> = ({ text, isExpanded, onExpand, metadata }) => {
+    const navigate = useNavigate();
+    
+    // URL 추출 및 링크 변환
+    const urlRegex = /(https?:\/\/[^\s]+|technique-roadmap[^\s]*|localhost[^\s]*)/g;
+    const parts = text.split(urlRegex);
+    
+    const handleUrlClick = (url: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        // technique-roadmap URL인 경우 올바른 경로로 이동
+        if (url.includes('technique-roadmap') || url.includes('technique_roadmap')) {
+            // URL에서 id 파라미터 추출
+            try {
+                const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
+                const id = urlObj.searchParams.get('id');
+                if (id) {
+                    navigate(`/technique-roadmap?id=${id}`);
+                } else {
+                    navigate('/technique-roadmap');
+                }
+            } catch {
+                // URL 파싱 실패 시 직접 처리
+                const idMatch = url.match(/[?&]id=([^&\s]+)/);
+                if (idMatch) {
+                    navigate(`/technique-roadmap?id=${idMatch[1]}`);
+                } else {
+                    navigate('/technique-roadmap');
+                }
+            }
+        } else if (url.startsWith('http://') || url.startsWith('https://')) {
+            window.open(url, '_blank');
+        } else {
+            // 상대 경로인 경우
+            navigate(url);
+        }
+    };
+    
+    return (
+        <>
+            <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${text.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
+                {parts.map((part, index) => {
+                    if (urlRegex.test(part)) {
+                        return (
+                            <button
+                                key={index}
+                                onClick={(e) => handleUrlClick(part, e)}
+                                className="text-blue-400 hover:text-blue-300 underline break-all"
+                            >
+                                {part}
+                            </button>
+                        );
+                    }
+                    return <span key={index}>{part}</span>;
+                })}
+            </p>
+            {text.length > 200 && !isExpanded && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onExpand(); }}
+                    className="text-slate-500 text-sm mt-1 hover:text-slate-300"
+                >
+                    더 보기
+                </button>
+            )}
+        </>
+    );
 };
 
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
@@ -62,6 +129,30 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     }, [showMenu]);
 
+    // Load comments and like status when component mounts or user changes
+    React.useEffect(() => {
+        if (post.id) {
+            loadInitialStats();
+        }
+    }, [user, post.id]);
+
+    const loadInitialStats = async () => {
+        try {
+            const { getTrainingLogLikes, checkTrainingLogLiked } = await import('../../lib/api');
+            const [likesRes, likedRes] = await Promise.all([
+                getTrainingLogLikes(post.id),
+                user ? checkTrainingLogLiked(user.id, post.id) : Promise.resolve(false)
+            ]);
+
+            if (likesRes.count !== undefined) {
+                setLikeCount(likesRes.count);
+            }
+            setLiked(likedRes);
+        } catch (error) {
+            console.error('Error loading initial stats:', error);
+        }
+    };
+
     // Load comments when showing comment section
     React.useEffect(() => {
         if (showComments && comments.length === 0) {
@@ -69,13 +160,36 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     }, [showComments]);
 
-    const handleLike = () => {
-        if (liked) {
-            setLikeCount(prev => prev - 1);
-        } else {
-            setLikeCount(prev => prev + 1);
+    const handleLike = async () => {
+        if (!user) {
+            toastError('로그인이 필요합니다.');
+            return;
         }
+
+        const prevLiked = liked;
+        const prevCount = likeCount;
+
+        // Optimistic UI update
         setLiked(!liked);
+        setLikeCount(liked ? likeCount - 1 : likeCount + 1);
+
+        try {
+            const { toggleTrainingLogLike } = await import('../../lib/api');
+            const { liked: resultLiked, error } = await toggleTrainingLogLike(user.id, post.id);
+
+            if (error) throw error;
+
+            // Sync with server if needed
+            if (resultLiked !== !prevLiked) {
+                setLiked(resultLiked);
+            }
+        } catch (err) {
+            console.error('Like error:', err);
+            // Revert on error
+            setLiked(prevLiked);
+            setLikeCount(prevCount);
+            toastError('좋아요 처리 중 오류가 발생했습니다.');
+        }
     };
 
     const handleSaveRoutine = () => {
@@ -153,8 +267,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         if (!commentText.trim()) return;
 
         try {
-            const { createComment, updateQuestProgress } = await import('../../lib/api');
-            const { data, error } = await createComment(post.id, user.id, commentText.trim());
+            const { addTrainingLogComment, updateQuestProgress } = await import('../../lib/api');
+            const { data, error } = await addTrainingLogComment(post.id, user.id, commentText.trim());
 
             if (error) {
                 toastError(error.message || '댓글 작성 중 오류가 발생했습니다.');
@@ -277,17 +391,12 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                 <div className="pl-[52px]">
                     {/* Text Body */}
                     <div className="mb-4">
-                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
-                            {post.notes}
-                        </p>
-                        {post.notes.length > 200 && !isExpanded && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                                className="text-slate-500 text-sm mt-1 hover:text-slate-300"
-                            >
-                                더 보기
-                            </button>
-                        )}
+                        <TextWithLinks 
+                            text={post.notes} 
+                            isExpanded={isExpanded}
+                            onExpand={() => setIsExpanded(true)}
+                            metadata={post.metadata}
+                        />
                     </div>
 
                     {/* Sparring Summary Card (if it's a sparring review) */}

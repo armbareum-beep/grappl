@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Bot, Sparkles, Brain, AlertTriangle, ChevronRight, Terminal, Lock, Dumbbell, Clock, PlayCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bot, Sparkles, Brain, AlertTriangle, ChevronRight, Terminal, Lock, Dumbbell, Clock, PlayCircle, Calendar, RotateCcw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { TrainingLog, Course, DrillRoutine } from '../../types';
 import { analyzeSparringLogs } from '../../lib/gemini';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { getCourses, getDrillRoutines } from '../../lib/api';
 
 interface AICoachWidgetProps {
@@ -33,6 +34,8 @@ interface AnalysisResult {
 }
 
 export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun = false, isLocked = false }) => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [showLimitModal, setShowLimitModal] = useState(false);
@@ -104,14 +107,34 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
     // 🧠 분석 엔진 (Hybrid: Gemini AI + Rule-based Fallback)
     const analyzeLogs = useCallback(async () => {
+        // 비로그인 사용자는 로그인 페이지로 리다이렉트
+        if (!user) {
+            navigate('/login', { state: { from: window.location.pathname } });
+            return;
+        }
+
         if (isAnalyzing || isLocked) return;
 
-        // Rate Limiting Check
+        // Rate Limiting Check - 엄격한 체크
         const lastRunDate = localStorage.getItem('ai_last_run_date');
         const today = new Date().toISOString().split('T')[0];
 
         if (lastRunDate === today) {
             console.log('Daily limit reached');
+            // 분석 완료 상태로 전환하여 결과 표시
+            const cachedResults = localStorage.getItem('gemini_recommendations');
+            if (cachedResults) {
+                try {
+                    const parsed = JSON.parse(cachedResults);
+                    if (parsed && parsed.length > 0) {
+                        setResults(parsed);
+                        setShowResult(true);
+                        setDisplayedText('이전에 분석된 결과를 불러왔습니다.');
+                    }
+                } catch (e) {
+                    console.error('Failed to parse cached results', e);
+                }
+            }
             if (!autoRun) {
                 // Instead of toast error, show Limit Modal
                 setShowLimitModal(true);
@@ -123,7 +146,10 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
         setShowResult(false);
         setDisplayedText('');
 
+        // 데이터가 없어도 날짜는 저장하여 제한 적용
         if (logs.length === 0) {
+            const todayDate = new Date().toISOString().split('T')[0];
+            localStorage.setItem('ai_last_run_date', todayDate);
             setTimeout(() => {
                 setIsAnalyzing(false);
                 setShowResult(true);
@@ -246,8 +272,10 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
             setShowResult(true);
 
             // Save to LocalStorage for Rate Limiting & Home Screen Sync
+            // 결과가 있든 없든 날짜는 저장하여 제한 적용
+            const todayDate = new Date().toISOString().split('T')[0];
+            localStorage.setItem('ai_last_run_date', todayDate);
             if (newResults.length > 0) {
-                localStorage.setItem('ai_last_run_date', new Date().toISOString().split('T')[0]);
                 localStorage.setItem('gemini_recommendations', JSON.stringify(newResults));
 
                 // Award XP for Analysis
@@ -276,7 +304,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
     // Auto Run Effect
     useEffect(() => {
-        if (autoRun && logs.length > 0 && !hasRunRef.current && !isLocked) {
+        // 비로그인 사용자는 autoRun 실행하지 않음
+        if (autoRun && logs.length > 0 && !hasRunRef.current && !isLocked && user) {
             // Check rate limit silently before auto-running
             const lastRunDate = localStorage.getItem('ai_last_run_date');
             const today = new Date().toISOString().split('T')[0];
@@ -285,7 +314,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                 analyzeLogs();
             }
         }
-    }, [autoRun, logs, analyzeLogs, isLocked]);
+    }, [autoRun, logs, analyzeLogs, isLocked, user]);
 
     // Close Modal Handler
     const handleCloseModal = () => {
@@ -295,6 +324,22 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
             setShowResult(true);
         }
     };
+
+    // Check if already analyzed today
+    const lastRunDate = localStorage.getItem('ai_last_run_date');
+    const today = new Date().toISOString().split('T')[0];
+    const hasAnalyzedToday = lastRunDate === today;
+    
+    // Calculate next available time
+    const getNextAvailableTime = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        return tomorrow;
+    };
+
+    const nextAvailable = getNextAvailableTime();
+    const hoursUntilNext = Math.ceil((nextAvailable.getTime() - new Date().getTime()) / (1000 * 60 * 60));
 
     return (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden group">
@@ -313,23 +358,25 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                 {isLocked && <Lock className="w-3 h-3 text-slate-500" />}
                             </h3>
                             <p className="text-xs text-slate-400">
-                                {isLocked ? 'PRO 멤버십 전용 기능' : 'Gemini Pro 기반 플레이 분석'}
+                                {isLocked ? 'PRO 멤버십 전용 기능' : hasAnalyzedToday ? '내일 또 할 수 있습니다! 매일 방문하여 새로운 분석을 받아보세요.' : 'Gemini Pro 기반 플레이 분석'}
                             </p>
                         </div>
                     </div>
 
-                    {!showResult && !isAnalyzing && (
+                    {!isAnalyzing && (
                         <button
                             onClick={analyzeLogs}
                             disabled={isLocked}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all transform
                                 ${isLocked
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    : 'bg-white text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 shadow-md hover:shadow-lg'
+                                    : hasAnalyzedToday
+                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 cursor-pointer animate-pulse'
+                                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-400 hover:to-purple-500 shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95'
                                 }`}
                         >
                             <Sparkles className="w-4 h-4" />
-                            {isLocked ? 'PRO 전용 기능' : '분석 시작'}
+                            {isLocked ? 'PRO 전용 기능' : hasAnalyzedToday ? '✨ 내일 다시 분석하기' : '✨ 지금 분석하기'}
                         </button>
                     )}
                 </div>
@@ -349,6 +396,20 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
                 {showResult && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Daily Visit Reminder - 매일 방문 유도 */}
+                        {hasAnalyzedToday && (
+                            <div className="bg-gradient-to-r from-emerald-500/10 to-indigo-500/10 border border-emerald-500/30 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <RotateCcw className="w-4 h-4 text-emerald-400" />
+                                    <span className="text-sm font-bold text-emerald-400">내일 또 할 수 있습니다!</span>
+                                </div>
+                                <p className="text-xs text-slate-300 leading-relaxed">
+                                    오늘의 분석을 완료했습니다. 내일 다시 방문하여 새로운 분석을 받아보세요! 
+                                    <span className="text-emerald-400 font-bold"> ({hoursUntilNext}시간 후 가능)</span>
+                                </p>
+                            </div>
+                        )}
+
                         {/* Terminal Style Output */}
                         <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 font-mono text-xs relative overflow-hidden">
                             <div className="flex items-center gap-2 mb-2 text-slate-500 border-b border-slate-800 pb-2">
@@ -483,10 +544,21 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                         <div className="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center mb-4 mx-auto border border-indigo-500/20">
                             <Bot className="w-6 h-6 text-indigo-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-white text-center mb-2">분석 완료</h3>
+                        <h3 className="text-lg font-bold text-white text-center mb-2">오늘의 분석 완료! 🎉</h3>
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 mb-4">
+                            <p className="text-emerald-400 text-center text-xs font-bold mb-1">
+                                ✨ 내일 또 할 수 있습니다!
+                            </p>
+                            <p className="text-slate-300 text-center text-sm font-medium">
+                                매일 방문하여 새로운 분석을 받아보세요!
+                            </p>
+                        </div>
                         <p className="text-slate-400 text-center text-sm mb-6 leading-relaxed">
                             이미 오늘 AI 분석을 완료했습니다.<br />
-                            비용 절감을 위해 분석은 하루 1회만 제공됩니다.<br />
+                            비용 절감을 위해 분석은 <span className="text-indigo-400 font-bold">하루 1회만</span> 제공됩니다.<br />
+                            <span className="text-emerald-400 font-bold mt-2 block">
+                                내일 또 할 수 있습니다! ({hoursUntilNext}시간 후 가능)
+                            </span>
                             <span className="text-indigo-400 font-bold mt-2 block">이전 분석 결과를 다시 보여드릴게요!</span>
                         </p>
                         <button

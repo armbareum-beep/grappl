@@ -10,7 +10,7 @@ interface AddContentItem {
 interface AddTechniqueModalProps {
     isOpen: boolean;
     onClose: () => void;
-    lessons: (Lesson & { course?: { title: string } })[];
+    lessons: (Lesson & { course?: { title: string; category?: string; creatorName?: string } })[];
     drills: Drill[];
     addedItems: AddContentItem[];
     onAddContent: (items: AddContentItem[]) => void;
@@ -51,10 +51,32 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
     const filterItem = (item: Lesson | Drill) => {
         const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-        // Lessons don't have a category field directly, so we skip category filtering for them
-        // Only apply category filter to Drills
-        const matchesCategory = activeCategory === 'All' ||
-            ('category' in item && item.category === activeCategory);
+        
+        // If category filter is "All", only check search
+        if (activeCategory === 'All') {
+            return matchesSearch;
+        }
+        
+        // For lessons, use course category
+        if (!('category' in item)) {
+            const lesson = item as Lesson & { course?: { category?: string } };
+            const lessonCategory = lesson.course?.category;
+            if (!lessonCategory) {
+                // If lesson has no course or course has no category, exclude it when filtering by specific category
+                return false;
+            }
+            const activeCat = activeCategory.trim();
+            const matchesCategory = lessonCategory === activeCat || 
+                                   lessonCategory.toLowerCase() === activeCat.toLowerCase();
+            return matchesSearch && matchesCategory;
+        }
+        
+        // For drills, use drill category
+        const itemCategory = (item as Drill).category as string;
+        const activeCat = activeCategory.trim();
+        const matchesCategory = itemCategory === activeCat || 
+                               itemCategory.toLowerCase() === activeCat.toLowerCase();
+        
         return matchesSearch && matchesCategory;
     };
 
@@ -70,8 +92,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-slate-900 rounded-none md:rounded-2xl border-0 md:border border-slate-700 w-full max-w-2xl h-full md:h-[80vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/50">
                     <div>
@@ -141,11 +163,15 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                         <ContentItemRow
                             key={`lesson-${lesson.id}`}
                             title={lesson.title}
-                            subtitle={`${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
+                            subtitle={`${lesson.course?.creatorName ? lesson.course.creatorName + ' • ' : ''}${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
                             thumbnail={lesson.thumbnailUrl}
                             isAdded={isAlreadyAdded(lesson.id, 'lesson')}
                             isSelected={isItemSelected(lesson.id, 'lesson')}
                             onClick={() => handleToggleSelection(lesson.id, 'lesson')}
+                            onDragStart={(e) => {
+                                e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'lesson', id: lesson.id }));
+                                e.dataTransfer.effectAllowed = 'copy';
+                            }}
                         />
                     ))}
 
@@ -153,16 +179,20 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                         <ContentItemRow
                             key={`drill-${drill.id}`}
                             title={drill.title}
-                            subtitle={`${drill.category} • ${drill.length || ''}`}
+                            subtitle={`${drill.creatorName ? drill.creatorName + ' • ' : ''}${drill.category} • ${drill.length || ''}`}
                             thumbnail={drill.thumbnailUrl}
                             isAdded={isAlreadyAdded(drill.id, 'drill')}
                             isSelected={isItemSelected(drill.id, 'drill')}
                             onClick={() => handleToggleSelection(drill.id, 'drill')}
+                            onDragStart={(e) => {
+                                e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'drill', id: drill.id }));
+                                e.dataTransfer.effectAllowed = 'copy';
+                            }}
                         />
                     ))}
 
-                    {((activeTab === 'all' && filteredCourses.length === 0 && filteredDrills.length === 0) ||
-                        (activeTab === 'course' && filteredCourses.length === 0) ||
+                    {((activeTab === 'all' && filteredLessons.length === 0 && filteredDrills.length === 0) ||
+                        (activeTab === 'lesson' && filteredLessons.length === 0) ||
                         (activeTab === 'drill' && filteredDrills.length === 0)) && (
                             <div className="text-center py-20 text-slate-500">
                                 검색 결과가 없습니다.
@@ -200,8 +230,11 @@ const ContentItemRow: React.FC<{
     isAdded: boolean;
     isSelected: boolean;
     onClick: () => void;
-}> = ({ title, subtitle, thumbnail, isAdded, isSelected, onClick }) => (
+    onDragStart?: (e: React.DragEvent) => void;
+}> = ({ title, subtitle, thumbnail, isAdded, isSelected, onClick, onDragStart }) => (
     <button
+        draggable={!isAdded}
+        onDragStart={onDragStart}
         onClick={() => !isAdded && onClick()}
         disabled={isAdded}
         className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all text-left ${isAdded ? 'bg-slate-800/30 border-slate-700 opacity-50 cursor-not-allowed'

@@ -11,6 +11,7 @@ function transformUserSkillTree(data: any): UserSkillTree {
     return {
         id: data.id,
         userId: data.user_id,
+        title: data.title,
         nodes: treeData.nodes || [],
         edges: treeData.edges || [],
         createdAt: data.created_at,
@@ -26,34 +27,87 @@ function transformUserSkillTree(data: any): UserSkillTree {
  * Get user's skill tree
  * Creates empty tree if doesn't exist
  */
-export async function getUserSkillTree(userId: string) {
+/**
+ * List all skill trees for a user
+ */
+export async function listUserSkillTrees(userId: string) {
     const { data, error } = await supabase
         .from('user_skill_trees')
         .select('*')
         .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching skill tree list:', error);
+        return { data: [], error };
+    }
+
+    return { data: data.map(transformUserSkillTree), error: null };
+}
+
+/**
+ * Get specific skill tree by ID
+ */
+export async function getUserSkillTree(treeId: string) {
+    const { data, error } = await supabase
+        .from('user_skill_trees')
+        .select('*')
+        .eq('id', treeId)
+        .single();
+
+    if (error) return { data: null, error };
+    return { data: transformUserSkillTree(data), error: null };
+}
+
+/**
+ * Get user's latest skill tree (or create default if none)
+ * Used for initial load
+ */
+export async function getLatestUserSkillTree(userId: string) {
+    const { data, error } = await supabase
+        .from('user_skill_trees')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching latest skill tree:', error);
+        return { data: null, error };
+    }
+
+    if (!data) {
+        // Create default tree
+        return createNewSkillTree(userId, '나의 첫 로드맵', [], []);
+    }
+
+    return { data: transformUserSkillTree(data), error: null };
+}
+
+/**
+ * Create a new skill tree
+ */
+export async function createNewSkillTree(
+    userId: string,
+    title: string,
+    nodes: SkillTreeNode[] = [],
+    edges: SkillTreeEdge[] = []
+) {
+    const treeData = { nodes, edges };
+
+    const { data, error } = await supabase
+        .from('user_skill_trees')
+        .insert({
+            user_id: userId,
+            title: title,
+            tree_data: treeData
+        })
+        .select()
         .single();
 
     if (error) {
-        if (error.code === 'PGRST116') {
-            // No tree exists, create one
-            const { data: newTree, error: createError } = await supabase
-                .from('user_skill_trees')
-                .insert({
-                    user_id: userId,
-                    tree_data: { nodes: [], edges: [] }
-                })
-                .select()
-                .single();
-
-            if (createError) {
-                console.error('Error creating skill tree:', createError);
-                return { data: null, error: createError };
-            }
-
-            return { data: transformUserSkillTree(newTree), error: null };
-        }
-
-        console.error('Error fetching skill tree:', error);
+        console.error('Error creating skill tree:', error);
         return { data: null, error };
     }
 
@@ -61,10 +115,11 @@ export async function getUserSkillTree(userId: string) {
 }
 
 /**
- * Save/Update user's skill tree
+ * Update existing skill tree
  */
-export async function saveUserSkillTree(
-    userId: string,
+export async function updateUserSkillTree(
+    treeId: string,
+    title: string,
     nodes: SkillTreeNode[],
     edges: SkillTreeEdge[]
 ) {
@@ -72,15 +127,17 @@ export async function saveUserSkillTree(
 
     const { data, error } = await supabase
         .from('user_skill_trees')
-        .upsert({
-            user_id: userId,
-            tree_data: treeData
+        .update({
+            title: title,
+            tree_data: treeData,
+            updated_at: new Date().toISOString()
         })
+        .eq('id', treeId)
         .select()
         .single();
 
     if (error) {
-        console.error('Error saving skill tree:', error);
+        console.error('Error updating skill tree:', error);
         return { data: null, error };
     }
 
@@ -88,142 +145,30 @@ export async function saveUserSkillTree(
 }
 
 /**
- * Add a technique node to the tree
+ * Delete a skill tree
  */
-export async function addTechniqueToTree(
+export async function deleteUserSkillTree(treeId: string) {
+    const { error } = await supabase
+        .from('user_skill_trees')
+        .delete()
+        .eq('id', treeId);
+
+    return { error };
+}
+
+// Legacy support wrapper (Maps old save to update if ID provided, or create)
+export async function saveUserSkillTree(
     userId: string,
-    techniqueId: string,
-    position: { x: number; y: number }
+    nodes: SkillTreeNode[],
+    edges: SkillTreeEdge[],
+    treeId?: string,
+    title: string = '나의 스킬 트리'
 ) {
-    // Get current tree
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
+    if (treeId) {
+        return updateUserSkillTree(treeId, title, nodes, edges);
+    } else {
+        return createNewSkillTree(userId, title, nodes, edges);
     }
-
-    // Create new node
-    const newNode: SkillTreeNode = {
-        id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        techniqueId,
-        position,
-        type: 'technique'
-    };
-
-    // Add to nodes array
-    const updatedNodes = [...tree.nodes, newNode];
-
-    // Save
-    return await saveUserSkillTree(userId, updatedNodes, tree.edges);
 }
 
-/**
- * Update node position
- */
-export async function updateNodePosition(
-    userId: string,
-    nodeId: string,
-    position: { x: number; y: number }
-) {
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
-    }
 
-    const updatedNodes = tree.nodes.map(node =>
-        node.id === nodeId ? { ...node, position } : node
-    );
-
-    return await saveUserSkillTree(userId, updatedNodes, tree.edges);
-}
-
-/**
- * Remove node from tree
- */
-export async function removeNodeFromTree(userId: string, nodeId: string) {
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
-    }
-
-    // Remove node
-    const updatedNodes = tree.nodes.filter(node => node.id !== nodeId);
-
-    // Remove edges connected to this node
-    const updatedEdges = tree.edges.filter(
-        edge => edge.source !== nodeId && edge.target !== nodeId
-    );
-
-    return await saveUserSkillTree(userId, updatedNodes, updatedEdges);
-}
-
-/**
- * Add edge (connection) between two nodes
- */
-export async function addEdgeToTree(
-    userId: string,
-    sourceId: string,
-    targetId: string,
-    animated: boolean = false
-) {
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
-    }
-
-    // Check if edge already exists
-    const edgeExists = tree.edges.some(
-        edge => edge.source === sourceId && edge.target === targetId
-    );
-
-    if (edgeExists) {
-        return { data: tree, error: null };
-    }
-
-    // Create new edge
-    const newEdge: SkillTreeEdge = {
-        id: `edge-${sourceId}-${targetId}`,
-        source: sourceId,
-        target: targetId,
-        type: animated ? 'animated' : 'default'
-    };
-
-    const updatedEdges = [...tree.edges, newEdge];
-
-    return await saveUserSkillTree(userId, tree.nodes, updatedEdges);
-}
-
-/**
- * Remove edge from tree
- */
-export async function removeEdgeFromTree(userId: string, edgeId: string) {
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
-    }
-
-    const updatedEdges = tree.edges.filter(edge => edge.id !== edgeId);
-
-    return await saveUserSkillTree(userId, tree.nodes, updatedEdges);
-}
-
-/**
- * Update multiple nodes at once (for batch drag operations)
- */
-export async function updateMultipleNodePositions(
-    userId: string,
-    nodeUpdates: { nodeId: string; position: { x: number; y: number } }[]
-) {
-    const { data: tree, error: fetchError } = await getUserSkillTree(userId);
-    if (fetchError || !tree) {
-        return { data: null, error: fetchError };
-    }
-
-    const updateMap = new Map(nodeUpdates.map(u => [u.nodeId, u.position]));
-
-    const updatedNodes = tree.nodes.map(node => {
-        const newPosition = updateMap.get(node.id);
-        return newPosition ? { ...node, position: newPosition } : node;
-    });
-
-    return await saveUserSkillTree(userId, updatedNodes, tree.edges);
-}

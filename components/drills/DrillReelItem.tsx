@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, MoreVertical, Play, Volume2, VolumeX } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Heart, Bookmark, Share2, MoreVertical, Play, Volume2, VolumeX, ListVideo } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface DrillReelItemProps {
     drill: Drill;
@@ -13,6 +13,8 @@ interface DrillReelItemProps {
     likeCount: number;
     isSaved: boolean;
     onSave: () => void;
+    isFollowed: boolean;
+    onFollow: () => void;
     onShare: () => void;
     onViewRoutine: () => void;
     offset: number; // -1, 0, 1 for sliding effect
@@ -28,11 +30,12 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     likeCount,
     isSaved,
     onSave,
+    isFollowed,
+    onFollow,
     onShare,
     onViewRoutine,
     offset
 }) => {
-    const navigate = useNavigate();
 
     // Internal state
     const [isPlaying, setIsPlaying] = useState(false);
@@ -137,14 +140,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         setTouchStart(null);
     };
 
-    // Share Modal State
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
-    const handleShare = (e?: React.MouseEvent) => {
-        if (e) e.stopPropagation();
-        setIsShareModalOpen(true);
-    };
-
     // Detect Processing State
     const isProcessing = !useVimeo && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
 
@@ -234,156 +229,146 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             )}
                         </div>
 
-                        {/* Desktop Actions - Right next to video */}
-                        <div className="hidden md:flex flex-col gap-6 items-center justify-center ml-4">
+                        {/* Desktop Actions - 통합된 버튼 순서: 좋아요, 저장, 루틴, 소리, 공유 */}
+                        <div className="hidden md:flex flex-col gap-5 items-center justify-end pb-12 ml-6 z-40">
                             {/* Like */}
-                            <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
-                                <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
-                                    <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                                </div>
-                                <span className="text-white text-sm font-medium">{likeCount}</span>
-                            </button>
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group">
+                                    <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
+                                </button>
+                                <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{likeCount}</span>
+                            </div>
 
                             {/* Save */}
-                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="flex flex-col items-center gap-1 group">
-                                <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
-                                    <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-                                </div>
-                                <span className="text-white text-xs">저장</span>
+                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group">
+                                <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`} />
+                            </button>
+
+                            {/* View Routine - 루틴이 있을 때만 표시 */}
+                            {onViewRoutine && (
+                                <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-400 transition-colors group">
+                                    <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
+                                </button>
+                            )}
+
+                            {/* Mute */}
+                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group">
+                                {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
                             </button>
 
                             {/* Share */}
-                            <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
-                                <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
-                                    <Share2 className="w-7 h-7 text-white" />
-                                </div>
-                                <span className="text-white text-xs">공유</span>
+                            <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors">
+                                <Share2 className="w-7 h-7" />
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Video Type Toggles (Top Left) - Only show if active */}
+                {isActive && (
+                    <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
+                        <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
+                            >
+                                동작
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
+                            >
+                                설명
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Content & Actions */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none md:pointer-events-auto">
+                    <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
+                        {/* Info - Always inside video */}
+                        <div className="flex-1 pr-4">
+                            <div className="flex items-center gap-3 mb-3">
+                                <Link
+                                    to={`/creator/${drill.creatorId}`}
+                                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                >
+                                    {drill.creatorProfileImage && (
+                                        <img
+                                            src={drill.creatorProfileImage}
+                                            alt=""
+                                            className="w-8 h-8 rounded-full border border-white/20 object-cover"
+                                        />
+                                    )}
+                                    <span className="text-white font-bold text-sm drop-shadow-sm">
+                                        {drill.creatorName || 'Instructor'}
+                                    </span>
+                                </Link>
+                                <span className="text-white/60 text-xs leading-none mt-0.5">•</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onFollow(); }}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all active:scale-95 ${isFollowed
+                                        ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
+                                        : 'bg-transparent text-white border-white/40 hover:bg-white/10'
+                                        }`}
+                                >
+                                    {isFollowed ? '팔로잉' : '팔로우'}
+                                </button>
+                            </div>
+
+                            <h2 className="text-white font-bold text-base mb-2 line-clamp-2 drop-shadow-sm">
+                                {drill.title}
+                                {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
+                            </h2>
+
+                            {/* Tags */}
+                            {drill.tags && drill.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                        <span key={idx} className="text-white/90 text-sm">
+                                            #{tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Side Actions - Mobile style (통합된 버튼 순서) */}
+                        <div className="flex flex-col gap-5 items-center pb-8 md:hidden">
+                            {/* Like */}
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group">
+                                    <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
+                                </button>
+                                <span className="text-xs font-bold text-white shadow-black drop-shadow-md text-center">{likeCount}</span>
+                            </div>
+
+                            {/* Save */}
+                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group">
+                                <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`} />
+                            </button>
+
+                            {/* View Routine - 루틴이 있을 때만 표시 */}
+                            {onViewRoutine && (
+                                <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-400 transition-colors group">
+                                    <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
+                                </button>
+                            )}
 
                             {/* Mute */}
-                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="flex flex-col items-center gap-1 group">
-                                <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
-                                    {isMuted ? <VolumeX className="w-7 h-7 text-white" /> : <Volume2 className="w-7 h-7 text-white" />}
-                                </div>
-                                <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
+                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group">
+                                {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
                             </button>
 
-                            {/* View Routine */}
-                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="flex flex-col items-center gap-1 group">
-                                <div className="w-14 h-14 rounded-full bg-slate-800/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-slate-700 transition-colors border border-slate-700">
-                                    <MoreVertical className="w-7 h-7 text-white" />
-                                </div>
-                                <span className="text-white text-xs">루틴</span>
+                            {/* Share */}
+                            <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors">
+                                <Share2 className="w-7 h-7" />
                             </button>
                         </div>
                     </div>
-
-                    {/* Video Type Toggles (Top Left) - Only show if active */}
-                    {isActive && (
-                        <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
-                            <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                    className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                                >
-                                    동작
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                                    className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                                >
-                                    설명
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Content & Actions */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none md:pointer-events-auto">
-                        <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                            {/* Info - Always inside video */}
-                            <div className="flex-1 pr-4">
-                                <h2 className="text-white font-bold text-xl mb-2 line-clamp-2">
-                                    {drill.title}
-                                    {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
-                                </h2>
-                                <p className="text-white/80 text-sm mb-3">
-                                    @{drill.creatorName || 'Instructor'}
-                                </p>
-
-                                {/* Tags */}
-                                {drill.tags && drill.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                        {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
-                                            <span key={idx} className="text-white/90 text-sm">
-                                                #{tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right Side Actions - Mobile only (inside video) */}
-                            <div className="flex flex-col gap-6 items-center pb-4 md:hidden">
-                                {/* Like */}
-                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                        <Heart className={`w-6 h-6 ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                                    </div>
-                                    <span className="text-white text-xs">{likeCount}</span>
-                                </button>
-
-                                {/* Save */}
-                                <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                        <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-                                    </div>
-                                    <span className="text-white text-xs">저장</span>
-                                </button>
-
-                                {/* Share */}
-                                <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                        <Share2 className="w-6 h-6 text-white" />
-                                    </div>
-                                    <span className="text-white text-xs">공유</span>
-                                </button>
-
-                                {/* Mute */}
-                                <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                        {isMuted ? <VolumeX className="w-6 h-6 text-white" /> : <Volume2 className="w-6 h-6 text-white" />}
-                                    </div>
-                                    <span className="text-white text-xs">{isMuted ? '음소거' : '소리'}</span>
-                                </button>
-
-                                {/* View Routine */}
-                                <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="flex flex-col items-center gap-1 group">
-                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                                        <MoreVertical className="w-6 h-6 text-white" />
-                                    </div>
-                                    <span className="text-white text-xs">루틴</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Share Modal Portal */}
-                    <React.Suspense fallback={null}>
-                        {isShareModalOpen && (
-                            <ShareModal
-                                isOpen={isShareModalOpen}
-                                onClose={() => setIsShareModalOpen(false)}
-                                title={drill.title}
-                                text={`Check out this BJJ drill: ${drill.title}`}
-                            />
-                        )}
-                    </React.Suspense>
                 </div>
             </div>
         </>
     );
 };
-
-// Lazy load
-const ShareModal = React.lazy(() => import('../social/ShareModal'));

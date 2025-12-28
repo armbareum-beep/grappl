@@ -266,6 +266,7 @@ export const VideoDetail: React.FC = () => {
             title={video.title}
             text={video.description}
             url={window.location.href}
+            imageUrl={video.thumbnailUrl}
           />
         )}
       </React.Suspense>

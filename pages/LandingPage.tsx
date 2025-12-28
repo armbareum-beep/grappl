@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Play, Star, ChevronRight, Zap, Users, BookOpen, Award, Clapperboard, Map, Trophy } from 'lucide-react';
+import { Play, Star, ChevronRight, Zap, Users, BookOpen, Clapperboard, Map, Trophy } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
+import { ClassShowcase } from '../components/ClassShowcase';
 import { getTestimonials, getPlatformStats, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 
@@ -36,11 +37,13 @@ export const LandingPage: React.FC = () => {
         // Landing page only needs 1 sparring video for showcase
         // Prefetch 3 routines and 3 sparring videos for their respective pages
         try {
-            const [sparringData, routinesData, sparringFeedData] = await Promise.all([
+            const [, routinesData, sparringFeedResult] = await Promise.all([
                 getPublicSparringVideos(1),  // Landing page showcase - only 1 needed
                 getRoutines().then(routines => routines.slice(0, 3)),  // Routines page - first 3
                 getSparringVideos(3)  // Sparring feed - first 3
             ]);
+
+            const sparringFeedData = sparringFeedResult.data || [];
 
             // Preload actual video files for instant playback
             const videosToPreload: string[] = [];
@@ -56,7 +59,7 @@ export const LandingPage: React.FC = () => {
             });
 
             // Add sparring videos
-            sparringFeedData.forEach(video => {
+            sparringFeedData.forEach((video: any) => {
                 if (video.video_url) {
                     videosToPreload.push(video.video_url);
                 }
@@ -237,34 +240,39 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     {/* Trust Indicators */}
-                    <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-slate-400">
-                        <div className="flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-400" />
-                            <span>{stats.totalUsers.toLocaleString()}+ 수련생</span>
+                    <div className="mt-16 flex flex-wrap justify-center gap-4 md:gap-8 text-xs md:text-sm text-slate-400">
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                            <Users className="w-4 h-4 md:w-5 md:h-5 text-blue-400 flex-shrink-0" />
+                            <span className="truncate">{stats.totalUsers.toLocaleString()}+ 수련생</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-blue-400" />
-                            <span>{stats.totalCourses.toLocaleString()}+ 강좌</span>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                            <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-blue-400 flex-shrink-0" />
+                            <span className="truncate">{stats.totalCourses.toLocaleString()}+ 클래스</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Zap className="w-5 h-5 text-blue-400" />
-                            <span>{stats.totalRoutines.toLocaleString()}+ 루틴</span>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                            <Zap className="w-4 h-4 md:w-5 md:h-5 text-blue-400 flex-shrink-0" />
+                            <span className="truncate">{stats.totalRoutines.toLocaleString()}+ 루틴</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Clapperboard className="w-5 h-5 text-blue-400" />
-                            <span>{stats.totalSparring.toLocaleString()}+ 스파링</span>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                            <Clapperboard className="w-4 h-4 md:w-5 md:h-5 text-blue-400 flex-shrink-0" />
+                            <span className="truncate">{stats.totalSparring.toLocaleString()}+ 스파링</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Scroll Indicator */}
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+                <button
+                    onClick={() => {
+                        const nextSection = document.getElementById('instructors');
+                        if (nextSection) {
+                            nextSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }}
+                    className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce cursor-pointer hover:scale-110 transition-transform"
+                >
                     <ChevronRight className="w-6 h-6 text-slate-400 rotate-90" />
-                </div>
+                </button>
             </section>
-
-            {/* 1.5 Sparring Showcase Section */}
-            <RandomSparringShowcase />
 
             {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
             <section id="instructors" className="py-16 md:py-32 bg-gradient-to-b from-black to-slate-900 relative overflow-hidden">
@@ -299,7 +307,13 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 3. Drill Video Showcase */}
+            {/* 3. Sparring Showcase Section */}
+            <RandomSparringShowcase />
+
+            {/* 4. Class Showcase Section */}
+            <ClassShowcase />
+
+            {/* 5. Drill Video Showcase */}
             <section className="py-16 md:py-32 bg-slate-900 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 relative z-10">
                     <div className="text-center mb-16">
@@ -317,18 +331,173 @@ export const LandingPage: React.FC = () => {
                     <div className="text-center">
                         <Button
                             size="lg"
-                            variant="outline"
-                            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white rounded-full px-8 transition-all"
+                            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/50 text-slate-300 hover:text-white px-8 py-6 rounded-full transition-all duration-300 hover:shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)] hover:-translate-y-1 group backdrop-blur-sm"
                             onClick={() => navigate('/drills')}
                         >
                             더 많은 드릴 보기
-                            <ChevronRight className="w-5 h-5 ml-2" />
+                            <ChevronRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1 text-slate-500 group-hover:text-white" />
                         </Button>
                     </div>
                 </div>
             </section>
 
-            {/* 4. Social Proof Section */}
+            {/* 6. Arena System Promotion Section */}
+            <section className="py-16 md:py-32 bg-[#050505] relative overflow-hidden">
+                {/* Background Elements */}
+                <div className="absolute inset-0 pointer-events-none">
+                    {/* Very subtle purple tint for cohesion */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/5 via-transparent to-black"></div>
+                    <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid_pattern.png')] opacity-[0.03]"></div>
+                    {/* Floating Orbs - Adjusted colors */}
+                    <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]"></div>
+                    <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px]"></div>
+                </div>
+
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    {/* Section Header */}
+                    <div className="text-center mb-16 md:mb-24">
+                        <div className="inline-block px-3 py-1 mb-6 border border-indigo-500/30 rounded-lg bg-indigo-500/5 backdrop-blur-md">
+                            <span className="text-indigo-400 text-xs font-bold tracking-[0.2em] uppercase flex items-center gap-2 justify-center">
+                                <Trophy className="w-3 h-3" />
+                                ARENA SYSTEM
+                            </span>
+                        </div>
+
+                        <h2 className="text-4xl md:text-7xl font-black mb-6 tracking-tight leading-[0.9]">
+                            LEVEL UP <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500">
+                                YOUR JIU-JITSU
+                            </span>
+                        </h2>
+
+                        <p className="text-slate-400 text-lg max-w-xl mx-auto font-medium">
+                            성장을 위한 3가지 코어 시스템
+                        </p>
+                    </div>
+
+                    {/* 3 Feature Cards */}
+                    <div className="grid md:grid-cols-3 gap-6 md:gap-8 mb-16" id="arena-cards">
+                        {/* Card 1: 수련일지 */}
+                        <div className="group relative bg-[#0A0A0A] rounded-3xl p-8 border border-white/5 hover:border-blue-500/50 transition-all duration-500 hover:-translate-y-2 overflow-hidden">
+                            {/* Hover Gradient Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-500/0 to-blue-500/0 group-hover:to-blue-500/10 transition-all duration-500"></div>
+
+                            {/* Watermark Number */}
+                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-white/[0.02] group-hover:text-blue-500/[0.05] transition-colors leading-none select-none">
+                                01
+                            </div>
+
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6 text-blue-400 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300 shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)]">
+                                    <BookOpen className="w-7 h-7" />
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-blue-400 transition-colors">수련일지</h3>
+                                <p className="text-slate-400 text-sm leading-relaxed mb-6 h-[40px]">
+                                    AI 분석과 함께 훈련과 스파링을<br />데이터로 기록하고 추적하세요.
+                                </p>
+
+                                <ul className="space-y-3">
+                                    {[
+                                        '훈련/스파링 데이터 기록',
+                                        'AI 코치 퍼포먼스 분석',
+                                        '성장 그래프 시각화'
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-center gap-3 text-sm text-slate-500 group-hover:text-slate-300 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50 group-hover:bg-blue-400 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.8)] transition-all"></div>
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Card 2: 훈련루틴 */}
+                        <div className="group relative bg-[#0A0A0A] rounded-3xl p-8 border border-white/5 hover:border-amber-500/50 transition-all duration-500 hover:-translate-y-2 overflow-hidden">
+                            {/* Hover Gradient Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 to-amber-500/0 group-hover:to-amber-500/10 transition-all duration-500"></div>
+
+                            {/* Watermark Number */}
+                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-white/[0.02] group-hover:text-amber-500/[0.05] transition-colors leading-none select-none">
+                                02
+                            </div>
+
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6 text-amber-400 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_-10px_rgba(245,158,11,0.3)]">
+                                    <Zap className="w-7 h-7" />
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-amber-400 transition-colors">훈련루틴</h3>
+                                <p className="text-slate-400 text-sm leading-relaxed mb-6 h-[40px]">
+                                    나만의 드릴 루틴을 설계하고<br />매일 10분, 체계적으로 연습하세요.
+                                </p>
+
+                                <ul className="space-y-3">
+                                    {[
+                                        '커스텀 드릴 루틴 생성',
+                                        '주간 스케줄 플래너',
+                                        'XP 보상 시스템'
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-center gap-3 text-sm text-slate-500 group-hover:text-slate-300 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50 group-hover:bg-amber-400 group-hover:shadow-[0_0_8px_rgba(245,158,11,0.8)] transition-all"></div>
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Card 3: 테크닉로드맵 */}
+                        <div className="group relative bg-[#0A0A0A] rounded-3xl p-8 border border-white/5 hover:border-teal-400/50 transition-all duration-500 hover:-translate-y-2 overflow-hidden">
+                            {/* Hover Gradient Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-teal-400/0 to-teal-400/0 group-hover:to-teal-400/10 transition-all duration-500"></div>
+
+                            {/* Watermark Number */}
+                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-white/[0.02] group-hover:text-teal-400/[0.05] transition-colors leading-none select-none">
+                                03
+                            </div>
+
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 rounded-2xl bg-teal-400/10 border border-teal-400/20 flex items-center justify-center mb-6 text-teal-400 group-hover:scale-110 group-hover:bg-teal-400 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_-10px_rgba(45,212,191,0.5)]">
+                                    <Map className="w-7 h-7" />
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-teal-400 transition-colors">테크닉 로드맵</h3>
+                                <p className="text-slate-400 text-sm leading-relaxed mb-6 h-[40px]">
+                                    기술의 연결고리를 시각화하여<br />나만의 주짓수 지도를 완성하세요.
+                                </p>
+
+                                <ul className="space-y-3">
+                                    {[
+                                        '기술 트리 시각화',
+                                        '레슨 & 드릴 연결 관리',
+                                        '마스터리 레벨 추적'
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-center gap-3 text-sm text-slate-500 group-hover:text-slate-300 transition-colors">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-teal-400/50 group-hover:bg-teal-400 group-hover:shadow-[0_0_8px_rgba(45,212,191,0.8)] transition-all"></div>
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* CTA Button */}
+                    <div className="text-center">
+                        <Button
+                            size="lg"
+                            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-12 py-7 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] border border-white/10"
+                            onClick={() => navigate('/arena')}
+                        >
+                            ARENA 입장하기
+                        </Button>
+                    </div>
+                </div>
+            </section>
+
+            {/* 7. Social Proof Section */}
             <section className="py-24 bg-black relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="text-center mb-16">
@@ -357,96 +526,6 @@ export const LandingPage: React.FC = () => {
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* 5. Arena System Promotion Section */}
-            <section className="py-16 md:py-32 bg-slate-900 relative overflow-hidden">
-                {/* Background Elements */}
-                <div className="absolute inset-0">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid_pattern.png')] opacity-10"></div>
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px]"></div>
-                </div>
-
-                <div className="max-w-7xl mx-auto px-4 relative z-10">
-                    <div className="flex flex-col lg:flex-row items-center gap-16">
-                        {/* Text Content */}
-                        <div className="flex-1 text-center lg:text-left">
-                            <div className="inline-block px-4 py-2 mb-6 border border-purple-500/40 rounded-full bg-purple-500/10 backdrop-blur-md">
-                                <span className="text-purple-300 text-sm font-semibold tracking-wider uppercase flex items-center gap-2 justify-center lg:justify-start">
-                                    <Trophy className="w-4 h-4 text-purple-400" />
-                                    Arena System
-                                </span>
-                            </div>
-
-                            <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
-                                당신의 성장을 <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
-                                    게임처럼 즐기세요
-                                </span>
-                            </h2>
-
-                            <p className="text-slate-300 text-lg md:text-xl mb-8 leading-relaxed break-keep">
-                                수련일지, 훈련루틴, 테크닉로드맵, 스파링복기. <br className="hidden md:block" />
-                                이 4가지 강력한 도구가 당신의 주짓수 성장을 <br className="md:hidden" />
-                                체계적으로 돕습니다.
-                            </p>
-
-                            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
-                                    <BookOpen className="w-4 h-4 text-blue-400" />
-                                    <span className="font-medium text-sm">수련일지</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
-                                    <Zap className="w-4 h-4 text-yellow-400" />
-                                    <span className="font-medium text-sm">훈련루틴</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
-                                    <Map className="w-4 h-4 text-green-400" />
-                                    <span className="font-medium text-sm">테크닉로드맵</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-400 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
-                                    <Clapperboard className="w-4 h-4 text-red-400" />
-                                    <span className="font-medium text-sm">스파링복기</span>
-                                </div>
-                            </div>
-
-                            <div className="mt-10">
-                                <Button
-                                    size="lg"
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-6 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-indigo-500/20"
-                                    onClick={() => navigate('/pricing')}
-                                >
-                                    아레나 입장하기
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Image Content */}
-                        <div className="flex-1 relative">
-                            <div className="relative rounded-3xl overflow-hidden border border-slate-700/50 shadow-2xl shadow-purple-500/20 group">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-blue-500/10 group-hover:opacity-0 transition-opacity duration-500"></div>
-                                <img
-                                    src="/arena_mockup.png"
-                                    alt="Arena Dashboard Interface"
-                                    className="w-full h-auto transform transition-transform duration-700 group-hover:scale-105"
-                                />
-
-                                {/* Floating Badges */}
-                                <div className="absolute -bottom-6 -right-6 bg-slate-900/90 backdrop-blur-xl border border-slate-700 p-4 rounded-2xl shadow-xl animate-bounce" style={{ animationDuration: '3s' }}>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-                                            <Trophy className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-slate-400 font-bold uppercase">현재 랭크</p>
-                                            <p className="text-white font-black">다이아몬드 리그</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>

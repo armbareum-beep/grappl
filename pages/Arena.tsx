@@ -35,7 +35,6 @@ export const Arena: React.FC = () => {
         { id: 'journal', label: '수련일지', icon: BookOpen, color: 'blue', desc: '성장 기록' },
         { id: 'routines', label: '훈련 루틴', icon: Dumbbell, color: 'emerald', desc: '매일 10분 드릴' },
         { id: 'skills', label: '테크닉 로드맵', icon: Target, color: 'purple', desc: '기술 체계화' },
-        { id: 'sparring', label: '스파링 복기', icon: Swords, color: 'red', desc: 'AI 분석 & 피드백' },
     ];
 
     return (
@@ -189,3 +188,5 @@ export const Arena: React.FC = () => {
         </div>
     );
 };
+
+export default Arena;

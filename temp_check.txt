@@ -1,0 +1,29 @@
+﻿
+          creatorId: data.creator_id,
+          itemsCount: data.items?.length || 0
+      });
+  
+      // Fetch creator info separately to avoid join syntax issues
+>     let creatorName = 'Unknown';
+      if (data.creator_id) {
+          try {
+              const { data: creatorData } = await supabase
+                  .from('creators')
+                  .select('name')
+                  .eq('id', data.creator_id)
+                  .single();
+  
+              if (creatorData) {
+                  creatorName = creatorData.name;
+              }
+          } catch (e) {
+              console.warn('[getRoutineById] Could not fetch creator:', e);
+          }
+      }
+  
+      // Transform to match DrillRoutine interface with items
+      const routine = {
+          ...transformDrillRoutine(data),
+          creatorName: creatorName,
+
+

@@ -104,7 +104,7 @@ export const Drills: React.FC = () => {
 
     // Grid mode - clean drill display
     return (
-        <div className="min-h-screen bg-slate-950 p-6">
+        <div className="min-h-screen bg-black p-6">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-4">
@@ -117,7 +117,7 @@ export const Drills: React.FC = () => {
                                     setSearchParams({});
                                     setViewMode('reels');
                                 }}
-                                className="text-sm text-slate-400 hover:text-white flex items-center gap-1 bg-slate-900 px-3 py-1 rounded-full border border-slate-800"
+                                className="text-sm text-white/60 hover:text-white flex items-center gap-1 bg-black/50 px-3 py-1 rounded-full border border-white/10"
                             >
                                 <X className="w-4 h-4" />
                                 검색 초기화
@@ -137,14 +137,14 @@ export const Drills: React.FC = () => {
                 </div>
 
                 {drills.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <Search className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                    <div className="text-center py-20 bg-black/50 rounded-2xl border border-white/10">
+                        <Search className="w-12 h-12 text-white/40 mx-auto mb-4" />
                         <h3 className="text-xl font-bold text-white mb-2">검색 결과가 없습니다</h3>
-                        <p className="text-slate-400">다른 키워드로 검색해보거나 새로운 드릴을 찾아보세요.</p>
+                        <p className="text-white/60">다른 키워드로 검색해보거나 새로운 드릴을 찾아보세요.</p>
                         {searchTerm && (
                             <button
                                 onClick={() => setSearchParams({})}
-                                className="mt-6 text-blue-400 hover:text-blue-300 font-bold"
+                                className="mt-6 text-white hover:text-white/80 font-bold"
                             >
                                 전체 목록 보기
                             </button>
@@ -155,7 +155,7 @@ export const Drills: React.FC = () => {
                         {drills.map((drill, index) => (
                             <div
                                 key={drill.id}
-                                className="aspect-[9/16] bg-slate-900 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 relative group"
+                                className="aspect-[9/16] bg-black rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/30 relative group border border-white/10"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();

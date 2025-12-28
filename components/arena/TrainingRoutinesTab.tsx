@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, ChevronRight, Dumbbell, Play, Lock, Check, CalendarCheck, MousePointerClick, Trash2 } from 'lucide-react';
+import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -25,30 +25,75 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     // Click-to-Place State
     const [selectedRoutineForPlacement, setSelectedRoutineForPlacement] = useState<DrillRoutine | null>(null);
+    const [selectedDayForPlacement, setSelectedDayForPlacement] = useState<string | null>(null);
 
     // Show More/Less State
     const [showAllRoutines, setShowAllRoutines] = useState(false);
 
     useEffect(() => {
         const loadSavedDrills = async () => {
+            console.log('=== loadSavedDrills called ===', { hasUser: !!user });
+
+            // First, load from localStorage immediately for instant display
+            const localSaved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
+            console.log('localStorage saved_drills:', localSaved.length);
+            setSavedDrills(localSaved);
+
             if (user) {
                 try {
+                    console.log('Fetching saved drills from DB for user:', user.id);
                     const drills = await getUserSavedDrills(user.id);
-                    setSavedDrills(drills);
-                    // Sync to localStorage for other components that might still use it
-                    localStorage.setItem('saved_drills', JSON.stringify(drills));
+                    console.log('DB saved drills:', drills.length);
+
+                    // Only update if DB returned data
+                    if (drills && drills.length > 0) {
+                        setSavedDrills(drills);
+                        // Sync to localStorage
+                        localStorage.setItem('saved_drills', JSON.stringify(drills));
+                    } else if (localSaved.length === 0) {
+                        // If both DB and localStorage are empty, show empty state
+                        setSavedDrills([]);
+                    }
+                    // If DB is empty but localStorage has data, keep localStorage data
                 } catch (error) {
-                    console.error('Error loading saved drills:', error);
-                    // Fallback
-                    const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                    setSavedDrills(saved);
+                    console.error('Error loading saved drills from DB:', error);
+                    console.log('Falling back to localStorage data');
+                    // Keep using localStorage data on error
                 }
-            } else {
-                const saved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-                setSavedDrills(saved);
             }
         };
+
         loadSavedDrills();
+
+        // Reload when window regains focus (user comes back from drill page)
+        const handleFocus = () => {
+            console.log('Window focused, reloading saved drills');
+            loadSavedDrills();
+        };
+
+        // Reload when localStorage changes (from other tabs or components)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'saved_drills') {
+                console.log('localStorage saved_drills changed, reloading');
+                loadSavedDrills();
+            }
+        };
+
+        // Custom event for same-tab updates
+        const handleCustomStorage = () => {
+            console.log('Custom storage event, reloading saved drills');
+            loadSavedDrills();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleCustomStorage);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('storage', handleCustomStorage);
+        };
     }, [user]);
 
     const toggleDrillSelection = (drillId: string) => {
@@ -98,7 +143,15 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
     };
 
-    const { success, error: toastError } = useToast();
+    const { success } = useToast();
+
+    useEffect(() => {
+        if (user) {
+            loadRoutines();
+        } else {
+            setLoading(false);
+        }
+    }, [user]);
 
     const handleCreateRoutine = () => {
         if (!user) {
@@ -137,20 +190,45 @@ export const TrainingRoutinesTab: React.FC = () => {
         loadRoutines(); // Reload to show the new routine immediately
     };
 
-    useEffect(() => {
-        if (user) {
-            loadRoutines();
-        } else {
-            setLoading(false);
-        }
-    }, [user]);
-
     const handleRoutineClick = (routine: DrillRoutine) => {
-        navigate(`/my-routines/${routine.id}`);
+        if (selectedDayForPlacement) {
+            // Case: Day First -> Add routine to that day
+            const savedSchedule = JSON.parse(localStorage.getItem('weekly_routine_schedule') || '{"월":[],"화":[],"수":[],"목":[],"금":[],"토":[],"일":[]}');
+            const currentDayRoutines = savedSchedule[selectedDayForPlacement] || [];
+
+            if (currentDayRoutines.some((r: any) => r.id === routine.id)) {
+                alert('이미 해당 요일에 추가된 루틴입니다.');
+                return;
+            }
+
+            const newSchedule = {
+                ...savedSchedule,
+                [selectedDayForPlacement]: [...currentDayRoutines, routine]
+            };
+
+            localStorage.setItem('weekly_routine_schedule', JSON.stringify(newSchedule));
+            window.dispatchEvent(new Event('weekly_schedule_update'));
+
+            success(`${selectedDayForPlacement}요일에 루틴이 추가되었습니다.`);
+            setSelectedDayForPlacement(null);
+            return;
+        }
+
+        if (selectedRoutineForPlacement?.id === routine.id) {
+            navigate(`/my-routines/${routine.id}`);
+        } else {
+            setSelectedRoutineForPlacement(routine);
+            setSelectedDayForPlacement(null); // Ensure mutually exclusive
+        }
     };
+
+    // ...
+
+
 
     const handleDragStart = (e: React.DragEvent, routine: DrillRoutine) => {
         e.dataTransfer.setData('application/json', JSON.stringify(routine));
+        // ... (rest of drag start logic is fine, keeping it minimal in replacement if possible or include whole func)
         e.dataTransfer.effectAllowed = 'copy';
 
         if (e.currentTarget) {
@@ -159,10 +237,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             const offsetX = e.clientX - rect.left;
             const offsetY = e.clientY - rect.top;
 
-            // Create a clone for the drag image
             const clone = target.cloneNode(true) as HTMLElement;
-
-            // Style the clone to be off-screen but visible to the browser's renderer
             clone.style.position = 'absolute';
             clone.style.top = '-9999px';
             clone.style.left = '-9999px';
@@ -170,20 +245,13 @@ export const TrainingRoutinesTab: React.FC = () => {
             clone.style.height = `${rect.height}px`;
             clone.style.zIndex = '1000';
             clone.style.pointerEvents = 'none';
-
-            // Remove transitions and transforms to ensure a static \"snapshot\"
             clone.style.transition = 'none';
             clone.style.transform = 'none';
-
-            // Ensure background is opaque
             clone.classList.add('bg-slate-900');
 
             document.body.appendChild(clone);
-
-            // Set the drag image
             e.dataTransfer.setDragImage(clone, offsetX, offsetY);
 
-            // Clean up
             setTimeout(() => {
                 if (document.body.contains(clone)) {
                     document.body.removeChild(clone);
@@ -192,16 +260,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
     };
 
-    const handleSelectForPlacement = (e: React.MouseEvent, routine: DrillRoutine) => {
-        e.stopPropagation(); // Prevent navigation
-        if (selectedRoutineForPlacement?.id === routine.id) {
-            setSelectedRoutineForPlacement(null); // Deselect
-        } else {
-            setSelectedRoutineForPlacement(routine);
-        }
-    };
-
-    const handleRoutineAdded = (day: string) => {
+    const handleRoutineAdded = (_day: string) => {
         // Optional: Show a toast or feedback
         // We keep the selection active for multiple placements
     };
@@ -248,9 +307,28 @@ export const TrainingRoutinesTab: React.FC = () => {
     }
 
     return (
-        <div className="space-y-8 min-h-screen">
+        <div className="space-y-8 min-h-screen" onClick={() => {
+            setSelectedRoutineForPlacement(null);
+            setSelectedDayForPlacement(null);
+        }}>
+
+            {/* Floating Instruction for Day selection */}
+            {selectedDayForPlacement && (
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-bounce font-bold flex items-center gap-4">
+                    <span>'{selectedDayForPlacement}'요일에 추가할 루틴을 선택하세요!</span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDayForPlacement(null);
+                        }}
+                        className="bg-white/20 hover:bg-white/30 rounded-full p-1"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
             {/* Create Routine Section - MOVED TO TOP */}
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-4 sm:p-6">
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0">
                     <div>
                         <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
@@ -345,7 +423,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                             ) : (
                                 <div key={drill.id} className="relative group">
                                     <Link
-                                        to={`/drills/${drill.id}`}
+                                        to={`/drills/${drill.id}?source=saved`}
                                         className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-slate-800/50 border-slate-800 hover:border-slate-600"
                                     >
                                         {cardContent}
@@ -370,7 +448,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             </section>
 
             {/* My Routines Section */}
-            <section>
+            <section onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <PlaySquare className="w-5 h-5 text-blue-500" />
@@ -382,6 +460,18 @@ export const TrainingRoutinesTab: React.FC = () => {
                             배치할 요일을 선택하세요
                             <button
                                 onClick={() => setSelectedRoutineForPlacement(null)}
+                                className="text-slate-500 hover:text-white underline ml-2"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    )}
+                    {selectedDayForPlacement && (
+                        <div className="text-sm text-purple-400 font-bold animate-pulse flex items-center gap-2">
+                            <MousePointerClick className="w-4 h-4" />
+                            추가할 루틴을 선택하세요
+                            <button
+                                onClick={() => setSelectedDayForPlacement(null)}
                                 className="text-slate-500 hover:text-white underline ml-2"
                             >
                                 취소
@@ -405,7 +495,10 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         key={routine.id}
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, routine)}
-                                        onClick={() => handleRoutineClick(routine)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRoutineClick(routine);
+                                        }}
                                         className={`bg-slate-900 rounded-xl border transition-all cursor-pointer group relative p-4
                                             ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
                                             ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
@@ -439,18 +532,8 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Action Buttons */}
+                                            {/* Action Buttons - Only Delete */}
                                             <div className="flex gap-2 flex-shrink-0">
-                                                <button
-                                                    onClick={(e) => handleSelectForPlacement(e, routine)}
-                                                    className={`p-2 rounded-full transition-all ${isSelected
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'bg-slate-800 text-slate-400 hover:bg-blue-500 hover:text-white'
-                                                        }`}
-                                                    title="주간 계획표에 추가하기"
-                                                >
-                                                    <MousePointerClick className="w-4 h-4" />
-                                                </button>
                                                 <button
                                                     onClick={(e) => handleDeleteRoutine(e, routine.id)}
                                                     className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-all"
@@ -466,7 +549,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                         </div>
 
                         {/* Desktop Card View */}
-                        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {displayedRoutines.map((routine) => {
                                 const isCompleted = completedRoutineIds.has(routine.id);
                                 const isSelected = selectedRoutineForPlacement?.id === routine.id;
@@ -476,41 +559,34 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         key={routine.id}
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, routine)}
-                                        onClick={() => handleRoutineClick(routine)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRoutineClick(routine);
+                                        }}
                                         className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative 
-                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
+                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent shadow-[0_0_15px_rgba(59,130,246,0.5)]' : ''}
                                             ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
                                         `}
                                     >
-                                        {/* Selection and Delete Button Overlay */}
-                                        <div className="absolute top-2 right-2 z-20 flex gap-2">
+
+                                        {/* Top Right Actions (Completed Badge & Delete) */}
+                                        <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
+                                            {isCompleted && (
+                                                <div className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
+                                                    <CalendarCheck className="w-3 h-3" />
+                                                    <span>완료</span>
+                                                </div>
+                                            )}
+
+                                            {/* Delete Button */}
                                             <button
-                                                onClick={(e) => handleSelectForPlacement(e, routine)}
-                                                className={`p-2 rounded-full backdrop-blur-md transition-all ${isSelected
-                                                    ? 'bg-blue-500 text-white shadow-lg scale-110'
-                                                    : 'bg-black/40 text-slate-300 hover:bg-blue-500 hover:text-white'
-                                                    }`}
-                                                title="주간 계획표에 추가하기"
+                                                onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                className="p-1.5 bg-slate-800/80 hover:bg-red-600 text-slate-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm"
+                                                title="루틴 삭제"
                                             >
-                                                <MousePointerClick className="w-4 h-4" />
+                                                <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
-
-                                        {isCompleted && (
-                                            <div className="absolute top-2 left-2 z-10 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                                                <CalendarCheck className="w-3 h-3" />
-                                                오늘 완료
-                                            </div>
-                                        )}
-
-                                        {/* Delete Button - Always visible, turns red on hover */}
-                                        <button
-                                            onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                            className="absolute top-3 left-3 z-20 p-2 bg-slate-800/80 hover:bg-red-600 text-slate-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm"
-                                            title="루틴 삭제"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
 
                                         <div className="aspect-video bg-slate-800 relative">
                                             {routine.thumbnailUrl ? (
@@ -575,6 +651,11 @@ export const TrainingRoutinesTab: React.FC = () => {
             <WeeklyRoutinePlanner
                 selectedRoutine={selectedRoutineForPlacement}
                 onAddToDay={handleRoutineAdded}
+                selectedDay={selectedDayForPlacement}
+                onSelectDay={(day) => {
+                    setSelectedDayForPlacement(day);
+                    setSelectedRoutineForPlacement(null); // Mutually exclusive
+                }}
             />
         </div>
     );
