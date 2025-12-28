@@ -161,7 +161,8 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .select(`
                     *,
                     creator:creators(name, profile_image),
-                    lessons:lessons(count)
+                    lessons:lessons(count),
+                    preview_lessons:lessons(vimeo_url, lesson_number)
                 `)
                 .eq('published', true) // Re-enable published filter
                 .order('created_at', { ascending: false })
@@ -174,11 +175,17 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             throw error;
         }
 
-        return (data || []).map((d: any) => ({
-            ...transformCourse(d),
-            lessonCount: d.lessons?.[0]?.count || 0,
-            creatorProfileImage: d.creator?.profile_image || null
-        }));
+        return (data || []).map((d: any) => {
+            // Find first lesson for preview
+            const firstLesson = d.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+
+            return {
+                ...transformCourse(d),
+                lessonCount: d.lessons?.[0]?.count || 0,
+                creatorProfileImage: d.creator?.profile_image || null,
+                previewVideoUrl: firstLesson?.vimeo_url
+            };
+        });
     } catch (e) {
         console.error('getCourses timeout/fail:', e);
         return [];

@@ -15,6 +15,15 @@ export const ClassShowcase: React.FC = () => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const playerRef = useRef<Player | null>(null);
 
+    const getVimeoId = (url?: string) => {
+        if (!url) return null;
+        // Check if it's just numbers (ID only)
+        if (/^\d+$/.test(url)) return url;
+        // Check standard vimeo url patterns
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : null;
+    };
+
     useEffect(() => {
         fetchFeaturedCourses();
     }, []);
@@ -22,9 +31,14 @@ export const ClassShowcase: React.FC = () => {
     const fetchFeaturedCourses = async () => {
         try {
             const data = await getCourses(20); // Get more to randomize better
-            setCourses(data);
-            if (data.length > 0) {
-                const random = data[Math.floor(Math.random() * data.length)];
+            // Filter courses that have a valid Vimeo ID in their preview URL
+            const validCourses = data.filter(course => {
+                return !!getVimeoId(course.previewVideoUrl);
+            });
+
+            setCourses(validCourses);
+            if (validCourses.length > 0) {
+                const random = validCourses[Math.floor(Math.random() * validCourses.length)];
                 setFeaturedCourse(random);
             }
             setLoading(false);
@@ -44,12 +58,6 @@ export const ClassShowcase: React.FC = () => {
             setShowVideo(false);
             setFeaturedCourse(next);
         }
-    };
-
-    const getVimeoId = (url?: string) => {
-        if (!url) return null;
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
     };
 
     const vimeoId = featuredCourse ? getVimeoId(featuredCourse.previewVideoUrl) : null;
@@ -128,19 +136,19 @@ export const ClassShowcase: React.FC = () => {
                             )
                         )}
 
-                        {/* Content Overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none">
-                            <div className="flex flex-col md:flex-row items-end justify-between gap-6 pointer-events-auto">
+                        {/* Content Overlay - Desktop Only */}
+                        <div className="hidden md:block absolute bottom-0 left-0 right-0 p-12 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none">
+                            <div className="flex flex-row items-end justify-between gap-6 pointer-events-auto">
                                 <div className="text-left flex-1">
                                     <h3
                                         onClick={() => navigate(`/courses/${featuredCourse.id}`)}
-                                        className="text-2xl md:text-3xl lg:text-4xl font-black text-white mb-2 line-clamp-1 cursor-pointer hover:text-blue-400 transition-colors"
+                                        className="text-4xl font-black text-white mb-2 line-clamp-1 cursor-pointer hover:text-blue-400 transition-colors"
                                     >
                                         {featuredCourse.title}
                                     </h3>
                                     <button
                                         onClick={() => navigate(`/creator/${featuredCourse.creatorId}`)}
-                                        className="text-slate-300 text-sm md:text-base font-bold hover:text-white transition-colors"
+                                        className="text-slate-300 font-bold hover:text-white transition-colors"
                                     >
                                         by {featuredCourse.creatorName}
                                     </button>
@@ -157,6 +165,39 @@ export const ClassShowcase: React.FC = () => {
                                         <RefreshCw className="w-5 h-5 text-white" />
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Mobile Refresh Button - Inside Video */}
+                        <div className="md:hidden absolute bottom-4 right-4 z-20 pointer-events-auto">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRandomize();
+                                }}
+                                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center active:scale-95 transition-all text-white"
+                            >
+                                <RefreshCw className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile Content Section - Below Video */}
+                    <div className="md:hidden mt-6 px-2">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 text-left">
+                                <h3
+                                    onClick={() => navigate(`/courses/${featuredCourse.id}`)}
+                                    className="text-2xl font-black text-white mb-2 leading-tight cursor-pointer"
+                                >
+                                    {featuredCourse.title}
+                                </h3>
+                                <button
+                                    onClick={() => navigate(`/creator/${featuredCourse.creatorId}`)}
+                                    className="text-slate-400 text-sm font-bold"
+                                >
+                                    by {featuredCourse.creatorName}
+                                </button>
                             </div>
                         </div>
                     </div>

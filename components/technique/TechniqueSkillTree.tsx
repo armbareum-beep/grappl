@@ -18,7 +18,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
     getLatestUserSkillTree,
     listUserSkillTrees,
@@ -46,6 +46,7 @@ const nodeTypes: NodeTypes = {
 export const TechniqueSkillTree: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -97,14 +98,15 @@ export const TechniqueSkillTree: React.FC = () => {
         setError(null);
 
         try {
-            // 로그인 후 게스트 데이터가 있으면 먼저 복원 (서버 데이터 로드 전)
+            // 로그인 후 게스트 데이터가 있으면 먼저 복원 (저장할 수 있게)
+            // 단, 공유된 트리나 특정 트리를 로드하는 경우는 제외
             if (user && !treeId && !skipGuestCheck) {
                 const guestData = localStorage.getItem('guest_skill_tree');
                 if (guestData) {
                     try {
                         const parsed = JSON.parse(guestData);
                         if (parsed.nodes && parsed.nodes.length > 0) {
-                            // 게스트 데이터가 있으면 서버 데이터를 로드하지 않고 게스트 데이터 사용
+                            // 게스트 데이터가 있으면 먼저 복원 (사용자가 저장할 수 있게)
                             // 먼저 lessons와 drills를 로드해야 함
                             const [lessons, drills] = await Promise.all([
                                 getLessons(300).then(res => res),
@@ -157,14 +159,16 @@ export const TechniqueSkillTree: React.FC = () => {
                             setNodes(flowNodes);
                             setEdges(flowEdges);
                             setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
+                            setCurrentTreeId(null); // 게스트 데이터는 아직 저장되지 않음
                             setIsReadOnly(false);
                             setLoading(false);
                             // 게스트 데이터는 유지 (사용자가 저장할 때까지)
+                            // 저장 후에는 localStorage에서 제거됨
                             return;
                         }
                     } catch (e) {
                         console.error('Error loading guest skill tree:', e);
-                        // 에러 발생 시 계속 진행
+                        // 에러 발생 시 계속 진행하여 서버 데이터 로드
                     }
                 }
             }
@@ -179,6 +183,23 @@ export const TechniqueSkillTree: React.FC = () => {
             setAllDrills(drills);
 
             // 2. Fetch Tree & User Data
+            // 로그인 후 게스트 데이터가 있으면 서버 데이터를 로드하지 않음
+            if (user && !treeId && !skipGuestCheck) {
+                const guestData = localStorage.getItem('guest_skill_tree');
+                if (guestData) {
+                    try {
+                        const parsed = JSON.parse(guestData);
+                        if (parsed.nodes && parsed.nodes.length > 0) {
+                            // 게스트 데이터가 있으면 서버 데이터를 로드하지 않음
+                            // 이미 위에서 게스트 데이터를 복원했으므로 여기서는 return
+                            return;
+                        }
+                    } catch (e) {
+                        // 파싱 에러 시 계속 진행
+                    }
+                }
+            }
+
             let treeRes = { data: null };
             let skills: UserSkill[] = [];
             let masteryRes: UserTechniqueMastery[] = [];
@@ -193,13 +214,14 @@ export const TechniqueSkillTree: React.FC = () => {
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
-
+                
                 // 공유된 트리를 찾을 수 없으면 에러 표시
                 if (!treeRes.data && (tr as any).error) {
                     throw new Error(`공유된 스킬 트리를 찾을 수 없습니다. 링크가 올바른지 확인해주세요.`);
                 }
             } else if (user) {
                 // Case B: Logged-in User default view (Latest Tree)
+                // 단, 게스트 데이터가 있으면 로드하지 않음 (이미 위에서 체크)
                 const [tr, userSkillsRes, mastery] = await Promise.all([
                     getLatestUserSkillTree(user.id),
                     getUserSkills(user.id).then(res => res),
@@ -441,7 +463,30 @@ export const TechniqueSkillTree: React.FC = () => {
 
     useEffect(() => {
         const sharedTreeId = searchParams.get('id');
-        loadData(sharedTreeId || undefined);
+        // 공유된 트리가 있으면 항상 로드
+        if (sharedTreeId) {
+            loadData(sharedTreeId);
+            return;
+        }
+        // 로그인 후 게스트 데이터가 있으면 서버 데이터를 로드하지 않음
+        if (user) {
+            const guestData = localStorage.getItem('guest_skill_tree');
+            if (guestData) {
+                try {
+                    const parsed = JSON.parse(guestData);
+                    if (parsed.nodes && parsed.nodes.length > 0) {
+                        // 게스트 데이터가 있으면 서버 데이터를 로드하지 않음
+                        // loadData는 게스트 데이터를 복원할 것이므로 호출
+                        loadData(undefined);
+                        return;
+                    }
+                } catch (e) {
+                    // 파싱 에러 시 계속 진행
+                }
+            }
+        }
+        // 일반적인 경우: 서버 데이터 로드
+        loadData(undefined);
     }, [user, searchParams, loadData]);
 
     const loadTreeList = async () => {
@@ -796,7 +841,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     // Save tree
     // Save tree logic
-    const executeSave = async (titleToUse: string) => {
+    const executeSave = async (titleToUse: string): Promise<boolean> => {
         setSaving(true);
         try {
             const skillTreeNodes: SkillTreeNode[] = nodes
@@ -835,7 +880,11 @@ export const TechniqueSkillTree: React.FC = () => {
             setCurrentTreeTitle(titleToUse);
             setIsSaveModalOpen(false);
 
+            // 저장 성공 시 게스트 데이터 제거 (서버에 저장되었으므로)
+            localStorage.removeItem('guest_skill_tree');
+
             // Optional: Success toast could go here
+            return true;
         } catch (error) {
             console.error('Error saving skill tree:', error);
             setAlertConfig({
@@ -843,6 +892,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 message: '저장 중 오류가 발생했습니다. 다시 시도해주세요.',
                 confirmText: '확인'
             });
+            return false;
         } finally {
             setSaving(false);
         }
@@ -855,7 +905,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 message: '게스트 모드에서는 저장할 수 없습니다.\n로그인 페이지로 이동하시겠습니까?',
                 confirmText: '로그인',
                 cancelText: '취소',
-                onConfirm: () => navigate('/login')
+                onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
             });
             return;
         }
@@ -1017,7 +1067,30 @@ export const TechniqueSkillTree: React.FC = () => {
 
                         {/* Share */}
                         <button
-                            onClick={() => setIsShareModalOpen(true)}
+                            onClick={async () => {
+                                // 공유 전에 저장되지 않은 트리가 있으면 먼저 저장
+                                if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
+                                    if (!user) {
+                                        setAlertConfig({
+                                            title: '로그인 필요',
+                                            message: '공유하려면 먼저 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?',
+                                            confirmText: '로그인',
+                                            cancelText: '취소',
+                                            onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
+                                        });
+                                        return;
+                                    }
+                                    // 자동 저장
+                                    const titleToUse = currentTreeTitle || '나의 스킬 트리';
+                                    const saved = await executeSave(titleToUse);
+                                    // 저장 성공 시에만 모달 열기
+                                    if (saved && currentTreeId) {
+                                        setIsShareModalOpen(true);
+                                    }
+                                } else {
+                                    setIsShareModalOpen(true);
+                                }
+                            }}
                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
                         >
                             <Share2 className="w-4 h-4" />

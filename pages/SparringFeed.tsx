@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, BookOpen, ArrowLeft } from 'lucide-react';
+import { Heart, Share2, BookOpen, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -358,61 +358,67 @@ const VideoItem: React.FC<{
                 </div>
 
                 {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
+                {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
                 <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-4 pointer-events-none">
-                    {/* Related Technique Link (The "Hook") */}
-                    {video.relatedItems && video.relatedItems.length > 0 && (
-                        <div className="w-full max-w-md pointer-events-auto mb-2">
-                            <div className="flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap pb-1 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                {video.relatedItems.map((item, idx) => (
-                                    <Link
-                                        key={idx}
-                                        to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/20 transition-all group whitespace-nowrap shrink-0"
-                                    >
-                                        <div className="bg-blue-600 p-1 rounded-full group-hover:bg-blue-500 transition-colors">
-                                            <BookOpen className="w-3 h-3 text-white" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-blue-300 font-bold leading-none">이 기술 배우기</span>
-                                            <span className="text-xs font-semibold text-white leading-none mt-0.5">{item.title}</span>
-                                        </div>
-                                        <div className="w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100">
-                                            <ArrowLeft className="w-3 h-3 rotate-180" />
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                     {/* Metadata */}
                     <div className="max-w-[85%] pointer-events-auto">
+
+                        {/* 1. Creator Info & Follow (Drill Reels Style) */}
+                        {video.creator && (
+                            <div className="flex flex-row items-center gap-2 mb-2">
+                                <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                    <span className="font-bold text-[15px] text-shadow-sm">{video.creator.name}</span>
+                                </Link>
+                                <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+                                    className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowed
+                                        ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
+                                        : 'bg-transparent text-white border-white/40 hover:bg-white/10'
+                                        }`}
+                                >
+                                    {isFollowed ? '팔로잉' : '팔로우'}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 2. Title */}
                         <div className="flex flex-wrap items-center gap-3 mb-2">
                             <h3 className="font-bold text-lg leading-tight text-shadow-sm line-clamp-2">{video.title}</h3>
-
-                            {video.creator && (
-                                <div className="flex flex-row items-center gap-2 flex-nowrap shrink-0">
-                                    <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
-                                        <img
-                                            src={video.creator.profileImage || 'https://via.placeholder.com/40'}
-                                            alt={video.creator.name}
-                                            className="w-6 h-6 rounded-full border border-white/20 object-cover flex-shrink-0"
-                                        />
-                                        <span className="font-bold text-sm text-shadow-sm truncate max-w-[100px]">{video.creator.name}</span>
-                                    </Link>
-                                    <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5 flex-shrink-0">•</span>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-                                        className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all active:scale-95 flex-shrink-0 ${isFollowed
-                                            ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
-                                            : 'bg-transparent text-white border-white/40 hover:bg-white/10'
-                                            }`}
-                                    >
-                                        {isFollowed ? '팔로잉' : '팔로우'}
-                                    </button>
-                                </div>
-                            )}
                         </div>
+
+                        {/* 3. Related Technique Link (YouTube Product Style) - Moved Below Title */}
+                        {video.relatedItems && video.relatedItems.length > 0 && (
+                            <div className="w-full max-w-md pointer-events-auto mt-2 mb-3">
+                                <div className="flex gap-3 overflow-x-auto md:overflow-visible md:flex-wrap pb-1 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                    {video.relatedItems.map((item, idx) => (
+                                        <Link
+                                            key={idx}
+                                            to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
+                                            className="flex items-center gap-3 bg-zinc-900/90 backdrop-blur-md rounded-lg p-3 hover:bg-zinc-800 transition-all group shrink-0 min-w-[200px] border border-white/5"
+                                        >
+                                            {/* Thumbnail / Icon Placeholder */}
+                                            <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/30 transition-colors">
+                                                <BookOpen className="w-5 h-5 text-blue-400" />
+                                            </div>
+
+                                            {/* Text Content */}
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] text-zinc-400 font-medium mb-0.5">이 기술 배우기</span>
+                                                <span className="text-[13px] font-bold text-white truncate group-hover:text-blue-400 transition-colors">
+                                                    {item.title}
+                                                </span>
+                                                <div className="flex items-center text-[10px] text-zinc-500 mt-0.5">
+                                                    <span>자세히 보기</span>
+                                                    <ChevronRight className="w-3 h-3 ml-0.5" />
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <p className="text-sm text-white/80 line-clamp-2 text-shadow-sm">{video.description}</p>
                     </div>
