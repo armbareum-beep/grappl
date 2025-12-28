@@ -251,10 +251,7 @@ const VideoItem: React.FC<{
                 <div className="relative w-full h-full">
                     {renderVideoContent()}
 
-                    {/* CLICK OVERLAY FIX: Explicit layer for click-to-pause (actually mute toggle here as per req?)
-                    The user complained about "pause" but the current code calls toggleMute on click.
-                    I'll keep it as toggleMute unless requested otherwise, but ensure it covers everything.
-                */}
+                    {/* CLICK OVERLAY FIX: Explicit layer for click-to-pause (actually mute toggle here as per req?) */}
                     <div
                         className="absolute inset-0 z-10"
                         onClick={toggleMute}
@@ -357,16 +354,15 @@ const VideoItem: React.FC<{
                     </button>
                 </div>
 
-                {/* Bottom Info Area - FIX: pointer-events-none on container, auto on children */}
                 {/* Bottom Info Area */}
                 <div className="absolute left-0 right-0 bottom-0 p-4 pb-20 sm:pb-8 z-20 text-white flex flex-col items-start gap-1 pointer-events-none">
 
                     {/* Metadata Container */}
                     <div className="w-full pointer-events-auto">
 
-                        {/* 1. Creator Info & Follow (Drill Reels Style) */}
+                        {/* 1. Creator Info & Follow */}
                         {video.creator && (
-                            <div className="flex flex-row items-center gap-2 mb-1">
+                            <div className="flex flex-row items-center gap-2 mb-2">
                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                                     <span className="font-bold text-[15px] text-shadow-sm">{video.creator.name}</span>
                                 </Link>
@@ -384,34 +380,34 @@ const VideoItem: React.FC<{
                         )}
 
                         {/* 2. Title */}
-                        <div className="mb-3">
-                            <h3 className="font-bold text-lg leading-tight text-shadow-sm line-clamp-2">{video.title}</h3>
+                        <div className="mb-4">
+                            <h3 className="font-black text-xl leading-tight text-shadow-md line-clamp-2">{video.title}</h3>
                         </div>
 
-                        {/* 3. Related Technique Link (YouTube Product Style - Horizontal Scroll) */}
+                        {/* 3. Related Technique Link (Refined) */}
                         {video.relatedItems && video.relatedItems.length > 0 && (
-                            <div className="w-full pointer-events-auto mb-3">
-                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 -mx-4 px-4 scrollbar-hide">
+                            <div className="w-full pointer-events-auto mb-4">
+                                <div className="flex flex-row gap-2.5 overflow-x-auto flex-nowrap pb-2 -mx-4 px-4 scrollbar-hide snap-x">
                                     {video.relatedItems.map((item, idx) => (
                                         <Link
                                             key={idx}
                                             to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                            className="flex items-center gap-3 bg-zinc-900/95 backdrop-blur-md rounded-lg p-3 hover:bg-zinc-800 transition-all group shrink-0 w-[260px] border border-white/10 active:scale-95"
+                                            className="snap-start flex items-center gap-2.5 bg-zinc-900/80 backdrop-blur-md rounded-lg p-2.5 hover:bg-zinc-800 transition-all group shrink-0 w-[210px] border border-white/10 active:scale-95 shadow-lg"
                                         >
-                                            {/* Icon Placeholder */}
-                                            <div className="w-10 h-10 rounded-md bg-zinc-800/80 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/30 transition-colors">
-                                                <BookOpen className="w-5 h-5 text-blue-400" />
+                                            {/* Minimal Icon Box */}
+                                            <div className="w-9 h-9 rounded-md bg-black/40 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/50 transition-colors">
+                                                <BookOpen className="w-5 h-5 text-blue-400 group-hover:text-blue-300" />
                                             </div>
 
-                                            {/* Text Content */}
-                                            <div className="flex flex-col flex-1 min-w-0">
-                                                <span className="text-[10px] text-zinc-400 font-medium mb-0.5 flex items-center gap-1">
-                                                    이 기술 배우기 <ChevronRight className="w-3 h-3 opacity-50" />
-                                                </span>
-                                                <span className="text-[14px] font-bold text-white truncate leading-tight group-hover:text-blue-400 transition-colors">
+                                            {/* Concise Text */}
+                                            <div className="flex flex-col flex-1 min-w-0 justify-center">
+                                                <span className="text-[9px] text-zinc-500 font-bold mb-0.5 tracking-wider uppercase">Learn This</span>
+                                                <span className="text-[13px] font-bold text-white truncate leading-tight group-hover:text-blue-400 transition-colors">
                                                     {item.title}
                                                 </span>
                                             </div>
+
+                                            <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
                                         </Link>
                                     ))}
                                 </div>
@@ -419,7 +415,6 @@ const VideoItem: React.FC<{
                         )}
 
                         <p className="text-sm text-white/80 line-clamp-1 text-shadow-sm opacity-80" onClick={(e) => {
-                            // Expand description logic could go here
                             e.stopPropagation();
                         }}>{video.description}</p>
                     </div>

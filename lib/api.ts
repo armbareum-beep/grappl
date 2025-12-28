@@ -4017,24 +4017,73 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
 }
 
 export async function getSparringVideos(limit = 10, creatorId?: string) {
-    let query = supabase
-        .from('sparring_videos')
-        .select('id, creator_id, title, description, video_url, thumbnail_url, related_items, views, likes, created_at')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+    try {
+        let query = supabase
+            .from('sparring_videos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
 
-    if (creatorId) {
-        query = query.eq('creator_id', creatorId);
+        if (creatorId) {
+            query = query.eq('creator_id', creatorId);
+        }
+
+        const { data: videos, error } = await query;
+
+        if (error) {
+            console.error('Error fetching sparring videos:', error);
+            return { data: null, error };
+        }
+
+        if (!videos || videos.length === 0) return { data: [], error: null };
+
+        // Extract creator IDs for manual fetch
+        const creatorIds = Array.from(new Set(videos.map(v => v.creator_id).filter(Boolean)));
+
+        // Fetch creator details from 'users' table
+        let userMap: Record<string, any> = {};
+        if (creatorIds.length > 0) {
+            const { data: users } = await supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .in('id', creatorIds);
+
+            if (users) {
+                users.forEach(u => {
+                    userMap[u.id] = u;
+                });
+            }
+        }
+
+        // Map creator info to videos
+        const mappedVideos = videos.map(v => {
+            const creator = userMap[v.creator_id];
+            return {
+                id: v.id,
+                creatorId: v.creator_id,
+                title: v.title,
+                description: v.description,
+                videoUrl: v.video_url,
+                thumbnailUrl: v.thumbnail_url,
+                relatedItems: v.related_items || [],
+                views: v.views,
+                likes: v.likes,
+                creator: creator ? {
+                    id: creator.id,
+                    name: creator.name || 'Unknown',
+                    profileImage: creator.avatar_url,
+                    bio: '',
+                    subscriberCount: 0
+                } : undefined,
+                createdAt: v.created_at,
+            };
+        });
+
+        return { data: mappedVideos, error: null };
+    } catch (e) {
+        console.error('getSparringVideos failed:', e);
+        return { data: [], error: e };
     }
-
-    const { data, error } = await query;
-
-    if (error) {
-        console.error('Error fetching sparring videos:', error);
-        return { data: null, error };
-    }
-
-    return { data: (data || []).map(transformSparringVideo), error: null };
 }
 
 export async function deleteSparringVideo(id: string) {
@@ -4629,10 +4678,7 @@ export async function getRoutineByDrillId(drillId: string): Promise<{ data: Dril
             .from('routine_drills')
             .select(`
                 routine_id,
-                routines (
-                    *,
-                    creator:users(*)
-                )
+                routines (*)
             `)
             .eq('drill_id', drillId)
             .limit(1);
