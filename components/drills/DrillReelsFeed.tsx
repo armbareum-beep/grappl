@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
-import { Grid } from 'lucide-react';
+import { Grid, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
@@ -167,20 +167,35 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     return (
         <div
             ref={containerRef}
-            className="relative h-[calc(100vh-128px)] md:h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-128px)] md:supports-[height:100dvh]:h-[calc(100dvh-64px)] w-full bg-black overflow-hidden overscroll-y-none touch-none"
+            className="fixed inset-0 z-50 w-full bg-black overflow-hidden overscroll-y-none touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
         >
             {/* Top Bar Navigation */}
             <div className="absolute top-0 left-0 right-0 z-50 p-6 pointer-events-none">
-                <div className="max-w-7xl mx-auto flex justify-end">
+                <div className="max-w-[56.25vh] mx-auto flex justify-between items-start pointer-events-none">
                     <button
-                        onClick={onChangeView}
-                        className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-white/20 transition-all"
+                        onClick={() => navigate(-1)}
+                        className="pointer-events-auto p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
                     >
-                        <Grid className="w-4 h-4" />
-                        <span className="text-sm font-medium">그리드 뷰</span>
+                        <ArrowLeft className="w-6 h-6" />
                     </button>
+
+                    <div className="flex flex-col items-end gap-3 pointer-events-auto">
+                        <button
+                            onClick={() => setIsMuted(prev => !prev)}
+                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                        >
+                            {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </button>
+
+                        <button
+                            onClick={onChangeView}
+                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                        >
+                            <Grid className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
             </div>
 

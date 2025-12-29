@@ -74,7 +74,7 @@ export function RandomSparringShowcase() {
                             기술이 실전에서 어떻게 통하는지 직접 볼 수 있습니다.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                             <button
                                 className="group bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                                 onClick={() => navigate(`/sparring?id=${video.id}`)}
@@ -120,6 +120,25 @@ export function RandomSparringShowcase() {
 
                         {/* Decorative Elements */}
                         <div className="absolute -z-10 -bottom-6 -right-6 w-32 h-32 bg-stripe-pattern opacity-10"></div>
+                    </div>
+
+                    {/* Mobile Buttons Section (Order 3) */}
+                    <div className="w-full flex lg:hidden flex-col sm:flex-row gap-4 justify-center order-3">
+                        <button
+                            className="group bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                            onClick={() => navigate(`/sparring?id=${video.id}`)}
+                        >
+                            <PlayCircle className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                            <span>이 스파링 전체 보기</span>
+                        </button>
+
+                        <button
+                            className="px-8 py-4 rounded-xl font-bold text-lg text-slate-400 hover:text-white border border-slate-800 hover:border-slate-600 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                            onClick={() => navigate('/sparring')}
+                        >
+                            <span>더 많은 스파링</span>
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
                     </div>
 
                 </div>

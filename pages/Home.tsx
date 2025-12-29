@@ -342,46 +342,7 @@ export const Home: React.FC = () => {
           스파링 복기 & AI 분석
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Recent Review (Journal Style) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-4 shadow-lg shadow-black/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">최근 스파링 기록</h3>
-                  <p className="text-xs text-slate-500">{myLogs.length > 0 ? '지난 수련 내용 복습' : '기록이 없습니다'}</p>
-                </div>
-              </div>
-              {myLogs.length > 0 && <span className="text-xs text-slate-500">{new Date(myLogs[0].date).toLocaleDateString()}</span>}
-            </div>
-
-            {myLogs.length > 0 ? (
-              <div className="bg-slate-950/80 rounded-lg p-4 border border-slate-800">
-                <div className="flex gap-2 mb-2">
-                  {((myLogs[0] as any).tags || ['스파링', '오픈매트']).slice(0, 2).map((tag: string) => (
-                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">#{tag}</span>
-                  ))}
-                </div>
-                <p className="text-sm text-slate-300 line-clamp-2 mb-3">"{myLogs[0].notes || '내용이 없습니다.'}"</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span className="flex items-center gap-1">⏱️ {myLogs[0].durationMinutes || 5}분</span>
-                  <span className="flex items-center gap-1">🥋 스파링</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed flex items-center justify-center p-4">
-                <p className="text-sm text-slate-500">아직 작성된 스파링 복기가 없습니다.</p>
-              </div>
-            )}
-
-            <Button onClick={() => navigate('/arena?tab=sparring')} variant="outline" className="w-full hover:bg-slate-800 border-slate-700">
-              작성하러 가기
-            </Button>
-          </div>
-
+        <div className="flex flex-col gap-4">
           {/* AI Coach Analysis Widget */}
           <AICoachWidget logs={myLogs} />
         </div>

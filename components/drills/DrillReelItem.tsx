@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, MoreVertical, Play, Volume2, VolumeX, ListVideo } from 'lucide-react';
+import { Heart, Bookmark, Share2, Play, ListVideo, Zap, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DrillReelItemProps {
@@ -24,7 +24,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     drill,
     isActive,
     isMuted,
-    onToggleMute,
     isLiked,
     onLike,
     likeCount,
@@ -260,13 +259,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
                             </button>
 
-                            {/* Mute */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
-                            >
-                                {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
-                            </button>
+
 
                             {/* Share */}
                             <button
@@ -281,20 +274,24 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
                 {/* Video Type Toggles (Top Left) - Only show if active */}
                 {isActive && (
-                    <div className="absolute top-6 left-6 z-40 flex pointer-events-none">
-                        <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'main' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                            >
-                                동작
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}
-                            >
-                                설명
-                            </button>
+                    <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
+                        <div className="max-w-[56.25vh] mx-auto relative">
+                            <div className="absolute top-14 left-0 flex pointer-events-auto">
+                                <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto border border-white/10">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
+                                        className={`p-2 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                    >
+                                        <Zap className="w-6 h-6" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
+                                        className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                    >
+                                        <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -380,13 +377,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
                             </button>
 
-                            {/* Mute */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
-                                className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
-                            >
-                                {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
-                            </button>
+
 
                             {/* Share */}
                             <button

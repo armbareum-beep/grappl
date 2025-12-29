@@ -5,7 +5,7 @@ import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Heart, Bookmark, Share2, Volume2, VolumeX, List, X } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, Eye, CheckCircle, PlayCircle, CalendarCheck } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import ShareModal from '../components/social/ShareModal';
@@ -791,11 +791,43 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     // ... existing logic ...
 
     return (
-        <div className="h-[calc(100dvh-64px)] bg-black overflow-hidden relative">
+        <div className="fixed inset-0 z-50 bg-black overflow-hidden">
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-30 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+                <div className="max-w-[56.25vh] md:max-w-none mx-auto flex justify-between items-start">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="pointer-events-auto p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
             {/* ========================================================================================= */}
             {/* MOBILE VIEW (TikTok Style) */}
             {/* ========================================================================================= */}
             <div className="md:hidden w-full h-full relative">
+                {/* Mobile Video Type Toggle (Icon Capsule) */}
+                <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
+                    <div className="max-w-[56.25vh] mx-auto relative">
+                        <div className="absolute top-14 left-0 flex pointer-events-auto">
+                            <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto border border-white/10">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setVideoType('main'); }}
+                                    className={`p-2 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                >
+                                    <Zap className="w-6 h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setVideoType('description'); }}
+                                    className={`p-2 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                >
+                                    <MessageCircle className="w-6 h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {/* 1. Full Screen Video Layer */}
                 <div className="absolute inset-0 z-0 bg-black">
                     {hasValidVideoUrl ? (
@@ -840,21 +872,20 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                 {/* 2. Top Controls */}
                 <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
                     {/* Close / Back */}
-                    <button onClick={() => navigate(-1)} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white">
-                        <VolumeX className="w-6 h-6" />
-                    </button>
+                    {/* Close / Back - Removed duplicate, using global header now */}
+                    <div />
 
                     {/* Right Side: List & Options */}
                     <div className="flex flex-col gap-4">
+                        {/* Mute Toggle */}
+                        <button onClick={toggleMute} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white">
+                            {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </button>
                         <button
                             onClick={() => setShowMobileList(true)}
                             className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white"
                         >
                             <List className="w-6 h-6" />
-                        </button>
-                        {/* Mute Toggle */}
-                        <button onClick={toggleMute} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white">
-                            {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                         </button>
                     </div>
                 </div>
@@ -895,6 +926,12 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                     <Bookmark className={`w-6 h-6 ${savedDrills.has(currentDrill?.id || '') ? 'fill-current' : ''}`} />
                                 </div>
                                 <span className="text-xs text-white font-medium">저장</span>
+                            </button>
+                            <button onClick={() => setShowShareModal(true)} className="flex flex-col items-center gap-1">
+                                <div className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white">
+                                    <Share2 className="w-6 h-6" />
+                                </div>
+                                <span className="text-xs text-white font-medium">공유</span>
                             </button>
                         </div>
                     </div>
@@ -983,7 +1020,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                         <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 max-h-full">
                             {/* Video Type Toggle */}
                             {isPlayable && !isTrainingMode && (
-                                <div className="absolute top-6 left-6 z-30 flex gap-2">
+                                <div className="absolute top-16 left-6 z-30 flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full border border-white/10">
                                     <button
                                         onClick={() => {
                                             setVideoType('main');
@@ -995,12 +1032,12 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                                 }
                                             }, 100);
                                         }}
-                                        className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'main'
-                                            ? 'bg-white text-black'
-                                            : 'bg-black/40 text-white hover:bg-black/60'
+                                        className={`p-2 rounded-full transition-all ${videoType === 'main'
+                                            ? 'bg-white text-black shadow-sm'
+                                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
-                                        동작
+                                        <Zap className="w-6 h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
                                     </button>
                                     <button
                                         onClick={() => {
@@ -1013,12 +1050,24 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                                                 }
                                             }, 100);
                                         }}
-                                        className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'description'
-                                            ? 'bg-white text-black'
-                                            : 'bg-black/40 text-white hover:bg-black/60'
+                                        className={`p-2 rounded-full transition-all ${videoType === 'description'
+                                            ? 'bg-white text-black shadow-sm'
+                                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
-                                        설명
+                                        <MessageCircle className="w-6 h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Mute Button (Desktop Top Right) */}
+                            {isPlayable && !isTrainingMode && (
+                                <div className="absolute top-16 right-6 z-30 pointer-events-auto">
+                                    <button
+                                        onClick={toggleMute}
+                                        className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all border border-white/10"
+                                    >
+                                        {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                                     </button>
                                 </div>
                             )}
@@ -1175,13 +1224,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
 
 
-                                    {/* Mute */}
-                                    <button
-                                        onClick={toggleMute}
-                                        className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                                    >
-                                        {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
-                                    </button>
+
 
                                     {/* Share */}
                                     <button
@@ -1487,6 +1530,6 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

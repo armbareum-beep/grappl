@@ -19,15 +19,27 @@ export const Drills: React.FC = () => {
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'reels' | 'grid'>('reels'); // Default to reels for immersive experience
+    const [viewMode, setViewMode] = useState<'reels' | 'grid'>((searchParams.get('view') as 'reels' | 'grid') || 'reels'); // Default to reels for immersive experience
     const [initialReelIndex, setInitialReelIndex] = useState(0);
 
     useEffect(() => {
         loadDrills();
         if (searchTerm) {
             setViewMode('grid'); // Force grid view when searching
+            setSearchParams(prev => { prev.set('view', 'grid'); return prev; });
         }
     }, [searchTerm]);
+
+    const handleViewChange = (mode: 'reels' | 'grid') => {
+        setViewMode(mode);
+        setSearchParams(prev => {
+            if (mode === 'grid') prev.set('view', 'grid');
+            else prev.delete('view');
+            return prev;
+        });
+    };
+
+    // ... (loadDrills stays same)
 
     const loadDrills = async () => {
         try {
@@ -99,7 +111,7 @@ export const Drills: React.FC = () => {
 
     // Reels mode - fullscreen immersive
     if (viewMode === 'reels' && !searchTerm) {
-        return <DrillReelsFeed drills={drills} initialIndex={initialReelIndex} onChangeView={() => setViewMode('grid')} />;
+        return <DrillReelsFeed drills={drills} initialIndex={initialReelIndex} onChangeView={() => handleViewChange('grid')} />;
     }
 
     // Grid mode - clean drill display
@@ -115,7 +127,7 @@ export const Drills: React.FC = () => {
                             <button
                                 onClick={() => {
                                     setSearchParams({});
-                                    setViewMode('reels');
+                                    handleViewChange('reels');
                                 }}
                                 className="text-sm text-slate-400 hover:text-white flex items-center gap-1 bg-slate-900 px-3 py-1 rounded-full border border-slate-800"
                             >
@@ -127,7 +139,7 @@ export const Drills: React.FC = () => {
 
                     {!searchTerm && (
                         <button
-                            onClick={() => setViewMode('reels')}
+                            onClick={() => handleViewChange('reels')}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/25"
                         >
                             <PlaySquare className="w-4 h-4" />
@@ -151,7 +163,7 @@ export const Drills: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                         {drills.map((drill, index) => (
                             <div
                                 key={drill.id}
@@ -167,7 +179,7 @@ export const Drills: React.FC = () => {
                                         setSearchParams({});
                                     }
 
-                                    setViewMode('reels');
+                                    handleViewChange('reels');
                                 }}
                             >
                                 <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />

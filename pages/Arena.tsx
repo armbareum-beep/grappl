@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
-import { TechniqueSkillTree } from '../components/technique/TechniqueSkillTree';
+import { TechniqueRoadmapDashboard } from '../components/technique/TechniqueRoadmapDashboard';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
 import { TrainingRoutinesTab } from '../components/arena/TrainingRoutinesTab';
@@ -126,9 +126,9 @@ export const Arena: React.FC = () => {
             {/* Main Content Area - Full height minus tabs */}
             <div className="flex-1 overflow-hidden relative bg-slate-950">
                 {activeTab === 'skills' ? (
-                    // Skills: No scroll, full height
+                    // Skills: No scroll, full height (TechniqueRoadmapDashboard handles full screen fixed positioning)
                     <div className="w-full h-full">
-                        <TechniqueSkillTree />
+                        <TechniqueRoadmapDashboard />
                     </div>
                 ) : (
                     // Others: Scrollable content

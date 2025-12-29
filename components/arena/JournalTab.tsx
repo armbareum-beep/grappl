@@ -1,18 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getTrainingLogs, getSparringReviews, createTrainingLog, updateTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP, createSparringReview } from '../../lib/api';
+import { getTrainingLogs, getSparringReviews, createTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP, createSparringReview } from '../../lib/api';
 import { TrainingLog, SparringReview } from '../../types';
 import { Button } from '../Button';
-import { Plus, Calendar, Flame, Clock, Swords, Trash2, Edit2, Video, ChevronRight, X, User, Trophy, Activity } from 'lucide-react';
+import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { QuestCompleteModal } from '../QuestCompleteModal';
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { ErrorScreen } from '../ErrorScreen';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
-import { AICoachWidget } from '../journal/AICoachWidget';
+import { TrainingTrendsChart } from './TrainingTrendsChart';
 
 type TimelineItem =
     | { type: 'log'; data: TrainingLog }
@@ -30,11 +29,11 @@ type SparringEntry = {
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
     const { success, error: toastError } = useToast();
-    const navigate = useNavigate();
+    // const navigate = useNavigate(); // Unused
 
     const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // const [error, setError] = useState<string | null>(null); // Unused
 
     // Form State
     const [isCreating, setIsCreating] = useState(false);
@@ -63,16 +62,17 @@ export const JournalTab: React.FC = () => {
     // Tech Tag Modal State
     const [showTechModal, setShowTechModal] = useState(false);
 
-    const [editingItem, setEditingItem] = useState<TimelineItem | null>(null);
-
     // Filter & UI State
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [showAllLogs, setShowAllLogs] = useState(false);
+    const [showAllLogs] = useState(false); // Removed setter as it was unused
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Reward State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
     const [questCompleteData, setQuestCompleteData] = useState<any>(null);
+
+    // Chart Metric State
+    const [selectedMetric, setSelectedMetric] = useState<'count' | 'duration' | 'rounds'>('count');
 
     useEffect(() => {
         if (user) loadData();
@@ -109,7 +109,8 @@ export const JournalTab: React.FC = () => {
             items.sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime());
             setTimelineItems(items);
         } catch (err: any) {
-            setError(err.message || 'Error loading data');
+            console.error(err);
+            // setError(err.message || 'Error loading data');
         } finally {
             setLoading(false);
         }
@@ -125,7 +126,7 @@ export const JournalTab: React.FC = () => {
             location: '',
             sparringEntries: []
         });
-        setEditingItem(null);
+        // setEditingItem(null);
         setIsCreating(true);
     };
 
@@ -288,51 +289,97 @@ export const JournalTab: React.FC = () => {
     const displayedItems = showAllLogs ? filteredItems : filteredItems.slice(0, 10);
 
     // Stats
-    // Stats
     const safeItems = timelineItems || [];
-    const thisMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === new Date().getMonth());
-    const totalDuration = safeItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : ((item.data.rounds || 0) * 5)), 0);
-    const totalRounds = safeItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const lastMonth = subDays(new Date(now.getFullYear(), now.getMonth(), 1), 1).getMonth(); // Handle Jan -> Dec
+
+    // This Month Stats
+    const thisMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === thisMonth);
+    const thisMonthDuration = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
+    const thisMonthRounds = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+
+    // Last Month Stats
+    const lastMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === lastMonth);
+    const lastMonthDuration = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
+    const lastMonthRounds = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+
+    // Trend Helper
+    const getTrend = (current: number, previous: number) => {
+        if (previous === 0) return { value: current > 0 ? 100 : 0, direction: 'up' };
+        const percent = ((current - previous) / previous) * 100;
+        return {
+            value: Math.abs(Math.round(percent)),
+            direction: percent > 0 ? 'up' : percent < 0 ? 'down' : 'neutral'
+        };
+    };
+
+    const countTrend = getTrend(thisMonthItems.length, lastMonthItems.length);
+    const durationTrend = getTrend(thisMonthDuration, lastMonthDuration);
+    const roundsTrend = getTrend(thisMonthRounds, lastMonthRounds);
+
+    const TrendBadge = ({ trend }: { trend: { value: number, direction: string } }) => {
+        const isUp = trend.direction === 'up';
+        const isNeutral = trend.direction === 'neutral';
+        return (
+            <div className={`absolute top-4 right-4 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${isNeutral ? 'bg-slate-800 text-slate-400 border-slate-700' :
+                isUp ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                    'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                }`}>
+                {isNeutral ? <Minus className="w-3 h-3" /> : isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {trend.value}%
+            </div>
+        );
+    };
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20">
             {/* AI Coach Widget */}
-            <AICoachWidget
-                logs={timelineItems.filter(item => item.type === 'log').map(item => item.data as TrainingLog)}
-                autoRun={false}
-                isLocked={false}
-            />
+            {/* Training Trends Chart */}
+            <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
 
             {/* Stats */}
-            {/* Stats */}
+            {/* Stats - Interactive Tabs from Plan */}
             <div className="grid grid-cols-3 gap-3 md:gap-4">
-                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+                <div
+                    onClick={() => setSelectedMetric('count')}
+                    className={`bg-slate-900/50 p-4 rounded-2xl border flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer ${selectedMetric === 'count' ? 'border-indigo-500 ring-1 ring-indigo-500/50 bg-indigo-500/5' : 'border-slate-800 hover:border-indigo-500/30'}`}
+                >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
+                    <TrendBadge trend={countTrend} />
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2">
                         <Trophy className="w-4 h-4 text-blue-400" />
                     </div>
                     <div>
                         <div className="text-2xl font-black text-white leading-none mb-1">{thisMonthItems.length}</div>
-                        <div className="text-[10px] md:text-xs text-slate-400 font-bold">이번 달 기록</div>
+                        <div className="text-[10px] md:text-xs text-slate-400 font-bold">총 수련 횟수</div>
                     </div>
                 </div>
-                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-purple-500/30 transition-colors">
+                <div
+                    onClick={() => setSelectedMetric('duration')}
+                    className={`bg-slate-900/50 p-4 rounded-2xl border flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer ${selectedMetric === 'duration' ? 'border-blue-500 ring-1 ring-blue-500/50 bg-blue-500/5' : 'border-slate-800 hover:border-blue-500/30'}`}
+                >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2">
-                        <Clock className="w-4 h-4 text-purple-400" />
+                    <TrendBadge trend={durationTrend} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2">
+                        <Clock className="w-4 h-4 text-blue-400" />
                     </div>
                     <div>
-                        <div className="text-2xl font-black text-white leading-none mb-1">{Math.round(totalDuration / 60)}</div>
+                        <div className="text-2xl font-black text-white leading-none mb-1">{Math.round(thisMonthDuration / 60)}</div>
                         <div className="text-[10px] md:text-xs text-slate-400 font-bold">총 시간(hr)</div>
                     </div>
                 </div>
-                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/30 transition-colors">
+                <div
+                    onClick={() => setSelectedMetric('rounds')}
+                    className={`bg-slate-900/50 p-4 rounded-2xl border flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer ${selectedMetric === 'rounds' ? 'border-orange-500 ring-1 ring-orange-500/50 bg-orange-500/5' : 'border-slate-800 hover:border-orange-500/30'}`}
+                >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
+                    <TrendBadge trend={roundsTrend} />
                     <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center mb-2">
                         <Activity className="w-4 h-4 text-orange-400" />
                     </div>
                     <div>
-                        <div className="text-2xl font-black text-white leading-none mb-1">{totalRounds}</div>
+                        <div className="text-2xl font-black text-white leading-none mb-1">{thisMonthRounds}</div>
                         <div className="text-[10px] md:text-xs text-slate-400 font-bold">총 라운드</div>
                     </div>
                 </div>

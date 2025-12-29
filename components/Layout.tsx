@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Package, Clapperboard, HelpCircle } from 'lucide-react';
+import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Package, Clapperboard, HelpCircle, MoreVertical, Search } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -57,16 +57,71 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Sidebar is enabled only for specific "Full Screen" / Detail pages
+  const isSidebarPage = ['/drills', '/sparring', '/routines', '/my-routines', '/drill-routines'].some(path => location.pathname.startsWith(path)) && !location.search.includes('view=grid');
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
+
+      {/* ========================================================================================= */}
+      {/* FLOATING SIDEBAR ICONS - Visible only on MD+ AND specific pages */}
+      {/* ========================================================================================= */}
+      {isSidebarPage && (
+        <div className="hidden md:flex flex-col fixed left-4 top-1/2 -translate-y-1/2 z-[100]">
+          <div className="flex flex-col gap-3 p-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-2xl">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href) || location.pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`p-3 rounded-full transition-all group relative ${active
+                    ? 'bg-white text-black shadow-lg scale-110'
+                    : 'text-white/70 hover:bg-white/20 hover:text-white hover:scale-110'
+                    }`}
+                  title={item.name}
+                >
+                  <Icon className={`w-6 h-6 ${active ? 'fill-current' : ''}`} />
+
+                  {/* Tooltip */}
+                  <div className="absolute left-full ml-4 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                    {item.name}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+
+
       {/* Navigation */}
       <nav className="bg-slate-900 shadow-lg sticky top-0 z-50 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <img src="/logo_v2_final.png" alt="Grapplay" className="h-14 w-auto object-contain" />
-            </Link>
+          <div className="flex justify-between items-center h-16 relative">
+            {/* Left Section: Desktop Logo OR Mobile Search */}
+            <div className="flex items-center">
+              {/* Desktop Logo */}
+              <Link to="/" className="hidden md:flex items-center">
+                <img src="/logo_v2_final.png" alt="Grapplay" className="h-14 w-auto object-contain" />
+              </Link>
+
+              {/* Mobile Search Icon */}
+              <div className="md:hidden">
+                <Link to="/search" className="p-2 -ml-2 text-slate-400 hover:text-white flex items-center justify-center">
+                  <Search className="w-6 h-6" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Center Section: Mobile Logo */}
+            <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none">
+              <Link to="/" className="flex items-center pointer-events-auto">
+                <img src="/logo_v2_final.png" alt="Grapplay" className="h-10 w-auto object-contain" />
+              </Link>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
@@ -303,7 +358,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-grow">
+      <main className={`flex-grow ${isLandingPage ? 'bg-black' : ''}`}>
         {children}
       </main>
 

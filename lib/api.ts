@@ -196,31 +196,124 @@ export async function searchContent(query: string) {
     try {
         const searchTerm = `%${query}%`;
 
-        // Parallel fetch
-        const [coursesResponse, routinesResponse] = await Promise.all([
+        // Parallel fetch - Courses, Routines, Drills, Feed, Sparring
+        const [coursesRes, routinesRes, drillsRes, feedsRes, sparringRes] = await Promise.all([
+            // 1. Courses
             supabase
                 .from('courses')
                 .select('*, creator:creators(*)')
                 .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
                 .eq('published', true)
                 .limit(20),
+            // 2. Routines
             supabase
                 .from('routines')
                 .select('*, creator:creators(*)')
                 .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .limit(20),
+            // 3. Drills
+            supabase
+                .from('drills')
+                .select(`*, creator:creators(*)`)
+                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .limit(20),
+            // 4. Feeds (Public Training Logs)
+            supabase
+                .from('training_logs')
+                .select(`
+                    *,
+                    user:users(name, avatar_url)
+                `)
+                .eq('is_public', true)
+                .or(`notes.ilike.${searchTerm}`)
+                .limit(20),
+            // 5. Sparring Videos
+            supabase
+                .from('sparring_videos')
+                .select('*')
+                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
                 .limit(20)
         ]);
 
-        if (coursesResponse.error) throw coursesResponse.error;
-        if (routinesResponse.error) throw routinesResponse.error;
+        if (coursesRes.error) console.error('Search courses error:', coursesRes.error);
+        if (routinesRes.error) console.error('Search routines error:', routinesRes.error);
+        if (drillsRes.error) console.error('Search drills error:', drillsRes.error);
+        if (feedsRes.error) console.error('Search feeds error:', feedsRes.error);
+        if (sparringRes.error) console.error('Search sparring error:', sparringRes.error);
+
+        // Fetch creators for sparring results separately since we only have creator_id
+        let sparringCreators: Record<string, any> = {};
+        if (sparringRes.data && sparringRes.data.length > 0) {
+            const creatorIds = [...new Set(sparringRes.data.map((v: any) => v.creator_id).filter(Boolean))];
+            if (creatorIds.length > 0) {
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('id, name, avatar_url')
+                    .in('id', creatorIds);
+
+                (users || []).forEach(u => sparringCreators[u.id] = u);
+            }
+        }
 
         return {
-            courses: (coursesResponse.data || []).map(transformCourse),
-            routines: (routinesResponse.data || []).map(transformDrillRoutine)
+            courses: (coursesRes.data || []).map(transformCourse),
+            routines: (routinesRes.data || []).map(transformDrillRoutine),
+            drills: (drillsRes.data || []).map((d: any) => ({
+                id: d.id,
+                title: d.title,
+                description: d.description,
+                videoUrl: d.video_url,
+                thumbnailUrl: d.thumbnail_url,
+                category: d.category || 'Standing',
+                difficulty: d.difficulty || 'Beginner',
+                creatorId: d.creator_id,
+                creatorName: d.creator?.name || 'Unknown',
+                aspectRatio: '9:16' as '9:16',
+                durationMinutes: d.duration_minutes || 0,
+                price: d.price || 0,
+                views: d.views || 0,
+                tags: d.tags || [],
+                createdAt: d.created_at
+            })),
+            feeds: (feedsRes.data || []).map((log: any) => ({
+                id: log.id,
+                userId: log.user_id,
+                userName: log.user?.name || 'User',
+                userAvatar: log.user?.avatar_url,
+                date: log.date,
+                notes: log.notes,
+                mediaUrl: log.media_url,
+                type: log.type,
+                durationMinutes: log.duration_minutes || 0,
+                techniques: log.techniques || [],
+                sparringRounds: log.sparring_rounds || 0,
+                isPublic: log.is_public,
+                createdAt: log.created_at
+            })),
+            sparring: (sparringRes.data || []).map((v: any) => {
+                const creator = sparringCreators[v.creator_id];
+                return {
+                    id: v.id,
+                    creatorId: v.creator_id,
+                    title: v.title || 'Sparring Video',
+                    description: v.description || '',
+                    videoUrl: v.video_url,
+                    thumbnailUrl: v.thumbnail_url,
+                    relatedItems: v.related_items || [],
+                    views: v.views || 0,
+                    likes: v.likes || 0,
+                    creator: creator ? {
+                        id: creator.id,
+                        name: creator.name || 'Unknown',
+                        profileImage: creator.avatar_url,
+                    } : undefined,
+                    createdAt: v.created_at
+                };
+            })
         };
     } catch (error) {
         console.error('Error searching content:', error);
-        return { courses: [], routines: [] };
+        return { courses: [], routines: [], drills: [], feeds: [], sparring: [] };
     }
 }
 

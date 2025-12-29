@@ -4,7 +4,7 @@ import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, to
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX, Zap, MessageCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -465,7 +465,7 @@ export const DrillDetail: React.FC = () => {
     }
 
     return (
-        <div className="relative h-screen w-screen bg-black overflow-hidden select-none">
+        <div className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden select-none">
             {/* Progress Bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-white/20 z-50">
                 <div
@@ -474,31 +474,33 @@ export const DrillDetail: React.FC = () => {
                 />
             </div>
 
-            {/* Top Bar */}
-            <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                <div className="w-full p-6">
-                    <div className="max-w-7xl mx-auto flex justify-between items-center">
-                        {/* Back Button */}
+            {/* Top Bar & Toggles Container */}
+            <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
+                <div className="max-w-[56.25vh] mx-auto relative h-full">
+                    {/* Header Controls (Back Button) */}
+                    <div className="absolute top-0 left-0 flex items-start pointer-events-auto">
                         <button
                             onClick={() => navigate(-1)}
-                            className="pointer-events-auto w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/60 transition-colors border border-white/10"
+                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
                         >
-                            <ArrowLeft className="w-5 h-5" />
+                            <ArrowLeft className="w-6 h-6" />
                         </button>
+                    </div>
 
-                        {/* Video Type Tabs */}
-                        <div className="flex items-center gap-3 pointer-events-auto">
+                    {/* Toggle Switch */}
+                    <div className="absolute top-14 left-0 flex pointer-events-auto">
+                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto border border-white/10">
                             <button
                                 onClick={() => setCurrentVideoType('action')}
-                                className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'action' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}
+                                className={`p-2 rounded-full transition-all ${currentVideoType === 'action' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                             >
-                                동작
+                                <Zap className="w-6 h-6" fill={currentVideoType === 'action' ? "currentColor" : "none"} />
                             </button>
                             <button
                                 onClick={() => setCurrentVideoType('description')}
-                                className={`text-sm font-bold px-3 py-1 rounded-full transition-colors ${currentVideoType === 'description' ? 'bg-white text-black' : 'bg-white/20 text-white'}`}
+                                className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                             >
-                                설명
+                                <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
                             </button>
                         </div>
                     </div>
