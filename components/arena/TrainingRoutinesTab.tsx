@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X } from 'lucide-react';
+import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -29,6 +29,9 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     // Show More/Less State
     const [showAllRoutines, setShowAllRoutines] = useState(false);
+
+    // Collapsible Create Section State
+    const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
 
     useEffect(() => {
         const loadSavedDrills = async () => {
@@ -328,123 +331,144 @@ export const TrainingRoutinesTab: React.FC = () => {
                 </div>
             )}
             {/* Create Routine Section - MOVED TO TOP */}
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0">
-                    <div>
-                        <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
-                        <p className="text-slate-400 text-sm break-keep">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
-                    </div>
-                    {isSelectionMode ? (
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setIsSelectionMode(false);
-                                    setSelectedDrills(new Set());
-                                }}
-                                className="flex-1 sm:flex-none"
-                            >
-                                취소
-                            </Button>
-                            <Button
-                                onClick={handleCreateRoutine}
-                                disabled={selectedDrills.size === 0}
-                                className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
-                            >
-                                {selectedDrills.size}개 선택됨 - 루틴 생성
-                            </Button>
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 transition-all">
+                <div
+                    className="p-4 sm:p-6 flex items-center justify-between cursor-pointer md:cursor-default"
+                    onClick={() => setIsCreateSectionOpen(!isCreateSectionOpen)}
+                >
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
+                            <p className="text-slate-400 text-sm break-keep">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
                         </div>
-                    ) : (
-                        <Button
-                            onClick={() => setIsSelectionMode(true)}
-                            className="bg-slate-800 hover:bg-slate-700 w-full sm:w-auto whitespace-nowrap"
-                        >
-                            드릴 선택하기
-                        </Button>
-                    )}
+                    </div>
+                    <button className="md:hidden text-slate-400">
+                        {isCreateSectionOpen ? <ChevronUp /> : <ChevronDown />}
+                    </button>
                 </div>
 
-                {savedDrills.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {savedDrills.map((drill) => {
-                            const cardContent = (
-                                <>
-                                    <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
-                                        <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
-                                        {isSelectionMode && selectedDrills.has(drill.id) && (
-                                            <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
-                                                <Check className="w-6 h-6 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
-                                        <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
-                                    </div>
-                                </>
-                            );
+                {/* Collapsible Content */}
+                <div className={`${isCreateSectionOpen ? 'block' : 'hidden md:block'} px-4 sm:px-6 pb-6`}>
+                    <div className="flex justify-end mb-6">
+                        {isSelectionMode ? (
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <Button
+                                    variant="outline"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsSelectionMode(false);
+                                        setSelectedDrills(new Set());
+                                    }}
+                                    className="flex-1 sm:flex-none"
+                                >
+                                    취소
+                                </Button>
+                                <Button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCreateRoutine();
+                                    }}
+                                    disabled={selectedDrills.size === 0}
+                                    className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
+                                >
+                                    {selectedDrills.size}개 선택됨 - 루틴 생성
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsSelectionMode(true);
+                                }}
+                                className="bg-slate-800 hover:bg-slate-700 w-full sm:w-auto whitespace-nowrap"
+                            >
+                                드릴 선택하기
+                            </Button>
+                        )}
+                    </div>
 
-                            const handleDeleteDrill = async (e: React.MouseEvent, drillId: string) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
-                                    // Optimistic update
-                                    const updatedDrills = savedDrills.filter(d => d.id !== drillId);
-                                    setSavedDrills(updatedDrills);
-                                    localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
+                    {savedDrills.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {savedDrills.map((drill) => {
+                                const cardContent = (
+                                    <>
+                                        <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                            <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                            {isSelectionMode && selectedDrills.has(drill.id) && (
+                                                <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
+                                                    <Check className="w-6 h-6 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
+                                            <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
+                                        </div>
+                                    </>
+                                );
 
-                                    if (user) {
-                                        const { error } = await toggleDrillSave(user.id, drillId);
-                                        if (error) {
-                                            console.error('Error removing saved drill:', error);
-                                            alert('삭제에 실패했습니다.');
-                                            // Revert
-                                            setSavedDrills(savedDrills);
-                                            localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+                                const handleDeleteDrill = async (e: React.MouseEvent, drillId: string) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
+                                        // Optimistic update
+                                        const updatedDrills = savedDrills.filter(d => d.id !== drillId);
+                                        setSavedDrills(updatedDrills);
+                                        localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
+
+                                        if (user) {
+                                            const { error } = await toggleDrillSave(user.id, drillId);
+                                            if (error) {
+                                                console.error('Error removing saved drill:', error);
+                                                alert('삭제에 실패했습니다.');
+                                                // Revert
+                                                setSavedDrills(savedDrills);
+                                                localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+                                            }
                                         }
                                     }
-                                }
-                            };
+                                };
 
-                            return isSelectionMode ? (
-                                <div
-                                    key={drill.id}
-                                    onClick={() => toggleDrillSelection(drill.id)}
-                                    className={`
-                                        relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
-                                        ${selectedDrills.has(drill.id)
-                                            ? 'bg-blue-900/20 border-blue-500'
-                                            : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                                        }
-                                    `}
-                                >
-                                    {cardContent}
-                                </div>
-                            ) : (
-                                <div key={drill.id} className="relative group">
-                                    <Link
-                                        to={`/drills/${drill.id}?source=saved`}
-                                        className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-slate-800/50 border-slate-800 hover:border-slate-600"
+                                return isSelectionMode ? (
+                                    <div
+                                        key={drill.id}
+                                        onClick={() => toggleDrillSelection(drill.id)}
+                                        className={`
+                                            relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
+                                            ${selectedDrills.has(drill.id)
+                                                ? 'bg-blue-900/20 border-blue-500'
+                                                : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                                            }
+                                        `}
                                     >
                                         {cardContent}
-                                    </Link>
+                                    </div>
+                                ) : (
+                                    <div key={drill.id} className="relative group">
+                                        <Link
+                                            to={`/drills/${drill.id}?source=saved`}
+                                            className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-slate-800/50 border-slate-800 hover:border-slate-600"
+                                        >
+                                            {cardContent}
+                                        </Link>
 
-                                    <button
-                                        onClick={(e) => handleDeleteDrill(e, drill.id)}
-                                        className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="삭제"
-                                    >
-                                        <Trash2 className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-center py-8 text-slate-500">
-                        저장된 드릴이 없습니다. 드릴 메뉴에서 마음에 드는 드릴을 저장해보세요.
-                    </div>
-                )}
+                                        <button
+                                            onClick={(e) => handleDeleteDrill(e, drill.id)}
+                                            className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="삭제"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-4 text-slate-500 text-sm">
+                            저장된 드릴이 없습니다.
+                        </div>
+                    )}
+                </div>
             </section>
 
             {/* My Routines Section */}

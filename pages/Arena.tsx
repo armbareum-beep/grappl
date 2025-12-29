@@ -16,6 +16,15 @@ export const Arena: React.FC = () => {
 
     useEffect(() => {
         const tabParam = searchParams.get('tab');
+        const skillTreeId = searchParams.get('id');
+        const skillTreeData = searchParams.get('data'); // For encoded guest data
+
+        // If specific skill tree params exist, force skills tab
+        if (skillTreeId || skillTreeData) {
+            setActiveTab('skills');
+            return;
+        }
+
         if (tabParam && ['routines', 'sparring', 'skills', 'journal'].includes(tabParam)) {
             setActiveTab(tabParam as ArenaTab);
         } else if (!tabParam) {
@@ -151,29 +160,12 @@ export const Arena: React.FC = () => {
                     </div>
 
                     {/* Mobile Dropdown Navigation */}
-                    <div className="md:hidden relative">
-                        <select
-                            value={activeTab}
-                            onChange={(e) => handleTabChange(e.target.value)}
-                            className="w-full appearance-none bg-slate-800 border border-slate-700 text-white py-3 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        >
-                            {ARENA_TABS.map((tab) => (
-                                <option key={tab.id} value={tab.id}>
-                                    {tab.label} - {tab.desc}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                            </svg>
-                        </div>
-                    </div>
+
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px] mb-20 md:mb-0">
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {activeTab === 'routines' && <TrainingRoutinesTab />}
                     {activeTab === 'sparring' && (
@@ -183,6 +175,34 @@ export const Arena: React.FC = () => {
                     )}
                     {activeTab === 'skills' && <TechniqueSkillTree />}
                     {activeTab === 'journal' && <JournalTab />}
+                </div>
+            </div>
+            {/* Mobile Bottom Navigation */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 pb-safe z-50">
+                <div className="flex justify-around items-center h-16">
+                    {ARENA_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        const colorClass = isActive
+                            ? tab.color === 'blue' ? 'text-blue-400'
+                                : tab.color === 'emerald' ? 'text-emerald-400'
+                                    : 'text-purple-400'
+                            : 'text-slate-500';
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`flex flex-col items-center justify-center w-full h-full gap-1 active:scale-95 transition-transform ${isActive ? 'bg-slate-800/50' : ''
+                                    }`}
+                            >
+                                <Icon className={`w-6 h-6 ${colorClass} ${isActive ? 'fill-current opacity-20' : ''}`} strokeWidth={isActive ? 2.5 : 1.5} />
+                                <span className={`text-[10px] font-medium ${colorClass}`}>
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         </div>

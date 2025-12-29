@@ -312,8 +312,8 @@ const VideoItem: React.FC<{
                     </button>
                 </div>
 
-                {/* Mobile Actions - Bottom right */}
-                <div className="md:hidden absolute right-4 bottom-4 flex flex-col gap-5 items-center z-30 pointer-events-auto">
+                {/* Mobile Actions - Bottom right (Raised to overlay on video) */}
+                <div className="md:hidden absolute right-3 bottom-56 flex flex-col gap-6 items-center z-30 pointer-events-auto">
                     <div className="flex flex-col items-center gap-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}

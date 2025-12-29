@@ -76,6 +76,27 @@ export const TechniqueSkillTree: React.FC = () => {
     const [saveTitleInput, setSaveTitleInput] = useState('');
     const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; onConfirm?: () => void; confirmText?: string; cancelText?: string } | null>(null);
     const [isReadOnly, setIsReadOnly] = useState(false);
+    const [customShareUrl, setCustomShareUrl] = useState<string | null>(null);
+
+    // Encode/Decode Helpers
+    const encodeGuestData = (data: any) => {
+        try {
+            const json = JSON.stringify(data);
+            return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g,
+                function toSolidBytes(match, p1) {
+                    return String.fromCharCode(parseInt(p1, 16));
+                }));
+        } catch (e) { return null; }
+    };
+
+    const decodeGuestData = (encoded: string) => {
+        try {
+            const json = decodeURIComponent(atob(encoded).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(json);
+        } catch (e) { return null; }
+    };
 
     // Drag to Create State
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -91,6 +112,39 @@ export const TechniqueSkillTree: React.FC = () => {
             return node;
         }));
     }, [setNodes]);
+
+    // Guest Auto-Save: Persist data to localStorage when nodes/edges change
+    useEffect(() => {
+        // Only saving for guests (no user) and when not loading
+        if (!user && !loading) {
+            // Even if nodes are empty, we might want to save if title changed? 
+            // But let's verify we have something meaningful or at least initialized.
+            // If nodes became empty because user deleted everything, we should reflect that.
+
+            // Debounce could be good, but simple effect is fine for now
+            const guestData = {
+                title: currentTreeTitle,
+                nodes: nodes.map(node => ({
+                    id: node.id,
+                    type: node.type,
+                    position: node.position,
+                    data: {
+                        label: node.data.label,
+                        style: node.data.style,
+                        contentType: node.data.contentType,
+                        contentId: node.data.contentId
+                        // Don't save large objects like lesson/drill/callbacks, reconstruct them on load
+                    },
+                    contentType: node.data.contentType,
+                    contentId: node.data.contentId
+                })),
+                edges: edges,
+                updatedAt: Date.now()
+            };
+
+            localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
+        }
+    }, [user, loading, nodes, edges, currentTreeTitle]);
 
     // Load data definition (must be defined before useEffect uses it)
     const loadData = useCallback(async (treeId?: string, skipGuestCheck: boolean = false) => {
@@ -214,7 +268,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
-                
+
                 // 공유된 트리를 찾을 수 없으면 에러 표시
                 if (!treeRes.data && (tr as any).error) {
                     throw new Error(`공유된 스킬 트리를 찾을 수 없습니다. 링크가 올바른지 확인해주세요.`);
@@ -462,6 +516,77 @@ export const TechniqueSkillTree: React.FC = () => {
     }, [user, handleNodeDataChange]);
 
     useEffect(() => {
+        const sharedData = searchParams.get('data');
+        // 공유된 데이터(URL)가 있으면 항상 로드 (DB보다 우선)
+        if (sharedData) {
+            try {
+                const decoded = decodeGuestData(sharedData);
+                if (decoded && decoded.nodes) {
+                    // Need to fetch lessons/drills to populate nodes
+                    setLoading(true);
+                    Promise.all([
+                        getLessons(300).then(res => res),
+                        getDrills(undefined, 100).then(res => res.data || [])
+                    ]).then(([lessons, drills]) => {
+                        setAllLessons(lessons);
+                        setAllDrills(drills);
+
+                        const flowNodes: Node[] = decoded.nodes.map((node: any) => {
+                            const type = node.type === 'text' ? 'text' : 'content';
+                            if (type === 'text') {
+                                return {
+                                    id: node.id,
+                                    type: 'text',
+                                    position: node.position,
+                                    data: {
+                                        label: node.data?.label || 'Text',
+                                        style: node.data?.style || {},
+                                        onChange: (newData: any) => handleNodeDataChange(node.id, newData),
+                                        onDelete: () => {
+                                            setNodes((nds) => nds.filter((n) => n.id !== node.id));
+                                            setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+                                        }
+                                    }
+                                };
+                            }
+                            const contentId = node.contentId || '';
+                            const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
+                            const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                            return {
+                                id: node.id,
+                                type: 'content',
+                                position: node.position,
+                                data: {
+                                    contentType: node.contentType || 'technique',
+                                    contentId,
+                                    lesson,
+                                    drill
+                                }
+                            };
+                        });
+                        const flowEdges: Edge[] = decoded.edges.map((edge: any) => ({
+                            id: edge.id,
+                            source: edge.source,
+                            target: edge.target,
+                            type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                            animated: edge.type === 'animated',
+                            style: { stroke: '#facc15', strokeWidth: 3 }
+                        }));
+
+                        setNodes(flowNodes);
+                        setEdges(flowEdges);
+                        setCurrentTreeTitle(decoded.title || '공유된 스킬 트리');
+                        setCurrentTreeId(null);
+                        setIsReadOnly(true); // Shared view is read-only initially, but guest can fork by just editing
+                        setLoading(false);
+                    });
+                    return;
+                }
+            } catch (e) {
+                console.error('Error decoding shared data:', e);
+            }
+        }
+
         const sharedTreeId = searchParams.get('id');
         // 공유된 트리가 있으면 항상 로드
         if (sharedTreeId) {
@@ -593,10 +718,13 @@ export const TechniqueSkillTree: React.FC = () => {
         };
 
         setEdges(eds => {
-            // Check for duplicates before adding
-            const exists = eds.some(e => e.source === selectedNodeId && e.target === targetNode.id);
+            // Check for ANY connection between these two nodes (bidirectional check)
+            const exists = eds.some(
+                e => (e.source === selectedNodeId && e.target === targetNode.id) ||
+                    (e.source === targetNode.id && e.target === selectedNodeId)
+            );
+
             if (exists) {
-                // Don't alert on drag-stop to avoid annoyance, just ignore
                 return eds;
             }
             return addEdge(newEdge, eds);
@@ -664,8 +792,11 @@ export const TechniqueSkillTree: React.FC = () => {
         if (params.source === params.target) return;
 
         setEdges((eds) => {
-            // Check if connection already exists between these two nodes (regardless of handles)
-            const duplicate = eds.some(e => e.source === params.source && e.target === params.target);
+            // Check for ANY connection between these two nodes (bidirectional check)
+            const duplicate = eds.some(
+                e => (e.source === params.source && e.target === params.target) ||
+                    (e.source === params.target && e.target === params.source)
+            );
             if (duplicate) return eds;
 
             const newEdge: Edge = {
@@ -900,15 +1031,37 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const handleSave = async () => {
         if (!user) {
+            // 게스트도 로컬 스토리지에 명시적 저장 허용
+            const guestData = {
+                title: currentTreeTitle,
+                nodes: nodes.map(node => ({
+                    id: node.id,
+                    type: node.type,
+                    position: node.position,
+                    data: {
+                        label: node.data.label,
+                        style: node.data.style,
+                        contentType: node.data.contentType,
+                        contentId: node.data.contentId
+                    },
+                    contentType: node.data.contentType,
+                    contentId: node.data.contentId
+                })),
+                edges: edges,
+                updatedAt: Date.now()
+            };
+            localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
+
             setAlertConfig({
-                title: '로그인 필요',
-                message: '게스트 모드에서는 저장할 수 없습니다.\n로그인 페이지로 이동하시겠습니까?',
-                confirmText: '로그인',
-                cancelText: '취소',
+                title: '임시 저장 완료',
+                message: '현재 기기에 임시 저장되었습니다.\n로그인하면 클라우드에 영구 저장하고 다른 기기에서도 불러올 수 있습니다.\n\n로그인 하시겠습니까?',
+                confirmText: '로그인 하러 가기',
+                cancelText: '계속 작성하기',
                 onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
             });
             return;
         }
+
 
         // Check title
         if (!currentTreeTitle || currentTreeTitle.trim() === '새 스킬 트리' || currentTreeTitle.trim() === '나의 첫 스킬 트리') {
@@ -1068,26 +1221,58 @@ export const TechniqueSkillTree: React.FC = () => {
                         {/* Share */}
                         <button
                             onClick={async () => {
+                                // GUEST SHARING SUPPORT
+                                if (!user) {
+                                    // Serialize current state
+                                    const guestData = {
+                                        title: currentTreeTitle,
+                                        nodes: nodes.map(node => ({
+                                            id: node.id,
+                                            type: node.type,
+                                            position: node.position,
+                                            data: {
+                                                label: node.data.label,
+                                                style: node.data.style,
+                                                contentType: node.data.contentType,
+                                                contentId: node.data.contentId
+                                            },
+                                            contentType: node.data.contentType,
+                                            contentId: node.data.contentId
+                                        })),
+                                        edges: edges.map(e => ({
+                                            id: e.id,
+                                            source: e.source,
+                                            target: e.target,
+                                            type: e.type,
+                                            animated: e.animated
+                                        }))
+                                    };
+
+                                    const encoded = encodeGuestData(guestData);
+                                    if (encoded) {
+                                        // Construct URL
+                                        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                        setCustomShareUrl(url);
+                                        setIsShareModalOpen(true);
+                                    } else {
+                                        alert('데이터가 너무 커서 공유 링크를 생성할 수 없습니다.');
+                                    }
+                                    return;
+                                }
+
+                                // LOGGED IN USER SHARING
                                 // 공유 전에 저장되지 않은 트리가 있으면 먼저 저장
                                 if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
-                                    if (!user) {
-                                        setAlertConfig({
-                                            title: '로그인 필요',
-                                            message: '공유하려면 먼저 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?',
-                                            confirmText: '로그인',
-                                            cancelText: '취소',
-                                            onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
-                                        });
-                                        return;
-                                    }
                                     // 자동 저장
                                     const titleToUse = currentTreeTitle || '나의 스킬 트리';
                                     const saved = await executeSave(titleToUse);
                                     // 저장 성공 시에만 모달 열기
                                     if (saved && currentTreeId) {
+                                        setCustomShareUrl(null); // Use default ID-based URL
                                         setIsShareModalOpen(true);
                                     }
                                 } else {
+                                    setCustomShareUrl(null); // Use default ID-based URL
                                     setIsShareModalOpen(true);
                                 }
                             }}
@@ -1097,20 +1282,18 @@ export const TechniqueSkillTree: React.FC = () => {
                             <span className="hidden sm:inline">공유</span>
                         </button>
 
-                        {!isReadOnly && (
-                            /* Save */
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all ${saving ? 'bg-yellow-600 cursor-wait' : 'bg-green-600 hover:bg-green-700'
-                                    }`}
-                            >
-                                <Save className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
-                                <span className="hidden sm:inline">
-                                    {saving ? '저장 중...' : '저장'}
-                                </span>
-                            </button>
-                        )}
+                        {/* Save */}
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all ${saving ? 'bg-yellow-600 cursor-wait' : 'bg-green-600 hover:bg-green-700'
+                                }`}
+                        >
+                            <Save className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">
+                                {saving ? '저장 중...' : '저장'}
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1261,8 +1444,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 isOpen={isShareModalOpen}
                 onClose={() => setIsShareModalOpen(false)}
                 title={currentTreeTitle || '나의 스킬 트리'}
-                text={`${user?.user_metadata?.full_name || '사용자'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
-                url={currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined}
+                text={`${user?.user_metadata?.full_name || '게스트'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
+                url={customShareUrl || (currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined)}
             />
 
             {/* Generic Alert/Confirm Modal */}

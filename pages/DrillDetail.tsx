@@ -650,6 +650,14 @@ export const DrillDetail: React.FC = () => {
                                 <Play className="w-8 h-8" strokeWidth={1.5} />
                             </button>
                         )}
+
+                        {/* Share */}
+                        <button
+                            onClick={handleShare}
+                            className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                        >
+                            <Share2 className="w-8 h-8" strokeWidth={1.5} />
+                        </button>
                         {/* If no routine, show 'Add to Routine' maybe? Or omit as requested if none */}
                         {owns && !associatedRoutineId && (
                             <button
