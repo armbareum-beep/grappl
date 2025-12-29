@@ -50,7 +50,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: '스파링', href: '/sparring', icon: Clapperboard },
     { name: '피드', href: '/journal', icon: Users },
     { name: '아레나', href: '/arena', icon: Trophy },
-    { name: '요금제', href: '/pricing', icon: DollarSign },
+    // { name: '요금제', href: '/pricing', icon: DollarSign },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -279,8 +279,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      {location.pathname !== '/drills' && (
-        <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
+      {!['/drills', '/arena'].includes(location.pathname) && (
+        <footer className={`bg-slate-900 border-t border-slate-800 mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="grid md:grid-cols-4 gap-8">
               <div className="col-span-1 md:col-span-2">
@@ -296,7 +296,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <h4 className="font-bold text-white mb-4">서비스</h4>
                 <ul className="space-y-2 text-sm text-slate-400">
                   <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
-                  <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
                   <li><Link to="/become-creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
                 </ul>
               </div>
