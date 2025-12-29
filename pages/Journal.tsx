@@ -6,10 +6,12 @@ import { SocialFeed } from '../components/social/SocialFeed';
 import { CreatePostModal } from '../components/social/CreatePostModal';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { supabase } from '../lib/supabase';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Bot, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [posts, setPosts] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -179,6 +181,55 @@ export const Journal: React.FC = () => {
 
             {/* Feed */}
             <div className="max-w-xl mx-auto">
+                {/* AI Coach Analysis Widget */}
+                <div className="mb-6 relative group overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-slate-900/80 p-6 flex flex-col justify-between transition-all hover:border-indigo-400/50 hover:shadow-lg hover:shadow-indigo-500/20 cursor-pointer" onClick={() => navigate('/arena?tab=sparring')}>
+                    {/* Background Effects */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-indigo-400/30 transition-colors"></div>
+
+                    <div className="relative z-10 flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+                                <Bot className="w-7 h-7 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-white text-base group-hover:text-indigo-200 transition-colors">AI 코치 분석</h3>
+                                <p className="text-xs text-indigo-200/70">Gemini Pro가 플레이를 분석합니다</p>
+                            </div>
+                        </div>
+                        <div className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[10px] font-bold text-indigo-300 animate-pulse">
+                            LIVE
+                        </div>
+                    </div>
+
+                    <div className="relative z-10">
+                        <div className="space-y-2 mb-6">
+                            <div className="flex items-center gap-2 text-xs text-slate-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>서브미션 기회 포착</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>포지션 점유율 분석</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>개선점 및 드릴 추천</span>
+                            </div>
+                        </div>
+
+                        <button
+                            className="w-full py-3 rounded-lg bg-white text-indigo-900 font-bold text-sm hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px]"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate('/arena?tab=sparring');
+                            }}
+                        >
+                            <Sparkles className="w-4 h-4 text-indigo-600" />
+                            지금 분석 받아보기
+                        </button>
+                    </div>
+                </div>
+
                 {/* Post Input Trigger (Threads Style) */}
                 {user && (
                     <div

@@ -4,16 +4,16 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Heart, MessageCircle,
   Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
-  Calendar, Lock, Star, TrendingUp, X, Package, Clock
+  Calendar, Lock, Star, TrendingUp, X, Package, Clock, CheckCircle2, Sparkles
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
 import { getBeltInfo, getXPProgress, getXPToNextBelt, getBeltIcon } from '../lib/belt-system';
 import {
-  getCourses, getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine, getBundles,
-  getTrainingLogs, getDrillRoutines
+  getTrainingLogs, getDrillRoutines, getPublicSparringVideos, getBundles, getCourses,
+  getDrills, getPublicTrainingLogs, getRecentActivity, getDailyRoutine
 } from '../lib/api';
-import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine, Bundle } from '../types';
+import { Course, Drill, TrainingLog, UserProgress, DailyQuest, DrillRoutine, Bundle, SparringVideo } from '../types';
 import { checkPatchUnlocks, Patch } from '../components/PatchDisplay';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { AICoachWidget } from '../components/journal/AICoachWidget';
@@ -45,9 +45,10 @@ export const Home: React.FC = () => {
   const [myLogs, setMyLogs] = useState<TrainingLog[]>([]); // Personal for AI
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
-  const [activeTab, setActiveTab] = useState<'lesson' | 'drill' | 'sparring' | 'community'>('lesson');
+  const [activeTab, setActiveTab] = useState<'lesson' | 'drill' | 'sparring'>('lesson');
   const [recommendedBundles, setRecommendedBundles] = useState<Bundle[]>([]);
   const [proRoutines, setProRoutines] = useState<DrillRoutine[]>([]);
+  const [publicSparrings, setPublicSparrings] = useState<SparringVideo[]>([]);
 
   // User progress states
   const [progress, setProgress] = useState<UserProgress | null>(null);
@@ -115,6 +116,9 @@ export const Home: React.FC = () => {
         const { data: logsData } = await getPublicTrainingLogs(1, 5);
         if (logsData) setTrainingLogs(logsData);
 
+        const sparringsData = await getPublicSparringVideos(6);
+        setPublicSparrings(sparringsData);
+
         // Fetch personal logs for AI Coach
         const { data: myLogsData } = await getTrainingLogs(user.id);
         if (myLogsData) setMyLogs(myLogsData);
@@ -130,7 +134,7 @@ export const Home: React.FC = () => {
         const { data: bundlesData } = await getBundles();
         if (bundlesData) setRecommendedBundles(bundlesData.slice(0, 3));
 
-        // Fetch Pro Routines (Mocking "Pro" by selecting Intermediate/Advanced or specific Logic)
+        // Fetch Pro Routines
         const allRoutines = await getDrillRoutines();
         if (allRoutines && allRoutines.length > 0) {
           // Shuffle all routines first for random Pro/Daily fallback
@@ -157,15 +161,15 @@ export const Home: React.FC = () => {
               }));
 
             if (transformedRecs.length > 0) {
-              setProRoutines(transformedRecs.slice(0, 2));
+              setProRoutines(transformedRecs.slice(0, 4)); // Expanded to 4
             } else {
               // Fallback if AI suggested courses but no routines - Use shuffled list
-              const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+              const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 4); // Expanded to 4
               setProRoutines(pros);
             }
           } else {
             // Standard Pro Logic (Intermediate/Advanced) - Use shuffled list
-            const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 2);
+            const pros = shuffledRoutines.filter(r => r.id !== routineData?.id).slice(0, 4); // Expanded to 4
             setProRoutines(pros);
           }
         }
@@ -190,6 +194,15 @@ export const Home: React.FC = () => {
   const xpProgress = progress ? getXPProgress(progress.totalXp, progress.beltLevel) : 0;
   const xpToNext = progress ? getXPToNextBelt(progress.beltLevel) : 0;
   const beltIcon = currentBelt ? getBeltIcon(currentBelt.belt) : '🥋';
+
+  // Mock values for Arena Growth section
+  const streak = userStats.streak;
+  const userLevel = progress?.beltLevel || 1;
+  const currentXP = progress?.totalXp || 0;
+  // xpToNext is already calculated above for belt, assuming level XP is similar or derived.
+  // For simplicity, reusing xpToNext from belt calculation, or could be a separate level system.
+  const levelProgress = xpProgress * 100;
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-24 md:pb-10">
@@ -290,24 +303,186 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Recommended Routine (Pro) */}
-      <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-            추천 루틴 (Pro)
-          </h2>
-          <button onClick={() => navigate('/arena?tab=routines')} className="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-colors">
-            더 보기
-          </button>
+      {/* 2. Arena Growth (Moved Up) */}
+      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate('/arena')}>
+          <TrendingUp className="w-5 h-5 text-emerald-500" />
+          <h2 className="text-lg font-bold text-white">아레나 성장</h2>
+          <ChevronRight className="w-4 h-4 text-slate-500" />
         </div>
 
+        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 relative">
+              <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-20 animate-pulse"></div>
+              <div className="relative w-full h-full bg-slate-800 rounded-full border-2 border-slate-700 flex items-center justify-center overflow-hidden">
+                {user?.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl font-bold text-slate-500">{user?.email?.[0].toUpperCase() || 'U'}</span>
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-slate-900 rounded-full flex items-center justify-center border border-slate-700">
+                <div className="w-4 h-4 bg-emerald-500 rounded-full animate-ping absolute opacity-75"></div>
+                <div className="w-3 h-3 bg-emerald-500 rounded-full relative"></div>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-lg font-bold text-white">{user?.user_metadata?.full_name || '나의 아레나'}</h3>
+                <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-[10px] font-bold rounded border border-indigo-500/30">Lv. {userLevel}</span>
+              </div>
+
+              {/* Level Progress */}
+              <div className="relative h-2 bg-slate-800 rounded-full overflow-hidden mb-1.5">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
+                  style={{ width: `${levelProgress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>{currentXP} XP</span>
+                <span>Next: {xpToNext} XP</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+              <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🔥 {streak}</div>
+              <div className="text-[10px] text-slate-400">일 연속 수련</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+              <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🥋 {currentBelt?.name || 'White'}</div>
+              <div className="text-[10px] text-slate-400">현재 벨트</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+              <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🏆 {unlockedPatches.length}</div>
+              <div className="text-[10px] text-slate-400">획득 패치</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Sparring Review & AI Analysis (Moved Up) */}
+      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-blue-500" />
+          스파링 복기 & AI 분석
+        </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(proRoutines.length > 0 ? proRoutines : [{ id: 'mock-1' }, { id: 'mock-2' }]).map((routine: any, i) => (
-            <div key={routine.id || i} className={`relative bg-slate-900 border rounded-xl overflow-hidden group transition-all h-[240px] flex flex-col justify-end ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
-              routine.difficulty === 'STRENGTH' ? 'border-emerald-500/30 hover:border-emerald-500/50' :
-                'border-slate-800 hover:border-slate-700'
-              }`}>
+          {/* Recent Review (Journal Style) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-4 shadow-lg shadow-black/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">최근 스파링 기록</h3>
+                  <p className="text-xs text-slate-500">{myLogs.length > 0 ? '지난 수련 내용 복습' : '기록이 없습니다'}</p>
+                </div>
+              </div>
+              {myLogs.length > 0 && <span className="text-xs text-slate-500">{new Date(myLogs[0].date).toLocaleDateString()}</span>}
+            </div>
+
+            {myLogs.length > 0 ? (
+              <div className="bg-slate-950/80 rounded-lg p-4 border border-slate-800">
+                <div className="flex gap-2 mb-2">
+                  {((myLogs[0] as any).tags || ['스파링', '오픈매트']).slice(0, 2).map((tag: string) => (
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">#{tag}</span>
+                  ))}
+                </div>
+                <p className="text-sm text-slate-300 line-clamp-2 mb-3">"{myLogs[0].notes || '내용이 없습니다.'}"</p>
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">⏱️ {myLogs[0].durationMinutes || 5}분</span>
+                  <span className="flex items-center gap-1">🥋 스파링</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed flex items-center justify-center p-4">
+                <p className="text-sm text-slate-500">아직 작성된 스파링 복기가 없습니다.</p>
+              </div>
+            )}
+
+            <Button onClick={() => navigate('/arena?tab=sparring')} variant="outline" className="w-full hover:bg-slate-800 border-slate-700">
+              작성하러 가기
+            </Button>
+          </div>
+
+          {/* AI Coach Analysis (Enhanced UI) */}
+          <div className="relative group overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-slate-900/80 p-6 flex flex-col justify-between transition-all hover:border-indigo-400/50 hover:shadow-lg hover:shadow-indigo-500/20 cursor-pointer" onClick={() => navigate('/arena?tab=sparring')}>
+            {/* Background Effects */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-indigo-400/30 transition-colors"></div>
+
+            <div className="relative z-10 flex items-start justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+                  <Bot className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base group-hover:text-indigo-200 transition-colors">AI 코치 분석</h3>
+                  <p className="text-xs text-indigo-200/70">Gemini Pro가 플레이를 분석합니다</p>
+                </div>
+              </div>
+              <div className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[10px] font-bold text-indigo-300 animate-pulse">
+                LIVE
+              </div>
+            </div>
+
+            <div className="relative z-10">
+              <div className="space-y-2 mb-6">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>서브미션 기회 포착</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>포지션 점유율 분석</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>개선점 및 드릴 추천</span>
+                </div>
+              </div>
+
+              <button
+                className="w-full py-3 rounded-lg bg-white text-indigo-900 font-bold text-sm hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('/arena?tab=sparring');
+                }}
+              >
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                지금 분석 받아보기
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Recommended Routine (Pro) (Moved Down) */}
+      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+            <h2 className="text-lg font-bold text-white">추천 루틴 (Pro)</h2>
+          </div>
+          <button onClick={() => navigate('/routines')} className="text-sm text-slate-500 hover:text-white transition-colors">더 보기</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(proRoutines.length > 0 ? proRoutines : [{ id: 'mock-1' }, { id: 'mock-2' }, { id: 'mock-3' }, { id: 'mock-4' }]).map((routine: any, i) => (
+            <div
+              key={routine.id || i}
+              onClick={() => !isSubscriber ? navigate('/pricing') : navigate(`/routines/${routine.id}`)}
+              className={`cursor-pointer relative bg-slate-900 border rounded-xl overflow-hidden group transition-all h-[240px] flex flex-col justify-end ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
+                routine.difficulty === 'STRENGTH' ? 'border-emerald-500/30 hover:border-emerald-500/50' :
+                  'border-slate-800 hover:border-slate-700'
+                }`}
+            >
 
               {/* Background Image with Gradient Overlay */}
               <img src={routine.thumbnailUrl || 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80'} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
@@ -320,7 +495,10 @@ export const Home: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">Pro 전용 추천</h3>
                   <button
-                    onClick={() => navigate('/pricing')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/pricing');
+                    }}
                     className="mt-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-6 rounded-full hover:brightness-110 transition-all shadow-lg"
                   >
                     잠금해제
@@ -358,196 +536,13 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. Arena Growth */}
-      <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-5">
-          <TrendingUp className="w-5 h-5 text-green-400" />
-          아레나 성장
-        </h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-          {/* Left Column (2/3): Stats, Belt & Missions */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            {/* Stats & Belt Block */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="flex items-center gap-1.5 text-orange-400 font-black text-3xl mb-1">
-                      <Flame className="w-6 h-6 fill-orange-400" />
-                      {userStats.streak}
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">연속 출석</div>
-                  </div>
-                  <div className="h-10 w-px bg-slate-800"></div>
-                  <div>
-                    <div className="text-white font-black text-2xl mb-1">{progress?.totalXp?.toLocaleString() || 0}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">총 경험치</div>
-                  </div>
-                </div>
-
-                {/* Weekly Graph */}
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex gap-1.5">
-                    {userStats.weeklyActivity.map((active, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1">
-                        <div className={`w-2.5 h-10 rounded-full ${active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-slate-800'}`}></div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">주간 활동</div>
-                </div>
-              </div>
-
-              {/* Belt Progress */}
-              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-3xl shadow-lg">
-                        {beltIcon}
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-white">{currentBelt?.name}</div>
-                        <div className="text-xs text-slate-400">다음: {nextBelt?.name}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400 font-medium mb-1">{Math.round(xpProgress * 100)}%</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000 ease-out relative bg-gradient-to-r from-blue-500 to-indigo-500"
-                      style={{ width: `${xpProgress * 100}%` }}
-                    >
-                      <div className="absolute inset-0 bg-white/20"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Daily Missions Block (Moved here) */}
-            <div className="flex-1 min-h-[360px]">
-              <DailyQuestsPanel userId={user?.id || ''} />
-            </div>
-          </div>
-
-          {/* Right Column (1/3): Leaderboard & Patches */}
-          <div className="flex flex-col gap-4">
-            {/* 1. Leaderboard */}
-            <div className="h-[400px]">
-              <LeaderboardPanel currentUserId={user?.id || ''} />
-            </div>
-
-            {/* 2. Mini Patch Summary */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col hover:border-slate-700 transition-colors flex-1">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                  <span>🎖️</span> 보유 패치
-                </h3>
-                <span className="text-xs text-slate-500 cursor-pointer hover:text-white" onClick={() => setSelectedPatch(unlockedPatches[0])}>전체보기</span>
-              </div>
-
-              {unlockedPatches.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {unlockedPatches.slice(0, 4).map((patch) => {
-                    const Icon = patch.icon;
-                    return (
-                      <div
-                        key={patch.id}
-                        onClick={() => setSelectedPatch(patch)}
-                        className={`w-8 h-8 rounded-lg ${patch.color} flex items-center justify-center shadow-sm border border-white/10 cursor-pointer hover:scale-110 transition-transform`}
-                        title={patch.name}
-                      >
-                        <Icon className="w-4 h-4 text-white" />
-                      </div>
-                    );
-                  })}
-                  {unlockedPatches.length > 4 && (
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
-                      +{unlockedPatches.length - 4}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 text-center py-2">획득한 패치가 없습니다</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </section >
-
-      {/* 4. Sparring Review + AI Analysis */}
-      < section className="px-4 md:px-8 py-6 max-w-7xl mx-auto" >
-        <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-5">
-          <BookOpen className="w-5 h-5 text-blue-400" />
-          스파링 복기 & AI 분석
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Recent Review (Journal Style) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">최근 스파링 기록</h3>
-                  <p className="text-xs text-slate-500">{myLogs.length > 0 ? '지난 수련 내용 복습' : '기록이 없습니다'}</p>
-                </div>
-              </div>
-              {myLogs.length > 0 && <span className="text-xs text-slate-500">{new Date(myLogs[0].date).toLocaleDateString()}</span>}
-            </div>
-
-            {myLogs.length > 0 ? (
-              <div className="bg-slate-950/80 rounded-lg p-4 border border-slate-800">
-                <div className="flex gap-2 mb-2">
-                  {((myLogs[0] as any).tags || ['스파링', '오픈매트']).slice(0, 2).map((tag: string) => (
-                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">#{tag}</span>
-                  ))}
-                </div>
-                <p className="text-sm text-slate-300 line-clamp-2 mb-3">"{myLogs[0].notes || '내용이 없습니다.'}"</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  {/* Fake stats for visual consistency */}
-                  <span className="flex items-center gap-1">⏱️ {myLogs[0].durationMinutes || 5}분</span>
-                  <span className="flex items-center gap-1">🥋 스파링</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed flex items-center justify-center p-4">
-                <p className="text-sm text-slate-500">아직 작성된 스파링 복기가 없습니다.</p>
-              </div>
-            )}
-
-            <Button onClick={() => navigate('/arena?tab=sparring')} variant="outline" className="w-full">
-              작성하러 가기
-            </Button>
-          </div>
-
-          {/* AI Analysis (Pro Locked -> AI Coach Widget) */}
-          <div className="h-full">
-            <AICoachWidget
-              logs={myLogs}
-              isLocked={!isSubscriber}
-              autoRun={false}
-            />
-          </div>
-        </div>
-      </section >
-
-      {/* 5. Content Section */}
       {/* 5. Content Section */}
       <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto border-t border-slate-800/50 mt-4">
         <div className="flex items-center gap-8 border-b border-slate-800 mb-6 overflow-x-auto scrollbar-hide">
           {[
             { id: 'lesson', label: '레슨', color: 'indigo' },
             { id: 'drill', label: '드릴', color: 'emerald' },
-            { id: 'sparring', label: '스파링', color: 'blue' },
-            { id: 'community', label: '커뮤니티', color: 'pink' }
+            { id: 'sparring', label: '스파링 피드', color: 'blue' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -647,55 +642,40 @@ export const Home: React.FC = () => {
 
           {/* 3. SPARRING TAB */}
           {activeTab === 'sparring' && (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-900/20 to-slate-900 border border-blue-500/30 rounded-2xl p-6 text-center">
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-blue-900/20 to-slate-900 border border-blue-500/30 rounded-2xl p-6 text-center mb-6">
                 <h3 className="text-lg font-bold text-white mb-2">스파링 분석 신청</h3>
                 <p className="text-sm text-slate-400 mb-4">스파링 영상을 업로드하고 AI 코치의 분석을 받아보세요.</p>
                 <Button onClick={() => navigate('/arena?tab=sparring')} className="bg-blue-600 hover:bg-blue-500">분석 시작하기</Button>
               </div>
 
-              <div>
-                <h3 className="text-sm font-bold text-slate-400 mb-3">나의 스파링 기록</h3>
-                {myLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {myLogs.map(log => (
-                      <div key={log.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs text-slate-500">{new Date(log.date).toLocaleDateString()}</span>
-                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20">분석 완료</span>
-                        </div>
-                        <p className="text-sm text-white line-clamp-2">{log.notes}</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {publicSparrings.map((video) => (
+                  <div key={video.id} className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden group cursor-pointer border border-slate-800 hover:border-blue-500/50 transition-all" onClick={() => navigate(`/sparring/${video.id}`)}>
+                    {video.thumbnailUrl ? (
+                      <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                        <Play className="w-8 h-8 text-slate-600" />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-slate-500">기록이 없습니다.</div>
-                )}
-              </div>
-            </div>
-          )}
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90"></div>
 
-          {/* 4. COMMUNITY TAB (Used to be Feed) */}
-          {activeTab === 'community' && (
-            <div className="space-y-4">
-              {trainingLogs.map(log => (
-                <div key={log.id} className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex gap-4 hover:border-slate-700 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0 flex items-center justify-center text-sm font-bold text-slate-400 border border-slate-700">
-                    {log.userName?.[0] || 'U'}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-bold text-white">{log.userName || '익명'}</h4>
-                      <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-sm text-slate-300 mb-3 line-clamp-2 leading-relaxed">{log.notes}</p>
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
-                      <span className="flex items-center gap-1.5 hover:text-pink-400 transition-colors cursor-pointer"><Heart className="w-3.5 h-3.5" /> {log.likes || 0}</span>
-                      <span className="flex items-center gap-1.5 hover:text-blue-400 transition-colors cursor-pointer"><MessageCircle className="w-3.5 h-3.5" /> {log.comments || 0}</span>
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-5 h-5 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
+                          {video.creator?.profileImage ? <img src={video.creator.profileImage} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-indigo-500 flex items-center justify-center text-[8px] font-bold">{video.creator?.name?.[0] || 'U'}</div>}
+                        </div>
+                        <span className="text-xs font-medium text-slate-300 truncate">{video.creator?.name || 'Unknown'}</span>
+                      </div>
+                      <h4 className="text-sm font-bold line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">{video.title}</h4>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              {publicSparrings.length === 0 && (
+                <div className="text-center py-10 text-slate-500">아직 공개된 스파링이 없습니다.</div>
+              )}
             </div>
           )}
         </div>
