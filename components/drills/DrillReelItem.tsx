@@ -233,8 +233,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         <div className="hidden md:flex flex-col gap-6 items-center justify-end pb-12 ml-6 z-40">
                             {/* Like */}
                             <div className="flex flex-col items-center gap-1">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onLike(); }} 
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onLike(); }}
                                     className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
                                 >
                                     <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
@@ -244,8 +244,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
                             {/* Save */}
                             <div className="flex flex-col items-center gap-1">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onSave(); }} 
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onSave(); }}
                                     className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
                                 >
                                     <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`} />
@@ -253,24 +253,24 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             </div>
 
                             {/* View Routine */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-400 transition-colors group"
                             >
                                 <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
                             </button>
 
                             {/* Mute */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
                             >
                                 {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
                             </button>
 
                             {/* Share */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onShare(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onShare(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
                             >
                                 <Share2 className="w-7 h-7" />
@@ -309,9 +309,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                     to={`/creator/${drill.creatorId}`}
                                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                 >
-                                    {drill.creatorProfileImage && (
+                                    {(drill as any).creatorProfileImage && (
                                         <img
-                                            src={drill.creatorProfileImage}
+                                            src={(drill as any).creatorProfileImage}
                                             alt=""
                                             className="w-8 h-8 rounded-full border border-white/20 object-cover"
                                         />
@@ -350,11 +350,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         </div>
 
                         {/* Right Side Actions - Mobile style (stacked bottom right) */}
-                        <div className="flex flex-col gap-5 items-center pb-8 md:hidden">
+                        <div className="flex flex-col gap-5 items-center pb-24 md:hidden">
                             {/* Like */}
                             <div className="flex flex-col items-center gap-1">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onLike(); }} 
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onLike(); }}
                                     className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
                                 >
                                     <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
@@ -364,8 +364,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
                             {/* Save */}
                             <div className="flex flex-col items-center gap-1">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onSave(); }} 
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onSave(); }}
                                     className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
                                 >
                                     <Bookmark className={`w-7 h-7 ${isSaved ? 'fill-yellow-400 text-yellow-400' : ''} group-hover:scale-110 transition-transform`} />
@@ -373,24 +373,24 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             </div>
 
                             {/* View Routine */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-blue-400 transition-colors group"
                             >
                                 <ListVideo className="w-7 h-7 group-hover:scale-110 transition-transform" />
                             </button>
 
                             {/* Mute */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white transition-colors group"
                             >
                                 {isMuted ? <VolumeX className="w-7 h-7 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />}
                             </button>
 
                             {/* Share */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onShare(); }} 
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onShare(); }}
                                 className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
                             >
                                 <Share2 className="w-7 h-7" />

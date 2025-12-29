@@ -1299,7 +1299,7 @@ export const TechniqueSkillTree: React.FC = () => {
             </div>
 
             {/* React Flow Canvas */}
-            <div className="flex-1">
+            <div className="flex-1 w-full h-full overflow-hidden touch-none relative">
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}

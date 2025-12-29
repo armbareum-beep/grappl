@@ -152,7 +152,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                 onClick={() => {
                                     if (onSelectDay) onSelectDay(day);
                                 }}
-                                className={`text-center py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${isTargetDay ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                className={`text-center py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${isTargetDay ? 'bg-purple-600 text-white ring-2 ring-purple-400 ring-offset-2 ring-offset-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                     }`}>
                                 {day}
                             </div>
@@ -170,7 +170,9 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                         ? 'bg-blue-900/20 border-blue-500/50 hover:bg-blue-900/40 hover:border-blue-400 animate-pulse'
                                         : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
                                     }
-                                    ${isTargetDay ? 'ring-2 ring-purple-500 border-purple-500/50' : ''}
+                                    ${isTargetDay
+                                        ? '!bg-purple-900/80 !border-purple-400 ring-4 ring-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.5)] z-10'
+                                        : ''}
                                 `}
                             >
                                 {schedule[day].length === 0 ? (

@@ -21,6 +21,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
+    const [following, setFollowing] = useState<Set<string>>(new Set());
     const [isMuted, setIsMuted] = useState(true);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
@@ -128,7 +129,19 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         const { getRoutineByDrillId } = await import('../../lib/api');
         const { data: routine } = await getRoutineByDrillId(drill.id);
         if (routine) navigate(`/routines/${routine.id}`);
+        if (routine) navigate(`/routines/${routine.id}`);
         else alert('이 드릴은 아직 루틴에 포함되지 않았습니다.');
+    };
+
+    const handleFollow = async (drill: Drill) => {
+        if (!user) { navigate('/login'); return; }
+        // TODO: Implement actual follow API
+        const isFollowed = following.has(drill.creatorId);
+        const newFollowing = new Set(following);
+        if (isFollowed) newFollowing.delete(drill.creatorId);
+        else newFollowing.add(drill.creatorId);
+        setFollowing(newFollowing);
+        // await toggleFollow(user.id, drill.creatorId);
     };
 
     // Touch handling for Vertical Swipe (Feed Navigation)
@@ -154,7 +167,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
     return (
         <div
             ref={containerRef}
-            className="relative h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] w-full bg-black overflow-hidden overscroll-y-none touch-none"
+            className="relative h-[calc(100vh-128px)] md:h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-128px)] md:supports-[height:100dvh]:h-[calc(100dvh-64px)] w-full bg-black overflow-hidden overscroll-y-none touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
         >
@@ -191,6 +204,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         likeCount={(drill.likes || 0) + (liked.has(drill.id) ? 1 : 0)}
                         isSaved={saved.has(drill.id)}
                         onSave={() => handleSave(drill)}
+                        isFollowed={following.has(drill.creatorId)}
+                        onFollow={() => handleFollow(drill)}
                         onShare={() => handleShare(drill)}
                         onViewRoutine={() => handleViewRoutine(drill)}
                         offset={offset}

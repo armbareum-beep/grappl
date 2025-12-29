@@ -55,7 +55,7 @@ export const Arena: React.FC = () => {
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto relative z-10">
-                    <div className="mb-8">
+                    <div className="mb-8 hidden md:block">
                         <h1 className="text-3xl font-black text-white mb-2 flex items-center gap-3">
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
                                 아레나
