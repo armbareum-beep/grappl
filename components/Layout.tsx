@@ -190,43 +190,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="px-2 pt-2 pb-3 space-y-1">
               {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
 
-              <Link
-                to="/pricing"
-                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <DollarSign className="w-5 h-5" />
-                <span>요금제</span>
-              </Link>
-
-              <Link
-                to="/become-creator"
-                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Upload className="w-5 h-5" />
-                <span>인스트럭터 되기</span>
-              </Link>
-
-              <Link
-                to="/contact"
-                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <HelpCircle className="w-5 h-5" />
-                <span>문의하기</span>
-              </Link>
-
-              {user && isCreator && (
-                <Link
-                  to="/creator"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Upload className="w-5 h-5" />
-                  <span>인스트럭터 대시보드</span>
-                </Link>
-              )}
               {user ? (
                 <>
                   <Link
@@ -237,6 +200,47 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <BookOpen className="w-5 h-5" />
                     <span>내 라이브러리</span>
                   </Link>
+
+                  {!isCreator && (
+                    <Link
+                      to="/become-creator"
+                      className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span>인스트럭터 되기</span>
+                    </Link>
+                  )}
+
+                  {isCreator && (
+                    <Link
+                      to="/creator"
+                      className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span>인스트럭터 대시보드</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    to="/contact"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                    <span>문의하기</span>
+                  </Link>
+
+                  <Link
+                    to="/pricing"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    <span>요금제</span>
+                  </Link>
+
                   <Link
                     to="/settings"
                     className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
@@ -245,6 +249,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Settings className="w-5 h-5" />
                     <span>설정</span>
                   </Link>
+
                   <button
                     onClick={() => {
                       signOut();
@@ -257,14 +262,40 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </button>
                 </>
               ) : (
-                <Link
-                  to="/login"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50 flex items-center space-x-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <User className="w-5 h-5" />
-                  <span>로그인</span>
-                </Link>
+                <>
+                  <Link
+                    to="/login"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50 flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    <span>로그인</span>
+                  </Link>
+                  <Link
+                    to="/pricing"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    <span>요금제</span>
+                  </Link>
+                  <Link
+                    to="/contact"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                    <span>문의하기</span>
+                  </Link>
+                  <Link
+                    to="/become-creator"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span>인스트럭터 되기</span>
+                  </Link>
+                </>
               )}
             </div>
           </div>

@@ -785,521 +785,708 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || (routine?.price === 0) || isFirstDrill;
     const isPlayable = hasAccess && hasValidVideoUrl;
 
+    // Mobile Drawer State
+    const [showMobileList, setShowMobileList] = useState(false);
+
+    // ... existing logic ...
+
     return (
-        <div className="h-[calc(100vh-64px)] bg-black flex flex-col md:flex-row overflow-hidden">
-            {/* Left: Video Stage */}
-            <div className="flex-1 flex items-center justify-center bg-black relative min-h-0">
-                {/* Ambient Glow */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] ${isCustomRoutine ? 'bg-purple-500/10' : 'bg-blue-500/10'} blur-[120px] rounded-full`}></div>
+        <div className="h-[calc(100dvh-64px)] bg-black overflow-hidden relative">
+            {/* ========================================================================================= */}
+            {/* MOBILE VIEW (TikTok Style) */}
+            {/* ========================================================================================= */}
+            <div className="md:hidden w-full h-full relative">
+                {/* 1. Full Screen Video Layer */}
+                <div className="absolute inset-0 z-0 bg-black">
+                    {hasValidVideoUrl ? (
+                        // Reusing existing video rendering logic but with full coverage
+                        isVimeo ? (
+                            <div className="w-full h-full pointer-events-none scale-[1.35]">
+                                {/* Scale up to cover letterbox if needed, or just w-full h-full */}
+                                <VimeoWrapper
+                                    vimeoId={vimeoId!}
+                                    onProgress={() => recordWatchTime(currentDrill.id, 5)}
+                                    currentDrillId={currentDrill?.id || ''}
+                                    videoType={videoType}
+                                />
+                            </div>
+                        ) : (
+                            <video
+                                key={`${currentDrill?.id}-${videoType}`}
+                                ref={videoRef}
+                                src={directVideoUrl}
+                                className="w-full h-full object-cover"
+                                loop
+                                autoPlay
+                                playsInline
+                                muted={muted}
+                                onClick={(e) => {
+                                    const vid = e.currentTarget;
+                                    if (vid.paused) vid.play(); else vid.pause();
+                                    setIsPlaying(!vid.paused);
+                                }}
+                            />
+                        )
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                            영상 없음
+                        </div>
+                    )}
+
+                    {/* Shadow Gradient Overlay for text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none"></div>
                 </div>
 
-                {/* Video Player - Full Height 9:16 */}
-                <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 max-h-full">
-                    {/* Video Type Toggle */}
-                    {isPlayable && !isTrainingMode && (
-                        <div className="absolute top-6 left-6 z-30 flex gap-2">
-                            <button
-                                onClick={() => {
-                                    setVideoType('main');
-                                    setIsPlaying(true);
-                                    // Force play after tab switch
-                                    setTimeout(() => {
-                                        if (videoRef.current) {
-                                            videoRef.current.play().catch(() => { });
-                                        }
-                                    }, 100);
-                                }}
-                                className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'main'
-                                    ? 'bg-white text-black'
-                                    : 'bg-black/40 text-white hover:bg-black/60'
-                                    }`}
-                            >
-                                동작
+                {/* 2. Top Controls */}
+                <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
+                    {/* Close / Back */}
+                    <button onClick={() => navigate(-1)} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white">
+                        <VolumeX className="w-6 h-6" />
+                    </button>
+
+                    {/* Right Side: List & Options */}
+                    <div className="flex flex-col gap-4">
+                        <button
+                            onClick={() => setShowMobileList(true)}
+                            className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white"
+                        >
+                            <List className="w-6 h-6" />
+                        </button>
+                        {/* Mute Toggle */}
+                        <button onClick={toggleMute} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white">
+                            {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </button>
+                    </div>
+                </div>
+
+                {/* 3. Center Play/Pause Indicator (Optional) */}
+                {!isPlaying && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
+                        <PlayCircle className="w-20 h-20 text-white/80" />
+                    </div>
+                )}
+
+                {/* 4. Bottom Info & Actions */}
+                <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-20 flex flex-col gap-4">
+                    <div className="flex items-end justify-between">
+                        <div className="flex-1 mr-4">
+                            <h2 className="text-2xl font-bold text-white mb-1 drop-shadow-md leading-tight">
+                                {currentDrill?.title}
+                            </h2>
+                            <div className="flex items-center gap-2 text-zinc-300 text-sm">
+                                <span className="bg-white/20 px-2 py-0.5 rounded text-xs text-white">
+                                    {currentDrillIndex + 1} / {routine?.drills?.length}
+                                </span>
+                                <span>•</span>
+                                <span>{currentDrill?.duration || '1분'}</span>
+                            </div>
+                        </div>
+
+                        {/* Vertical Actions (Like, Save, Share) */}
+                        <div className="flex flex-col gap-4 items-center">
+                            <button onClick={handleLike} className="flex flex-col items-center gap-1">
+                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${isLiked ? 'text-pink-500' : 'text-white'}`}>
+                                    <Heart className={`w-6 h-6 ${isLiked ? 'fill-current' : ''}`} />
+                                </div>
+                                <span className="text-xs text-white font-medium">{likesCount}</span>
                             </button>
-                            <button
-                                onClick={() => {
-                                    setVideoType('description');
-                                    setIsPlaying(true);
-                                    // Force play after tab switch
-                                    setTimeout(() => {
-                                        if (videoRef.current) {
-                                            videoRef.current.play().catch(() => { });
-                                        }
-                                    }, 100);
-                                }}
-                                className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'description'
-                                    ? 'bg-white text-black'
-                                    : 'bg-black/40 text-white hover:bg-black/60'
-                                    }`}
-                            >
-                                설명
+                            <button onClick={toggleSave} className="flex flex-col items-center gap-1">
+                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${isSaved ? 'text-yellow-500' : 'text-white'}`}>
+                                    <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} />
+                                </div>
+                                <span className="text-xs text-white font-medium">저장</span>
                             </button>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Video Click Overlay for Routine Detail */}
-                    {!isTrainingMode && isPlayable && (
-                        <div
-                            onClick={() => {
-                                const nextPlaying = !isPlaying;
-                                setIsPlaying(nextPlaying);
-                                if (isVimeo) {
-                                    const iframe = iframeRef.current;
-                                    if (iframe && iframe.contentWindow) {
-                                        const message = nextPlaying ? '{"method":"play"}' : '{"method":"pause"}';
-                                        iframe.contentWindow.postMessage(message, '*');
-                                    }
-                                } else if (videoRef.current) {
-                                    if (nextPlaying) videoRef.current.play();
-                                    else videoRef.current.pause();
-                                }
-                            }}
-                            className="w-full h-full cursor-pointer"
-                        ></div>
-                    )}
+                    {/* Big Action Button */}
+                    <Button
+                        size="lg"
+                        onClick={handleCompleteAndNext}
+                        className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-900/50 flex items-center justify-center gap-2"
+                    >
+                        <CheckCircle className="w-5 h-5" />
+                        <span>드릴 완료 & 다음으로</span>
+                    </Button>
+                </div>
 
-                    {/* Draggable Progress Bar (Optional, can be added here) */}
-
-                    {/* Play/Pause Center Icon */}
-                    {!isPlaying && !isTrainingMode && isPlayable && (
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full backpack-blur-sm pointer-events-none">
-                            <PlayCircle className="w-16 h-16 text-white opacity-90" />
+                {/* Mobile Drill List Drawer (Overlay) */}
+                {showMobileList && (
+                    <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom">
+                        <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-black">
+                            <h3 className="font-bold text-white text-lg">루틴 목록</h3>
+                            <button onClick={() => setShowMobileList(false)} className="p-2 text-white">
+                                <X className="w-6 h-6" />
+                            </button>
                         </div>
-                    )}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {routine?.drills?.map((drill, idx) => (
+                                <div
+                                    key={drill.id}
+                                    onClick={() => {
+                                        setCurrentDrillIndex(idx);
+                                        setShowMobileList(false);
+                                    }}
+                                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${idx === currentDrillIndex
+                                        ? 'bg-zinc-800 border-green-500/50'
+                                        : 'bg-zinc-900/50 border-zinc-800'
+                                        }`}
+                                >
+                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 relative">
+                                        <img src={drill.thumbnailUrl} className="w-full h-full object-cover opacity-80" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            {idx === currentDrillIndex && <PlayCircle className="w-6 h-6 text-white" />}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className={`font-bold truncate ${idx === currentDrillIndex ? 'text-green-400' : 'text-zinc-300'}`}>
+                                            {drill.title}
+                                        </h4>
+                                        <p className="text-xs text-zinc-500 mt-1">{drill.duration || '0:00'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
 
-                    {!isPlayable && (
-                        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center">
-                            <Lock className="w-16 h-16 text-zinc-500 mb-4" />
-                            <h3 className="text-xl font-bold text-white mb-2">잠긴 컨텐츠입니다</h3>
-                            <p className="text-zinc-400 mb-6 max-w-sm">
-                                이 드릴을 시청하려면 루틴을 구매하거나 멤버십을 구독하세요.
-                            </p>
-                            <div className="flex gap-3">
-                                <Button onClick={handlePurchase} className={`bg-gradient-to-r ${buttonGradient} border-0`}>
-                                    {routine?.price === 0 ? '무료로 시작하기' : '구매하기'}
-                                </Button>
-                                {!user?.isSubscriber && (
-                                    <Link to="/pricing">
-                                        <Button variant="outline" className="border-zinc-600 text-white hover:bg-zinc-800">
-                                            멤버십 구독
+            {/* ========================================================================================= */}
+            {/* DESKTOP VIEW (Original Layout) */}
+            {/* ========================================================================================= */}
+            <div className="hidden md:flex flex-row w-full h-full relative">
+                {/* ... Original Desktop Content ... */}
+                {/* I need to copy the original content here or provide a way to keep it. 
+                     Since replace_file_content replaces the block, I must include the original desktop content in the replacement 
+                     OR structure the edit to wrap the original content. */}
+                {/* Strategy: Use multi_replace or structure the replacement to INSERT the mobile view BEFORE the desktop view 
+                     and WRAP the desktop view in a div with hidden md:flex. */}
+
+                {/* Wait, the desktop view is already complex. 
+                     I will define:
+                     return (
+                        <>
+                          <MobileView ... />
+            {/* ========================================================================================= */}
+                {/* DESKTOP VIEW (Original Layout) */}
+                {/* ========================================================================================= */}
+                <div className="hidden md:flex flex-row w-full h-full relative">
+
+                    {/* Left: Video Stage */}
+                    <div className="flex-1 flex items-center justify-center bg-black relative min-h-0">
+                        {/* Ambient Glow */}
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[700px] ${isCustomRoutine ? 'bg-purple-500/10' : 'bg-blue-500/10'} blur-[120px] rounded-full`}></div>
+                        </div>
+
+                        {/* Video Player - Full Height 9:16 */}
+                        <div className="relative h-full w-auto aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 max-h-full">
+                            {/* Video Type Toggle */}
+                            {isPlayable && !isTrainingMode && (
+                                <div className="absolute top-6 left-6 z-30 flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setVideoType('main');
+                                            setIsPlaying(true);
+                                            // Force play after tab switch
+                                            setTimeout(() => {
+                                                if (videoRef.current) {
+                                                    videoRef.current.play().catch(() => { });
+                                                }
+                                            }, 100);
+                                        }}
+                                        className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'main'
+                                            ? 'bg-white text-black'
+                                            : 'bg-black/40 text-white hover:bg-black/60'
+                                            }`}
+                                    >
+                                        동작
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setVideoType('description');
+                                            setIsPlaying(true);
+                                            // Force play after tab switch
+                                            setTimeout(() => {
+                                                if (videoRef.current) {
+                                                    videoRef.current.play().catch(() => { });
+                                                }
+                                            }, 100);
+                                        }}
+                                        className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md transition-all ${videoType === 'description'
+                                            ? 'bg-white text-black'
+                                            : 'bg-black/40 text-white hover:bg-black/60'
+                                            }`}
+                                    >
+                                        설명
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Video Click Overlay for Routine Detail */}
+                            {!isTrainingMode && isPlayable && (
+                                <div
+                                    onClick={() => {
+                                        const nextPlaying = !isPlaying;
+                                        setIsPlaying(nextPlaying);
+                                        if (isVimeo) {
+                                            const iframe = iframeRef.current;
+                                            if (iframe && iframe.contentWindow) {
+                                                const message = nextPlaying ? '{"method":"play"}' : '{"method":"pause"}';
+                                                iframe.contentWindow.postMessage(message, '*');
+                                            }
+                                        } else if (videoRef.current) {
+                                            if (nextPlaying) videoRef.current.play();
+                                            else videoRef.current.pause();
+                                        }
+                                    }}
+                                    className="w-full h-full cursor-pointer"
+                                ></div>
+                            )}
+
+                            {/* Draggable Progress Bar (Optional, can be added here) */}
+
+                            {/* Play/Pause Center Icon */}
+                            {!isPlaying && !isTrainingMode && isPlayable && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full backpack-blur-sm pointer-events-none">
+                                    <PlayCircle className="w-16 h-16 text-white opacity-90" />
+                                </div>
+                            )}
+
+                            {!isPlayable && (
+                                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center">
+                                    <Lock className="w-16 h-16 text-zinc-500 mb-4" />
+                                    <h3 className="text-xl font-bold text-white mb-2">잠긴 컨텐츠입니다</h3>
+                                    <p className="text-zinc-400 mb-6 max-w-sm">
+                                        이 드릴을 시청하려면 루틴을 구매하거나 멤버십을 구독하세요.
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <Button onClick={handlePurchase} className={`bg-gradient-to-r ${buttonGradient} border-0`}>
+                                            {routine?.price === 0 ? '무료로 시작하기' : '구매하기'}
                                         </Button>
-                                    </Link>
+                                        {!user?.isSubscriber && (
+                                            <Link to="/pricing">
+                                                <Button variant="outline" className="border-zinc-600 text-white hover:bg-zinc-800">
+                                                    멤버십 구독
+                                                </Button>
+                                            </Link>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {hasDirectVideo && videoType === 'main' && (
+                                <video
+                                    key={`${currentDrill.id}-${videoType}`}
+                                    ref={videoRef}
+                                    src={directVideoUrl}
+                                    className="w-full h-full object-cover"
+                                    loop
+                                    autoPlay
+                                    playsInline
+                                    muted={muted}
+                                    onTimeUpdate={handleProgress}
+                                />
+                            )}
+                            {hasVimeo && (
+                                <>
+                                    {/* Preload both video types for instant switching */}
+                                    <div className={videoType === 'main' ? 'block w-full h-full' : 'hidden'}>
+                                        <VimeoWrapper
+                                            key={`${currentDrill.id}-main`}
+                                            vimeoId={extractVimeoId(currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
+                                            onProgress={handleProgress}
+                                            currentDrillId={currentDrill.id}
+                                            videoType="main"
+                                        />
+                                    </div>
+                                    <div className={videoType === 'description' ? 'block w-full h-full' : 'hidden'}>
+                                        <VimeoWrapper
+                                            key={`${currentDrill.id}-description`}
+                                            vimeoId={extractVimeoId(currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
+                                            onProgress={handleProgress}
+                                            currentDrillId={currentDrill.id}
+                                            videoType="description"
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Description Video Overlay (if exists and selected) */}
+                            {hasDirectVideo && videoType === 'description' && (
+                                <video
+                                    src={currentDrill.descriptionVideoUrl || directVideoUrl} // Fallback to main if no desc video, but logic above handles effective URL
+                                    className="w-full h-full object-cover"
+                                    loop
+                                    playsInline
+                                    autoPlay
+                                    controls
+                                />
+                            )}
+
+                            {/* Training Mode Timer Overlay */}
+                            {isTrainingMode && (
+                                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center">
+                                    <div className={`text-6xl font-bold ${accentColor} mb-8 font-mono tracking-widest`}>
+                                        {formatTime(elapsedSeconds)}
+                                    </div>
+                                    <div className="flex flex-col items-center gap-4">
+                                        <p className="text-zinc-400 animate-pulse">훈련 진행 중...</p>
+                                        <Button
+                                            onClick={handleFinishTraining}
+                                            className={`px-12 py-6 text-xl bg-gradient-to-r ${buttonGradient} border-0 rounded-2xl`}
+                                        >
+                                            훈련 완료
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Overlay UI - Match Drill Reels Feed */}
+                            {isPlayable && !isTrainingMode && (
+                                <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-40 pointer-events-auto pb-8">
+                                    {/* Like */}
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button
+                                            onClick={handleLikeDrill}
+                                            className="text-white hover:text-red-500 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                        >
+                                            <Heart
+                                                className={`w-8 h-8 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''}`}
+                                                strokeWidth={1.5}
+                                            />
+                                        </button>
+                                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
+                                            {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
+                                        </span>
+                                    </div>
+
+                                    {/* Save */}
+                                    <button
+                                        onClick={handleSaveDrill}
+                                        className="text-white hover:text-yellow-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                        title="나만의 루틴에 저장"
+                                    >
+                                        <Bookmark
+                                            className={`w-8 h-8 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''}`}
+                                            strokeWidth={1.5}
+                                        />
+                                    </button>
+
+
+
+                                    {/* Mute */}
+                                    <button
+                                        onClick={toggleMute}
+                                        className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                    >
+                                        {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
+                                    </button>
+
+                                    {/* Share */}
+                                    <button
+                                        onClick={handleShare}
+                                        className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                    >
+                                        <Share2 className="w-8 h-8" strokeWidth={1.5} />
+                                    </button>
+                                </div>
+                            )}
+                        </div> {/* Video Frame 닫음 (line 766) */}
+
+                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+                            <div className="flex items-end justify-between w-full pointer-events-auto">
+                                {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
+                                <div className="flex-1 pr-4">
+                                    <div className="flex flex-row items-center gap-2 mb-2">
+                                        <span
+                                            onClick={navigateToCreator}
+                                            className="font-bold text-[15px] text-white text-shadow-sm cursor-pointer hover:underline"
+                                        >
+                                            {routine?.creatorName || 'Instructor'}
+                                        </span>
+                                        <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
+                                        <button
+                                            onClick={handleFollow}
+                                            className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowing
+                                                ? 'border-white/20 bg-white/10 text-white/60'
+                                                : 'border-white/40 bg-transparent text-white hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {isFollowing ? '팔로잉' : '팔로우'}
+                                        </button>
+                                    </div>
+
+                                    <h3 className="font-black text-xl leading-tight text-white text-shadow-md line-clamp-2">
+                                        {currentDrill.title}
+                                    </h3>
+
+                                    {/* Tags */}
+                                    {currentDrill.tags && currentDrill.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
+                                                <span key={idx} className="text-white/80 text-xs drop-shadow-md font-medium">
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Progress Indicator - Moved inside here for now or can be moved out */}
+                                {owns && (
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
+                                        <div
+                                            className={`h-full bg-gradient-to-r ${progressGradient} transition-all duration-300`}
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div> {/* Bottom Info Overlay 닫음 */}
+                    </div> {/* Video Stage 닫음 */}
+
+                    {/* Right: Info Panel - Full Height */}
+                    <div className="w-full md:w-[420px] bg-black border-l border-white/10 flex flex-col h-1/2 md:h-full flex-shrink-0">
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/10 bg-black/80 backdrop-blur-md flex-shrink-0">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div
+                                    className="relative cursor-pointer group"
+                                    onClick={navigateToCreator}
+                                >
+                                    <img
+                                        src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
+                                        className="w-14 h-14 rounded-full ring-2 ring-zinc-800 object-cover group-hover:ring-white/30 transition-all"
+                                        alt={routine.creatorName}
+                                    />
+                                    <div className={`absolute -bottom-1 -right-1 ${isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500'} text-[9px] text-white px-1.5 py-0.5 rounded shadow-lg font-black tracking-tighter`}>
+                                        {isCustomRoutine ? 'ME' : 'PRO'}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3
+                                        onClick={navigateToCreator}
+                                        className="text-white font-bold text-lg tracking-tight truncate cursor-pointer hover:underline"
+                                    >
+                                        {routine.creatorName}
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Routine Title & Save Action */}
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <h2 className="text-2xl font-black text-white truncate">{routine.title}</h2>
+                                    <button
+                                        onClick={handleSaveRoutine}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-xs font-bold ${owns
+                                            ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
+                                            : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                                            }`}
+                                    >
+                                        <Bookmark className={`w-3.5 h-3.5 ${owns ? 'fill-blue-500' : ''}`} />
+                                        <span>{owns ? '담김' : '내 라이브러리에 담기'}</span>
+                                    </button>
+                                </div>
+                                {isCompletedToday && (
+                                    <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30 shrink-0">
+                                        <CalendarCheck className="w-3.5 h-3.5" />
+                                        <span className="text-xs font-bold">오늘 완료함</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                <div className="flex items-center gap-1">
+                                    <Eye className="w-3 h-3" />
+                                    <span>{routine.views?.toLocaleString() || 0}회</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <PlayCircle className="w-3 h-3" />
+                                    <span>{routine.drillCount || routine.drills?.length || 0}개 드릴</span>
+                                </div>
+                                {totalDurationMinutes > 0 && (
+                                    <div className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{totalDurationMinutes}분</span>
+                                    </div>
                                 )}
                             </div>
                         </div>
-                    )}
 
-                    {hasDirectVideo && videoType === 'main' && (
-                        <video
-                            key={`${currentDrill.id}-${videoType}`}
-                            ref={videoRef}
-                            src={directVideoUrl}
-                            className="w-full h-full object-cover"
-                            loop
-                            autoPlay
-                            playsInline
-                            muted={muted}
-                            onTimeUpdate={handleProgress}
-                        />
-                    )}
-                    {hasVimeo && (
-                        <>
-                            {/* Preload both video types for instant switching */}
-                            <div className={videoType === 'main' ? 'block w-full h-full' : 'hidden'}>
-                                <VimeoWrapper
-                                    key={`${currentDrill.id}-main`}
-                                    vimeoId={extractVimeoId(currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
-                                    onProgress={handleProgress}
-                                    currentDrillId={currentDrill.id}
-                                    videoType="main"
-                                />
-                            </div>
-                            <div className={videoType === 'description' ? 'block w-full h-full' : 'hidden'}>
-                                <VimeoWrapper
-                                    key={`${currentDrill.id}-description`}
-                                    vimeoId={extractVimeoId(currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl) || ''}
-                                    onProgress={handleProgress}
-                                    currentDrillId={currentDrill.id}
-                                    videoType="description"
-                                />
-                            </div>
-                        </>
-                    )}
+                        {/* Scrollable Content - Drill List */}
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                            {/* Current Drill Info */}
+                            {!isTrainingMode && (
+                                <div className="p-6 border-b border-zinc-900">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold ${accentColor}`}>현재 재생중</span>
+                                            <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white mb-2">{currentDrill.title}</h3>
+                                    <p className="text-sm text-zinc-400 leading-relaxed">
+                                        {currentDrill.description || '설명이 없습니다.'}
+                                    </p>
+                                </div>
+                            )}
 
-                    {/* Description Video Overlay (if exists and selected) */}
-                    {hasDirectVideo && videoType === 'description' && (
-                        <video
-                            src={currentDrill.descriptionVideoUrl || directVideoUrl} // Fallback to main if no desc video, but logic above handles effective URL
-                            className="w-full h-full object-cover"
-                            loop
-                            playsInline
-                            autoPlay
-                            controls
-                        />
-                    )}
+                            {/* Drill Playlist */}
+                            <div className="p-6">
+                                <h4 className="text-sm font-bold text-white mb-3">루틴 드릴 목록</h4>
+                                <div className="space-y-2">
+                                    {routine.drills?.map((drill, index) => {
+                                        const drillData = typeof drill === 'string' ? null : drill;
+                                        const isCompleted = drillData && completedDrills.has(drillData.id);
+                                        const isCurrent = index === currentDrillIndex;
+                                        // Allow playing if: owned, premium, free, or FIRST drill
+                                        const isDrillPlayable = owns || (isSubscriber && user?.subscription_tier === 'premium') || drillData?.price === 0 || index === 0;
 
-                    {/* Training Mode Timer Overlay */}
-                    {isTrainingMode && (
-                        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center">
-                            <div className={`text-6xl font-bold ${accentColor} mb-8 font-mono tracking-widest`}>
-                                {formatTime(elapsedSeconds)}
+                                        return (
+                                            <button
+                                                key={index}
+                                                onClick={() => isDrillPlayable && handleDrillSelect(index)}
+                                                disabled={!isDrillPlayable}
+                                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${isCurrent
+                                                    ? `${activeBg} border ${activeBorder}`
+                                                    : isDrillPlayable
+                                                        ? 'hover:bg-zinc-900 border border-transparent'
+                                                        : 'opacity-50 cursor-not-allowed border border-transparent'
+                                                    }`}
+                                            >
+                                                <div className="relative w-16 aspect-[9/16] rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
+                                                    {drillData?.thumbnailUrl && (
+                                                        <img
+                                                            src={drillData.thumbnailUrl}
+                                                            alt={drillData.title}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    )}
+                                                    {!isDrillPlayable && (
+                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                            <Lock className="w-4 h-4 text-white" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 text-left min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-xs font-bold text-zinc-500">#{index + 1}</span>
+                                                        {isCompleted && <CheckCircle className="w-3 h-3 text-green-400" />}
+                                                    </div>
+                                                    <h5 className={`text-sm font-medium line-clamp-2 leading-snug ${isCurrent ? accentColor : 'text-zinc-200'
+                                                        }`}>
+                                                        {drillData?.title || `드릴 ${index + 1}`}
+                                                    </h5>
+                                                    {drillData?.duration && drillData.duration !== '0:00' && (
+                                                        <p className="text-xs text-zinc-500">{drillData.duration}</p>
+                                                    )}
+                                                </div>
+                                                {isCurrent && (
+                                                    <div className="flex-shrink-0">
+                                                        <div className={`w-2 h-2 rounded-full ${activeDot} animate-pulse`} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="flex flex-col items-center gap-4">
-                                <p className="text-zinc-400 animate-pulse">훈련 진행 중...</p>
+                        </div>
+
+                        {/* Footer CTA */}
+                        <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex-shrink-0">
+                            {isPlayable ? (
                                 <Button
-                                    onClick={handleFinishTraining}
-                                    className={`px-12 py-6 text-xl bg-gradient-to-r ${buttonGradient} border-0 rounded-2xl`}
+                                    onClick={handleDrillComplete}
+                                    className={`w-full bg-gradient-to-r ${buttonGradient} text-white font-bold py-6 rounded-xl shadow-lg`}
                                 >
-                                    훈련 완료
+                                    <CheckCircle className="w-5 h-5 mr-2" />
+                                    드릴 완료 & 다음으로
                                 </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Overlay UI - Match Drill Reels Feed */}
-                    {isPlayable && !isTrainingMode && (
-                        <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6 z-40 pointer-events-auto pb-8">
-                            {/* Like */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={handleLikeDrill}
-                                    className="text-white hover:text-red-500 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                                >
-                                    <Heart
-                                        className={`w-8 h-8 ${likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''}`}
-                                        strokeWidth={1.5}
-                                    />
-                                </button>
-                                <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
-                                    {(currentDrill.likes || 0) + (likedDrills.has(currentDrill.id) ? 1 : 0)}
-                                </span>
-                            </div>
-
-                            {/* Save */}
-                            <button
-                                onClick={handleSaveDrill}
-                                className="text-white hover:text-yellow-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                                title="나만의 루틴에 저장"
-                            >
-                                <Bookmark
-                                    className={`w-8 h-8 ${savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''}`}
-                                    strokeWidth={1.5}
-                                />
-                            </button>
-
-
-
-                            {/* Mute */}
-                            <button
-                                onClick={toggleMute}
-                                className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                            >
-                                {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
-                            </button>
-
-                            {/* Share */}
-                            <button
-                                onClick={handleShare}
-                                className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                            >
-                                <Share2 className="w-8 h-8" strokeWidth={1.5} />
-                            </button>
-                        </div>
-                    )}
-                </div> {/* Video Frame 닫음 (line 766) */}
-
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
-                    <div className="flex items-end justify-between w-full pointer-events-auto">
-                        {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
-                        <div className="flex-1 pr-4">
-                            <div className="flex flex-row items-center gap-2 mb-2">
-                                <span
-                                    onClick={navigateToCreator}
-                                    className="font-bold text-[15px] text-white text-shadow-sm cursor-pointer hover:underline"
-                                >
-                                    {routine?.creatorName || 'Instructor'}
-                                </span>
-                                <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
-                                <button
-                                    onClick={handleFollow}
-                                    className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowing
-                                        ? 'border-white/20 bg-white/10 text-white/60'
-                                        : 'border-white/40 bg-transparent text-white hover:bg-white/10'
-                                        }`}
-                                >
-                                    {isFollowing ? '팔로잉' : '팔로우'}
-                                </button>
-                            </div>
-
-                            <h3 className="font-black text-xl leading-tight text-white text-shadow-md line-clamp-2">
-                                {currentDrill.title}
-                            </h3>
-
-                            {/* Tags */}
-                            {currentDrill.tags && currentDrill.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {currentDrill.tags.slice(0, 3).map((tag: string, idx: number) => (
-                                        <span key={idx} className="text-white/80 text-xs drop-shadow-md font-medium">
-                                            #{tag}
-                                        </span>
-                                    ))}
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center justify-between px-1 mb-1">
+                                        <span className="text-zinc-500 text-xs font-medium">단품 구매</span>
+                                        <span className="text-green-500 font-black text-sm">{routine.price === 0 ? '무료' : `₩${routine.price.toLocaleString()}`}</span>
+                                    </div>
+                                    <Button
+                                        onClick={routine.price === 0 ? handleSaveRoutine : handlePurchase}
+                                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all"
+                                    >
+                                        내 라이브러리에 담기
+                                    </Button>
+                                    <Link to="/pricing" className="w-full">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 py-3 rounded-xl text-sm"
+                                        >
+                                            구독하고 전체 클래스 보기
+                                        </Button>
+                                    </Link>
                                 </div>
                             )}
                         </div>
-
-                        {/* Progress Indicator - Moved inside here for now or can be moved out */}
-                        {owns && (
-                            <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
-                                <div
-                                    className={`h-full bg-gradient-to-r ${progressGradient} transition-all duration-300`}
-                                    style={{ width: `${progress}%` }}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div> {/* Bottom Info Overlay 닫음 */}
-            </div> {/* Video Stage 닫음 */}
-
-            {/* Right: Info Panel - Full Height */}
-            <div className="w-full md:w-[420px] bg-black border-l border-white/10 flex flex-col h-1/2 md:h-full flex-shrink-0">
-                {/* Header */}
-                <div className="p-6 border-b border-white/10 bg-black/80 backdrop-blur-md flex-shrink-0">
-                    <div className="flex items-center gap-4 mb-6">
-                        <div
-                            className="relative cursor-pointer group"
-                            onClick={navigateToCreator}
-                        >
-                            <img
-                                src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
-                                className="w-14 h-14 rounded-full ring-2 ring-zinc-800 object-cover group-hover:ring-white/30 transition-all"
-                                alt={routine.creatorName}
-                            />
-                            <div className={`absolute -bottom-1 -right-1 ${isCustomRoutine ? 'bg-purple-500' : 'bg-blue-500'} text-[9px] text-white px-1.5 py-0.5 rounded shadow-lg font-black tracking-tighter`}>
-                                {isCustomRoutine ? 'ME' : 'PRO'}
-                            </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3
-                                onClick={navigateToCreator}
-                                className="text-white font-bold text-lg tracking-tight truncate cursor-pointer hover:underline"
-                            >
-                                {routine.creatorName}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* Routine Title & Save Action */}
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <h2 className="text-2xl font-black text-white truncate">{routine.title}</h2>
-                            <button
-                                onClick={handleSaveRoutine}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-xs font-bold ${owns
-                                    ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
-                                    : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
-                                    }`}
-                            >
-                                <Bookmark className={`w-3.5 h-3.5 ${owns ? 'fill-blue-500' : ''}`} />
-                                <span>{owns ? '담김' : '내 라이브러리에 담기'}</span>
-                            </button>
-                        </div>
-                        {isCompletedToday && (
-                            <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30 shrink-0">
-                                <CalendarCheck className="w-3.5 h-3.5" />
-                                <span className="text-xs font-bold">오늘 완료함</span>
-                            </div>
-                        )}
-                    </div>
+                    {/* Quest Complete Modal */}
+                    <QuestCompleteModal
+                        isOpen={showQuestComplete}
+                        onClose={() => {
+                            setShowQuestComplete(false);
+                            setShareModalData(null);
+                        }}
+                        onContinue={() => {
+                            setShowQuestComplete(false);
+                            setShowShareModal(true);
+                        }}
+                        questName={routine?.title || '루틴'}
+                        xpEarned={xpEarned}
+                        streak={streak}
+                        bonusReward={bonusReward}
+                    />
 
-                    <div className="flex items-center gap-4 text-xs text-zinc-500">
-                        <div className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            <span>{routine.views?.toLocaleString() || 0}회</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <PlayCircle className="w-3 h-3" />
-                            <span>{routine.drillCount || routine.drills?.length || 0}개 드릴</span>
-                        </div>
-                        {totalDurationMinutes > 0 && (
-                            <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <span>{totalDurationMinutes}분</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Scrollable Content - Drill List */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                    {/* Current Drill Info */}
-                    {!isTrainingMode && (
-                        <div className="p-6 border-b border-zinc-900">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-bold ${accentColor}`}>현재 재생중</span>
-                                    <span className="text-xs text-zinc-500">드릴 {currentDrillIndex + 1}/{routine.drills?.length || 0}</span>
-                                </div>
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">{currentDrill.title}</h3>
-                            <p className="text-sm text-zinc-400 leading-relaxed">
-                                {currentDrill.description || '설명이 없습니다.'}
-                            </p>
-                        </div>
+                    {/* Share to Feed Modal */}
+                    {showShareModal && shareModalData && (
+                        <ShareToFeedModal
+                            isOpen={showShareModal}
+                            onClose={() => setShowShareModal(false)}
+                            onShare={handleShareToFeed}
+                            activityType="routine"
+                            defaultContent={shareModalData.defaultContent}
+                            metadata={shareModalData.metadata}
+                        />
                     )}
 
-                    {/* Drill Playlist */}
-                    <div className="p-6">
-                        <h4 className="text-sm font-bold text-white mb-3">루틴 드릴 목록</h4>
-                        <div className="space-y-2">
-                            {routine.drills?.map((drill, index) => {
-                                const drillData = typeof drill === 'string' ? null : drill;
-                                const isCompleted = drillData && completedDrills.has(drillData.id);
-                                const isCurrent = index === currentDrillIndex;
-                                // Allow playing if: owned, premium, free, or FIRST drill
-                                const isDrillPlayable = owns || (isSubscriber && user?.subscription_tier === 'premium') || drillData?.price === 0 || index === 0;
+                    {/* Share Modal for Drill */}
+                    {isShareModalOpen && shareModalData2 && currentDrill && (
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={shareModalData2.title}
+                            text={shareModalData2.text}
+                            url={shareModalData2.url}
+                            imageUrl={currentDrill.thumbnailUrl}
+                        />
+                    )}
 
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => isDrillPlayable && handleDrillSelect(index)}
-                                        disabled={!isDrillPlayable}
-                                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${isCurrent
-                                            ? `${activeBg} border ${activeBorder}`
-                                            : isDrillPlayable
-                                                ? 'hover:bg-zinc-900 border border-transparent'
-                                                : 'opacity-50 cursor-not-allowed border border-transparent'
-                                            }`}
-                                    >
-                                        <div className="relative w-16 aspect-[9/16] rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
-                                            {drillData?.thumbnailUrl && (
-                                                <img
-                                                    src={drillData.thumbnailUrl}
-                                                    alt={drillData.title}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            )}
-                                            {!isDrillPlayable && (
-                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                    <Lock className="w-4 h-4 text-white" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 text-left min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-bold text-zinc-500">#{index + 1}</span>
-                                                {isCompleted && <CheckCircle className="w-3 h-3 text-green-400" />}
-                                            </div>
-                                            <h5 className={`text-sm font-medium line-clamp-2 leading-snug ${isCurrent ? accentColor : 'text-zinc-200'
-                                                }`}>
-                                                {drillData?.title || `드릴 ${index + 1}`}
-                                            </h5>
-                                            {drillData?.duration && drillData.duration !== '0:00' && (
-                                                <p className="text-xs text-zinc-500">{drillData.duration}</p>
-                                            )}
-                                        </div>
-                                        {isCurrent && (
-                                            <div className="flex-shrink-0">
-                                                <div className={`w-2 h-2 rounded-full ${activeDot} animate-pulse`} />
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer CTA */}
-                <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex-shrink-0">
-                    {isPlayable ? (
-                        <Button
-                            onClick={handleDrillComplete}
-                            className={`w-full bg-gradient-to-r ${buttonGradient} text-white font-bold py-6 rounded-xl shadow-lg`}
-                        >
-                            <CheckCircle className="w-5 h-5 mr-2" />
-                            드릴 완료 & 다음으로
-                        </Button>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between px-1 mb-1">
-                                <span className="text-zinc-500 text-xs font-medium">단품 구매</span>
-                                <span className="text-green-500 font-black text-sm">{routine.price === 0 ? '무료' : `₩${routine.price.toLocaleString()}`}</span>
-                            </div>
-                            <Button
-                                onClick={routine.price === 0 ? handleSaveRoutine : handlePurchase}
-                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all"
-                            >
-                                내 라이브러리에 담기
-                            </Button>
-                            <Link to="/pricing" className="w-full">
-                                <Button
-                                    variant="outline"
-                                    className="w-full border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 py-3 rounded-xl text-sm"
-                                >
-                                    구독하고 전체 클래스 보기
-                                </Button>
-                            </Link>
-                        </div>
+                    {/* Share Modal for Routine */}
+                    {isShareModalOpen && !shareModalData2 && routine && (
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={routine.title}
+                            text={routine.description || `Check out this routine: ${routine.title}`}
+                            url={window.location.href}
+                            imageUrl={routine.thumbnailUrl}
+                        />
                     )}
                 </div>
             </div>
-
-            {/* Quest Complete Modal */}
-            <QuestCompleteModal
-                isOpen={showQuestComplete}
-                onClose={() => {
-                    setShowQuestComplete(false);
-                    setShareModalData(null);
-                }}
-                onContinue={() => {
-                    setShowQuestComplete(false);
-                    setShowShareModal(true);
-                }}
-                questName={routine?.title || '루틴'}
-                xpEarned={xpEarned}
-                streak={streak}
-                bonusReward={bonusReward}
-            />
-
-            {/* Share to Feed Modal */}
-            {showShareModal && shareModalData && (
-                <ShareToFeedModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    onShare={handleShareToFeed}
-                    activityType="routine"
-                    defaultContent={shareModalData.defaultContent}
-                    metadata={shareModalData.metadata}
-                />
-            )}
-
-            {/* Share Modal for Drill */}
-            {isShareModalOpen && shareModalData2 && currentDrill && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    title={shareModalData2.title}
-                    text={shareModalData2.text}
-                    url={shareModalData2.url}
-                    imageUrl={currentDrill.thumbnailUrl}
-                />
-            )}
-
-            {/* Share Modal for Routine */}
-            {isShareModalOpen && !shareModalData2 && routine && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    title={routine.title}
-                    text={routine.description || `Check out this routine: ${routine.title}`}
-                    url={window.location.href}
-                    imageUrl={routine.thumbnailUrl}
-                />
-            )}
         </div>
     );
 };

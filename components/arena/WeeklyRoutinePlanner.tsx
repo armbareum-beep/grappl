@@ -169,7 +169,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                         : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
                                     }
                                     ${isTargetDay
-                                        ? '!bg-purple-900/80 !border-purple-400 ring-4 ring-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.5)] z-10'
+                                        ? '!bg-cyan-900/40 !border-cyan-400 ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] z-10'
                                         : ''}
                                 `}
                             >
