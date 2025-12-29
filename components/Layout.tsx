@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Package, Clapperboard } from 'lucide-react';
+import { Menu, X, User, Video, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Package, Clapperboard, HelpCircle } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -190,16 +190,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="px-2 pt-2 pb-3 space-y-1">
               {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
 
-              {user && !isCreator && (
-                <Link
-                  to="/become-creator"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Upload className="w-5 h-5" />
-                  <span>인스트럭터 되기</span>
-                </Link>
-              )}
+              <Link
+                to="/pricing"
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <DollarSign className="w-5 h-5" />
+                <span>요금제</span>
+              </Link>
+
+              <Link
+                to="/become-creator"
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Upload className="w-5 h-5" />
+                <span>인스트럭터 되기</span>
+              </Link>
+
+              <Link
+                to="/contact"
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center space-x-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <HelpCircle className="w-5 h-5" />
+                <span>문의하기</span>
+              </Link>
+
               {user && isCreator && (
                 <Link
                   to="/creator"
@@ -260,7 +277,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      {!['/drills', '/arena', '/sparring', '/journal'].some(path => location.pathname.startsWith(path)) &&
+      {!['/drills', '/arena', '/sparring', '/journal', '/browse'].some(path => location.pathname.startsWith(path)) &&
         !location.pathname.startsWith('/course') &&
         !location.pathname.startsWith('/routines') && (
           <footer className={`bg-slate-900 border-t border-slate-800 mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
@@ -279,6 +296,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <h4 className="font-bold text-white mb-4">서비스</h4>
                   <ul className="space-y-2 text-sm text-slate-400">
                     <li><Link to="/browse" className="hover:text-blue-600 transition-colors">강좌 둘러보기</Link></li>
+                    <li><Link to="/pricing" className="hover:text-blue-600 transition-colors">요금제</Link></li>
                     <li><Link to="/become-creator" className="hover:text-blue-600 transition-colors">인스트럭터 되기</Link></li>
                   </ul>
                 </div>
