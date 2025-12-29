@@ -48,14 +48,14 @@ export const Arena: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-950 text-white">
-            {/* Premium Header */}
-            <div className="relative bg-slate-900 border-b border-slate-800 pt-8 pb-4 px-4 md:px-8 overflow-hidden">
+            {/* Desktop Header & Tabs */}
+            <div className="hidden md:block relative bg-slate-900 border-b border-slate-800 pt-8 pb-4 px-4 md:px-8 overflow-hidden">
                 {/* Background Effects */}
                 <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto relative z-10">
-                    <div className="mb-8 hidden md:block">
+                    <div className="mb-8">
                         <h1 className="text-3xl font-black text-white mb-2 flex items-center gap-3">
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
                                 아레나
@@ -71,58 +71,20 @@ export const Arena: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Tab Navigation */}
-                    {/* Tab Navigation - Desktop & Mobile */}
+                    {/* Tab Navigation - Desktop */}
                     <div className="flex flex-wrap gap-3">
                         {ARENA_TABS.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
-
-                            // Color classes mapping
+                            // Color classes mapping (same as before)
                             const colorClasses = {
-                                blue: {
-                                    bg: 'bg-blue-500/20',
-                                    text: 'text-blue-400',
-                                    border: 'border-blue-500/50',
-                                    shadow: 'shadow-blue-900/20',
-                                    ring: 'ring-blue-500/20',
-                                    bottomBar: 'bg-blue-500'
-                                },
-                                emerald: {
-                                    bg: 'bg-emerald-500/20',
-                                    text: 'text-emerald-400',
-                                    border: 'border-emerald-500/50',
-                                    shadow: 'shadow-emerald-900/20',
-                                    ring: 'ring-emerald-500/20',
-                                    bottomBar: 'bg-emerald-500'
-                                },
-                                purple: {
-                                    bg: 'bg-purple-500/20',
-                                    text: 'text-purple-400',
-                                    border: 'border-purple-500/50',
-                                    shadow: 'shadow-purple-900/20',
-                                    ring: 'ring-purple-500/20',
-                                    bottomBar: 'bg-purple-500'
-                                },
-                                red: {
-                                    bg: 'bg-red-500/20',
-                                    text: 'text-red-400',
-                                    border: 'border-red-500/50',
-                                    shadow: 'shadow-red-900/20',
-                                    ring: 'ring-red-500/20',
-                                    bottomBar: 'bg-red-500'
-                                },
-                                amber: {
-                                    bg: 'bg-amber-500/20',
-                                    text: 'text-amber-400',
-                                    border: 'border-amber-500/50',
-                                    shadow: 'shadow-amber-900/20',
-                                    ring: 'ring-amber-500/20',
-                                    bottomBar: 'bg-amber-500'
-                                }
+                                blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/50', shadow: 'shadow-blue-900/20', ring: 'ring-blue-500/20', bottomBar: 'bg-blue-500' },
+                                emerald: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/50', shadow: 'shadow-emerald-900/20', ring: 'ring-emerald-500/20', bottomBar: 'bg-emerald-500' },
+                                purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/50', shadow: 'shadow-purple-900/20', ring: 'ring-purple-500/20', bottomBar: 'bg-purple-500' },
+                                red: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50', shadow: 'shadow-red-900/20', ring: 'ring-red-500/20', bottomBar: 'bg-red-500' },
+                                amber: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/50', shadow: 'shadow-amber-900/20', ring: 'ring-amber-500/20', bottomBar: 'bg-amber-500' }
                             };
-
-                            const colors = colorClasses[tab.color as keyof typeof colorClasses];
+                            const colors = colorClasses[tab.color as keyof typeof colorClasses] || colorClasses.blue;
 
                             return (
                                 <button
@@ -136,10 +98,7 @@ export const Arena: React.FC = () => {
                                         }
                                     `}
                                 >
-                                    <div className={`
-                                        p-2 rounded-lg transition-colors
-                                        ${isActive ? `${colors.bg} ${colors.text}` : 'bg-slate-800 text-slate-500 group-hover:text-slate-300'}
-                                    `}>
+                                    <div className={`p-2 rounded-lg transition-colors ${isActive ? `${colors.bg} ${colors.text}` : 'bg-slate-800 text-slate-500 group-hover:text-slate-300'}`}>
                                         <Icon className="w-5 h-5" />
                                     </div>
                                     <div className="flex flex-col">
@@ -150,7 +109,6 @@ export const Arena: React.FC = () => {
                                             {tab.desc}
                                         </span>
                                     </div>
-
                                     {isActive && (
                                         <div className={`absolute bottom-0 left-0 w-full h-0.5 ${colors.bottomBar} rounded-b-xl opacity-50`}></div>
                                     )}
@@ -158,22 +116,52 @@ export const Arena: React.FC = () => {
                             );
                         })}
                     </div>
+                </div>
+            </div>
 
-                    {/* Mobile Dropdown Navigation */}
+            {/* Mobile Tab Navigation (Sleek, Scrollable) */}
+            <div className="md:hidden sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
+                <div className="flex overflow-x-auto scrollbar-hide">
+                    {ARENA_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        const activeColor = tab.color === 'purple' ? 'text-purple-500 border-purple-500' :
+                            tab.color === 'emerald' ? 'text-emerald-500 border-emerald-500' :
+                                'text-blue-500 border-blue-500';
 
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`
+                                    flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap min-w-fit flex-1 justify-center
+                                    ${isActive
+                                        ? `${activeColor} bg-slate-900/50 font-bold`
+                                        : 'border-transparent text-slate-400 hover:text-slate-200'}
+                                `}
+                            >
+                                <Icon className={`w-4 h-4 ${isActive ? '' : 'opacity-70'}`} />
+                                <span className="text-sm">{tab.label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px] mb-20 md:mb-0">
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className={`w-full mx-auto ${activeTab === 'skills' ? 'h-[calc(100vh-120px)] md:h-auto md:min-h-[600px] overflow-hidden' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-8 min-h-[600px]'} mb-20 md:mb-0`}>
+                <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeTab === 'skills' ? 'h-full' : ''}`}>
                     {activeTab === 'routines' && <TrainingRoutinesTab />}
                     {activeTab === 'sparring' && (
                         <SparringReviewTab
                             autoRunAI={searchParams.get('action') === 'analyze'}
                         />
                     )}
-                    {activeTab === 'skills' && <TechniqueSkillTree />}
+                    {activeTab === 'skills' && (
+                        <div className="h-full touch-none">
+                            <TechniqueSkillTree />
+                        </div>
+                    )}
                     {activeTab === 'journal' && <JournalTab />}
                 </div>
             </div>

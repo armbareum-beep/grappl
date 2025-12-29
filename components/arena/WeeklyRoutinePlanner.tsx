@@ -101,12 +101,10 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     };
 
     const handleDayClick = (day: string) => {
-        if (selectedRoutine) {
-            // Check for duplicates (optional, but consistent with drag-drop)
-            // The user asked for "multiple", so we allow duplicates or just multiple different ones.
-            // We'll allow multiple. If exact duplicate check is needed, we can add it.
-            // Let's just add it.
+        // Always trigger selection first
+        if (onSelectDay) onSelectDay(day);
 
+        if (selectedRoutine) {
             const newSchedule = {
                 ...schedule,
                 [day]: [...schedule[day], selectedRoutine]
