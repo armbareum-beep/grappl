@@ -148,8 +148,12 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                             key={day}
                             className="flex flex-col gap-2 min-w-[140px] sm:min-w-[160px] flex-1"
                         >
-                            <div className={`text-center py-2 rounded-lg font-bold text-sm transition-colors ${isTargetDay ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'
-                                }`}>
+                            <div
+                                onClick={() => {
+                                    if (onSelectDay) onSelectDay(day);
+                                }}
+                                className={`text-center py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${isTargetDay ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                    }`}>
                                 {day}
                             </div>
                             <div

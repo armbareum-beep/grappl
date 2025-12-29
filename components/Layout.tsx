@@ -5,10 +5,6 @@ import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
 import { LevelUpModal } from './LevelUpModal';
 import { TitleEarnedModal } from './TitleEarnedModal';
 
@@ -192,23 +188,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-800 bg-slate-900">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`block px-3 py-2 rounded-md text-base font-medium flex items-center space-x-2 ${isActive(item.href)
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                      }`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
+              {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
+
               {user && !isCreator && (
                 <Link
                   to="/become-creator"
@@ -279,7 +260,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      {!['/drills', '/arena'].includes(location.pathname) && (
+      {!['/drills', '/arena', '/sparring', '/journal'].includes(location.pathname) && (
         <footer className={`bg-slate-900 border-t border-slate-800 mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="grid md:grid-cols-4 gap-8">
@@ -354,50 +335,66 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
       )}
 
-      {/* Mobile Bottom Navigation (Global) */}
+      {/* Mobile Bottom Navigation (Global, 5 Tabs) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-slate-900 border-t border-slate-800 pb-safe">
-        <div className="flex justify-around items-center h-16">
+        <div className="grid grid-cols-5 h-16 items-center">
+          {/* 1. Class (Home) */}
           <Link
-            to="/"
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname === '/'
+            to="/browse"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/browse') || location.pathname.startsWith('/courses')
                 ? 'text-white'
                 : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <BookOpen className={`w-6 h-6 ${location.pathname === '/' ? 'text-indigo-500' : ''}`} />
+            <BookOpen className={`w-5 h-5 ${location.pathname.startsWith('/browse') || location.pathname.startsWith('/courses') ? 'text-indigo-500' : ''}`} />
             <span className="text-[10px] font-bold">클래스</span>
           </Link>
 
+          {/* 2. Drills */}
           <Link
             to="/drills"
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/drills')
-                ? 'text-white'
-                : 'text-slate-500 hover:text-slate-300'
+              ? 'text-white'
+              : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Zap className={`w-6 h-6 ${location.pathname.startsWith('/drills') ? 'text-emerald-500' : ''}`} />
-            <span className="text-[10px] font-bold">드릴 & 루틴</span>
+            <Zap className={`w-5 h-5 ${location.pathname.startsWith('/drills') ? 'text-emerald-500' : ''}`} />
+            <span className="text-[10px] font-bold">드릴</span>
           </Link>
 
+          {/* 3. Sparring */}
           <Link
             to="/sparring"
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/sparring')
-                ? 'text-white'
-                : 'text-slate-500 hover:text-slate-300'
+              ? 'text-white'
+              : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Clapperboard className={`w-6 h-6 ${location.pathname.startsWith('/sparring') ? 'text-blue-500' : ''}`} />
+            <Clapperboard className={`w-5 h-5 ${location.pathname.startsWith('/sparring') ? 'text-blue-500' : ''}`} />
             <span className="text-[10px] font-bold">스파링</span>
           </Link>
 
+          {/* 4. Feed (Journal) - NEW */}
+          <Link
+            to="/journal"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/journal')
+              ? 'text-white'
+              : 'text-slate-500 hover:text-slate-300'
+              }`}
+          >
+            <Users className={`w-5 h-5 ${location.pathname.startsWith('/journal') ? 'text-pink-500' : ''}`} />
+            <span className="text-[10px] font-bold">피드</span>
+          </Link>
+
+          {/* 5. Arena */}
           <Link
             to="/arena"
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/arena')
-                ? 'text-white'
-                : 'text-slate-500 hover:text-slate-300'
+              ? 'text-white'
+              : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Trophy className={`w-6 h-6 ${location.pathname.startsWith('/arena') ? 'text-amber-500' : ''}`} />
+            <Trophy className={`w-5 h-5 ${location.pathname.startsWith('/arena') ? 'text-amber-500' : ''}`} />
             <span className="text-[10px] font-bold">아레나</span>
           </Link>
         </div>

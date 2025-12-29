@@ -72,8 +72,8 @@ export const Arena: React.FC = () => {
                     </div>
 
                     {/* Tab Navigation */}
-                    {/* Tab Navigation - Desktop */}
-                    <div className="hidden md:flex flex-wrap gap-3">
+                    {/* Tab Navigation - Desktop & Mobile */}
+                    <div className="flex flex-wrap gap-3">
                         {ARENA_TABS.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -177,34 +177,7 @@ export const Arena: React.FC = () => {
                     {activeTab === 'journal' && <JournalTab />}
                 </div>
             </div>
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 pb-safe z-50">
-                <div className="flex justify-around items-center h-16">
-                    {ARENA_TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        const colorClass = isActive
-                            ? tab.color === 'blue' ? 'text-blue-400'
-                                : tab.color === 'emerald' ? 'text-emerald-400'
-                                    : 'text-purple-400'
-                            : 'text-slate-500';
-
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={`flex flex-col items-center justify-center w-full h-full gap-1 active:scale-95 transition-transform ${isActive ? 'bg-slate-800/50' : ''
-                                    }`}
-                            >
-                                <Icon className={`w-6 h-6 ${colorClass} ${isActive ? 'fill-current opacity-20' : ''}`} strokeWidth={isActive ? 2.5 : 1.5} />
-                                <span className={`text-[10px] font-medium ${colorClass}`}>
-                                    {tab.label}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+            {/* Mobile Bottom Navigation Removed (Moved to Global Layout) */}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -39,14 +39,11 @@ export const TrainingRoutinesTab: React.FC = () => {
 
             // First, load from localStorage immediately for instant display
             const localSaved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
-            console.log('localStorage saved_drills:', localSaved.length);
             setSavedDrills(localSaved);
 
             if (user) {
                 try {
-                    console.log('Fetching saved drills from DB for user:', user.id);
                     const drills = await getUserSavedDrills(user.id);
-                    console.log('DB saved drills:', drills.length);
 
                     // Only update if DB returned data
                     if (drills && drills.length > 0) {
@@ -60,7 +57,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                     // If DB is empty but localStorage has data, keep localStorage data
                 } catch (error) {
                     console.error('Error loading saved drills from DB:', error);
-                    console.log('Falling back to localStorage data');
                     // Keep using localStorage data on error
                 }
             }
@@ -70,21 +66,18 @@ export const TrainingRoutinesTab: React.FC = () => {
 
         // Reload when window regains focus (user comes back from drill page)
         const handleFocus = () => {
-            console.log('Window focused, reloading saved drills');
             loadSavedDrills();
         };
 
         // Reload when localStorage changes (from other tabs or components)
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === 'saved_drills') {
-                console.log('localStorage saved_drills changed, reloading');
                 loadSavedDrills();
             }
         };
 
         // Custom event for same-tab updates
         const handleCustomStorage = () => {
-            console.log('Custom storage event, reloading saved drills');
             loadSavedDrills();
         };
 
@@ -225,13 +218,8 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
     };
 
-    // ...
-
-
-
     const handleDragStart = (e: React.DragEvent, routine: DrillRoutine) => {
         e.dataTransfer.setData('application/json', JSON.stringify(routine));
-        // ... (rest of drag start logic is fine, keeping it minimal in replacement if possible or include whole func)
         e.dataTransfer.effectAllowed = 'copy';
 
         if (e.currentTarget) {
@@ -342,9 +330,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                             <p className="text-slate-400 text-sm break-keep">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
                         </div>
                     </div>
-                    <button className="md:hidden text-slate-400">
-                        {isCreateSectionOpen ? <ChevronUp /> : <ChevronDown />}
-                    </button>
                 </div>
 
                 {/* Collapsible Content */}
@@ -464,8 +449,20 @@ export const TrainingRoutinesTab: React.FC = () => {
                             })}
                         </div>
                     ) : (
-                        <div className="text-center py-4 text-slate-500 text-sm">
-                            저장된 드릴이 없습니다.
+                        <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-800/20 rounded-xl border border-slate-800/50">
+                            <p className="text-slate-500 text-sm mb-4">저장된 드릴이 없습니다.</p>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/drills');
+                                }}
+                                className="flex items-center gap-2"
+                            >
+                                <Zap className="w-4 h-4" />
+                                드릴 찾아보기
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -476,7 +473,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <PlaySquare className="w-5 h-5 text-blue-500" />
-                        내 루틴 라이브러리
+                        나의 훈련 루틴
                     </h2>
                     {selectedRoutineForPlacement && (
                         <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2">
@@ -558,7 +555,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 <div
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
+                                                        // if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
                                                     }}
                                                     className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-white transition-colors"
                                                 >
@@ -663,7 +660,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             <div
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
+                                                    // if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
                                                 }}
                                                 className="pt-3 border-t border-slate-800/50 flex items-center justify-between group/creator"
                                             >
@@ -698,8 +695,14 @@ export const TrainingRoutinesTab: React.FC = () => {
                 ) : (
                     <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
                         <Dumbbell className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                        <p className="text-slate-400 mb-4">아직 생성된 루틴이 없습니다.</p>
-                        <p className="text-sm text-slate-500">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
+                        <p className="text-slate-400 mb-2">아직 생성된 루틴이 없습니다.</p>
+                        <p className="text-sm text-slate-500 mb-6">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
+                        <Button
+                            onClick={() => navigate('/drills')}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-200"
+                        >
+                            드릴 탐색하러 가기
+                        </Button>
                     </div>
                 )}
             </section>
