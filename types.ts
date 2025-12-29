@@ -608,6 +608,7 @@ export interface SkillTreeEdge {
 export interface UserSkillTree {
   id: string;
   userId: string;
+  title?: string;
   nodes: SkillTreeNode[];
   edges: SkillTreeEdge[];
   createdAt: string;

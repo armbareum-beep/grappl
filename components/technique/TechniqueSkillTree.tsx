@@ -1152,7 +1152,7 @@ export const TechniqueSkillTree: React.FC = () => {
     }
 
     return (
-        <div className="h-[calc(100vh-320px)] min-h-[600px] bg-slate-950 flex flex-col rounded-2xl overflow-hidden border border-slate-800">
+        <div className="h-full w-full bg-slate-950 flex flex-col overflow-hidden">
             {/* Toolbar */}
             {/* Toolbar */}
             <div className="bg-slate-900 border-b border-slate-800 p-4">
@@ -1323,10 +1323,15 @@ export const TechniqueSkillTree: React.FC = () => {
                         animated: false,
                     }}
                     fitView
-                    minZoom={0.05}
-                    maxZoom={2}
+                    minZoom={0.1}
+                    maxZoom={1.5}
                     className="bg-slate-950"
                     connectionMode={ConnectionMode.Loose}
+                    preventScrolling={true}
+                    zoomOnPinch={true}
+                    panOnScroll={false}
+                    panOnDrag={true}
+                    proOptions={{ hideAttribution: true }}
                 >
                     <style>{`
                         .react-flow__edge.selected .react-flow__edge-path {
