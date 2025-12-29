@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Heart, MessageCircle,
   Sword, Dumbbell, BookOpen, Activity, Bot, Flame, Trophy,
-  Calendar, Lock, Star, TrendingUp, X, Package, Clock, CheckCircle2, Sparkles
+  Calendar, Lock, Star, TrendingUp, X, Package, Clock, CheckCircle2, Sparkles, Award, Settings
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { getUserProgress, getDailyQuests } from '../lib/api';
@@ -19,7 +19,6 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { AICoachWidget } from '../components/journal/AICoachWidget';
 import { DailyQuestsPanel } from '../components/DailyQuestsPanel';
 import { supabase } from '../lib/supabase';
-import { Settings } from 'lucide-react';
 import { LeaderboardPanel } from '../components/LeaderboardPanel';
 
 const QUEST_INFO: Record<string, { icon: string; name: string }> = {
@@ -50,10 +49,15 @@ export const Home: React.FC = () => {
   const [proRoutines, setProRoutines] = useState<DrillRoutine[]>([]);
   const [publicSparrings, setPublicSparrings] = useState<SparringVideo[]>([]);
 
+  // Modal States
+  const [showMissionModal, setShowMissionModal] = useState(false);
+  const [showBeltModal, setShowBeltModal] = useState(false);
+  const [showPatchModal, setShowPatchModal] = useState(false);
+  const [selectedPatch, setSelectedPatch] = useState<any | null>(null);
+
   // User progress states
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [quests, setQuests] = useState<DailyQuest[]>([]);
-  const [selectedPatch, setSelectedPatch] = useState<Patch | null>(null);
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -349,15 +353,15 @@ export const Home: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => setShowMissionModal(true)}>
               <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🔥 {streak}</div>
               <div className="text-[10px] text-slate-400">일 연속 수련</div>
             </div>
-            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => setShowBeltModal(true)}>
               <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🥋 {currentBelt?.name || 'White'}</div>
               <div className="text-[10px] text-slate-400">현재 벨트</div>
             </div>
-            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => navigate('/arena')}>
+            <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group" onClick={() => setShowPatchModal(true)}>
               <div className="text-xl font-black text-white mb-1 group-hover:scale-110 transition-transform">🏆 {unlockedPatches.length}</div>
               <div className="text-[10px] text-slate-400">획득 패치</div>
             </div>
@@ -463,77 +467,45 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Recommended Routine (Pro) (Moved Down) */}
+      {/* 4. AI Recommended Class (Hero) */}
       <section className="px-4 md:px-8 py-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-            <h2 className="text-lg font-bold text-white">추천 루틴 (Pro)</h2>
+            <Sparkles className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-bold text-white">AI 추천 클래스</h2>
           </div>
-          <button onClick={() => navigate('/routines')} className="text-sm text-slate-500 hover:text-white transition-colors">더 보기</button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {(proRoutines.length > 0 ? proRoutines : [{ id: 'mock-1' }, { id: 'mock-2' }, { id: 'mock-3' }, { id: 'mock-4' }]).map((routine: any, i) => (
-            <div
-              key={routine.id || i}
-              onClick={() => !isSubscriber ? navigate('/pricing') : navigate(`/routines/${routine.id}`)}
-              className={`cursor-pointer relative bg-slate-900 border rounded-xl overflow-hidden group transition-all h-[240px] flex flex-col justify-end ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
-                routine.difficulty === 'STRENGTH' ? 'border-emerald-500/30 hover:border-emerald-500/50' :
-                  'border-slate-800 hover:border-slate-700'
-                }`}
-            >
+        {recommendedCourses.length > 0 && (
+          <div
+            onClick={() => navigate(`/courses/${recommendedCourses[0].id}`)}
+            className="relative w-full aspect-[21/9] md:aspect-[3/1] bg-slate-900 rounded-2xl overflow-hidden group cursor-pointer border border-slate-800 hover:border-indigo-500/50 transition-all shadow-xl"
+          >
+            <img src={recommendedCourses[0].thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent"></div>
 
-              {/* Background Image with Gradient Overlay */}
-              <img src={routine.thumbnailUrl || 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80'} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent"></div>
+            <div className="absolute inset-0 p-6 flex flex-col justify-center max-w-lg">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 backdrop-blur-md mb-4 w-fit">
+                <Bot className="w-3.5 h-3.5 text-indigo-300" />
+                <span className="text-xs font-bold text-indigo-200">{user?.user_metadata?.full_name || '회원'}님을 위한 맞춤 강의</span>
+              </div>
 
-              {!isSubscriber ? (
-                <div className="relative z-10 p-6 flex flex-col items-center justify-center text-center h-full backdrop-blur-[2px]">
-                  <div className="w-12 h-12 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <Lock className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-1">Pro 전용 추천</h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/pricing');
-                    }}
-                    className="mt-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-6 rounded-full hover:brightness-110 transition-all shadow-lg"
-                  >
-                    잠금해제
-                  </button>
+              <h3 className="text-2xl md:text-3xl font-black text-white mb-2 leading-tight drop-shadow-lg">{recommendedCourses[0].title}</h3>
+              <p className="text-slate-300 text-sm md:text-base line-clamp-2 mb-6 max-w-sm drop-shadow">{recommendedCourses[0].description}</p>
+
+              <div className="flex items-center gap-4">
+                <Button onClick={(e) => { e.stopPropagation(); navigate(`/courses/${recommendedCourses[0].id}`); }} className="bg-white text-slate-900 hover:bg-slate-100 font-bold border-0">
+                  <Play className="w-4 h-4 mr-2 fill-slate-900" />
+                  바로 수강하기
+                </Button>
+                <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
+                  <span className="px-2 py-0.5 bg-black/40 rounded border border-white/10">{recommendedCourses[0].difficulty || 'All Levels'}</span>
+                  <span>{recommendedCourses[0].lessonCount}강</span>
                 </div>
-              ) : (
-                <div className="relative z-10 p-5">
-                  <div className="mb-2 flex gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${routine.difficulty === 'WEAKNESS' ? 'bg-red-500/20 text-red-200 border-red-500/30' :
-                      routine.difficulty === 'STRENGTH' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' :
-                        'bg-amber-500/20 text-amber-200 border-amber-500/30'
-                      }`}>
-                      {routine.difficulty === 'WEAKNESS' ? '약점 보완' : '강점 강화'}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2 leading-tight">{routine.title || 'Pro 맞춤형 루틴'}</h3>
-                  <div className="flex items-center gap-4 text-xs text-slate-300">
-                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {routine.totalDurationMinutes || 20}분</span>
-                    <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> {routine.drillCount || 5}개 드릴</span>
-                  </div>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/routines/${routine.id}`);
-                    }}
-                    size="sm"
-                    className="absolute top-4 right-4 w-10 h-10 rounded-full p-0 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20"
-                  >
-                    <Play className="w-4 h-4 fill-white" />
-                  </Button>
-                </div>
-              )}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </section>
 
       {/* 5. Content Section */}
@@ -542,7 +514,7 @@ export const Home: React.FC = () => {
           {[
             { id: 'lesson', label: '레슨', color: 'indigo' },
             { id: 'drill', label: '드릴', color: 'emerald' },
-            { id: 'sparring', label: '스파링 피드', color: 'blue' },
+            { id: 'sparring', label: '스파링', color: 'blue' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -643,32 +615,30 @@ export const Home: React.FC = () => {
           {/* 3. SPARRING TAB */}
           {activeTab === 'sparring' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-blue-900/20 to-slate-900 border border-blue-500/30 rounded-2xl p-6 text-center mb-6">
-                <h3 className="text-lg font-bold text-white mb-2">스파링 분석 신청</h3>
-                <p className="text-sm text-slate-400 mb-4">스파링 영상을 업로드하고 AI 코치의 분석을 받아보세요.</p>
-                <Button onClick={() => navigate('/arena?tab=sparring')} className="bg-blue-600 hover:bg-blue-500">분석 시작하기</Button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {publicSparrings.map((video) => (
-                  <div key={video.id} className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden group cursor-pointer border border-slate-800 hover:border-blue-500/50 transition-all" onClick={() => navigate(`/sparring/${video.id}`)}>
+                  <div key={video.id} className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden group cursor-pointer border border-slate-800 hover:border-blue-500/50 transition-all shadow-lg" onClick={() => navigate(`/sparring/${video.id}`)}>
                     {video.thumbnailUrl ? (
-                      <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full bg-slate-800 flex items-center justify-center">
                         <Play className="w-8 h-8 text-slate-600" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
 
                     <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-5 h-5 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
                           {video.creator?.profileImage ? <img src={video.creator.profileImage} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-indigo-500 flex items-center justify-center text-[8px] font-bold">{video.creator?.name?.[0] || 'U'}</div>}
                         </div>
                         <span className="text-xs font-medium text-slate-300 truncate">{video.creator?.name || 'Unknown'}</span>
                       </div>
-                      <h4 className="text-sm font-bold line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">{video.title}</h4>
+                      <h4 className="text-sm font-bold line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors mb-1">{video.title}</h4>
+                      <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                        <span className="flex items-center gap-1"><Play className="w-3 h-3" /> {video.views || 0}</span>
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {video.likes || 0}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -679,38 +649,122 @@ export const Home: React.FC = () => {
             </div>
           )}
         </div>
-      </section >
+      </section>
 
-      {/* Patch Detail Modal */}
-      {
-        selectedPatch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedPatch(null)}>
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full relative shadow-2xl shadow-indigo-500/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-              <button
-                onClick={() => setSelectedPatch(null)}
-                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
-              >
+      {/* Modals */}
+      {/* 1. Daily Missions Modal */}
+      {showMissionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowMissionModal(false)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Flame className="w-6 h-6 text-orange-500" /> 오늘의 미션
+              </h3>
+              <button onClick={() => setShowMissionModal(false)} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
+            </div>
+            <DailyQuestsPanel userId={user?.id || ''} />
+          </div>
+        </div>
+      )}
 
-              <div className="flex flex-col items-center text-center">
-                <div className={`w-20 h-20 rounded-full ${selectedPatch.color} flex items-center justify-center shadow-xl mb-4 border-4 border-slate-800`}>
-                  {React.createElement(selectedPatch.icon, { className: "w-10 h-10 text-white" })}
-                </div>
-                <h3 className="text-xl font-black text-white mb-1">{selectedPatch.name}</h3>
-                <p className="text-slate-400 text-sm mb-4">{selectedPatch.description}</p>
+      {/* 2. Belt Progress Modal */}
+      {showBeltModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowBeltModal(false)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-500" /> 나의 성장
+              </h3>
+              <button onClick={() => setShowBeltModal(false)} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                <div className="w-full bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                  <p className="text-xs text-slate-500 mb-1">획득일</p>
-                  <p className="text-sm font-bold text-white">
-                    {selectedPatch.unlockedAt ? new Date(selectedPatch.unlockedAt).toLocaleDateString() : '알 수 없음'}
-                  </p>
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-24 h-24 rounded-full bg-slate-950 border-4 border-slate-800 flex items-center justify-center text-5xl shadow-[0_0_30px_rgba(79,70,229,0.3)] mb-4">
+                {beltIcon}
+              </div>
+              <h2 className="text-2xl font-black text-white mb-1">{currentBelt?.name}</h2>
+              <p className="text-sm text-slate-400">Total XP: <span className="text-white font-bold">{progress?.totalXp?.toLocaleString()}</span></p>
+            </div>
+
+            <div className="space-y-4 bg-slate-950/50 rounded-xl p-5 border border-slate-800">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-400">Next Belt</span>
+                <span className="text-indigo-400 font-bold">{nextBelt?.name}</span>
+              </div>
+              <div className="relative h-4 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-1000"
+                  style={{ width: `${xpProgress * 100}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
                 </div>
               </div>
+              <div className="text-center text-xs text-slate-500">
+                다음 승급까지 <span className="text-white font-bold">{((nextBelt?.xpRequired || 0) - (progress?.totalXp || 0)).toLocaleString()} XP</span> 남았습니다.
+              </div>
+            </div>
+
+            <Button onClick={() => navigate('/arena')} className="w-full mt-6 py-4 bg-indigo-600 hover:bg-indigo-500">
+              아레나 상세 보기
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Patch Modal */}
+      {showPatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowPatchModal(false)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Award className="w-6 h-6 text-yellow-500" /> 보유 패치
+              </h3>
+              <button onClick={() => setShowPatchModal(false)} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto pr-2 grid grid-cols-4 gap-4">
+              {unlockedPatches.map((patch) => {
+                const Icon = patch.icon;
+                return (
+                  <div key={patch.id} className="flex flex-col items-center gap-2" onClick={() => setSelectedPatch(patch)}>
+                    <div className={`w-14 h-14 rounded-xl ${patch.color} flex items-center justify-center shadow-lg border-2 border-slate-700 hover:scale-110 transition-transform cursor-pointer`}>
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <span className="text-[10px] text-center text-slate-400 font-medium leading-tight">{patch.name}</span>
+                  </div>
+                );
+              })}
+              {unlockedPatches.length === 0 && (
+                <div className="col-span-4 py-10 text-center text-slate-500">
+                  아직 획득한 패치가 없습니다. <br /> 꾸준히 수련하여 패치를 모아보세요!
+                </div>
+              )}
             </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+
+      {/* Selected Patch Details Modal (Existing Reuse) */}
+      {selectedPatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedPatch(null)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm text-center relative shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className={`w-20 h-20 mx-auto rounded-2xl ${selectedPatch.color} flex items-center justify-center mb-4 shadow-xl animate-bounce-custom`}>
+              <selectedPatch.icon className="w-10 h-10 text-white" />
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2">{selectedPatch.name}</h3>
+            <p className="text-slate-400 mb-6 leading-relaxed">{selectedPatch.description}</p>
+            <Button onClick={() => setSelectedPatch(null)} className="w-full bg-white text-slate-900 hover:bg-slate-200">
+              멋져요!
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

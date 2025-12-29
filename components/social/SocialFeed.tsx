@@ -5,6 +5,7 @@ import { SocialPost } from './SocialPost';
 interface SocialFeedProps {
     posts: TrainingLog[];
     loading: boolean;
+    onRefresh?: () => Promise<void>;
 }
 
 export const SocialFeed: React.FC<SocialFeedProps> = ({ posts, loading }) => {

@@ -15,6 +15,23 @@ export const Journal: React.FC = () => {
     const [posts, setPosts] = useState<TrainingLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isAnalyzedToday, setIsAnalyzedToday] = useState(false);
+
+    useEffect(() => {
+        const lastDate = localStorage.getItem('ai_analysis_last_date');
+        const today = new Date().toISOString().split('T')[0];
+        if (lastDate === today) {
+            setIsAnalyzedToday(true);
+        }
+    }, []);
+
+    const handleAnalyzeClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const today = new Date().toISOString().split('T')[0];
+        localStorage.setItem('ai_analysis_last_date', today);
+        setIsAnalyzedToday(true);
+        navigate('/arena?tab=sparring');
+    };
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
@@ -218,14 +235,23 @@ export const Journal: React.FC = () => {
                         </div>
 
                         <button
-                            className="w-full py-3 rounded-lg bg-white text-indigo-900 font-bold text-sm hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px]"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/arena?tab=sparring');
-                            }}
+                            className={`w-full py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px] ${isAnalyzedToday
+                                    ? 'bg-slate-800/50 text-slate-400 cursor-default'
+                                    : 'bg-white text-indigo-900 hover:bg-indigo-50'
+                                }`}
+                            onClick={isAnalyzedToday ? (e) => e.stopPropagation() : handleAnalyzeClick}
                         >
-                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                            지금 분석 받아보기
+                            {isAnalyzedToday ? (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                    오늘의 분석 완료
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                                    지금 분석 받아보기
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
