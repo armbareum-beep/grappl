@@ -5,7 +5,7 @@ import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Heart, Bookmark, Share2, Volume2, VolumeX } from 'lucide-react';
+import { PlayCircle, Clock, Eye, CheckCircle, Lock, CalendarCheck, Heart, Bookmark, Share2, Volume2, VolumeX, List, X } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import ShareModal from '../components/social/ShareModal';
@@ -108,6 +108,7 @@ export const RoutineDetail: React.FC = () => {
     // Video type state
     const [videoType, setVideoType] = useState<'main' | 'description'>('main');
     const [isFollowing, setIsFollowing] = useState(false);
+    const [showMobileList, setShowMobileList] = useState(false);
 
     const navigateToCreator = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -785,8 +786,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
     const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || (routine?.price === 0) || isFirstDrill;
     const isPlayable = hasAccess && hasValidVideoUrl;
 
-    // Mobile Drawer State
-    const [showMobileList, setShowMobileList] = useState(false);
+
 
     // ... existing logic ...
 
@@ -884,15 +884,15 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
 
                         {/* Vertical Actions (Like, Save, Share) */}
                         <div className="flex flex-col gap-4 items-center">
-                            <button onClick={handleLike} className="flex flex-col items-center gap-1">
-                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${isLiked ? 'text-pink-500' : 'text-white'}`}>
-                                    <Heart className={`w-6 h-6 ${isLiked ? 'fill-current' : ''}`} />
+                            <button onClick={handleLikeDrill} className="flex flex-col items-center gap-1">
+                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${likedDrills.has(currentDrill?.id || '') ? 'text-pink-500' : 'text-white'}`}>
+                                    <Heart className={`w-6 h-6 ${likedDrills.has(currentDrill?.id || '') ? 'fill-current' : ''}`} />
                                 </div>
-                                <span className="text-xs text-white font-medium">{likesCount}</span>
+                                <span className="text-xs text-white font-medium">{currentDrill?.likes || 0}</span>
                             </button>
-                            <button onClick={toggleSave} className="flex flex-col items-center gap-1">
-                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${isSaved ? 'text-yellow-500' : 'text-white'}`}>
-                                    <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} />
+                            <button onClick={handleSaveDrill} className="flex flex-col items-center gap-1">
+                                <div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${savedDrills.has(currentDrill?.id || '') ? 'text-yellow-500' : 'text-white'}`}>
+                                    <Bookmark className={`w-6 h-6 ${savedDrills.has(currentDrill?.id || '') ? 'fill-current' : ''}`} />
                                 </div>
                                 <span className="text-xs text-white font-medium">저장</span>
                             </button>
@@ -902,7 +902,7 @@ ${routine?.drills && routine.drills.length > 0 ? `완료한 드릴: ${routine.dr
                     {/* Big Action Button */}
                     <Button
                         size="lg"
-                        onClick={handleCompleteAndNext}
+                        onClick={handleDrillComplete}
                         className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-900/50 flex items-center justify-center gap-2"
                     >
                         <CheckCircle className="w-5 h-5" />

@@ -372,7 +372,7 @@ export const CreatorProfile: React.FC = () => {
                         {sparringVideos.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {sparringVideos.map((video) => (
-                                    <Link key={video.id} to={`/sparring?id=${video.id}`} className="group block relative aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:shadow-lg hover:shadow-black/50 hover:border-zinc-700 transition-all">
+                                    <Link key={video.id} to={`/sparring?id=${video.id}`} className="group block relative aspect-video bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:shadow-lg hover:shadow-black/50 hover:border-zinc-700 transition-all">
                                         <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 

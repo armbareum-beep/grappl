@@ -147,7 +147,8 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                             className="flex flex-col gap-2 min-w-[140px] sm:min-w-[160px] flex-1"
                         >
                             <div
-                                onClick={() => {
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                     if (onSelectDay) onSelectDay(day);
                                 }}
                                 className={`text-center py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer ${isTargetDay ? 'bg-purple-600 text-white ring-2 ring-purple-400 ring-offset-2 ring-offset-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
@@ -158,7 +159,8 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, day)}
-                                onClick={() => {
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                     handleDayClick(day);
                                     if (onSelectDay) onSelectDay(day);
                                 }}
@@ -174,7 +176,14 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                 `}
                             >
                                 {schedule[day].length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2 pointer-events-none">
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDayClick(day);
+                                            if (onSelectDay) onSelectDay(day);
+                                        }}
+                                        className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2 cursor-pointer hover:bg-slate-900/50 transition-colors rounded-lg"
+                                    >
                                         <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
                                             <span className="text-lg">+</span>
                                         </div>
@@ -185,7 +194,12 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                         {schedule[day].map((routine, idx) => (
                                             <div
                                                 key={`${routine.id}-${idx}`}
-                                                className="bg-slate-800 rounded-lg p-2.5 group relative border border-slate-700 hover:border-purple-500/50 transition-colors"
+                                                className={`bg-slate-800 rounded-lg p-2.5 group relative border transition-colors cursor-pointer
+                                                    ${selectedRoutine?.id === routine.id
+                                                        ? 'border-blue-500 ring-1 ring-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]'
+                                                        : 'border-slate-700 hover:border-purple-500/50'
+                                                    }
+                                                `}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 <div className="flex items-start justify-between gap-2 mb-1.5">

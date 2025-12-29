@@ -28,8 +28,8 @@ const QUEST_INFO: Record<string, { icon: React.ElementType; name: string; descri
     },
     sparring_review: {
         icon: Swords,
-        name: '스파링 복기',
-        description: '스파링 영상 분석/복기',
+        name: '스파링 AI 분석',
+        description: '스파링 영상 AI 분석',
         color: 'text-orange-400'
     },
     complete_routine: {
@@ -143,7 +143,7 @@ export const DailyQuestsPanel: React.FC<DailyQuestsPanelProps> = ({ userId }) =>
                                 }
                             `}
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 h-full">
                                 {/* Icon container */}
                                 <div className={`
                                     w-10 h-10 rounded-full flex items-center justify-center transition-colors
@@ -154,14 +154,14 @@ export const DailyQuestsPanel: React.FC<DailyQuestsPanelProps> = ({ userId }) =>
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className={`font-bold text-sm ${isCompleted ? 'text-slate-200 line-through opacity-70' : 'text-white'}`}>
+                                        <span className={`font-bold text-sm whitespace-nowrap ${isCompleted ? 'text-slate-200 line-through opacity-70' : 'text-white'}`}>
                                             {info.name}
                                         </span>
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-slate-800 text-yellow-500'}`}>
                                             +{quest.xpReward} XP
                                         </span>
                                     </div>
-                                    <p className="text-xs text-slate-500 truncate mb-1.5">{info.description}</p>
+                                    <p className="text-xs text-slate-500 mb-1.5 whitespace-pre-wrap">{info.description}</p>
 
                                     {/* Mini Progress Bar for incomplete items */}
                                     {!isCompleted && (

@@ -206,7 +206,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             window.dispatchEvent(new Event('weekly_schedule_update'));
 
             success(`${selectedDayForPlacement}요일에 루틴이 추가되었습니다.`);
-            setSelectedDayForPlacement(null);
+            // setSelectedDayForPlacement(null); // Keep selected for continuous add
             return;
         }
 
@@ -298,24 +298,47 @@ export const TrainingRoutinesTab: React.FC = () => {
     }
 
     return (
-        <div className="space-y-8 min-h-screen" onClick={() => {
-            setSelectedRoutineForPlacement(null);
-            setSelectedDayForPlacement(null);
-        }}>
+        <div
+            className="space-y-8 min-h-screen"
+            onClick={() => {
+                // Background click dismisses selection mode
+                if (selectedDayForPlacement || selectedRoutineForPlacement) {
+                    setSelectedDayForPlacement(null);
+                    setSelectedRoutineForPlacement(null);
+                }
+            }}
+        >
 
-            {/* Floating Instruction for Day selection */}
-            {selectedDayForPlacement && (
-                <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-bounce font-bold flex items-center gap-4">
-                    <span>'{selectedDayForPlacement}'요일에 추가할 루틴을 선택하세요!</span>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDayForPlacement(null);
-                        }}
-                        className="bg-white/20 hover:bg-white/30 rounded-full p-1"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
+            {/* Contextual Action Bar */}
+            {(selectedDayForPlacement || selectedRoutineForPlacement) && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 w-[90%] max-w-md">
+                    <div className="bg-slate-900/90 backdrop-blur-md border border-purple-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 ring-1 ring-white/10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0 animate-pulse">
+                                {selectedDayForPlacement ? <div className="text-white font-bold text-lg">{selectedDayForPlacement[0]}</div> : <Dumbbell className="w-5 h-5 text-white" />}
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-sm">
+                                    {selectedDayForPlacement ? '루틴 선택 모드' : '배치할 요일 선택'}
+                                </h3>
+                                <p className="text-purple-200 text-xs">
+                                    {selectedDayForPlacement
+                                        ? `'${selectedDayForPlacement}'요일에 추가할 루틴을 선택하세요`
+                                        : `루틴을 추가할 요일을 선택하세요`}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDayForPlacement(null);
+                                setSelectedRoutineForPlacement(null);
+                            }}
+                            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <X className="w-5 h-5 text-slate-400" />
+                        </button>
+                    </div>
                 </div>
             )}
             {/* Create Routine Section - MOVED TO TOP */}
@@ -651,7 +674,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 }`}>
                                                 {routine.title}
                                             </h3>
-                                            <p className="text-slate-400 text-sm line-clamp-1 mb-3">{routine.description}</p>
+                                            <p className="text-xs text-slate-500 mb-1.5 whitespace-pre-wrap">{routine.description}</p>
                                             <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
                                                 <span>{routine.drillCount}개 드릴</span>
                                                 <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
@@ -713,8 +736,11 @@ export const TrainingRoutinesTab: React.FC = () => {
                 onAddToDay={handleRoutineAdded}
                 selectedDay={selectedDayForPlacement}
                 onSelectDay={(day) => {
-                    setSelectedDayForPlacement(day);
-                    setSelectedRoutineForPlacement(null); // Mutually exclusive
+                    // Only select the day if we aren't in placement mode
+                    if (!selectedRoutineForPlacement) {
+                        setSelectedDayForPlacement(day);
+                    }
+                    // We don't clear selectedRoutineForPlacement here, enabling continuous add
                 }}
             />
         </div>

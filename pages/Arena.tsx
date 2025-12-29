@@ -47,7 +47,7 @@ export const Arena: React.FC = () => {
     ];
 
     return (
-        <div className="h-[calc(100dvh-64px)] md:h-screen bg-slate-950 text-white flex flex-col overflow-hidden">
+        <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
             {/* Tab Navigation Area */}
             <div className="flex-none bg-slate-900 border-b border-slate-800 z-20">
                 <div className="max-w-7xl mx-auto px-4 md:px-8">
@@ -127,7 +127,7 @@ export const Arena: React.FC = () => {
             <div className="flex-1 overflow-hidden relative bg-slate-950">
                 {activeTab === 'skills' ? (
                     // Skills: No scroll, full height
-                    <div className="w-full h-full touch-none">
+                    <div className="w-full h-full">
                         <TechniqueSkillTree />
                     </div>
                 ) : (

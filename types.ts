@@ -603,6 +603,8 @@ export interface SkillTreeEdge {
   source: string;
   target: string;
   type: 'default' | 'animated';
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 export interface UserSkillTree {

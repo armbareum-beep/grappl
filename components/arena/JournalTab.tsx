@@ -5,13 +5,14 @@ import { useToast } from '../../contexts/ToastContext';
 import { getTrainingLogs, getSparringReviews, createTrainingLog, updateTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP, createSparringReview } from '../../lib/api';
 import { TrainingLog, SparringReview } from '../../types';
 import { Button } from '../Button';
-import { Plus, Calendar, Flame, Clock, Swords, Trash2, Edit2, Video, ChevronRight, X, User } from 'lucide-react';
+import { Plus, Calendar, Flame, Clock, Swords, Trash2, Edit2, Video, ChevronRight, X, User, Trophy, Activity } from 'lucide-react';
 import { QuestCompleteModal } from '../QuestCompleteModal';
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ErrorScreen } from '../ErrorScreen';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
+import { AICoachWidget } from '../journal/AICoachWidget';
 
 type TimelineItem =
     | { type: 'log'; data: TrainingLog }
@@ -287,25 +288,53 @@ export const JournalTab: React.FC = () => {
     const displayedItems = showAllLogs ? filteredItems : filteredItems.slice(0, 10);
 
     // Stats
-    const thisMonthItems = timelineItems.filter(item => new Date(item.data.date).getMonth() === new Date().getMonth());
-    const totalDuration = timelineItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : ((item.data.rounds || 0) * 5)), 0);
-    const totalRounds = timelineItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+    // Stats
+    const safeItems = timelineItems || [];
+    const thisMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === new Date().getMonth());
+    const totalDuration = safeItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : ((item.data.rounds || 0) * 5)), 0);
+    const totalRounds = safeItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20">
+            {/* AI Coach Widget */}
+            <AICoachWidget
+                logs={timelineItems.filter(item => item.type === 'log').map(item => item.data as TrainingLog)}
+                autoRun={false}
+                isLocked={false}
+            />
+
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <div className="text-2xl font-bold text-white">{thisMonthItems.length}</div>
-                    <div className="text-xs text-slate-400">이번 달 기록</div>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3 md:gap-4">
+                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2">
+                        <Trophy className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-white leading-none mb-1">{thisMonthItems.length}</div>
+                        <div className="text-[10px] md:text-xs text-slate-400 font-bold">이번 달 기록</div>
+                    </div>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <div className="text-2xl font-bold text-white">{Math.round(totalDuration / 60)}</div>
-                    <div className="text-xs text-slate-400">총 시간(hr)</div>
+                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-purple-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2">
+                        <Clock className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-white leading-none mb-1">{Math.round(totalDuration / 60)}</div>
+                        <div className="text-[10px] md:text-xs text-slate-400 font-bold">총 시간(hr)</div>
+                    </div>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <div className="text-2xl font-bold text-white">{totalRounds}</div>
-                    <div className="text-xs text-slate-400">총 라운드</div>
+                <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-full blur-2xl -mr-8 -mt-8"></div>
+                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center mb-2">
+                        <Activity className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-white leading-none mb-1">{totalRounds}</div>
+                        <div className="text-[10px] md:text-xs text-slate-400 font-bold">총 라운드</div>
+                    </div>
                 </div>
             </div>
 
@@ -591,10 +620,9 @@ export const JournalTab: React.FC = () => {
 
             {showTechModal && (
                 <TechniqueTagModal
-                    isOpen={showTechModal}
-                    onClose={() => setShowTechModal(false)}
                     selectedTechniques={formData.techniques}
-                    onSelectTechniques={(techs) => setFormData({ ...formData, techniques: techs })}
+                    onSelect={(techs) => setFormData({ ...formData, techniques: techs })}
+                    onClose={() => setShowTechModal(false)}
                 />
             )}
         </div>
