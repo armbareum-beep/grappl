@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactFlow, {
     Node,
     Edge,
@@ -101,7 +101,8 @@ export const TechniqueSkillTree: React.FC = () => {
     // Drag to Create State
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
     const [pendingConnection, setPendingConnection] = useState<{ source: string; sourceHandle: string | null; position: { x: number; y: number } } | null>(null);
-    const connectionStartRef = React.useRef<{ nodeId: string; handleId: string | null } | null>(null);
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const connectionStartRef = useRef<{ nodeId: string; handleId: string | null } | null>(null);
 
     // Helper to update node data (for TextNode)
     const handleNodeDataChange = useCallback((id: string, newData: any) => {
@@ -113,6 +114,7 @@ export const TechniqueSkillTree: React.FC = () => {
         }));
     }, [setNodes]);
 
+    // Guest Auto-Save: Persist data to localStorage when nodes/edges change
     // Guest Auto-Save: Persist data to localStorage when nodes/edges change
     useEffect(() => {
         // Only saving for guests (no user) and when not loading
@@ -208,6 +210,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                 target: edge.target,
                                 type: edge.type === 'animated' ? 'smoothstep' : 'default',
                                 animated: edge.type === 'animated',
+                                sourceHandle: edge.sourceHandle,
+                                targetHandle: edge.targetHandle,
                                 style: { stroke: '#facc15', strokeWidth: 3 }
                             }));
                             setNodes(flowNodes);
@@ -422,6 +426,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                     target: edge.target,
                                     type: edge.type === 'animated' ? 'smoothstep' : 'default',
                                     animated: edge.type === 'animated',
+                                    sourceHandle: edge.sourceHandle,
+                                    targetHandle: edge.targetHandle,
                                     style: { stroke: '#facc15', strokeWidth: 3 }
                                 }));
                                 setNodes(flowNodes);
@@ -488,6 +494,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                         target: edge.target,
                                         type: edge.type === 'animated' ? 'smoothstep' : 'default',
                                         animated: edge.type === 'animated',
+                                        sourceHandle: edge.sourceHandle,
+                                        targetHandle: edge.targetHandle,
                                         style: { stroke: '#facc15', strokeWidth: 3 }
                                     }));
                                     setNodes(flowNodes);
@@ -570,6 +578,8 @@ export const TechniqueSkillTree: React.FC = () => {
                             target: edge.target,
                             type: edge.type === 'animated' ? 'smoothstep' : 'default',
                             animated: edge.type === 'animated',
+                            sourceHandle: edge.sourceHandle,
+                            targetHandle: edge.targetHandle,
                             style: { stroke: '#facc15', strokeWidth: 3 }
                         }));
 
@@ -665,47 +675,100 @@ export const TechniqueSkillTree: React.FC = () => {
         setNodes((nds) => [...nds, newNode]);
     };
 
-    // Unified Connection Logic
+    // Helper: Calculate world position of a handle
+    const getHandlePosition = (node: Node, handleId: string) => {
+        const x = node.position.x;
+        const y = node.position.y;
+        const w = 100; // Fixed width
+        const h = 100; // Fixed height
+
+        // Handle Offsets (Approximate based on CSS %)
+        if (handleId === 'source-t' || handleId === 'target-t') return { x: x + w * 0.5, y: y };
+        if (handleId === 's-1' || handleId === 't-1') return { x: x + w * 0.75, y: y + h * 0.067 };
+        if (handleId === 'source-tr' || handleId === 'target-tr') return { x: x + w * 0.933, y: y + h * 0.25 };
+        if (handleId === 'source-r' || handleId === 'target-r') return { x: x + w, y: y + h * 0.5 };
+        if (handleId === 'source-br' || handleId === 'target-br') return { x: x + w * 0.933, y: y + h * 0.75 };
+        if (handleId === 's-5' || handleId === 't-5') return { x: x + w * 0.75, y: y + h * 0.933 };
+        if (handleId === 'source-b' || handleId === 'target-b') return { x: x + w * 0.5, y: y + h };
+        if (handleId === 's-7' || handleId === 't-7') return { x: x + w * 0.25, y: y + h * 0.933 };
+        if (handleId === 'source-bl' || handleId === 'target-bl') return { x: x + w * 0.067, y: y + h * 0.75 };
+        if (handleId === 'source-l' || handleId === 'target-l') return { x: x, y: y + h * 0.5 };
+        if (handleId === 'source-tl' || handleId === 'target-tl') return { x: x + w * 0.067, y: y + h * 0.25 };
+        if (handleId === 's-11' || handleId === 't-11') return { x: x + w * 0.25, y: y + h * 0.067 };
+        return { x: x + w / 2, y: y + h / 2 };
+    };
+
+    // Helper: Find best handle pair between two nodes
+    const calculateOptimalConnection = useCallback((sourceNode: Node, targetNode: Node) => {
+        const sourceHandles = ['source-t', 's-1', 'source-tr', 'source-r', 'source-br', 's-5', 'source-b', 's-7', 'source-bl', 'source-l', 'source-tl', 's-11'];
+        const targetHandles = ['target-t', 't-1', 'target-tr', 'target-r', 'target-br', 't-5', 'target-b', 't-7', 'target-bl', 'target-l', 'target-tl', 't-11'];
+
+        let minDistance = Infinity;
+        let bestSource = 'source-b';
+        let bestTarget = 'target-t';
+
+        sourceHandles.forEach(sHandle => {
+            const sPos = getHandlePosition(sourceNode, sHandle);
+            targetHandles.forEach(tHandle => {
+                const tPos = getHandlePosition(targetNode, tHandle);
+                const dist = Math.sqrt(Math.pow(tPos.x - sPos.x, 2) + Math.pow(tPos.y - sPos.y, 2));
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestSource = sHandle;
+                    bestTarget = tHandle;
+                }
+            });
+        });
+
+        return { sourceHandle: bestSource, targetHandle: bestTarget };
+    }, []);
+
+    // NEW: Handle Node Drag for Dynamic Updates
+    const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
+        // Find all edges connected to this node
+        setEdges(eds => eds.map(edge => {
+            let otherNodeId: string | undefined;
+            let isSource = false;
+
+            if (edge.source === node.id) {
+                otherNodeId = edge.target;
+                isSource = true;
+            } else if (edge.target === node.id) {
+                otherNodeId = edge.source;
+                isSource = false;
+            }
+
+            if (!otherNodeId) return edge;
+
+            const otherNode = nodes.find(n => n.id === otherNodeId);
+            if (!otherNode) return edge;
+
+            // Recalculate optimal connection
+            // Note: Since we are inside setEdges, we must be careful with 'nodes' state being fresh.
+            // But 'nodes' in onNodeDrag is the dragged node (fresh). 'otherNode' from 'nodes' state is static (fine).
+
+            const { sourceHandle, targetHandle } = isSource
+                ? calculateOptimalConnection(node, otherNode)
+                : calculateOptimalConnection(otherNode, node);
+
+            if (edge.sourceHandle !== sourceHandle || edge.targetHandle !== targetHandle) {
+                return { ...edge, sourceHandle, targetHandle };
+            }
+
+            return edge;
+        }));
+    }, [nodes, calculateOptimalConnection, setEdges]);
+
+
+    // Unified Connection Logic (Find Shortest Path)
     const handleNodeConnection = useCallback((targetNode: Node) => {
         if (!selectedNodeId) return;
         if (selectedNodeId === targetNode.id) return;
 
-        // Calculate best handles based on relative position
         const sourceNode = nodes.find(n => n.id === selectedNodeId);
+        if (!sourceNode) return;
 
-        // Default handles
-        let sourceHandle = 'source-bottom';
-        let targetHandle = 'target-top';
-
-        if (sourceNode) {
-            const sx = sourceNode.position.x + (sourceNode.width || 0) / 2;
-            const sy = sourceNode.position.y + (sourceNode.height || 0) / 2;
-            const tx = targetNode.position.x + (targetNode.width || 0) / 2;
-            const ty = targetNode.position.y + (targetNode.height || 0) / 2;
-
-            const dx = tx - sx;
-            const dy = ty - sy;
-
-            if (Math.abs(dx) > Math.abs(dy)) {
-                // Horizontal
-                if (dx > 0) {
-                    sourceHandle = 'source-right';
-                    targetHandle = 'target-left';
-                } else {
-                    sourceHandle = 'source-left';
-                    targetHandle = 'target-right';
-                }
-            } else {
-                // Vertical
-                if (dy > 0) {
-                    sourceHandle = 'source-bottom';
-                    targetHandle = 'target-top';
-                } else {
-                    sourceHandle = 'source-top';
-                    targetHandle = 'target-bottom';
-                }
-            }
-        }
+        const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, targetNode);
 
         const newEdge: Edge = {
             id: `edge-${selectedNodeId}-${targetNode.id}-${sourceHandle}-${targetHandle}`,
@@ -718,62 +781,52 @@ export const TechniqueSkillTree: React.FC = () => {
         };
 
         setEdges(eds => {
-            // Check for ANY connection between these two nodes (bidirectional check)
             const exists = eds.some(
                 e => (e.source === selectedNodeId && e.target === targetNode.id) ||
                     (e.source === targetNode.id && e.target === selectedNodeId)
             );
-
-            if (exists) {
-                return eds;
-            }
-            return addEdge(newEdge, eds);
+            return exists ? eds : addEdge(newEdge, eds);
         });
 
-        // Clear selection after connecting
         setSelectedNodeId(null);
         setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
 
-    }, [selectedNodeId, nodes, setNodes, setEdges]);
+    }, [selectedNodeId, nodes, setNodes, setEdges, calculateOptimalConnection]);
 
     // Handle node click (Selection & Connection)
     const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-        const nodeId = node.id;
+        // Prevent bubbling to Pane (which deselects)
+        // Note: react-flow's onNodeClick event usually handles this, but we ensure logic is tight.
 
         if (!selectedNodeId) {
-            // Case 1: No selection -> Select this node
-            setSelectedNodeId(nodeId);
-            setNodes((nds) => nds.map((n) => ({
-                ...n,
-                selected: n.id === nodeId
-            })));
+            setSelectedNodeId(node.id);
+            setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === node.id })));
             return;
         }
 
-        if (selectedNodeId === nodeId) {
-            // Case 2: Clicked already selected node -> Do nothing
+        if (selectedNodeId === node.id) {
+            // Clicked same node: deselect or keep?
+            // User might want to deselect.
+            setSelectedNodeId(null);
+            setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
             return;
         }
 
-        // Case 3: Clicked different node -> Connect
+        // Different node -> Connect
         handleNodeConnection(node);
-
     }, [selectedNodeId, setNodes, handleNodeConnection]);
 
-    // Handle node drag stop (Connect if pending)
+    // Handle node drag stop (Did we drop ONTO another node?)
+    // React Flow doesn't inherently fire onNodeDrop for node-on-node. 
+    // But we can check intersection if needed. 
+    // Current logic uses this for "Move then Connect" inference, which might be buggy if 'slow'.
     const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
-        if (selectedNodeId && selectedNodeId !== node.id) {
-            // If we have a selected node and we finished dragging ANOTHER node,
-            // assume user wanted to move-and-connect.
-            handleNodeConnection(node);
-        }
-    }, [selectedNodeId, handleNodeConnection]);
+        // Optional: Ensure finalizing or other logic
+    }, []);
 
     // Handle node double click (Delete)
     const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
-        // Prevent deletion of Text Nodes on double click (as they use it for editing)
         if (node.type === 'text') return;
-
         setNodes((nds) => nds.filter((n) => n.id !== node.id));
         setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
         if (selectedNodeId === node.id) setSelectedNodeId(null);
@@ -787,38 +840,45 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const onConnect = useCallback((params: Connection) => {
         if (!params.source || !params.target) return;
-
-        // Prevent self-connections
         if (params.source === params.target) return;
 
         setEdges((eds) => {
-            // Check for ANY connection between these two nodes (bidirectional check)
             const duplicate = eds.some(
                 e => (e.source === params.source && e.target === params.target) ||
                     (e.source === params.target && e.target === params.source)
             );
             if (duplicate) return eds;
 
+            // Re-optimize connection even for manual drags if needed, but respect user drag intent?
+            // User: "Component move -> node direction move".
+            // Since we auto-update on drag, respecting initial manual connect is less important than maintaining shortest path.
+            // Let's optimize it immediately.
+
+            const sNode = nodes.find(n => n.id === params.source);
+            const tNode = nodes.find(n => n.id === params.target);
+
+            let optimalHandle = { sourceHandle: params.sourceHandle, targetHandle: params.targetHandle };
+
+            if (sNode && tNode) {
+                optimalHandle = calculateOptimalConnection(sNode, tNode);
+            }
+
             const newEdge: Edge = {
-                id: `edge-${params.source}-${params.target}-${params.sourceHandle}-${params.targetHandle}`,
+                id: `edge-${params.source}-${params.target}-${optimalHandle.sourceHandle}-${optimalHandle.targetHandle}`,
                 source: params.source,
                 target: params.target,
-                sourceHandle: params.sourceHandle,
-                targetHandle: params.targetHandle,
+                sourceHandle: optimalHandle.sourceHandle,
+                targetHandle: optimalHandle.targetHandle,
                 style: { stroke: '#facc15', strokeWidth: 3 }
             };
             return addEdge(newEdge, eds);
         });
-    }, [setEdges]);
+    }, [setEdges, nodes, calculateOptimalConnection]);
 
-
-    // Handle edge click for two-step deletion (Select -> Click again to delete)
+    // Handle edge click
     const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
-        // Find the actual current state of the edge
         const currentEdge = edges.find(e => e.id === edge.id);
-
         if (currentEdge?.selected) {
-            // If already blue (selected), delete it
             setEdges((eds) => eds.filter((e) => e.id !== edge.id));
         }
     }, [edges, setEdges]);
@@ -832,23 +892,26 @@ export const TechniqueSkillTree: React.FC = () => {
         const target = event.target as Element;
         const isPane = target.classList.contains('react-flow__pane');
 
-        if (isPane && connectionStartRef.current && rfInstance) {
-            // Calculate position
+        if (isPane && connectionStartRef.current && rfInstance && reactFlowWrapper.current) {
+            const bounds = reactFlowWrapper.current.getBoundingClientRect();
             const position = rfInstance.project({
-                x: (event as any).clientX,
-                y: (event as any).clientY,
+                x: (event as any).clientX - bounds.left,
+                y: (event as any).clientY - bounds.top,
             });
+
+            // Adjust position to center the new node (approx 100x100)
+            const centeredPosition = {
+                x: position.x - 50,
+                y: position.y - 50
+            };
 
             setPendingConnection({
                 source: connectionStartRef.current.nodeId,
                 sourceHandle: connectionStartRef.current.handleId,
-                position
+                position: centeredPosition
             });
             setIsAddModalOpen(true);
         }
-        // Reset ref is not strictly necessary as we set state, but good practice? 
-        // Actually we keep it until modal closes or something else happens? 
-        // No, 'onConnectStart' will reset it next time. 
     }, [rfInstance]);
 
     // Add content from modal
@@ -914,13 +977,28 @@ export const TechniqueSkillTree: React.FC = () => {
             // Create Edge if this was a Drag-to-Create action (Handle Drag)
             // Only if NOT a direct drop from modal (unless we want to support dropping onto a node to connect?)
             // For now, pendingConnection is strictly for Handle Drag.
+            // Create Edge if this was a Drag-to-Create action (Handle Drag)
             if (pendingConnection) {
+                const sourceNode = nodes.find(n => n.id === pendingConnection.source);
+                let optimalSource = pendingConnection.sourceHandle;
+                let optimalTarget = 'target-t';
+
+                // Calculate optimal handles if source node is found
+                if (sourceNode) {
+                    // Create a temporary object for the new node to calculate geometry
+                    // We can pass the raw object or the newNodes entry
+                    const newNodeGeometry = newNodes[newNodes.length - 1];
+                    const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, newNodeGeometry);
+                    optimalSource = sourceHandle;
+                    optimalTarget = targetHandle;
+                }
+
                 newEdges.push({
-                    id: `edge-${pendingConnection.source}-${nodeId}`,
+                    id: `edge-${pendingConnection.source}-${nodeId}-${optimalSource}-${optimalTarget}`,
                     source: pendingConnection.source,
                     target: nodeId,
-                    sourceHandle: pendingConnection.sourceHandle,
-                    targetHandle: 'target-top',
+                    sourceHandle: optimalSource,
+                    targetHandle: optimalTarget,
                     type: 'default',
                     style: { stroke: '#facc15', strokeWidth: 3 }
                 });
@@ -990,7 +1068,9 @@ export const TechniqueSkillTree: React.FC = () => {
                 id: edge.id,
                 source: edge.source as string,
                 target: edge.target as string,
-                type: edge.animated ? 'animated' as const : 'default' as const
+                type: edge.animated ? 'animated' as const : 'default' as const,
+                sourceHandle: edge.sourceHandle || undefined,
+                targetHandle: edge.targetHandle || undefined
             }));
 
             let result;
@@ -1299,7 +1379,7 @@ export const TechniqueSkillTree: React.FC = () => {
             </div>
 
             {/* React Flow Canvas */}
-            <div className="flex-1 w-full h-full overflow-hidden touch-none relative">
+            <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -1312,6 +1392,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onNodeClick={onNodeClick}
+                    onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onNodeDoubleClick={onNodeDoubleClick}
                     onEdgeClick={onEdgeClick}
@@ -1330,6 +1411,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     preventScrolling={true}
                     zoomOnPinch={true}
                     panOnScroll={false}
+                    zoomOnScroll={true}
                     panOnDrag={true}
                     proOptions={{ hideAttribution: true }}
                 >

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { UserTechniqueMastery, Technique, Lesson, Drill } from '../../types';
-import { Handle, Position, useViewport } from 'reactflow';
+import { Handle, Position, useViewport, useUpdateNodeInternals } from 'reactflow';
 import { useNavigate } from 'react-router-dom';
 
 interface ContentNodeProps {
+    id: string; // Add ID for updateNodeInternals
     data: {
         contentType?: 'technique' | 'lesson' | 'drill';
         contentId?: string;
@@ -15,14 +16,21 @@ interface ContentNodeProps {
         onClick?: () => void;
     };
     selected?: boolean;
+    isConnectable?: boolean;
 }
 
-export const TechniqueNode: React.FC<ContentNodeProps> = ({ data, selected }) => {
+export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, isConnectable }) => {
     const navigate = useNavigate();
     const { zoom } = useViewport();
+    const updateNodeInternals = useUpdateNodeInternals();
     const { technique, mastery, lesson, drill, isCompleted } = data;
     const title = lesson?.title || drill?.title || technique?.name || 'Unknown';
     const thumbnailUrl = lesson?.thumbnailUrl || drill?.thumbnailUrl;
+
+    // Force update handles on mount and zoom change to ensure React Flow knows where they are
+    useEffect(() => {
+        updateNodeInternals(id);
+    }, [id, zoom, updateNodeInternals]);
 
     const handleTitleClick = (e: React.MouseEvent) => {
         // Smart Zoom Interaction:
@@ -131,37 +139,79 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ data, selected }) =>
         <div
             className={`
                 relative w-24 h-24 rounded-full
-                ${isMinimal ? 'bg-transparent border-transparent' : `${style.bgClass} border-4 ${style.borderClass}`}
-                ${selected && !isMinimal ? 'ring-4 ring-blue-500 scale-110 shadow-2xl shadow-blue-500/30' : ''}
-                ${isMinimal ? '' : 'backdrop-blur-sm'}
-                transition-all duration-300
-                ${!isMinimal ? 'hover:scale-105 hover:shadow-xl hover:shadow-blue-500/20' : ''}
-                ${zoom < 0.7 ? 'cursor-crosshair' : 'cursor-pointer'}
                 flex items-center justify-center
+                ${isMinimal ? '' : 'filter drop-shadow-lg'}
+                ${!isMinimal ? 'hover:drop-shadow-xl' : ''}
+                ${zoom < 0.7 ? 'cursor-crosshair' : 'cursor-pointer'}
             `}
             onClick={data.onClick}
         >
-            {/* Connection handles - Universal Ports (Source & Target at all 4 sides) */}
+            {/* Connection handles - 12 Directions (Small 4px for Gapless Rim) */}
+            {/* 12 o'clock (Top) */}
+            <Handle type="source" position={Position.Top} id="source-t" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Top} id="target-t" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
 
-            {/* Top: Source (Visible, z-20) & Target (Hidden, z-10) */}
-            <Handle type="source" position={Position.Top} id="source-top" className={`w-3 h-3 !bg-yellow-500 !border-2 !border-slate-900 z-20 ${isMinimal ? 'opacity-0' : ''}`} />
-            <Handle type="target" position={Position.Top} id="target-top" className="w-6 h-6 !bg-transparent z-10 -mt-1.5 opacity-0" />
+            {/* 1 o'clock */}
+            <Handle type="source" position={Position.Right} id="s-1" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '75%', top: '6.7%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="t-1" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '75%', top: '6.7%', transform: 'translate(-50%, -50%)' }} />
 
-            {/* Bottom: Source (Visible, z-20) & Target (Hidden, z-10) */}
-            <Handle type="source" position={Position.Bottom} id="source-bottom" className={`w-3 h-3 !bg-yellow-500 !border-2 !border-slate-900 z-20 ${isMinimal ? 'opacity-0' : ''}`} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom" className="w-6 h-6 !bg-transparent z-10 -mb-1.5 opacity-0" />
+            {/* 2 o'clock */}
+            <Handle type="source" position={Position.Right} id="source-tr" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '93.3%', top: '25%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="target-tr" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '93.3%', top: '25%', transform: 'translate(-50%, -50%)' }} />
 
-            {/* Left: Source (Visible, z-20) & Target (Hidden, z-10) */}
-            <Handle type="source" position={Position.Left} id="source-left" className={`w-3 h-3 !bg-yellow-500 !border-2 !border-slate-900 z-20 ${isMinimal ? 'opacity-0' : ''}`} />
-            <Handle type="target" position={Position.Left} id="target-left" className="w-6 h-6 !bg-transparent z-10 -ml-1.5 opacity-0" />
+            {/* 3 o'clock */}
+            <Handle type="source" position={Position.Right} id="source-r" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="target-r" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
 
-            {/* Right: Source (Visible, z-20) & Target (Hidden, z-10) */}
-            <Handle type="source" position={Position.Right} id="source-right" className={`w-3 h-3 !bg-yellow-500 !border-2 !border-slate-900 z-20 ${isMinimal ? 'opacity-0' : ''}`} />
-            <Handle type="target" position={Position.Right} id="target-right" className="w-6 h-6 !bg-transparent z-10 -mr-1.5 opacity-0" />
+            {/* 4 o'clock */}
+            <Handle type="source" position={Position.Right} id="source-br" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '93.3%', top: '75%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="target-br" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '93.3%', top: '75%', transform: 'translate(-50%, -50%)' }} />
 
-            {/* Content (Thumbnail or Icon) */}
-            <div className={`w-[calc(100%-4px)] h-[calc(100%-4px)] overflow-hidden rounded-full flex items-center justify-center p-0.5 ${isMinimal ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}>
-                {renderContent()}
+            {/* 5 o'clock */}
+            <Handle type="source" position={Position.Right} id="s-5" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '75%', top: '93.3%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="t-5" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '75%', top: '93.3%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 6 o'clock */}
+            <Handle type="source" position={Position.Bottom} id="source-b" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Bottom} id="target-b" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 7 o'clock */}
+            <Handle type="source" position={Position.Left} id="s-7" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '25%', top: '93.3%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="t-7" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '25%', top: '93.3%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 8 o'clock */}
+            <Handle type="source" position={Position.Left} id="source-bl" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '6.7%', top: '75%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="target-bl" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '6.7%', top: '75%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 9 o'clock */}
+            <Handle type="source" position={Position.Left} id="source-l" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="target-l" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 10 o'clock */}
+            <Handle type="source" position={Position.Left} id="source-tl" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '6.7%', top: '25%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="target-tl" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '6.7%', top: '25%', transform: 'translate(-50%, -50%)' }} />
+
+            {/* 11 o'clock */}
+            <Handle type="source" position={Position.Left} id="s-11" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[100] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '25%', top: '6.7%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="t-11" isConnectable={!isMinimal && isConnectable} className={`!w-4 !h-4 !bg-transparent !border-none z-[90] ${isMinimal ? 'invisible pointer-events-none' : 'pointer-events-auto'}`} style={{ left: '25%', top: '6.7%', transform: 'translate(-50%, -50%)' }} />
+
+
+            {/* YELLOW RING (Visual Border) */}
+            <div
+                className={`
+                    absolute inset-0 rounded-full
+                    ${isMinimal ? '' : 'border-[6px] border-yellow-400'}
+                    ${selected ? 'ring-4 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
+                    ${isMinimal ? 'bg-transparent' : style.bgClass}
+                    transition-all duration-300
+                    overflow-hidden
+                    z-10
+                `}
+            >
+                {/* Content (Thumbnail or Icon) */}
+                <div className={`w-full h-full flex items-center justify-center overflow-hidden rounded-full ${isMinimal ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}>
+                    {renderContent()}
+                </div>
             </div>
 
             {/* Mastery level badge */}
@@ -182,7 +232,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ data, selected }) =>
                 </div>
             )}
 
-            {/* Technique name label - Improved wrapping and width */}
+            {/* Technique name label - Same styling for both modes, just scaled */}
             <div
                 onClick={handleTitleClick}
                 style={{
@@ -195,7 +245,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ data, selected }) =>
                 }}
                 className={`
                     absolute ${!isMinimal ? '-bottom-16' : ''} left-1/2
-                    ${isMinimal ? 'px-2 py-1 min-w-0 w-max' : 'px-4 py-2 w-max min-w-[120px] max-w-[200px]'}
+                    px-4 py-2 w-max min-w-[120px] max-w-[200px]
                     rounded-xl bg-slate-950 border border-slate-700
                     shadow-xl z-20 hover:z-50
                     text-sm font-bold text-center leading-tight
