@@ -353,6 +353,56 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           rarity={titleEarnedData.rarity}
         />
       )}
+
+      {/* Mobile Bottom Navigation (Global) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-slate-900 border-t border-slate-800 pb-safe">
+        <div className="flex justify-around items-center h-16">
+          <Link
+            to="/"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname === '/'
+                ? 'text-white'
+                : 'text-slate-500 hover:text-slate-300'
+              }`}
+          >
+            <BookOpen className={`w-6 h-6 ${location.pathname === '/' ? 'text-indigo-500' : ''}`} />
+            <span className="text-[10px] font-bold">클래스</span>
+          </Link>
+
+          <Link
+            to="/drills"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/drills')
+                ? 'text-white'
+                : 'text-slate-500 hover:text-slate-300'
+              }`}
+          >
+            <Zap className={`w-6 h-6 ${location.pathname.startsWith('/drills') ? 'text-emerald-500' : ''}`} />
+            <span className="text-[10px] font-bold">드릴 & 루틴</span>
+          </Link>
+
+          <Link
+            to="/sparring"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/sparring')
+                ? 'text-white'
+                : 'text-slate-500 hover:text-slate-300'
+              }`}
+          >
+            <Clapperboard className={`w-6 h-6 ${location.pathname.startsWith('/sparring') ? 'text-blue-500' : ''}`} />
+            <span className="text-[10px] font-bold">스파링</span>
+          </Link>
+
+          <Link
+            to="/arena"
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${location.pathname.startsWith('/arena')
+                ? 'text-white'
+                : 'text-slate-500 hover:text-slate-300'
+              }`}
+          >
+            <Trophy className={`w-6 h-6 ${location.pathname.startsWith('/arena') ? 'text-amber-500' : ''}`} />
+            <span className="text-[10px] font-bold">아레나</span>
+          </Link>
+        </div>
+      </div>
+
     </div>
   );
 };
