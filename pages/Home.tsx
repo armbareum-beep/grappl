@@ -45,7 +45,7 @@ export const Home: React.FC = () => {
   const [myLogs, setMyLogs] = useState<TrainingLog[]>([]); // Personal for AI
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
-  const [activeTab, setActiveTab] = useState<'recent' | 'courses' | 'drills' | 'feed'>('recent');
+  const [activeTab, setActiveTab] = useState<'lesson' | 'drill' | 'sparring' | 'community'>('lesson');
   const [recommendedBundles, setRecommendedBundles] = useState<Bundle[]>([]);
   const [proRoutines, setProRoutines] = useState<DrillRoutine[]>([]);
 
@@ -109,7 +109,7 @@ export const Home: React.FC = () => {
         const courses = await getCourses();
         setRecommendedCourses(courses.slice(0, 4));
 
-        const { data: drillsData } = await getDrills();
+        const drillsData = await getDrills();
         if (drillsData) setDrills(drillsData.slice(0, 6));
 
         const { data: logsData } = await getPublicTrainingLogs(1, 5);
@@ -304,81 +304,54 @@ export const Home: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(proRoutines.length > 0 ? proRoutines : [{ id: 'mock-1' }, { id: 'mock-2' }]).map((routine: any, i) => (
-            <div key={routine.id || i} className={`relative bg-slate-900/50 border rounded-xl p-5 overflow-hidden group transition-all ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
+            <div key={routine.id || i} className={`relative bg-slate-900 border rounded-xl overflow-hidden group transition-all h-[240px] flex flex-col justify-end ${routine.difficulty === 'WEAKNESS' ? 'border-red-500/30 hover:border-red-500/50' :
               routine.difficulty === 'STRENGTH' ? 'border-emerald-500/30 hover:border-emerald-500/50' :
                 'border-slate-800 hover:border-slate-700'
               }`}>
 
-              {!isSubscriber ? (
-                <>
-                  {/* Lock Overlay for Non-Subscribers */}
-                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4 transition-opacity duration-300">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                      <Lock className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-1">Pro 전용 추천</h3>
-                    <p className="text-xs text-slate-400 mb-4">나의 약점을 보완하는 맞춤 루틴</p>
-                    <button
-                      onClick={() => navigate('/pricing')}
-                      className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:brightness-110 transition-all shadow-lg shadow-orange-900/20"
-                    >
-                      업그레이드하고 잠금해제
-                    </button>
-                  </div>
+              {/* Background Image with Gradient Overlay */}
+              <img src={routine.thumbnailUrl || 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80'} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent"></div>
 
-                  {/* Blurred Content Preview */}
-                  <div className="opacity-30 blur-[1px]">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-lg bg-slate-800"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-3/4 bg-slate-700 rounded"></div>
-                        <div className="h-3 w-1/2 bg-slate-800 rounded"></div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="h-6 w-16 bg-slate-800 rounded"></div>
-                      <div className="h-6 w-16 bg-slate-800 rounded"></div>
-                    </div>
+              {!isSubscriber ? (
+                <div className="relative z-10 p-6 flex flex-col items-center justify-center text-center h-full backdrop-blur-[2px]">
+                  <div className="w-12 h-12 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <Lock className="w-5 h-5 text-amber-400" />
                   </div>
-                </>
+                  <h3 className="text-lg font-bold text-white mb-1">Pro 전용 추천</h3>
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="mt-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold py-2 px-6 rounded-full hover:brightness-110 transition-all shadow-lg"
+                  >
+                    잠금해제
+                  </button>
+                </div>
               ) : (
-                <>
-                  {/* Unlocked Content for Subscribers */}
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center">
-                      <Dumbbell className="w-8 h-8 text-slate-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-bold text-white mb-1">{routine.title || 'Pro 맞춤형 루틴'}</h3>
-                      <p className="text-xs text-slate-400 line-clamp-2 mb-3">
-                        {routine.description || '회원님의 수련 패턴을 분석하여 제공되는 고급 루틴입니다.'}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${routine.difficulty === 'WEAKNESS' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                          routine.difficulty === 'STRENGTH' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
-                          {routine.difficulty === 'WEAKNESS' ? '약점 보완' :
-                            routine.difficulty === 'STRENGTH' ? '강점 강화' :
-                              routine.difficulty || 'ADVANCED'}
-                        </span>
-                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {routine.totalDurationMinutes || 20}분
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/routines/${routine.id}`);
-                      }}
-                      size="sm"
-                      className="flex-shrink-0"
-                    >
-                      <Play className="w-3 h-3" />
-                    </Button>
+                <div className="relative z-10 p-5">
+                  <div className="mb-2 flex gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${routine.difficulty === 'WEAKNESS' ? 'bg-red-500/20 text-red-200 border-red-500/30' :
+                      routine.difficulty === 'STRENGTH' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' :
+                        'bg-amber-500/20 text-amber-200 border-amber-500/30'
+                      }`}>
+                      {routine.difficulty === 'WEAKNESS' ? '약점 보완' : '강점 강화'}
+                    </span>
                   </div>
-                </>
+                  <h3 className="text-xl font-bold text-white mb-2 leading-tight">{routine.title || 'Pro 맞춤형 루틴'}</h3>
+                  <div className="flex items-center gap-4 text-xs text-slate-300">
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {routine.totalDurationMinutes || 20}분</span>
+                    <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> {routine.drillCount || 5}개 드릴</span>
+                  </div>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/routines/${routine.id}`);
+                    }}
+                    size="sm"
+                    className="absolute top-4 right-4 w-10 h-10 rounded-full p-0 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                  </Button>
+                </div>
               )}
             </div>
           ))}
@@ -515,32 +488,44 @@ export const Home: React.FC = () => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Recent Review (Free) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-blue-500/30 transition-colors group">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-white text-sm">최근 복기</h3>
-              <span className="text-xs text-slate-500">
-                {myLogs.length > 0 ? new Date(myLogs[0].date).toLocaleDateString() : '작성 없음'}
-              </span>
+          {/* Recent Review (Journal Style) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">최근 스파링 기록</h3>
+                  <p className="text-xs text-slate-500">{myLogs.length > 0 ? '지난 수련 내용 복습' : '기록이 없습니다'}</p>
+                </div>
+              </div>
+              {myLogs.length > 0 && <span className="text-xs text-slate-500">{new Date(myLogs[0].date).toLocaleDateString()}</span>}
             </div>
+
             {myLogs.length > 0 ? (
-              <div className="bg-slate-950/50 rounded-xl p-4 mb-5 border border-slate-800/50 group-hover:border-slate-700/50 transition-colors">
-                <p className="text-sm text-slate-300 line-clamp-2 italic">
-                  "{myLogs[0].notes || '내용이 없습니다.'}"
-                </p>
+              <div className="bg-slate-950/80 rounded-lg p-4 border border-slate-800">
+                <div className="flex gap-2 mb-2">
+                  {((myLogs[0] as any).tags || ['스파링', '오픈매트']).slice(0, 2).map((tag: string) => (
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">#{tag}</span>
+                  ))}
+                </div>
+                <p className="text-sm text-slate-300 line-clamp-2 mb-3">"{myLogs[0].notes || '내용이 없습니다.'}"</p>
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  {/* Fake stats for visual consistency */}
+                  <span className="flex items-center gap-1">⏱️ {myLogs[0].durationMinutes || 5}분</span>
+                  <span className="flex items-center gap-1">🥋 스파링</span>
+                </div>
               </div>
             ) : (
-              <div className="bg-slate-950/50 rounded-xl p-4 mb-5 border border-slate-800/50 text-center">
-                <p className="text-sm text-slate-400">아직 작성된 스파링 복기가 없습니다.</p>
+              <div className="flex-1 bg-slate-950/50 rounded-lg border border-slate-800 border-dashed flex items-center justify-center p-4">
+                <p className="text-sm text-slate-500">아직 작성된 스파링 복기가 없습니다.</p>
               </div>
             )}
-            <button
-              onClick={() => navigate('/arena?tab=sparring')}
-              className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-900/20"
-            >
-              <BookOpen className="w-4 h-4" />
-              복기 작성하기
-            </button>
+
+            <Button onClick={() => navigate('/arena?tab=sparring')} variant="outline" className="w-full">
+              작성하러 가기
+            </Button>
           </div>
 
           {/* AI Analysis (Pro Locked -> AI Coach Widget) */}
@@ -555,13 +540,14 @@ export const Home: React.FC = () => {
       </section >
 
       {/* 5. Content Section */}
-      < section className="px-4 md:px-8 py-8 max-w-7xl mx-auto border-t border-slate-800/50 mt-4" >
+      {/* 5. Content Section */}
+      <section className="px-4 md:px-8 py-8 max-w-7xl mx-auto border-t border-slate-800/50 mt-4">
         <div className="flex items-center gap-8 border-b border-slate-800 mb-6 overflow-x-auto scrollbar-hide">
           {[
-            { id: 'recent', label: '최근 시청', color: 'orange' },
-            { id: 'courses', label: '추천 강의', color: 'indigo' },
-            { id: 'drills', label: '실전 드릴', color: 'emerald' },
-            { id: 'feed', label: '커뮤니티', color: 'blue' }
+            { id: 'lesson', label: '레슨', color: 'indigo' },
+            { id: 'drill', label: '드릴', color: 'emerald' },
+            { id: 'sparring', label: '스파링', color: 'blue' },
+            { id: 'community', label: '커뮤니티', color: 'pink' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -578,115 +564,119 @@ export const Home: React.FC = () => {
         </div>
 
         <div className="min-h-[300px]">
-          {/* Recent Activity */}
-          {activeTab === 'recent' && (
-            <div className="space-y-3">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => navigate(item.type === 'lesson' ? `/courses/${item.id}` : `/routines/${item.id}`)}
-                    className="group bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex gap-4 hover:border-orange-500/50 transition-all cursor-pointer hover:bg-slate-900"
-                  >
-                    <div className={`w-28 h-20 rounded-lg ${item.thumbnail ? '' : 'bg-slate-800'} flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-md`}>
-                      {item.thumbnail ? (
-                        <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
-                      ) : (
-                        item.type === 'lesson' ? <Play className="w-8 h-8 text-white/80 drop-shadow-md" /> : <Dumbbell className="w-8 h-8 text-white/80 drop-shadow-md" />
-                      )}
-                      <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50">
-                        <div className="h-full bg-orange-500" style={{ width: `${item.progress}%` }}></div>
+          {/* 1. LESSON TAB */}
+          {activeTab === 'lesson' && (
+            <div className="space-y-6">
+              {/* 1-1. Recent Lessons */}
+              {recentActivity.filter(i => i.type === 'lesson').length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-400">최근 시청한 레슨</h3>
+                  {recentActivity.filter(i => i.type === 'lesson').slice(0, 2).map(item => (
+                    <div key={item.id} onClick={() => navigate(`/courses/${item.id}`)} className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex gap-4 cursor-pointer hover:bg-slate-800 transition-colors">
+                      <div className="w-24 h-14 bg-slate-800 rounded-lg overflow-hidden relative">
+                        {item.thumbnail ? <img src={item.thumbnail} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-indigo-900/20"><Play className="w-6 h-6 text-indigo-400" /></div>}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white line-clamp-1">{item.title}</h4>
+                        <p className="text-xs text-slate-500">{item.courseTitle || '강의'}</p>
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${item.type === 'lesson'
-                          ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          }`}>
-                          {item.type === 'lesson' ? 'LESSON' : 'DRILL'}
-                        </span>
-                        <span className="text-xs text-slate-500">{item.lastWatched}</span>
-                      </div>
-                      <h4 className="text-base font-bold text-white truncate group-hover:text-orange-400 transition-colors mb-0.5">{item.title}</h4>
-                      <p className="text-xs text-slate-400 truncate">{item.type === 'lesson' ? item.courseTitle : item.difficulty}</p>
-                    </div>
-                    <div className="flex items-center justify-center w-8">
-                      <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12 bg-slate-900/30 rounded-xl border border-slate-800/50 border-dashed">
-                  <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-                    <Play className="w-6 h-6 text-slate-600" />
-                  </div>
-                  <p className="text-slate-400 mb-4">아직 시청한 내역이 없습니다</p>
-                  <Button onClick={() => setActiveTab('courses')} variant="outline" size="sm">
-                    강의 보러가기
-                  </Button>
+                  ))}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Courses */}
-          {activeTab === 'courses' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {recommendedCourses.map(course => (
-                <div
-                  key={course.id}
-                  onClick={() => navigate(`/courses/${course.id}`)}
-                  className="group bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-900/10"
-                >
-                  <div className="aspect-video relative overflow-hidden">
-                    <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold text-white flex items-center gap-1">
-                      <Play className="w-3 h-3 fill-white" />
-                      {course.lessonCount} Lessons
+              {/* 1-2. Recommended Courses */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 mb-3">추천 강의</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {recommendedCourses.map(course => (
+                    <div key={course.id} onClick={() => navigate(`/courses/${course.id}`)} className="group bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-all cursor-pointer">
+                      <div className="aspect-video relative">
+                        <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <div className="absolute inset-0 bg-black/40"></div>
+                        <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] text-white font-bold">{course.lessonCount}강</div>
+                      </div>
+                      <div className="p-3">
+                        <h4 className="font-bold text-white text-sm line-clamp-1 group-hover:text-indigo-400">{course.title}</h4>
+                        <p className="text-xs text-slate-500">{course.creatorName}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-4">
-                    <h4 className="font-bold text-white text-sm mb-1 line-clamp-1 group-hover:text-indigo-400 transition-colors">{course.title}</h4>
-                    <p className="text-xs text-slate-400 mb-3 line-clamp-1">{course.creatorName || 'Grappl Instructor'}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-0.5 rounded">{course.category}</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           )}
 
-          {/* Drills */}
-          {activeTab === 'drills' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {drills.map(drill => (
-                <div
-                  key={drill.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigate(`/drills/${drill.id}`);
-                  }}
-                  className="aspect-[9/16] bg-slate-900/50 rounded-xl relative overflow-hidden group cursor-pointer border border-slate-800 hover:border-emerald-500/50 transition-all shadow-sm"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90"></div>
-                  <div className="absolute bottom-0 left-0 p-3 w-full">
-                    <h4 className="text-white text-xs font-bold line-clamp-2 mb-1.5 group-hover:text-emerald-400 transition-colors">{drill.title}</h4>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                      <Activity className="w-3 h-3" />
-                      <span>{drill.difficulty}</span>
+          {/* 2. DRILL TAB */}
+          {activeTab === 'drill' && (
+            <div className="space-y-6">
+              {/* 2-1. Recent Drills */}
+              {recentActivity.filter(i => i.type === 'drill' || i.type === 'routine').length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-400">최근 연습한 드릴</h3>
+                  {recentActivity.filter(i => i.type === 'drill' || i.type === 'routine').slice(0, 2).map(item => (
+                    <div key={item.id} onClick={() => navigate(`/routines/${item.id}`)} className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex gap-4 cursor-pointer hover:bg-slate-800 transition-colors">
+                      <div className="w-24 h-14 bg-slate-800 rounded-lg overflow-hidden relative">
+                        <div className="w-full h-full flex items-center justify-center bg-emerald-900/20"><Activity className="w-6 h-6 text-emerald-400" /></div>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white line-clamp-1">{item.title}</h4>
+                        <p className="text-xs text-slate-500">{item.difficulty || 'Easy'}</p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 mb-3">전체 드릴 목록</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {drills.map(drill => (
+                    <div key={drill.id} onClick={() => navigate(`/drills/${drill.id}`)} className="aspect-[9/16] bg-slate-900 rounded-xl relative overflow-hidden group cursor-pointer border border-slate-800 hover:border-emerald-500/50 transition-all">
+                      <img src={drill.thumbnailUrl} className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent"></div>
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <h4 className="text-white text-xs font-bold line-clamp-2 leading-tight group-hover:text-emerald-400">{drill.title}</h4>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Feed */}
-          {activeTab === 'feed' && (
+          {/* 3. SPARRING TAB */}
+          {activeTab === 'sparring' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-blue-900/20 to-slate-900 border border-blue-500/30 rounded-2xl p-6 text-center">
+                <h3 className="text-lg font-bold text-white mb-2">스파링 분석 신청</h3>
+                <p className="text-sm text-slate-400 mb-4">스파링 영상을 업로드하고 AI 코치의 분석을 받아보세요.</p>
+                <Button onClick={() => navigate('/arena?tab=sparring')} className="bg-blue-600 hover:bg-blue-500">분석 시작하기</Button>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 mb-3">나의 스파링 기록</h3>
+                {myLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {myLogs.map(log => (
+                      <div key={log.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs text-slate-500">{new Date(log.date).toLocaleDateString()}</span>
+                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded border border-blue-500/20">분석 완료</span>
+                        </div>
+                        <p className="text-sm text-white line-clamp-2">{log.notes}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-slate-500">기록이 없습니다.</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 4. COMMUNITY TAB (Used to be Feed) */}
+          {activeTab === 'community' && (
             <div className="space-y-4">
               {trainingLogs.map(log => (
                 <div key={log.id} className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex gap-4 hover:border-slate-700 transition-colors">
