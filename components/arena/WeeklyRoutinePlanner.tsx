@@ -174,7 +174,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                 `}
                             >
                                 {schedule[day].length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2">
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-600 text-xs gap-2 pointer-events-none">
                                         <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
                                             <span className="text-lg">+</span>
                                         </div>
