@@ -311,10 +311,10 @@ export const Home: React.FC = () => {
             <h2 className="text-lg font-bold">AI 맞춤 추천</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {recommendedCourses.slice(0, 4).map((course) => (
               <div key={course.id} onClick={() => navigate(`/courses/${course.id}`)} className="group cursor-pointer">
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-border bg-muted mb-3">
+                <div className="relative aspect-[16/9] rounded-xl overflow-hidden border border-border bg-muted mb-3">
                   <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
                   <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[10px] text-white font-medium">

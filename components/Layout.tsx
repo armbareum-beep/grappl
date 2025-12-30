@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Clapperboard, HelpCircle, Search, Instagram, Youtube } from 'lucide-react';
+import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Clapperboard, HelpCircle, Search } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -68,7 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* ========================================================================================= */}
       {isSidebarPage && (
         <div className="hidden md:flex flex-col fixed left-4 top-1/2 -translate-y-1/2 z-[100]">
-          <div className="flex flex-col gap-3 p-2 bg-background/80 backdrop-blur-md border border-border rounded-full shadow-2xl">
+          <div className="flex flex-col gap-3 p-2 bg-zinc-950/50 backdrop-blur-xl border border-zinc-900 rounded-full shadow-2xl">
             {navigation.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href) || location.pathname.startsWith(item.href);
@@ -77,17 +77,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   key={item.name}
                   to={item.href}
                   className={cn(
-                    "p-3 rounded-full transition-all group relative",
+                    "p-3 rounded-full transition-all group relative hover:scale-110",
                     active
-                      ? "bg-primary text-primary-foreground shadow-lg scale-110"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-110"
+                      ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
+                      : "text-zinc-500 hover:text-zinc-300"
                   )}
                   title={item.name}
                 >
-                  <Icon className={cn("w-6 h-6", active && "fill-current")} />
+                  <Icon className="w-6 h-6" />
 
                   {/* Tooltip */}
-                  <div className="absolute left-full ml-4 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-md">
+                  <div className="absolute left-full ml-4 px-2 py-1 bg-zinc-900 text-zinc-100 text-[10px] font-bold uppercase tracking-wider rounded border border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl">
                     {item.name}
                   </div>
                 </Link>
@@ -454,15 +454,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className={cn(
                   "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
                   isActive
-                    ? "text-violet-400"
+                    ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
                     : "text-zinc-500 active:text-zinc-300"
                 )}
               >
-                {/* Active Glow */}
-                {isActive && (
-                  <div className="absolute inset-0 bg-violet-500/5 blur-xl rounded-full -z-10" />
-                )}
-
                 <Icon className={cn(
                   "w-5 h-5 transition-all duration-300",
                   isActive ? "scale-110" : "scale-100"

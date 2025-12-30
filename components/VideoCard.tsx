@@ -16,7 +16,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   return (
     <Link to={`/videos/${video.id}`} className="group block h-full">
       <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col border border-slate-100">
-        <div className="relative aspect-video overflow-hidden">
+        <div className="relative aspect-[16/9] overflow-hidden">
           <img
             src={video.thumbnailUrl}
             alt={video.title}
@@ -30,14 +30,13 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
             {video.length}
           </div>
-          <span className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded text-white ${
-             video.difficulty === 'Advanced' ? 'bg-red-500' : 
-             video.difficulty === 'Intermediate' ? 'bg-yellow-500' : 'bg-green-500'
-          }`}>
+          <span className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded text-white ${video.difficulty === 'Advanced' ? 'bg-red-500' :
+              video.difficulty === 'Intermediate' ? 'bg-yellow-500' : 'bg-green-500'
+            }`}>
             {video.difficulty === 'Beginner' ? '초급' : video.difficulty === 'Intermediate' ? '중급' : '상급'}
           </span>
         </div>
-        
+
         <div className="p-4 flex flex-col flex-grow">
           <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wider">
             {video.category}
@@ -45,13 +44,13 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
             {video.title}
           </h3>
-          
+
           <div className="mt-auto space-y-3">
             <div className="flex items-center text-sm text-slate-500">
               <User className="w-4 h-4 mr-1" />
               <span>{video.creatorName}</span>
             </div>
-            
+
             <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
               <span className="font-bold text-slate-900">{formattedPrice}</span>
               <span className="text-xs text-slate-400 flex items-center">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
-import { Grid, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { Grid, ChevronLeft, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
@@ -129,9 +129,9 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         const { getRoutineByDrillId } = await import('../../lib/api');
         const { data: routine } = await getRoutineByDrillId(drill.id);
         if (routine) navigate(`/routines/${routine.id}`);
-        if (routine) navigate(`/routines/${routine.id}`);
         else alert('이 드릴은 아직 루틴에 포함되지 않았습니다.');
     };
+
 
     const handleFollow = async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
@@ -176,22 +176,23 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                 <div className="max-w-[56.25vh] mx-auto flex justify-between items-start pointer-events-none">
                     <button
                         onClick={() => navigate(-1)}
-                        className="pointer-events-auto p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                        className="pointer-events-auto p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                     >
-                        <ArrowLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-6 h-6" />
                     </button>
 
-                    <div className="flex flex-col items-end gap-3 pointer-events-auto">
+                    <div className="flex flex-col items-center gap-3 pointer-events-auto">
+
                         <button
                             onClick={() => setIsMuted(prev => !prev)}
-                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                            className="p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                         >
                             {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                         </button>
 
                         <button
                             onClick={onChangeView}
-                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
+                            className="p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                         >
                             <Grid className="w-6 h-6" />
                         </button>
