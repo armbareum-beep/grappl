@@ -118,10 +118,10 @@ export const ClassShowcase: React.FC = () => {
                                     className="absolute inset-0 flex items-center justify-center cursor-pointer z-20"
                                     onClick={() => setShowVideo(true)}
                                 >
-                                    <span className="relative flex h-20 w-20 md:h-24 md:w-24">
+                                    <span className="relative flex h-14 w-14 md:h-24 md:w-24">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-30 group-hover:opacity-50 transition-opacity duration-300"></span>
-                                        <span className="relative inline-flex rounded-full h-20 w-20 md:h-24 md:w-24 bg-violet-600/90 backdrop-blur-sm items-center justify-center shadow-xl group-hover:bg-violet-500 transition-colors duration-300">
-                                            <Play className="w-8 h-8 md:w-10 md:h-10 text-white fill-white ml-1" />
+                                        <span className="relative inline-flex rounded-full h-14 w-14 md:h-24 md:w-24 bg-violet-600/90 backdrop-blur-sm items-center justify-center shadow-xl group-hover:bg-violet-500 transition-colors duration-300">
+                                            <Play className="w-6 h-6 md:w-10 md:h-10 text-white fill-white ml-1" />
                                         </span>
                                     </span>
                                 </div>
@@ -144,23 +144,23 @@ export const ClassShowcase: React.FC = () => {
                                 </div>
 
                                 {/* Top Right "FREE" Badge */}
-                                <div className="absolute top-6 right-6 z-20">
-                                    <div className="px-3 py-1.5 bg-violet-600 rounded-full shadow-lg border border-violet-500/50">
-                                        <span className="text-xs font-bold text-white tracking-wider">FREE</span>
+                                <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
+                                    <div className="px-2.5 py-1 md:px-3 md:py-1.5 bg-violet-600 rounded-full shadow-lg border border-violet-500/50">
+                                        <span className="text-[10px] md:text-xs font-bold text-white tracking-wider">FREE</span>
                                     </div>
                                 </div>
 
                                 {/* Refresh Button - Bottom Right (Fixed) */}
-                                <div className="absolute bottom-6 right-6 z-20">
+                                <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-20">
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleRandomize();
                                         }}
-                                        className="w-12 h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:rotate-180 duration-500 group/refresh"
+                                        className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:rotate-180 duration-500 group/refresh"
                                         title="다른 클래스 보기"
                                     >
-                                        <RefreshCw className="w-5 h-5 text-zinc-400 group-hover/refresh:text-white transition-colors" />
+                                        <RefreshCw className="w-4 h-4 md:w-5 md:h-5 text-zinc-400 group-hover/refresh:text-white transition-colors" />
                                     </button>
                                 </div>
                             </>

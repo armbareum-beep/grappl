@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../contexts/ToastContext';
-import { fetchDrillsBase, fetchCreatorsByIds } from '../lib/api';
+import { useSearchParams } from 'react-router-dom';
+import { fetchCreatorsByIds } from '../lib/api';
 import { Drill } from '../types';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { PlaySquare, Search, X } from 'lucide-react';
@@ -10,17 +8,19 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 
 export const Drills: React.FC = () => {
-    const navigate = useNavigate();
+    // const navigate = useNavigate(); // Not needed if not used
     const [searchParams, setSearchParams] = useSearchParams();
     const searchTerm = searchParams.get('search');
 
-    const { user } = useAuth();
-    const { error: toastError } = useToast();
+    // const { user } = useAuth();
+    // const { error: toastError } = useToast();
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>((searchParams.get('view') as 'reels' | 'grid') || 'reels'); // Default to reels for immersive experience
     const [initialReelIndex, setInitialReelIndex] = useState(0);
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side Control', 'Mount', 'Back Control'];
 
     useEffect(() => {
         loadDrills();
@@ -114,89 +114,126 @@ export const Drills: React.FC = () => {
         return <DrillReelsFeed drills={drills} initialIndex={initialReelIndex} onChangeView={() => handleViewChange('grid')} />;
     }
 
+
+    const filteredDrills = drills.filter(drill => {
+        const matchesSearch = !searchTerm ||
+            drill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            drill.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesCategory = selectedCategory === 'All' ||
+            drill.category === selectedCategory ||
+            (drill.tags && drill.tags.includes(selectedCategory));
+
+        return matchesSearch && matchesCategory;
+    });
+
     // Grid mode - clean drill display
     return (
-        <div className="min-h-screen bg-slate-950 p-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-2xl font-bold text-white">
-                            {searchTerm ? `'${searchTerm}' 검색 결과` : '드릴'}
-                        </h1>
-                        {searchTerm && (
+        <div className="min-h-screen bg-zinc-950 md:pl-28 pt-24 pb-20 px-6">
+            <div className="max-w-[1600px] mx-auto">
+                {/* Header Section (Category then Search/Reels) */}
+                <div className="flex flex-col gap-6 mb-10">
+                    {/* Row 1: Category Row */}
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide no-scrollbar">
+                        {categories.map(cat => (
                             <button
-                                onClick={() => {
-                                    setSearchParams({});
-                                    handleViewChange('reels');
-                                }}
-                                className="text-sm text-slate-400 hover:text-white flex items-center gap-1 bg-slate-900 px-3 py-1 rounded-full border border-slate-800"
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`px-5 py-2 rounded-full text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap border ${selectedCategory === cat
+                                    ? 'bg-violet-600 border-violet-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]'
+                                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
+                                    }`}
                             >
-                                <X className="w-4 h-4" />
-                                검색 초기화
+                                {cat}
                             </button>
-                        )}
+                        ))}
                     </div>
 
-                    {!searchTerm && (
+                    {/* Row 2: Search & Reels View (Right Aligned) */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 w-full max-w-sm sm:max-w-md">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <input
+                                    type="text"
+                                    placeholder="드릴 검색..."
+                                    value={searchTerm || ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setSearchParams(prev => {
+                                            if (value) prev.set('search', value);
+                                            else prev.delete('search');
+                                            return prev;
+                                        });
+                                    }}
+                                    className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-11 pr-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 text-sm font-medium"
+                                />
+                            </div>
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchParams({ view: 'grid' })}
+                                    className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
                         <button
                             onClick={() => handleViewChange('reels')}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/25"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:text-violet-400 hover:border-violet-500/50 transition-all shadow-xl group whitespace-nowrap"
                         >
-                            <PlaySquare className="w-4 h-4" />
-                            <span className="text-sm font-medium">릴스 뷰</span>
+                            <PlaySquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-bold tracking-tight">릴스 뷰</span>
                         </button>
-                    )}
+                    </div>
                 </div>
 
-                {drills.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <Search className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-white mb-2">검색 결과가 없습니다</h3>
-                        <p className="text-slate-400">다른 키워드로 검색해보거나 새로운 드릴을 찾아보세요.</p>
-                        {searchTerm && (
-                            <button
-                                onClick={() => setSearchParams({})}
-                                className="mt-6 text-blue-400 hover:text-blue-300 font-bold"
-                            >
-                                전체 목록 보기
-                            </button>
-                        )}
+                {filteredDrills.length === 0 ? (
+                    <div className="text-center py-32 bg-zinc-900/20 rounded-[2.5rem] border border-zinc-900 backdrop-blur-sm">
+                        <div className="relative inline-block mb-6">
+                            <Search className="w-16 h-16 text-zinc-800 mx-auto" />
+                            <div className="absolute inset-0 bg-violet-500/5 blur-2xl rounded-full"></div>
+                        </div>
+                        <h3 className="text-2xl font-bold text-zinc-200 mb-3">검색 결과가 없습니다</h3>
+                        <p className="text-zinc-500 max-w-xs mx-auto mb-8">다른 키워드나 카테고리를 시도해보세요.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                        {drills.map((drill, index) => (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                        {filteredDrills.map((drill) => (
                             <div
                                 key={drill.id}
-                                className="aspect-[9/16] bg-slate-900 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 relative group"
+                                className="group cursor-pointer"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    // Switch to reels view starting at this drill
-                                    setInitialReelIndex(index);
-
-                                    // If search is active, we need to clear it to enter immersive mode
-                                    if (searchTerm) {
-                                        setSearchParams({});
-                                    }
-
+                                    const fullIndex = drills.findIndex(d => d.id === drill.id);
+                                    setInitialReelIndex(fullIndex !== -1 ? fullIndex : 0);
+                                    if (searchTerm) setSearchParams({});
                                     handleViewChange('reels');
                                 }}
                             >
-                                <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
-                                    <h3 className="text-white font-bold text-sm line-clamp-2">{drill.title}</h3>
-                                    <p className="text-slate-400 text-xs mt-1">{drill.creatorName}</p>
+                                {/* Thumbnail Card */}
+                                <div className="relative aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30">
+                                    <img
+                                        src={drill.thumbnailUrl}
+                                        alt={drill.title}
+                                        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                                    />
+                                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                                    {/* Tech Tags */}
-                                    {drill.tags && drill.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                            {drill.tags.slice(0, 2).map((tag, idx) => (
-                                                <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                                                    #{tag}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
+                                    {/* Play Mini Icon */}
+                                    <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
+                                        <PlaySquare className="w-4 h-4" />
+                                    </div>
+                                </div>
+
+                                {/* Text Info */}
+                                <div className="px-1">
+                                    <h3 className="text-zinc-100 text-sm font-bold line-clamp-1 mb-0.5 group-hover:text-violet-400 transition-colors">
+                                        {drill.title}
+                                    </h3>
+                                    <p className="text-zinc-500 text-[11px] font-medium">{drill.creatorName}</p>
                                 </div>
                             </div>
                         ))}

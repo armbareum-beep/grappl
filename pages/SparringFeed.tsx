@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, BookOpen, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -247,111 +247,99 @@ const VideoItem: React.FC<{
     return (
         <>
             <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-center justify-center overflow-hidden">
+                {/* Watermark removed as per request */}
+
                 {/* Aspect Ratio Video Container */}
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full z-10 flex items-center justify-center">
                     {renderVideoContent()}
 
-                    {/* CLICK OVERLAY FIX: Explicit layer for click-to-pause (actually mute toggle here as per req?) */}
+                    {/* CLICK OVERLAY FIX */}
                     <div
-                        className="absolute inset-0 z-10"
+                        className="absolute inset-0 z-20 cursor-pointer"
                         onClick={toggleMute}
                     />
                 </div>
 
                 {/* Gradient Overlay - pointer-events-none */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-20" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
 
-                {/* Mute Indicator */}
-                <div className="absolute top-4 right-4 z-40 pointer-events-none">
-                    {muted && (
-                        <div className="bg-black/50 p-2 rounded-full backdrop-blur-sm animate-pulse">
-                            <span className="text-white text-xs font-bold px-2">소리 켜기</span>
-                        </div>
-                    )}
+                {/* Mute Indicator - Aligned with Header Back Button */}
+                <div className="absolute top-6 right-6 z-50 pointer-events-auto">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+                        className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all"
+                    >
+                        {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                    </button>
                 </div>
 
-                {/* Right Sidebar Actions - Desktop only */}
-                <div className="hidden md:flex absolute right-4 bottom-24 flex-col gap-6 items-center z-30 pointer-events-auto">
+                {/* Right Sidebar Actions - Match Drill Reels Style - Vertically Centered */}
+                <div className="hidden md:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col gap-6 items-center z-40 pointer-events-auto">
+                    {/* Like */}
                     <div className="flex flex-col items-center gap-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
                         >
-                            <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
+                            <Heart className={`w-8 h-8 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                         </button>
-                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
+                        <span className="text-xs font-medium text-zinc-200">{localLikes.toLocaleString()}</span>
+                    </div>
+
+                    {/* Save */}
+                    <div className="flex flex-col items-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
+                        >
+                            <Bookmark className={`w-8 h-8 ${isSaved ? 'fill-zinc-100' : ''} transition-all`} />
+                        </button>
+                        <span className="text-xs font-medium text-zinc-200">Save</span>
+                    </div>
+
+                    {/* Share */}
+                    <div className="flex flex-col items-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
+                        >
+                            <Share2 className="w-8 h-8" />
+                        </button>
+                        <span className="text-xs font-medium text-zinc-200">Share</span>
+                    </div>
+                </div>
+
+                {/* Mobile Actions - Bottom right Style Sync - Vertically Centered */}
+                <div className="md:hidden absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-5 items-center z-40 pointer-events-auto">
+                    <div className="flex flex-col items-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
+                        >
+                            <Heart className={`w-8 h-8 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                        </button>
+                        <span className="text-[10px] font-medium text-zinc-200">{localLikes.toLocaleString()}</span>
                     </div>
 
                     <div className="flex flex-col items-center gap-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleSave(); }}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill={isSaved ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className={`w-7 h-7 ${isSaved ? 'text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                            >
-                                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                            </svg>
+                            <Bookmark className={`w-8 h-8 ${isSaved ? 'fill-zinc-100' : ''} transition-all`} />
                         </button>
-                    </div>
-
-                    <button
-                        onClick={handleShare}
-                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
-                    >
-                        <Share2 className="w-7 h-7" />
-                    </button>
-                </div>
-
-                {/* Mobile Actions - Bottom right (Raised to overlay on video) */}
-                <div className="md:hidden absolute right-3 bottom-56 flex flex-col gap-6 items-center z-30 pointer-events-auto">
-                    <div className="flex flex-col items-center gap-1">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-red-500 transition-colors group"
-                        >
-                            <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500 text-red-500' : ''} group-hover:scale-110 transition-transform`} />
-                        </button>
-                        <span className="text-xs font-bold text-white shadow-black drop-shadow-md">{localLikes}</span>
+                        <span className="text-[10px] font-medium text-zinc-200">Save</span>
                     </div>
 
                     <div className="flex flex-col items-center gap-1">
                         <button
-                            onClick={(e) => { e.stopPropagation(); handleSave(); }}
-                            className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-yellow-400 transition-colors group"
+                            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                            className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill={isSaved ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className={`w-7 h-7 ${isSaved ? 'text-yellow-400' : ''} group-hover:scale-110 transition-transform`}
-                            >
-                                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                            </svg>
+                            <Share2 className="w-8 h-8" />
                         </button>
+                        <span className="text-[10px] font-medium text-zinc-200">Share</span>
                     </div>
-
-                    <button
-                        onClick={handleShare}
-                        className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:text-green-500 transition-colors"
-                    >
-                        <Share2 className="w-7 h-7" />
-                    </button>
                 </div>
 
                 {/* Bottom Info Area */}
@@ -360,21 +348,25 @@ const VideoItem: React.FC<{
                     {/* Metadata Container */}
                     <div className="w-full pointer-events-auto">
 
-                        {/* 1. Creator Info & Follow */}
+                        {/* 1. Creator Info & Follow - Sync with Drill Reels */}
                         {video.creator && (
-                            <div className="flex flex-row items-center gap-2 mb-2">
+                            <div className="flex items-center gap-3 mb-3">
                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                    <span className="font-bold text-[15px] text-shadow-sm">{video.creator.name}</span>
+                                    <img
+                                        src={(video.creator as any).avatar_url || (video.creator as any).image || `https://ui-avatars.com/api/?name=${video.creator.name}`}
+                                        className="w-8 h-8 rounded-full border border-white/20 object-cover"
+                                    />
+                                    <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
                                 </Link>
-                                <span className="text-white/60 text-xs text-shadow-sm leading-none flex items-center mb-0.5">•</span>
+                                <span className="text-white/60 text-xs mt-0.5">•</span>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-                                    className={`px-3 py-1 rounded-[6px] text-[13px] font-semibold border transition-all active:scale-95 ${isFollowed
-                                        ? 'bg-zinc-800/50 text-zinc-400 border-zinc-700'
-                                        : 'bg-transparent text-white border-white/40 hover:bg-white/10'
+                                    className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed
+                                        ? 'bg-violet-600 text-white border-violet-600'
+                                        : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'
                                         }`}
                                 >
-                                    {isFollowed ? '팔로잉' : '팔로우'}
+                                    {isFollowed ? 'Following' : 'Follow'}
                                 </button>
                             </div>
                         )}
@@ -386,28 +378,22 @@ const VideoItem: React.FC<{
 
                         {/* 3. Related Technique Link (Refined) */}
                         {video.relatedItems && video.relatedItems.length > 0 && (
-                            <div className="w-full pointer-events-auto mb-4">
-                                <div className="flex flex-row gap-2.5 overflow-x-auto flex-nowrap pb-2 -mx-4 px-4 scrollbar-hide snap-x">
+                            <div className="w-full pointer-events-auto mb-4 absolute md:bottom-20 bottom-24 left-0 right-0 px-4">
+                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 scrollbar-hide snap-x">
                                     {video.relatedItems.map((item, idx) => (
                                         <Link
                                             key={idx}
                                             to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`}
-                                            className="snap-start flex items-center gap-2.5 bg-zinc-900/80 backdrop-blur-md rounded-lg p-2.5 hover:bg-zinc-800 transition-all group shrink-0 w-[210px] border border-white/10 active:scale-95 shadow-lg"
+                                            className="snap-start flex items-center justify-between gap-3 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 rounded-2xl p-3 min-w-[180px] hover:bg-zinc-900/60 transition-all active:scale-95 group shadow-2xl"
                                         >
-                                            {/* Minimal Icon Box */}
-                                            <div className="w-9 h-9 rounded-md bg-black/40 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-blue-500/50 transition-colors">
-                                                <BookOpen className="w-5 h-5 text-blue-400 group-hover:text-blue-300" />
-                                            </div>
-
-                                            {/* Concise Text */}
-                                            <div className="flex flex-col flex-1 min-w-0 justify-center">
-                                                <span className="text-[9px] text-zinc-500 font-bold mb-0.5 tracking-wider uppercase">Learn This</span>
-                                                <span className="text-[13px] font-bold text-white truncate leading-tight group-hover:text-blue-400 transition-colors">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] text-zinc-500 font-bold tracking-wider uppercase">Learn This</span>
+                                                <span className="text-sm font-bold text-zinc-100 truncate leading-tight group-hover:text-violet-400 transition-colors">
                                                     {item.title}
                                                 </span>
                                             </div>
 
-                                            <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                                            <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors shrink-0" />
                                         </Link>
                                     ))}
                                 </div>
@@ -503,18 +489,15 @@ export const SparringFeed: React.FC = () => {
     }, [videos, initialId]);
 
     return (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col md:pl-28">
             {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-30 p-4 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 md:left-28 z-50 p-6 flex justify-between items-start pointer-events-none">
                 <button
                     onClick={() => navigate(-1)}
-                    className="pointer-events-auto p-2 rounded-full bg-black/20 backdrop-blur-sm text-white hover:bg-black/40"
+                    className="pointer-events-auto p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                 >
-                    <ArrowLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-6 h-6" />
                 </button>
-                <div className="pointer-events-auto font-bold text-lg text-white drop-shadow-md">
-                    Sparring
-                </div>
                 <div className="w-10" /> {/* Spacer */}
             </div>
 

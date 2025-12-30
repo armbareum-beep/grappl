@@ -404,10 +404,10 @@ export const RoutineDetail: React.FC = () => {
                                     <span className="text-2xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                 </div>
                                 <button
-                                    onClick={hasAccess ? handleStartRoutine : handlePurchase}
+                                    onClick={owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? handleStartRoutine : handlePurchase}
                                     className="flex-1 bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
                                 >
-                                    {hasAccess ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>}
+                                    {owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>}
                                 </button>
                             </div>
                         </div>
@@ -532,10 +532,10 @@ export const RoutineDetail: React.FC = () => {
                                         </div>
                                         <div className="space-y-3">
                                             <button
-                                                onClick={hasAccess ? handleStartRoutine : handlePurchase}
+                                                onClick={owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? handleStartRoutine : handlePurchase}
                                                 className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-lg shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
                                             >
-                                                {hasAccess ? <><Play className="w-6 h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-6 h-6" /> UNLOCK ACCESS</>}
+                                                {owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? <><Play className="w-6 h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-6 h-6" /> UNLOCK ACCESS</>}
                                             </button>
                                             <p className="text-center text-xs text-zinc-500">Includes lifetime access & updates</p>
                                         </div>

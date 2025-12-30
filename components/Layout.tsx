@@ -58,7 +58,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   // Sidebar is enabled only for specific "Full Screen" / Detail pages
-  const isSidebarPage = ['/drills', '/sparring', '/routines', '/my-routines', '/drill-routines'].some(path => location.pathname.startsWith(path)) && !location.search.includes('view=grid');
+  const isSidebarPage = ['/drills', '/sparring', '/routines', '/my-routines', '/drill-routines'].some(path => location.pathname.startsWith(path));
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">

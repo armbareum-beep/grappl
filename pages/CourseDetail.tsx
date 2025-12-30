@@ -192,30 +192,6 @@ export const CourseDetail: React.FC = () => {
         }
     };
 
-    const toggleLessonComplete = async (lessonId: string) => {
-        if (!user) return;
-
-        const isCompleted = completedLessons.has(lessonId);
-        await markLessonComplete(user.id, lessonId, !isCompleted);
-
-        setCompletedLessons(prev => {
-            const newSet = new Set(prev);
-            if (isCompleted) {
-                newSet.delete(lessonId);
-            } else {
-                newSet.add(lessonId);
-            }
-            return newSet;
-        });
-
-        // Check for course completion if we just marked a lesson as complete
-        if (!isCompleted && course) {
-            const { data } = await checkCourseCompletion(user.id, course.id);
-            if (data && data.newly_awarded) {
-                success(`🎉 클래스 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
-            }
-        }
-    };
 
     if (loading) {
         return <LoadingScreen message="클래스 정보 불러오는 중..." />;
@@ -514,8 +490,8 @@ export const CourseDetail: React.FC = () => {
                     {/* Right Column: Sidebar (Curriculum + Purchase) */}
                     <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
 
-                        {/* Purchase CTA Box (Sticky) */}
-                        <div className="lg:sticky lg:top-24 space-y-6 z-20">
+                        {/* Purchase CTA Box */}
+                        <div className="space-y-6 z-20">
 
                             {/* Purchase Card */}
                             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl shadow-black/50 overflow-hidden relative">
@@ -725,30 +701,6 @@ export const CourseDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Mobile Bottom Float (Still useful for mobile) */}
-            <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800 p-4 lg:hidden z-50">
-                <div className="flex gap-4 items-center">
-                    <div className="flex-1">
-                        <p className="text-xs text-zinc-500 font-bold uppercase mb-0.5">Total Price</p>
-                        <p className="text-xl font-black text-white">{formattedPrice}</p>
-                    </div>
-                    <div className="flex-[1.5]">
-                        {ownsCourse ? (
-                            <Button className="w-full bg-zinc-800 text-zinc-400 border border-zinc-700" disabled>
-                                Completed
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={handlePurchase}
-                                disabled={purchasing}
-                                className="w-full bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/20"
-                            >
-                                {purchasing ? '...' : 'Buy Now'}
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </div>
 
             {/* Share Modal Components */}
             {isShareModalOpen && course && (
