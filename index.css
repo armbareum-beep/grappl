@@ -1,18 +1,47 @@
-  
-html { scroll-padding-top: 8rem; } 
+  html {
+    scroll-padding-top: 8rem;
+  }
 
-/* Hide Vimeo branding */
-iframe[src*="vimeo.com"] {
-  pointer-events: auto;
-}
+  /* Hide Vimeo branding */
+  iframe[src*="vimeo.com"] {
+    pointer-events: auto;
+  }
 
-/* Force hide Vimeo logo/badge if it appears */
-.vp-badge,
-.vp-logo,
-.vp-share-button,
-[class*="vimeo-logo"],
-[class*="vimeo-badge"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
+  /* Force hide Vimeo logo/badge if it appears */
+  .vp-badge,
+  .vp-logo,
+  .vp-share-button,
+  [class*="vimeo-logo"],
+  [class*="vimeo-badge"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
+  /* Landing Page Hero Utilities */
+  .bg-radial-glow {
+    background: radial-gradient(circle at center, rgba(124, 58, 237, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  }
+
+  .text-gradient-purple {
+    background: linear-gradient(to right, #a78bfa, #c084fc, #e879f9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  @keyframes pulse-slow {
+
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }

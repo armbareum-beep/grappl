@@ -3,18 +3,20 @@ import { Link } from 'react-router-dom';
 import { Course } from '../types';
 import { Play } from 'lucide-react';
 import Player from '@vimeo/player';
+import { cn } from '../lib/utils';
 
 interface CourseCardProps {
     course: Course;
+    className?: string;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
-    const cardRef = useRef<HTMLDivElement>(null);
+    const cardRef = useRef<HTMLAnchorElement>(null);
     const playerRef = useRef<Player | null>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const seekBarRef = useRef<HTMLDivElement>(null);
@@ -132,7 +134,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
 
     return (
         <div
-            className="group block h-full"
+            className={cn("group block h-full", className)}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
         >
@@ -140,7 +142,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
             <Link
                 to={`/courses/${course.id}`}
                 ref={cardRef}
-                className="aspect-video w-full relative bg-slate-900 rounded-xl overflow-hidden mb-3 block"
+                className="aspect-video w-full relative bg-muted rounded-xl overflow-hidden mb-3 block border border-border"
             >
                 {/* Background Image */}
                 <img
@@ -169,7 +171,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                 {showVideo && isHovering && (
                     <div
                         ref={seekBarRef}
-                        className="absolute bottom-0 left-0 right-0 h-12 z-30 flex items-center px-4 bg-gradient-to-t from-black/60 to-transparent cursor-pointer"
+                        className="absolute bottom-0 left-0 right-0 h-10 z-30 flex items-center px-4 bg-gradient-to-t from-black/80 to-transparent cursor-pointer"
                         onMouseDown={handleSeekBarMouseDown}
                         onClick={handleSeekBarClick}
                     >
@@ -177,13 +179,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                         <div className="relative w-full h-1 bg-white/30 rounded-full overflow-visible">
                             {/* Progress Bar Fill */}
                             <div
-                                className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all"
+                                className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all"
                                 style={{ width: `${progressPercentage}%` }}
                             />
                             {/* Draggable Handle */}
                             <div
-                                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transform hover:scale-125 transition-transform"
-                                style={{ left: `${progressPercentage}%`, marginLeft: '-8px' }}
+                                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transform hover:scale-125 transition-transform"
+                                style={{ left: `${progressPercentage}%`, marginLeft: '-6px' }}
                             />
                         </div>
                     </div>
@@ -192,8 +194,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                 {/* Play Button Overlay (Hidden when video plays) */}
                 {!showVideo && (
                     <div className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <div className="w-16 h-16 rounded-full bg-blue-500/95 backdrop-blur-sm flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
-                            <Play className="w-7 h-7 text-white fill-current ml-1" />
+                        <div className="w-14 h-14 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                            <Play className="w-6 h-6 text-primary-foreground fill-current ml-1" />
                         </div>
                     </div>
                 )}
@@ -203,7 +205,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
             <div className="flex gap-3">
                 {/* Creator Profile Image */}
                 <Link to={`/creator/${course.creatorId}`} className="flex-shrink-0 hover:opacity-80 transition-opacity">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 overflow-hidden">
+                    <div className="w-9 h-9 rounded-full bg-muted border border-border overflow-hidden">
                         {course.creatorProfileImage ? (
                             <img
                                 src={course.creatorProfileImage}
@@ -211,7 +213,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm font-bold bg-muted">
                                 {course.creatorName?.charAt(0).toUpperCase()}
                             </div>
                         )}
@@ -221,12 +223,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                 {/* Title and Creator Info */}
                 <div className="flex-1 min-w-0">
                     <Link to={`/courses/${course.id}`}>
-                        <h3 className="font-semibold text-white text-sm leading-tight line-clamp-2 mb-1 hover:text-blue-400 transition-colors">
+                        <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 mb-1 hover:text-primary transition-colors">
                             {course.title}
                         </h3>
                     </Link>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                        <Link to={`/creator/${course.creatorId}`} className="hover:text-white transition-colors">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Link to={`/creator/${course.creatorId}`} className="hover:text-foreground transition-colors">
                             <span className="truncate">{course.creatorName}</span>
                         </Link>
                         {course.lessonCount && (
