@@ -18,7 +18,8 @@ export default defineConfig({
                 name: 'Grapplay',
                 short_name: 'Grapplay',
                 description: '프리미엄 주짓수 기술 영상 플랫폼',
-                theme_color: '#ffffff',
+                theme_color: '#09090b',
+                background_color: '#09090b',
                 icons: [
                     {
                         src: 'pwa-192x192.png',

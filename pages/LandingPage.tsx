@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Play, Star, ChevronRight, Zap, BookOpen, Map, Search } from 'lucide-react';
+import { Play, Star, ChevronRight, Zap, BookOpen, Map, Search, Menu, X } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { ClassShowcase } from '../components/ClassShowcase';
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
+import { cn } from '../lib/utils';
 
 export const LandingPage: React.FC = () => {
     // Force redeploy check
@@ -23,6 +24,16 @@ export const LandingPage: React.FC = () => {
     }, [user, loading, navigate]);
 
     const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 10);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     useEffect(() => {
         loadTestimonials();
@@ -134,27 +145,32 @@ export const LandingPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
             {/* Navigation Header */}
-            <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-6 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <header className={cn(
+                "sticky top-0 left-0 right-0 z-50 transition-all duration-300 h-20 flex items-center px-4 md:px-8 border-b",
+                isScrolled
+                    ? "bg-zinc-950/80 backdrop-blur-lg border-zinc-900"
+                    : "bg-zinc-950/70 backdrop-blur-md border-transparent"
+            )}>
+                <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 group transition-transform hover:scale-105">
-                        <span className="text-2xl md:text-3xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
+                        <span className="text-xl md:text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
                             Grapplay
                         </span>
                     </Link>
-                    <div className="flex items-center gap-2 md:gap-4">
-                        <Button
-                            variant="ghost"
-                            className="text-zinc-400 hover:text-white hover:bg-zinc-900/50 text-sm font-medium px-4"
+
+                    <div className="flex items-center gap-4">
+                        <button
+                            className="text-zinc-400 hover:text-zinc-100 text-sm font-medium px-2 py-1 transition-colors"
                             onClick={() => navigate('/login')}
                         >
                             로그인
-                        </Button>
-                        <Button
-                            className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-6 py-2.5 text-sm font-bold transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:-translate-y-0.5"
+                        </button>
+                        <button
+                            className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
                             onClick={() => navigate('/pricing')}
                         >
                             시작하기
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </header>

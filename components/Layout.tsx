@@ -98,14 +98,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 relative">
+          <div className="flex justify-between items-center h-20 relative">
             {/* Left Section: Desktop Logo OR Mobile Search */}
             <div className="flex items-center">
               {/* Desktop Logo */}
-              <Link to="/" className="hidden md:flex items-center">
-                <img src="/logo_v2_final.png" alt="Grapplay" className="h-10 w-auto object-contain" />
+              <Link to="/" className="hidden md:flex items-center group transition-transform hover:scale-105">
+                <span className="text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
+                  Grapplay
+                </span>
               </Link>
 
               {/* Mobile Search Icon */}
@@ -119,7 +121,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Center Section: Mobile Logo */}
             <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none">
               <Link to="/" className="flex items-center pointer-events-auto">
-                <img src="/logo_v2_final.png" alt="Grapplay" className="h-8 w-auto object-contain" />
+                <span className="text-xl font-black text-white tracking-tighter">
+                  Grapplay
+                </span>
               </Link>
             </div>
 
@@ -221,8 +225,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   )}
                 </div>
               ) : (
-                <Link to="/login">
-                  <Button variant="default" size="sm">로그인</Button>
+                <Link to="/login" className="text-zinc-400 hover:text-zinc-100 text-sm font-medium transition-colors px-4 py-2">
+                  로그인
                 </Link>
               )}
             </div>
@@ -337,8 +341,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       to="/login"
                       onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full py-3 text-center rounded-xl border border-zinc-800 text-zinc-100 font-bold hover:bg-zinc-900 transition-colors"
                     >
-                      <Button className="w-full">로그인</Button>
+                      로그인
                     </Link>
                   </div>
                 </>
@@ -357,36 +362,38 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {!['/drills', '/arena', '/sparring', '/journal', '/browse'].some(path => location.pathname.startsWith(path)) &&
         !location.pathname.startsWith('/course') &&
         !location.pathname.startsWith('/routines') && (
-          <footer className={`bg-background border-t border-border mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              <div className="grid md:grid-cols-4 gap-8">
-                <div className="col-span-1 md:col-span-2">
-                  <div className="flex items-center mb-4">
-                    <img src="/logo_v2_final.png" alt="Grapplay" className="h-10 w-auto object-contain" />
+          <footer className={`bg-zinc-950 border-t border-zinc-900 mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+              <div className="grid md:grid-cols-4 gap-12 md:gap-8">
+                <div className="col-span-1 md:col-span-2 space-y-6">
+                  <div className="flex items-center">
+                    <span className="text-2xl font-black text-white tracking-tighter">
+                      Grapplay
+                    </span>
                   </div>
-                  <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
+                  <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
                     세계 최고의 주짓수 선수들에게 배우는 프리미엄 온라인 클래스.
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-foreground mb-4">서비스</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li><Link to="/browse" className="hover:text-primary transition-colors">강좌 둘러보기</Link></li>
-                    <li><Link to="/pricing" className="hover:text-primary transition-colors">요금제</Link></li>
-                    <li><Link to="/become-creator" className="hover:text-primary transition-colors">인스트럭터 신청</Link></li>
+                  <h4 className="font-semibold text-zinc-100 mb-6">서비스</h4>
+                  <ul className="space-y-4 text-sm">
+                    <li><Link to="/browse" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
+                    <li><Link to="/pricing" className="text-zinc-400 hover:text-violet-400 transition-colors">요금제</Link></li>
+                    <li><Link to="/become-creator" className="text-zinc-400 hover:text-violet-400 transition-colors">인스트럭터 신청</Link></li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-bold text-foreground mb-4">고객지원</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li><Link to="/contact" className="hover:text-primary transition-colors">문의하기</Link></li>
-                    <li><Link to="/terms" className="hover:text-primary transition-colors">이용약관</Link></li>
-                    <li><Link to="/privacy" className="hover:text-primary transition-colors">개인정보처리방침</Link></li>
+                  <h4 className="font-semibold text-zinc-100 mb-6">고객지원</h4>
+                  <ul className="space-y-4 text-sm">
+                    <li><Link to="/contact" className="text-zinc-400 hover:text-violet-400 transition-colors">문의하기</Link></li>
+                    <li><Link to="/terms" className="text-zinc-400 hover:text-violet-400 transition-colors">이용약관</Link></li>
+                    <li><Link to="/privacy" className="text-zinc-400 hover:text-violet-400 transition-colors">개인정보처리방침</Link></li>
                   </ul>
                 </div>
               </div>
-              <div className="border-t border-border mt-12 pt-8">
-                <div className="mb-6 text-xs text-muted-foreground space-y-1">
+              <div className="border-t border-zinc-900 mt-16 pt-10">
+                <div className="mb-8 text-[11px] text-zinc-600 space-y-1.5 leading-relaxed">
                   <p><strong>상호명:</strong> 그래플레이 | <strong>대표자:</strong> 이바름</p>
                   <p><strong>사업자등록번호:</strong> 111-39-34149</p>
                   <p><strong>주소:</strong> 서울 동작대로29길 119, 102-1207</p>
@@ -395,8 +402,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
 
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                  <p className="text-xs text-muted-foreground">
-                    © 2024 Grapplay. All rights reserved.
+                  <p className="text-xs text-zinc-700">
+                    © 2025 Grapplay. All rights reserved.
                   </p>
                 </div>
               </div>
@@ -426,8 +433,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur border-t border-border pb-safe">
-        <div className="grid grid-cols-5 h-16 items-center">
+      <div className="md:hidden fixed bottom-6 left-4 right-4 z-[100] bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/50 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="grid grid-cols-5 h-16 items-center relative">
           {[
             { name: '클래스', href: '/browse', icon: BookOpen },
             { name: '드릴', href: '/drills', icon: Zap },
@@ -438,21 +445,40 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             const Icon = item.icon;
             // Handle multiple paths for same tab
             let isActive = location.pathname.startsWith(item.href);
-            if (item.href === '/browse' && location.pathname.startsWith('/courses')) isActive = true;
+            if (item.href === '/browse' && (location.pathname.startsWith('/courses') || location.pathname.startsWith('/course'))) isActive = true;
 
             return (
               <Link
                 key={item.name}
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                  "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
                   isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-violet-400"
+                    : "text-zinc-500 active:text-zinc-300"
                 )}
               >
-                <Icon className={cn("w-5 h-5", isActive && "fill-current")} />
-                <span className="text-[10px] font-bold">{item.name}</span>
+                {/* Active Glow */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-violet-500/5 blur-xl rounded-full -z-10" />
+                )}
+
+                <Icon className={cn(
+                  "w-5 h-5 transition-all duration-300",
+                  isActive ? "scale-110" : "scale-100"
+                )} />
+
+                <span className={cn(
+                  "text-[10px] mt-1 font-medium transition-all duration-300",
+                  isActive ? "opacity-100" : "opacity-80"
+                )}>
+                  {item.name}
+                </span>
+
+                {/* Active Indicator Dot */}
+                {isActive && (
+                  <div className="absolute bottom-1.5 w-1 h-1 bg-violet-400 rounded-full shadow-[0_0_8px_rgba(167,139,250,0.6)] animate-in zoom-in duration-300" />
+                )}
               </Link>
             );
           })}

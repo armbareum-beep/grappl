@@ -1,11 +1,13 @@
 export enum VideoCategory {
   Standing = 'Standing',
   Guard = 'Guard',
-  GuardPass = 'Guard Pass',
+  Passing = 'Passing',
   Side = 'Side',
   Mount = 'Mount',
   Back = 'Back',
   Submission = 'Submission',
+  Gi = 'Gi',
+  NoGi = 'No-Gi',
 }
 
 export enum Difficulty {
@@ -201,7 +203,7 @@ export interface LogFeedback {
   createdAt: string;
 }
 
-export type SkillCategory = 'Standing' | 'Guard' | 'Guard Pass' | 'Side' | 'Mount' | 'Back';
+export type SkillCategory = 'Standing' | 'Guard' | 'Passing' | 'Side' | 'Mount' | 'Back' | 'Gi' | 'No-Gi';
 export type SkillStatus = 'learning' | 'mastered';
 
 export interface SkillSubcategory {
@@ -417,7 +419,7 @@ export interface Title {
 
 // ==================== Technique Mastery System ====================
 
-export type TechniqueCategory = 'Standing' | 'Guard' | 'Guard Pass' | 'Side' | 'Mount' | 'Back';
+export type TechniqueCategory = 'Standing' | 'Guard' | 'Passing' | 'Side' | 'Mount' | 'Back' | 'Gi' | 'No-Gi';
 
 export type MasteryLevel = 1 | 2 | 3 | 4 | 5 | 6;
 

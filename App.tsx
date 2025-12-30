@@ -63,6 +63,8 @@ import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
 import { GlobalUploadProgress } from './components/GlobalUploadProgress';
 
+import { LandingPageV2 } from './pages/LandingPageV2';
+
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   const [forceLoad, setForceLoad] = React.useState(false);
@@ -104,6 +106,7 @@ const App: React.FC = () => {
 
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
+                <Route path="/v2" element={<LandingPageV2 />} />
                 <Route path="/home" element={<Home />} />
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/bundles" element={<Bundles />} />

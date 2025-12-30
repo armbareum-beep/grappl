@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Course } from '../types';
-import { Play } from 'lucide-react';
+import { Play, PlayCircle, BarChart2 } from 'lucide-react';
 import Player from '@vimeo/player';
 import { cn } from '../lib/utils';
 
@@ -134,24 +134,19 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className }) => 
 
     return (
         <div
-            className={cn("group block h-full", className)}
+            className={cn("group relative bg-zinc-900/20 backdrop-blur-md border border-zinc-800 rounded-2xl overflow-hidden transition-all duration-500 hover:border-zinc-700 hover:-translate-y-1 hover:shadow-2xl", className)}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
         >
-            {/* Aspect Ratio Container */}
-            <Link
-                to={`/courses/${course.id}`}
-                ref={cardRef}
-                className="aspect-video w-full relative bg-muted rounded-xl overflow-hidden mb-3 block border border-border"
-            >
-                {/* Background Image */}
+            <Link to={`/courses/${course.id}`} className="block relative aspect-video overflow-hidden">
                 <img
                     src={course.thumbnailUrl}
                     alt={course.title}
                     className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${isHovering ? 'scale-105' : 'scale-100'}`}
                 />
 
-                {/* Video Preview Overlay */}
+
+
                 {showVideo && vimeoId && (
                     <div className="absolute inset-0 z-10 bg-black animate-fade-in">
                         <iframe
@@ -164,91 +159,64 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className }) => 
                     </div>
                 )}
 
-                {/* Gradient Overlay - subtle */}
-                <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 transition-opacity duration-300`} />
+                <div className={`absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-transparent to-zinc-950/10 opacity-60 transition-opacity duration-300`} />
 
-                {/* Seek Bar - only visible when hovering and video is playing */}
                 {showVideo && isHovering && (
                     <div
                         ref={seekBarRef}
-                        className="absolute bottom-0 left-0 right-0 h-10 z-30 flex items-center px-4 bg-gradient-to-t from-black/80 to-transparent cursor-pointer"
+                        className="absolute bottom-0 left-0 right-0 h-1 z-30 bg-white/20 cursor-pointer"
                         onMouseDown={handleSeekBarMouseDown}
                         onClick={handleSeekBarClick}
                     >
-                        {/* Progress Bar Background */}
-                        <div className="relative w-full h-1 bg-white/30 rounded-full overflow-visible">
-                            {/* Progress Bar Fill */}
-                            <div
-                                className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all"
-                                style={{ width: `${progressPercentage}%` }}
-                            />
-                            {/* Draggable Handle */}
-                            <div
-                                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transform hover:scale-125 transition-transform"
-                                style={{ left: `${progressPercentage}%`, marginLeft: '-6px' }}
-                            />
-                        </div>
+                        <div
+                            className="absolute top-0 left-0 h-full bg-violet-500 transition-all"
+                            style={{ width: `${progressPercentage}%` }}
+                        />
                     </div>
                 )}
 
-                {/* Play Button Overlay (Hidden when video plays) */}
                 {!showVideo && (
                     <div className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        <div className="w-14 h-14 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
-                            <Play className="w-6 h-6 text-primary-foreground fill-current ml-1" />
+                        <div className="w-14 h-14 rounded-full bg-violet-600/30 backdrop-blur-md flex items-center justify-center border border-violet-500/30 transform group-hover:scale-110 transition-transform duration-500">
+                            <Play className="w-6 h-6 text-violet-400 fill-current ml-1" />
                         </div>
                     </div>
                 )}
             </Link>
 
-            {/* YouTube-style Info Section */}
-            <div className="flex gap-3">
-                {/* Creator Profile Image */}
-                <Link to={`/creator/${course.creatorId}`} className="flex-shrink-0 hover:opacity-80 transition-opacity">
-                    <div className="w-9 h-9 rounded-full bg-muted border border-border overflow-hidden">
-                        {course.creatorProfileImage ? (
-                            <img
-                                src={course.creatorProfileImage}
-                                alt={course.creatorName}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm font-bold bg-muted">
-                                {course.creatorName?.charAt(0).toUpperCase()}
-                            </div>
-                        )}
-                    </div>
+            <div className="px-5 py-4">
+                <Link to={`/courses/${course.id}`} className="block">
+                    <h3 className="font-bold text-zinc-100 text-lg mb-4 line-clamp-1 group-hover:text-violet-400 transition-colors">
+                        {course.title}
+                    </h3>
                 </Link>
 
-                {/* Title and Creator Info */}
-                <div className="flex-1 min-w-0">
-                    <Link to={`/courses/${course.id}`}>
-                        <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 mb-1 hover:text-primary transition-colors">
-                            {course.title}
-                        </h3>
+                <div className="flex items-center justify-between">
+                    <Link to={`/creator/${course.creatorId}`} className="flex items-center gap-2 group/author">
+                        <div className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700/50 overflow-hidden shrink-0">
+                            {course.creatorProfileImage ? (
+                                <img src={course.creatorProfileImage} alt={course.creatorName} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold uppercase">
+                                    {course.creatorName?.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-sm text-zinc-400 font-medium group-hover/author:text-zinc-200 transition-colors truncate">
+                            {course.creatorName}
+                        </span>
                     </Link>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Link to={`/creator/${course.creatorId}`} className="hover:text-foreground transition-colors">
-                            <span className="truncate">{course.creatorName}</span>
-                        </Link>
-                        {course.lessonCount && (
-                            <>
-                                <span>•</span>
-                                <span className="flex-shrink-0">{course.lessonCount}개 영상</span>
-                            </>
-                        )}
+
+                    <div className="flex items-center gap-1.5 text-zinc-500">
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-bold">{course.lessonCount || 0} Lessons</span>
                     </div>
                 </div>
             </div>
 
             <style>{`
-                @keyframes fade-in {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                .animate-fade-in {
-                    animation: fade-in 0.5s ease-out forwards;
-                }
+                @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
             `}</style>
         </div>
     );
