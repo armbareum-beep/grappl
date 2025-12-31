@@ -14,7 +14,8 @@ import ReactFlow, {
     ConnectionMode,
     ReactFlowInstance,
     OnConnectStart,
-    OnConnectEnd
+    OnConnectEnd,
+    SelectionMode
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,13 +35,16 @@ import { TechniqueNode } from './TechniqueNode';
 import { AddTechniqueModal } from './AddTechniqueModal';
 import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
-import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2 } from 'lucide-react';
+import GroupNode from './GroupNode';
+import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle } from 'lucide-react';
 import ShareModal from '../social/ShareModal';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const nodeTypes: NodeTypes = {
     content: TechniqueNode as any,
-    technique: TechniqueNode as any, // Keep temporary for backward compatibility during migration
-    text: TextNode as any
+    technique: TechniqueNode as any,
+    text: TextNode as any,
+    group: GroupNode as any
 };
 
 export const TechniqueSkillTree: React.FC = () => {
@@ -78,14 +82,23 @@ export const TechniqueSkillTree: React.FC = () => {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [customShareUrl, setCustomShareUrl] = useState<string | null>(null);
 
+    // Video Modal State
+    const [videoModal, setVideoModal] = useState<{ isOpen: boolean; url: string | null; title: string }>({ isOpen: false, url: null, title: '' });
+
     // Mobile Optimization States
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
     const [isMobile, setIsMobile] = useState(false);
     const [isFabOpen, setIsFabOpen] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [isUIHidden, setIsUIHidden] = useState(false);
+    const [isUIHidden] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [hideGuestOverlay, setHideGuestOverlay] = useState(false);
+    const [menu, setMenu] = useState<{ id: string; top?: number; left?: number; right?: number; bottom?: number; type: 'node' | 'edge' | 'pane' | 'group'; data?: any; selectedNodes?: Node[] } | null>(null);
+    const [copiedNodes, setCopiedNodes] = useState<Node[] | null>(null);
+
+    // Grouping States
+    const [isGroupSelectionMode, setIsGroupSelectionMode] = useState(false);
+    const [groupingInitialNodeId, setGroupingInitialNodeId] = useState<string | null>(null);
+    const [selectedForGrouping, setSelectedForGrouping] = useState<Set<string>>(new Set());
 
     // Detect mobile viewport
     useEffect(() => {
@@ -102,7 +115,7 @@ export const TechniqueSkillTree: React.FC = () => {
         try {
             const json = JSON.stringify(data);
             return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g,
-                function toSolidBytes(match, p1) {
+                function toSolidBytes(_match, p1) {
                     return String.fromCharCode(parseInt(p1, 16));
                 }));
         } catch (e) { return null; }
@@ -124,16 +137,15 @@ export const TechniqueSkillTree: React.FC = () => {
     const connectionStartRef = useRef<{ nodeId: string; handleId: string | null } | null>(null);
 
     // Helper to update node data (for TextNode)
-    const handleNodeDataChange = useCallback((id: string, newData: any) => {
+    const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
         setNodes((nds) => nds.map((node) => {
-            if (node.id === id) {
+            if (node.id === nodeId) {
                 return { ...node, data: { ...node.data, ...newData } };
             }
             return node;
         }));
     }, [setNodes]);
 
-    // Guest Auto-Save: Persist data to localStorage when nodes/edges change
     // Guest Auto-Save: Persist data to localStorage when nodes/edges change
     useEffect(() => {
         // Only saving for guests (no user) and when not loading
@@ -185,7 +197,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             // 먼저 lessons와 drills를 로드해야 함
                             const [lessons, drills] = await Promise.all([
                                 getLessons(300).then(res => res),
-                                getDrills(undefined, 100).then(res => res.data || [])
+                                getDrills(undefined, 100).then(res => (res as any).data || (res as any) || [])
                             ]);
                             setAllLessons(lessons);
                             setAllDrills(drills);
@@ -209,8 +221,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                     };
                                 }
                                 const contentId = node.contentId || '';
-                                const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                                const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                                const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
                                 return {
                                     id: node.id,
                                     type: 'content',
@@ -227,11 +239,12 @@ export const TechniqueSkillTree: React.FC = () => {
                                 id: edge.id,
                                 source: edge.source,
                                 target: edge.target,
-                                type: edge.type === 'animated' ? 'smoothstep' : 'default',
-                                animated: edge.type === 'animated',
+                                type: 'default',
+                                animated: true,
                                 sourceHandle: edge.sourceHandle,
                                 targetHandle: edge.targetHandle,
-                                style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                                style: { stroke: '#8b5cf6', strokeWidth: 3 },
+                                className: 'roadmap-edge-dash'
                             }));
                             setNodes(flowNodes);
                             setEdges(flowEdges);
@@ -253,7 +266,7 @@ export const TechniqueSkillTree: React.FC = () => {
             // 1. Fetch Public Data
             const [lessons, drills] = await Promise.all([
                 getLessons(300).then(res => res),
-                getDrills(undefined, 100).then(res => res.data || [])
+                getDrills(undefined, 100).then(res => (res as any).data || (res as any) || [])
             ]);
 
             setAllLessons(lessons);
@@ -354,8 +367,8 @@ export const TechniqueSkillTree: React.FC = () => {
 
                     const contentId = node.contentId || (node as any).techniqueId || '';
 
-                    const lesson = contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                    const drill = contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                    const lesson = contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                    const drill = contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
 
                     // Determine completion status
                     const isCompleted = contentType === 'lesson'
@@ -385,11 +398,12 @@ export const TechniqueSkillTree: React.FC = () => {
                     id: edge.id,
                     source: edge.source as string,
                     target: edge.target as string,
-                    type: edge.type === 'animated' ? 'smoothstep' : 'default',
-                    animated: edge.type === 'animated',
+                    type: 'default',
+                    animated: true,
                     sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
-                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                    style: { stroke: '#8b5cf6', strokeWidth: 3 },
+                    className: 'roadmap-edge-dash'
                 }));
 
                 setNodes(flowNodes);
@@ -443,7 +457,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                     id: edge.id,
                                     source: edge.source,
                                     target: edge.target,
-                                    type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                                    type: 'default',
                                     animated: edge.type === 'animated',
                                     sourceHandle: edge.sourceHandle,
                                     targetHandle: edge.targetHandle,
@@ -511,7 +525,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                         id: edge.id,
                                         source: edge.source,
                                         target: edge.target,
-                                        type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                                        type: 'default',
                                         animated: edge.type === 'animated',
                                         sourceHandle: edge.sourceHandle,
                                         targetHandle: edge.targetHandle,
@@ -595,7 +609,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             id: edge.id,
                             source: edge.source,
                             target: edge.target,
-                            type: edge.type === 'animated' ? 'smoothstep' : 'default',
+                            type: 'default',
                             animated: edge.type === 'animated',
                             sourceHandle: edge.sourceHandle,
                             targetHandle: edge.targetHandle,
@@ -641,7 +655,7 @@ export const TechniqueSkillTree: React.FC = () => {
         }
         // 일반적인 경우: 서버 데이터 로드
         loadData(undefined);
-    }, [user, searchParams, loadData]);
+    }, [user, searchParams, loadData, handleNodeDataChange]);
 
     const loadTreeList = async () => {
         if (!user) {
@@ -695,41 +709,55 @@ export const TechniqueSkillTree: React.FC = () => {
     };
 
     // Helper: Calculate world position of a handle
-    const getHandlePosition = (node: Node, handleId: string) => {
-        const x = node.position.x;
-        const y = node.position.y;
-        const w = 100; // Fixed width
-        const h = 100; // Fixed height
+    const getHandlePosition = useCallback((node: Node, handleId: string, allNodes: Node[]) => {
+        // Calculate absolute world position
+        let absX = node.position.x;
+        let absY = node.position.y;
+        let curr = node;
+        while (curr.parentNode) {
+            const parent = allNodes.find(n => n.id === curr.parentNode);
+            if (!parent) break;
+            absX += parent.position.x;
+            absY += parent.position.y;
+            curr = parent;
+        }
 
-        // Handle Offsets (Approximate based on CSS %)
-        if (handleId === 'source-t' || handleId === 'target-t') return { x: x + w * 0.5, y: y };
-        if (handleId === 's-1' || handleId === 't-1') return { x: x + w * 0.75, y: y + h * 0.067 };
-        if (handleId === 'source-tr' || handleId === 'target-tr') return { x: x + w * 0.933, y: y + h * 0.25 };
-        if (handleId === 'source-r' || handleId === 'target-r') return { x: x + w, y: y + h * 0.5 };
-        if (handleId === 'source-br' || handleId === 'target-br') return { x: x + w * 0.933, y: y + h * 0.75 };
-        if (handleId === 's-5' || handleId === 't-5') return { x: x + w * 0.75, y: y + h * 0.933 };
-        if (handleId === 'source-b' || handleId === 'target-b') return { x: x + w * 0.5, y: y + h };
-        if (handleId === 's-7' || handleId === 't-7') return { x: x + w * 0.25, y: y + h * 0.933 };
-        if (handleId === 'source-bl' || handleId === 'target-bl') return { x: x + w * 0.067, y: y + h * 0.75 };
-        if (handleId === 'source-l' || handleId === 'target-l') return { x: x, y: y + h * 0.5 };
-        if (handleId === 'source-tl' || handleId === 'target-tl') return { x: x + w * 0.067, y: y + h * 0.25 };
-        if (handleId === 's-11' || handleId === 't-11') return { x: x + w * 0.25, y: y + h * 0.067 };
-        return { x: x + w / 2, y: y + h / 2 };
-    };
+        // Pill Dimensions Approximation or Group dimensions
+        let w = 180;
+        let h = 48;
+
+        if (node.type === 'group') {
+            w = Number(node.style?.width) || 400;
+            h = Number(node.style?.height) || 300;
+
+            // Map simple group handles
+            if (handleId === 'top') return { x: absX + w * 0.5, y: absY };
+            if (handleId === 'bottom') return { x: absX + w * 0.5, y: absY + h };
+            if (handleId === 'left') return { x: absX, y: absY + h * 0.5 };
+            if (handleId === 'right') return { x: absX + w, y: absY + h * 0.5 };
+        }
+
+        if (handleId.includes('-t') || handleId === 'top') return { x: absX + w * 0.5, y: absY };
+        if (handleId.includes('-r') || handleId === 'right') return { x: absX + w, y: absY + h * 0.5 };
+        if (handleId.includes('-b') || handleId === 'bottom') return { x: absX + w * 0.5, y: absY + h };
+        if (handleId.includes('-l') || handleId === 'left') return { x: absX, y: absY + h * 0.5 };
+
+        return { x: absX + w / 2, y: absY + h / 2 };
+    }, []);
 
     // Helper: Find best handle pair between two nodes
-    const calculateOptimalConnection = useCallback((sourceNode: Node, targetNode: Node) => {
-        const sourceHandles = ['source-t', 's-1', 'source-tr', 'source-r', 'source-br', 's-5', 'source-b', 's-7', 'source-bl', 'source-l', 'source-tl', 's-11'];
-        const targetHandles = ['target-t', 't-1', 'target-tr', 'target-r', 'target-br', 't-5', 'target-b', 't-7', 'target-bl', 'target-l', 'target-tl', 't-11'];
+    const calculateOptimalConnection = useCallback((sourceNode: Node, targetNode: Node, allNodes: Node[]) => {
+        const sourceHandles = sourceNode.type === 'group' ? ['top', 'bottom', 'left', 'right'] : ['source-r', 'source-l', 'source-t', 'source-b'];
+        const targetHandles = targetNode.type === 'group' ? ['top', 'bottom', 'left', 'right'] : ['target-r', 'target-l', 'target-t', 'target-b'];
 
         let minDistance = Infinity;
-        let bestSource = 'source-b';
-        let bestTarget = 'target-t';
+        let bestSource = sourceHandles[0];
+        let bestTarget = targetHandles[0];
 
         sourceHandles.forEach(sHandle => {
-            const sPos = getHandlePosition(sourceNode, sHandle);
+            const sPos = getHandlePosition(sourceNode, sHandle, allNodes);
             targetHandles.forEach(tHandle => {
-                const tPos = getHandlePosition(targetNode, tHandle);
+                const tPos = getHandlePosition(targetNode, tHandle, allNodes);
                 const dist = Math.sqrt(Math.pow(tPos.x - sPos.x, 2) + Math.pow(tPos.y - sPos.y, 2));
                 if (dist < minDistance) {
                     minDistance = dist;
@@ -740,42 +768,57 @@ export const TechniqueSkillTree: React.FC = () => {
         });
 
         return { sourceHandle: bestSource, targetHandle: bestTarget };
+    }, [getHandlePosition]);
+    const mapToGroupHandle = useCallback((node: Node | undefined, handleId: string | null) => {
+        if (!node || !handleId || node.type !== 'group') return handleId;
+        if (handleId.includes('-t')) return 'top';
+        if (handleId.includes('-b')) return 'bottom';
+        if (handleId.includes('-l')) return 'left';
+        if (handleId.includes('-r')) return 'right';
+        return handleId;
     }, []);
 
-    // NEW: Handle Node Drag for Dynamic Updates
+
+
+    // Optimized: Update connections in real-time (throttled by React Flow's internal handling)
+    // We removed the throttle here because ReactFlow's onNodeDrag is already reasonably efficient,
+    // and for visual smoothness, immediate feedback is better than throttled 'snapping'.
     const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
-        // Find all edges connected to this node
-        setEdges(eds => eds.map(edge => {
-            let otherNodeId: string | undefined;
-            let isSource = false;
+        setEdges(eds => {
+            let hasChanges = false;
+            const newEdges = eds.map(edge => {
+                let otherNodeId: string | undefined;
+                let isSource = false;
 
-            if (edge.source === node.id) {
-                otherNodeId = edge.target;
-                isSource = true;
-            } else if (edge.target === node.id) {
-                otherNodeId = edge.source;
-                isSource = false;
-            }
+                if (edge.source === node.id) {
+                    otherNodeId = edge.target;
+                    isSource = true;
+                } else if (edge.target === node.id) {
+                    otherNodeId = edge.source;
+                    isSource = false;
+                }
 
-            if (!otherNodeId) return edge;
+                if (!otherNodeId) return edge;
 
-            const otherNode = nodes.find(n => n.id === otherNodeId);
-            if (!otherNode) return edge;
+                const otherNode = nodes.find(n => n.id === otherNodeId);
+                if (!otherNode) return edge;
 
-            // Recalculate optimal connection
-            // Note: Since we are inside setEdges, we must be careful with 'nodes' state being fresh.
-            // But 'nodes' in onNodeDrag is the dragged node (fresh). 'otherNode' from 'nodes' state is static (fine).
+                // Recalculate optimal connection
+                const { sourceHandle, targetHandle } = isSource
+                    ? calculateOptimalConnection(node, otherNode, nodes)
+                    : calculateOptimalConnection(otherNode, node, nodes);
 
-            const { sourceHandle, targetHandle } = isSource
-                ? calculateOptimalConnection(node, otherNode)
-                : calculateOptimalConnection(otherNode, node);
+                if (edge.sourceHandle !== sourceHandle || edge.targetHandle !== targetHandle) {
+                    hasChanges = true;
+                    return { ...edge, sourceHandle, targetHandle };
+                }
 
-            if (edge.sourceHandle !== sourceHandle || edge.targetHandle !== targetHandle) {
-                return { ...edge, sourceHandle, targetHandle };
-            }
+                return edge;
+            });
 
-            return edge;
-        }));
+            // Only return new array if something actually changed
+            return hasChanges ? newEdges : eds;
+        });
     }, [nodes, calculateOptimalConnection, setEdges]);
 
 
@@ -787,120 +830,699 @@ export const TechniqueSkillTree: React.FC = () => {
         const sourceNode = nodes.find(n => n.id === selectedNodeId);
         if (!sourceNode) return;
 
-        const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, targetNode);
+        const connection = calculateOptimalConnection(sourceNode, targetNode, nodes);
+        let sourceHandle: string | null = connection.sourceHandle;
+        let targetHandle: string | null = connection.targetHandle;
 
-        const newEdge: Edge = {
-            id: `edge-${selectedNodeId}-${targetNode.id}-${sourceHandle}-${targetHandle}`,
-            source: selectedNodeId,
-            target: targetNode.id,
-            sourceHandle,
-            targetHandle,
-            type: 'default',
-            style: { stroke: '#8b5cf6', strokeWidth: 3 }
-        };
+        // Map handles if either is a group
+        sourceHandle = mapToGroupHandle(sourceNode, sourceHandle);
+        targetHandle = mapToGroupHandle(targetNode, targetHandle);
 
         setEdges(eds => {
+            // Check if connection already exists (either direction)
             const exists = eds.some(
                 e => (e.source === selectedNodeId && e.target === targetNode.id) ||
                     (e.source === targetNode.id && e.target === selectedNodeId)
             );
-            return exists ? eds : addEdge(newEdge, eds);
+
+            if (exists) {
+                return eds;
+            }
+
+            // Create new edge without arrows
+            const isGroupConnection = sourceNode.type === 'group' || targetNode.type === 'group';
+
+            const newEdge: Edge = {
+                id: `edge-${selectedNodeId}-${targetNode.id}-${Date.now()}`,
+                source: selectedNodeId,
+                target: targetNode.id,
+                sourceHandle: sourceHandle || undefined,
+                targetHandle: targetHandle || undefined,
+                type: 'default',
+                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
+                className: 'roadmap-edge-dash'
+            };
+
+            return addEdge(newEdge, eds);
         });
 
         setSelectedNodeId(null);
         setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
 
-    }, [selectedNodeId, nodes, setNodes, setEdges, calculateOptimalConnection]);
+    }, [selectedNodeId, nodes, setNodes, setEdges, calculateOptimalConnection, mapToGroupHandle]);
 
-    // Handle node click (Selection & Connection)
-    const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-        // Prevent bubbling to Pane (which deselects)
-        // Note: react-flow's onNodeClick event usually handles this, but we ensure logic is tight.
-
-        if (!selectedNodeId) {
-            setSelectedNodeId(node.id);
-            setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === node.id })));
-            return;
-        }
-
-        if (selectedNodeId === node.id) {
-            // Clicked same node: deselect or keep?
-            // User might want to deselect.
-            setSelectedNodeId(null);
-            setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
-            return;
-        }
-
-        // Different node -> Connect
-        handleNodeConnection(node);
-    }, [selectedNodeId, setNodes, handleNodeConnection]);
-
-    // Handle node drag stop (Did we drop ONTO another node?)
-    // React Flow doesn't inherently fire onNodeDrop for node-on-node. 
-    // But we can check intersection if needed. 
-    // Current logic uses this for "Move then Connect" inference, which might be buggy if 'slow'.
-    const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
-        // Optional: Ensure finalizing or other logic
+    // GROUPING HANDLERS
+    const startGroupSelection = useCallback((initialNodeId: string) => {
+        setIsGroupSelectionMode(true);
+        setGroupingInitialNodeId(initialNodeId);
+        setSelectedForGrouping(new Set([initialNodeId]));
+        setMenu(null);
     }, []);
 
-    // Handle node double click (Delete)
+    const toggleNodeForGrouping = useCallback((nodeId: string) => {
+        setSelectedForGrouping(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(nodeId)) {
+                newSet.delete(nodeId);
+            } else {
+                newSet.add(nodeId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const toggleGroupCollapse = useCallback((groupId: string) => {
+        // Use setNodes functional update to avoid relying on 'nodes' state in closure
+        setNodes((currentNodes) => {
+            const groupNode = currentNodes.find(n => n.id === groupId);
+            if (!groupNode) return currentNodes;
+
+            const isCurrentlyExpanded = groupNode.data.expanded !== false;
+            const willExpand = !isCurrentlyExpanded;
+            const childrenIds = currentNodes.filter(n => n.parentNode === groupId).map(n => n.id);
+
+            // 1. Handle Edge Redirection in sync
+            setEdges((eds) => eds.map(edge => {
+                if (willExpand) {
+                    // Expanding: Restore original connections
+                    const newData = { ...edge.data };
+                    let newSource = edge.source;
+                    let newTarget = edge.target;
+                    let newSourceHandle = edge.sourceHandle;
+                    let newTargetHandle = edge.targetHandle;
+                    let updated = false;
+
+                    if (edge.source === groupId && newData.originalSource) {
+                        newSource = newData.originalSource;
+                        newSourceHandle = newData.originalSourceHandle || edge.sourceHandle;
+                        delete newData.originalSource;
+                        delete newData.originalSourceHandle;
+                        updated = true;
+                    }
+                    if (edge.target === groupId && newData.originalTarget) {
+                        newTarget = newData.originalTarget;
+                        newTargetHandle = newData.originalTargetHandle || edge.targetHandle;
+                        delete newData.originalTarget;
+                        delete newData.originalTargetHandle;
+                        updated = true;
+                    }
+                    return updated ? {
+                        ...edge,
+                        source: newSource,
+                        target: newTarget,
+                        sourceHandle: newSourceHandle,
+                        targetHandle: newTargetHandle,
+                        data: newData
+                    } : edge;
+                } else {
+                    // Collapsing: Redirect external edges to group
+                    if (childrenIds.includes(edge.source) && childrenIds.includes(edge.target)) return edge;
+
+                    const newData = { ...edge.data };
+                    let newSource = edge.source;
+                    let newTarget = edge.target;
+                    let newSourceHandle = edge.sourceHandle;
+                    let newTargetHandle = edge.targetHandle;
+                    let updated = false;
+
+                    if (childrenIds.includes(edge.source)) {
+                        newData.originalSource = edge.source;
+                        newData.originalSourceHandle = edge.sourceHandle;
+                        newSource = groupId;
+                        // For group nodes, we map to explicit simple ID
+                        newSourceHandle = mapToGroupHandle(groupNode, edge.sourceHandle || 'source-b');
+                        updated = true;
+                    }
+                    if (childrenIds.includes(edge.target)) {
+                        newData.originalTarget = edge.target;
+                        newData.originalTargetHandle = edge.targetHandle;
+                        newTarget = groupId;
+                        newTargetHandle = mapToGroupHandle(groupNode, edge.targetHandle || 'target-t');
+                        updated = true;
+                    }
+
+                    return updated ? {
+                        ...edge,
+                        source: newSource,
+                        target: newTarget,
+                        sourceHandle: newSourceHandle,
+                        targetHandle: newTargetHandle,
+                        data: newData
+                    } : edge;
+                }
+            }));
+
+            // 2. Handle Node Visibility & Size
+            let originalHeight = groupNode.data.originalHeight;
+            let originalWidth = groupNode.data.originalWidth;
+
+            if (!willExpand && !originalHeight) {
+                originalHeight = groupNode.style?.height;
+                originalWidth = groupNode.style?.width;
+            }
+
+            return currentNodes.map(node => {
+                if (node.id === groupId) {
+                    return {
+                        ...node,
+                        style: {
+                            ...node.style,
+                            height: willExpand ? (originalHeight || node.style?.height) : 60,
+                            width: originalWidth || node.style?.width
+                        },
+                        data: {
+                            ...node.data,
+                            expanded: willExpand,
+                            originalHeight,
+                            originalWidth
+                        }
+                    };
+                }
+                if (node.parentNode === groupId) {
+                    return { ...node, hidden: !willExpand };
+                }
+                return node;
+            });
+        });
+    }, [setNodes, setEdges, mapToGroupHandle]);
+
+    // Ensure all group nodes have the latest collapse/label handlers
+    useEffect(() => {
+        setNodes(nds => nds.map(node => {
+            if (node.type === 'group' && node.data.onToggleCollapse !== toggleGroupCollapse) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        onToggleCollapse: toggleGroupCollapse,
+                        onLabelChange: (id: string, label: string) => {
+                            setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n));
+                        }
+                    }
+                };
+            }
+            return node;
+        }));
+    }, [toggleGroupCollapse, setNodes]);
+
+    const confirmGroupCreation = useCallback((providedNodes?: Node[]) => {
+        const nodesToGroup = providedNodes || nodes.filter(n => selectedForGrouping.has(n.id));
+
+        if (nodesToGroup.length < 2) {
+            setAlertConfig({
+                title: '그룹 생성 불가',
+                message: '2개 이상의 노드를 선택해주세요.',
+                confirmText: '확인'
+            });
+            return;
+        }
+
+        // Check if there's exactly one group and other nodes
+        const existingGroups = nodesToGroup.filter(n => n.type === 'group');
+        const otherNodes = nodesToGroup.filter(n => n.type !== 'group');
+
+        if (existingGroups.length === 1 && otherNodes.length > 0) {
+            // MOVE NODES INTO EXISTING GROUP
+            const targetGroup = existingGroups[0];
+            const targetGroupId = targetGroup.id;
+
+            setNodes(nds => nds.map(node => {
+                if (otherNodes.some(o => o.id === node.id)) {
+                    // Calculate relative position to target group
+                    // Note: Absolute position of node - Absolute position of group
+                    // children are relative to parent.
+                    return {
+                        ...node,
+                        parentNode: targetGroupId,
+                        extent: 'parent' as const,
+                        position: {
+                            x: node.position.x - targetGroup.position.x,
+                            y: node.position.y - targetGroup.position.y
+                        },
+                        selected: false,
+                        zIndex: 10
+                    };
+                }
+                return node;
+            }));
+        } else {
+            // CREATE NEW GROUP
+            const minX = Math.min(...nodesToGroup.map(n => n.position.x));
+            const minY = Math.min(...nodesToGroup.map(n => n.position.y));
+            const maxX = Math.max(...nodesToGroup.map(n => n.position.x + (n.width || 180)));
+            const maxY = Math.max(...nodesToGroup.map(n => n.position.y + (n.height || 48)));
+
+            const padding = 30;
+            const groupNodeId = `group-${Date.now()}`;
+
+            // NESTED GROUPS: If all selected nodes have the same parent, the new group should also have it
+            const commonParent = nodesToGroup.every(n => n.parentNode === nodesToGroup[0].parentNode) ? nodesToGroup[0].parentNode : undefined;
+
+            const groupNode: Node = {
+                id: groupNodeId,
+                type: 'group',
+                parentNode: commonParent,
+                extent: commonParent ? 'parent' : undefined,
+                position: { x: minX - padding, y: minY - padding },
+                style: {
+                    width: maxX - minX + padding * 2,
+                    height: maxY - minY + padding * 2,
+                    zIndex: -10
+                },
+                data: {
+                    label: 'New Group',
+                    expanded: true,
+                    onLabelChange: (id: string, label: string) => {
+                        setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n));
+                    },
+                    onToggleCollapse: toggleGroupCollapse
+                },
+                selected: true
+            };
+
+            const updatedChildren = nodesToGroup.map(node => ({
+                ...node,
+                parentNode: groupNodeId,
+                extent: 'parent' as const,
+                position: {
+                    x: node.position.x - (minX - padding),
+                    y: node.position.y - (minY - padding)
+                },
+                data: {
+                    ...node.data,
+                    isGroupingSelected: false,
+                    isGroupingInitial: false
+                },
+                selected: false,
+                zIndex: 10
+            }));
+
+            const nodesToKeep = nodes.filter(n => !nodesToGroup.some(g => g.id === n.id));
+            setNodes([...nodesToKeep, groupNode, ...updatedChildren] as Node[]);
+        }
+
+        setIsGroupSelectionMode(false);
+        setGroupingInitialNodeId(null);
+        setSelectedForGrouping(new Set());
+    }, [selectedForGrouping, nodes, setNodes, toggleGroupCollapse]);
+
+    const cancelGroupSelection = useCallback(() => {
+        setIsGroupSelectionMode(false);
+        setGroupingInitialNodeId(null);
+        setSelectedForGrouping(new Set());
+    }, []);
+
+    const ungroupNodes = useCallback((groupId: string) => {
+        const groupNode = nodes.find(n => n.id === groupId);
+        if (!groupNode) return;
+
+        const currentGroupX = groupNode.position.x;
+        const currentGroupY = groupNode.position.y;
+
+        const children = nodes.filter(n => n.parentNode === groupId);
+
+        const updatedChildren = children.map(child => ({
+            ...child,
+            parentNode: undefined,
+            extent: undefined,
+            position: {
+                // Adjust position based on group position 
+                // Note: If usage was dragging group, child position is relative.
+                // If group is collapsed, its position is still valid.
+                x: currentGroupX + child.position.x,
+                y: currentGroupY + child.position.y
+            },
+            zIndex: 0,
+            hidden: false // FORCE VISIBLE in case it was collapsed
+        }));
+
+        // Restore edges if they were redirected to group (collapsed state)
+        setEdges(eds => eds.map(e => {
+            const newData = { ...e.data };
+            let newSource = e.source;
+            let newTarget = e.target;
+            let newSourceHandle = e.sourceHandle;
+            let newTargetHandle = e.targetHandle;
+            let updated = false;
+
+            if (e.source === groupId && newData.originalSource) {
+                newSource = newData.originalSource;
+                newSourceHandle = newData.originalSourceHandle || e.sourceHandle;
+                delete newData.originalSource;
+                delete newData.originalSourceHandle;
+                updated = true;
+            }
+            if (e.target === groupId && newData.originalTarget) {
+                newTarget = newData.originalTarget;
+                newTargetHandle = newData.originalTargetHandle || e.targetHandle;
+                delete newData.originalTarget;
+                delete newData.originalTargetHandle;
+                updated = true;
+            }
+            return updated ? { ...e, source: newSource, target: newTarget, sourceHandle: newSourceHandle, targetHandle: newTargetHandle, data: newData } : e;
+        }));
+
+        const otherNodes = nodes.filter(n => n.id !== groupId && n.parentNode !== groupId);
+
+        setNodes([...otherNodes, ...updatedChildren] as Node[]);
+    }, [nodes, setNodes, setEdges]);
+
+    const deleteGroupAndContent = useCallback((groupId: string) => {
+        if (confirm('그룹과 포함된 모든 내용을 삭제하시겠습니까?')) {
+            const childrenIds = nodes.filter(n => n.parentNode === groupId).map(n => n.id);
+            setNodes(nds => nds.filter(n => n.id !== groupId && n.parentNode !== groupId));
+            setEdges(eds => eds.filter(e => !childrenIds.includes(e.source) && !childrenIds.includes(e.target)));
+        }
+    }, [nodes, setNodes, setEdges]);
+
+    const focusNodeOrGroup = useCallback((id: string) => {
+        const node = rfInstance?.getNode(id);
+        if (node && rfInstance) {
+            rfInstance.fitView({ nodes: [node], duration: 800, padding: 0.2 });
+        }
+    }, [rfInstance]);
+
+    // CONTEXT MENU HANDLERS
+    const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+        event.preventDefault();
+        const pane = reactFlowWrapper.current?.getBoundingClientRect();
+        if (!pane) return;
+
+        // If multiple nodes are selected and we right-clicked one of them, use all selected nodes.
+        const selectedNodes = nodes.filter(n => n.selected);
+        const isPartofSelection = selectedNodes.some(sn => sn.id === node.id);
+
+        setMenu({
+            id: node.id,
+            top: event.clientY < pane.height - 200 ? event.clientY : undefined,
+            left: event.clientX < pane.width - 200 ? event.clientX : undefined,
+            right: event.clientX >= pane.width - 200 ? pane.width - event.clientX : undefined,
+            bottom: event.clientY >= pane.height - 200 ? pane.height - event.clientY : undefined,
+            type: node.type === 'group' ? 'group' : 'node',
+            data: node,
+            selectedNodes: isPartofSelection ? selectedNodes : [node]
+        });
+    }, [nodes]);
+
+    const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
+        event.preventDefault();
+        const pane = reactFlowWrapper.current?.getBoundingClientRect();
+        if (!pane) return;
+
+        setMenu({
+            id: 'pane',
+            top: event.clientY < pane.height - 200 ? event.clientY : undefined,
+            left: event.clientX < pane.width - 200 ? event.clientX : undefined,
+            right: event.clientX >= pane.width - 200 ? pane.width - event.clientX : undefined,
+            bottom: event.clientY >= pane.height - 200 ? pane.height - event.clientY : undefined,
+            type: 'pane'
+        });
+    }, []);
+
+    // Handle node double click (Delete or Edit)
     const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+        // Text nodes handle double click internally for editing, so we skip here
         if (node.type === 'text') return;
-        setNodes((nds) => nds.filter((n) => n.id !== node.id));
-        setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
-        if (selectedNodeId === node.id) setSelectedNodeId(null);
-    }, [selectedNodeId, setNodes, setEdges]);
+
+        if (node.type === 'group') {
+            // Group: Focus and Expand if collapsed
+            focusNodeOrGroup(node.id);
+            if (node.data.expanded === false) {
+                toggleGroupCollapse(node.id);
+            }
+            return;
+        }
+
+        const isContent = node.type === 'content';
+        const d = node.data;
+
+        if (isContent) {
+            if (d?.lesson?.id) navigate(`/lessons/${d.lesson.id}`);
+            else if (d?.drill?.id) navigate(`/drills/${d.drill.id}`);
+            else if (d?.contentId || node.id) {
+                const targetId = d?.contentId || node.id;
+                navigate(`/technique/${targetId}`);
+            }
+        }
+    }, [navigate, focusNodeOrGroup, toggleGroupCollapse]);
 
     // Handle canvas click (deselect)
     const handlePaneClick = useCallback(() => {
         setSelectedNodeId(null);
-        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
-    }, [setNodes]);
+        // Only reset React Flow selection if NOT in group selection mode
+        if (!isGroupSelectionMode) {
+            setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        }
+        setMenu(null);
+    }, [isGroupSelectionMode, setNodes]);
+
+    const onEdgeContextMenu = useCallback(
+        (event: React.MouseEvent, edge: Edge) => {
+            event.preventDefault();
+            const pane = reactFlowWrapper.current?.getBoundingClientRect();
+            setMenu({
+                id: edge.id,
+                type: 'edge',
+                top: event.clientY - (pane?.top || 0),
+                left: event.clientX - (pane?.left || 0),
+                data: edge,
+            });
+        },
+        [setMenu]
+    );
 
     const onConnect = useCallback((params: Connection) => {
         if (!params.source || !params.target) return;
         if (params.source === params.target) return;
 
         setEdges((eds) => {
-            const duplicate = eds.some(
-                e => (e.source === params.source && e.target === params.target) ||
+            // Check if connection already exists (either direction)
+            const exists = eds.some(
+                (e) => (e.source === params.source && e.target === params.target) ||
                     (e.source === params.target && e.target === params.source)
             );
-            if (duplicate) return eds;
 
-            // Re-optimize connection even for manual drags if needed, but respect user drag intent?
-            // User: "Component move -> node direction move".
-            // Since we auto-update on drag, respecting initial manual connect is less important than maintaining shortest path.
-            // Let's optimize it immediately.
+            if (exists) {
+                return eds;
+            }
 
             const sNode = nodes.find(n => n.id === params.source);
             const tNode = nodes.find(n => n.id === params.target);
 
-            let optimalHandle = { sourceHandle: params.sourceHandle, targetHandle: params.targetHandle };
+            if (!sNode || !tNode) return eds;
 
-            if (sNode && tNode) {
-                optimalHandle = calculateOptimalConnection(sNode, tNode);
-            }
+            const connection = calculateOptimalConnection(sNode!, tNode!, nodes);
+            let sourceHandle: string | null = connection.sourceHandle;
+            let targetHandle: string | null = connection.targetHandle;
+
+            // Map handles if either is a group
+            sourceHandle = mapToGroupHandle(sNode, params.sourceHandle || sourceHandle);
+            targetHandle = mapToGroupHandle(tNode, params.targetHandle || targetHandle);
+
+            const isGroupConnection = sNode?.type === 'group' || tNode?.type === 'group';
 
             const newEdge: Edge = {
-                id: `edge-${params.source}-${params.target}-${optimalHandle.sourceHandle}-${optimalHandle.targetHandle}`,
+                id: `edge-${params.source}-${params.target}-${Date.now()}`,
                 source: params.source,
                 target: params.target,
-                sourceHandle: optimalHandle.sourceHandle,
-                targetHandle: optimalHandle.targetHandle,
-                style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                sourceHandle: sourceHandle || undefined,
+                targetHandle: targetHandle || undefined,
+                type: 'default',
+                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
+                className: 'roadmap-edge-dash'
             };
+
             return addEdge(newEdge, eds);
         });
-    }, [setEdges, nodes, calculateOptimalConnection]);
+    }, [setEdges, nodes, calculateOptimalConnection, mapToGroupHandle]);
 
-    // Handle edge click
-    const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
-        const currentEdge = edges.find(e => e.id === edge.id);
-        if (currentEdge?.selected) {
-            setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+
+
+
+    // Handle node click (Selection & Connection & Grouping)
+    const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+        const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
+
+        // If in group selection mode, toggle node for grouping
+        if (isGroupSelectionMode) {
+            toggleNodeForGrouping(node.id);
+            return;
         }
-    }, [edges, setEdges]);
+
+        // --- Single selection / Connection Logic ---
+        if (!isMultiSelect) {
+            if (!selectedNodeId) {
+                // No node selected: select this node
+                setSelectedNodeId(node.id);
+                // We don't necessarily need to map all nodes here, 
+                // React Flow handles 'selected' state internally if we pass nodes change
+                return;
+            }
+
+            if (selectedNodeId === node.id) {
+                // Clicked same node: deselect
+                setSelectedNodeId(null);
+                return;
+            }
+
+            // Different node -> Connect
+            handleNodeConnection(node);
+        }
+    }, [selectedNodeId, handleNodeConnection, isGroupSelectionMode, toggleNodeForGrouping]);
+
+    // Handle node drag stop - DO NOT connect on drag
+    // BUT we use onNodeDragStart to catch "Click -> Drag" attempt as a connection intention if source is selected
+    const onNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
+        // Multi-selection modifiers should prevent connection logic
+        if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+
+        // If we have a selected node (source) and the user clicks/drags a DIFFERENT node (target)
+        // We interpret this as "Attempt to Connect", not drag.
+        if (selectedNodeId && selectedNodeId !== node.id && !isGroupSelectionMode) {
+            handleNodeConnection(node);
+            // We can't easily "cancel" the drag in React Flow without controlled position or a hacks,
+            // but connecting immediately satisfies the user's "connect even if I drag" request.
+            // By connecting, the logic will likely reset selectedNodeId, so the connection completes.
+            return;
+        }
+    }, [selectedNodeId, handleNodeConnection, isGroupSelectionMode]);
+
+    const onNodeDragStop = useCallback((_event: React.MouseEvent, _node: Node) => {
+        // Just update position, no connection logic
+    }, []);
+
+    // --- ADVANCED INTERACTIONS ---
+
+    // DUPLICATE NODES
+    const duplicateNodes = useCallback((nodesToDuplicate: Node[]) => {
+        if (nodesToDuplicate.length === 0) return;
+
+        const timestamp = Date.now();
+        const newNodes: Node[] = nodesToDuplicate.map((node, index) => {
+            const newNode: Node = {
+                ...node,
+                id: `node-${timestamp}-${index}`,
+                position: {
+                    x: node.position.x + 40,
+                    y: node.position.y + 40,
+                },
+                selected: true,
+            };
+
+            // If it's a text node, ensure callbacks are re-bound
+            if (node.type === 'text') {
+                newNode.data = {
+                    ...node.data,
+                    onChange: (newData: any) => handleNodeDataChange(newNode.id, newData),
+                    onDelete: () => {
+                        setNodes((nds) => nds.filter((n) => n.id !== newNode.id));
+                        setEdges((eds) => eds.filter((e) => e.source !== newNode.id && e.target !== newNode.id));
+                    }
+                };
+            }
+            return newNode;
+        });
+
+        setNodes((nds) => {
+            // Deselect others
+            const deselected = nds.map(n => ({ ...n, selected: false }));
+            return [...deselected, ...newNodes];
+        });
+    }, [handleNodeDataChange, setNodes, setEdges]);
+
+    // Backward compatibility for single node duplicate
+    const duplicateNode = useCallback((node: Node) => {
+        duplicateNodes([node]);
+    }, [duplicateNodes]);
+
+    // KEYBOARD SHORTCUTS
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in input/textarea
+            const target = e.target as HTMLElement;
+            if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return;
+
+            // CMD/CTRL + C: Copy
+            if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+                const selected = nodes.filter(n => n.selected);
+                if (selected.length > 0) {
+                    setCopiedNodes(selected);
+                }
+            }
+
+            // CMD/CTRL + V: Paste
+            if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+                if (copiedNodes && copiedNodes.length > 0) {
+                    duplicateNodes(copiedNodes);
+                }
+            }
+
+            // CMD/CTRL + D: Duplicate (Immediate)
+            if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+                e.preventDefault();
+                const selected = nodes.filter(n => n.selected);
+                if (selected.length > 0) duplicateNodes(selected);
+            }
+
+            // DELETE / BACKSPACE: Remove
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const selectedNodes = nodes.filter(n => n.selected);
+                const selectedEdges = edges.filter(e => e.selected);
+
+                if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+                    setNodes((nds) => nds.filter((n) => !n.selected));
+                    setEdges((eds) => eds.filter((e) => !e.selected && !selectedNodes.some(n => n.id === e.source || n.id === e.target)));
+                    setMenu(null);
+                }
+            }
+
+            // G: Quick Group (if multiple selected)
+            if (e.key === 'g' || e.key === 'G') {
+                const selected = nodes.filter(n => n.selected);
+                if (selected.length >= 2) {
+                    // Start grouping mode with these nodes
+                    setSelectedForGrouping(new Set(selected.map(n => n.id)));
+                    confirmGroupCreation(selected); // Call with specific nodes
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [nodes, edges, copiedNodes, duplicateNodes, setNodes, setEdges, confirmGroupCreation]);
+
+    // Sync grouping selection state with node data
+    useEffect(() => {
+        setNodes(nds => nds.map(node => {
+            const isSelected = selectedForGrouping.has(node.id);
+            const isInitial = groupingInitialNodeId === node.id;
+
+            if (node.data.isGroupingSelected !== isSelected || node.data.isGroupingInitial !== isInitial) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        isGroupingSelected: isSelected,
+                        isGroupingInitial: isInitial
+                    }
+                };
+            }
+            return node;
+        }));
+    }, [selectedForGrouping, groupingInitialNodeId, setNodes]);
+
+
+
+    // Handle edge click/double-click (consistent with node deletion)
+    const onEdgeDoubleClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+        event.stopPropagation();
+        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    }, [setEdges]);
+
+    // Handle edge selection or context deletion
+    const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+        // Just select on click
+    }, []);
 
     // Drag to Create Handlers
     const onConnectStart: OnConnectStart = useCallback((_, { nodeId, handleId }) => {
@@ -936,7 +1558,8 @@ export const TechniqueSkillTree: React.FC = () => {
     // Add content from modal
     const handleAddContent = async (
         items: { id: string, type: 'technique' | 'lesson' | 'drill' }[],
-        positionOverride?: { x: number, y: number }
+        positionOverride?: { x: number, y: number },
+        parentNodeId?: string
     ) => {
 
         // Use override > pending position > default grid
@@ -982,6 +1605,8 @@ export const TechniqueSkillTree: React.FC = () => {
             newNodes.push({
                 id: nodeId,
                 type: 'content',
+                parentNode: parentNodeId,
+                extent: parentNodeId ? 'parent' : undefined,
                 position: { x, y },
                 data: {
                     contentType: item.type,
@@ -1007,7 +1632,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     // Create a temporary object for the new node to calculate geometry
                     // We can pass the raw object or the newNodes entry
                     const newNodeGeometry = newNodes[newNodes.length - 1];
-                    const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, newNodeGeometry);
+                    const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, newNodeGeometry, nodes);
                     optimalSource = sourceHandle;
                     optimalTarget = targetHandle;
                 }
@@ -1163,8 +1788,13 @@ export const TechniqueSkillTree: React.FC = () => {
                     contentType: node.data.contentType,
                     contentId: node.data.contentId
                 })),
-                edges: edges,
-                updatedAt: Date.now()
+                edges: edges.map(e => ({
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    type: e.type,
+                    animated: e.animated
+                }))
             };
             localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
 
@@ -1277,7 +1907,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 <>
                     {/* Desktop: Floating Vertical Toolbar */}
                     {!isMobile && (
-                        <div className={`fixed top-28 right-8 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                        <div className={`fixed top-48 right-8 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                             <div className="flex flex-col gap-3 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 p-3 rounded-2xl shadow-2xl">
                                 {/* Title Input */}
                                 <div className="pb-3 border-b border-zinc-800/50">
@@ -1295,18 +1925,20 @@ export const TechniqueSkillTree: React.FC = () => {
                                     <>
                                         <button
                                             onClick={handleNewTree}
-                                            className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                             title="새 로드맵"
                                         >
-                                            <FilePlus className="w-5 h-5" />
+                                            <FilePlus className="w-5 h-5 flex-shrink-0" />
+                                            <span className="text-sm font-medium">새로 만들기</span>
                                         </button>
 
                                         <button
                                             onClick={loadTreeList}
-                                            className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                             title="불러오기"
                                         >
-                                            <FolderOpen className="w-5 h-5" />
+                                            <FolderOpen className="w-5 h-5 flex-shrink-0" />
+                                            <span className="text-sm font-medium">불러오기</span>
                                         </button>
 
                                         <div className="h-px bg-zinc-800/50 my-1" />
@@ -1315,18 +1947,20 @@ export const TechniqueSkillTree: React.FC = () => {
 
                                 <button
                                     onClick={handleAddTextNode}
-                                    className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                     title="글자 박스 추가"
                                 >
-                                    <Type className="w-5 h-5" />
+                                    <Type className="w-5 h-5 flex-shrink-0" />
+                                    <span className="text-sm font-medium">텍스트</span>
                                 </button>
 
                                 <button
                                     onClick={() => setIsAddModalOpen(true)}
-                                    className="p-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-white transition-all shadow-lg shadow-violet-500/20"
+                                    className="flex items-center gap-2 px-3 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-white transition-all shadow-lg shadow-violet-500/20"
                                     title="콘텐츠 추가"
                                 >
-                                    <Plus className="w-5 h-5" />
+                                    <Plus className="w-5 h-5 flex-shrink-0" />
+                                    <span className="text-sm font-medium">콘텐츠 추가</span>
                                 </button>
 
                                 <div className="h-px bg-zinc-800/50 my-1" />
@@ -1379,33 +2013,36 @@ export const TechniqueSkillTree: React.FC = () => {
                                             setIsShareModalOpen(true);
                                         }
                                     }}
-                                    className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                     title="공유"
                                 >
-                                    <Share2 className="w-5 h-5" />
+                                    <Share2 className="w-5 h-5 flex-shrink-0" />
+                                    <span className="text-sm font-medium">공유</span>
                                 </button>
 
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className={`p-3 rounded-xl text-white transition-all ${saving
+                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-white transition-all ${saving
                                         ? 'bg-yellow-600 cursor-wait'
                                         : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-500/20'
                                         }`}
                                     title={saving ? '저장 중...' : '저장'}
                                 >
-                                    <Save className={`w-5 h-5 ${saving ? 'animate-spin' : ''}`} />
+                                    <Save className={`w-5 h-5 flex-shrink-0 ${saving ? 'animate-spin' : ''}`} />
+                                    <span className="text-sm font-medium">저장</span>
                                 </button>
 
                                 <div className="h-px bg-zinc-800/50 my-1" />
 
                                 <button
                                     onClick={handleFullScreenToggle}
-                                    className={`p-3 rounded-xl transition-all border border-zinc-800/50 hover:border-zinc-700 ${isFullScreen ? 'bg-violet-600 text-white' : 'bg-zinc-900/60 text-zinc-400 hover:text-white'
+                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all border border-zinc-800/50 hover:border-zinc-700 ${isFullScreen ? 'bg-violet-600 text-white' : 'bg-zinc-900/60 text-zinc-400 hover:text-white'
                                         }`}
                                     title={isFullScreen ? '전체화면 해제' : '전체화면'}
                                 >
-                                    {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                                    {isFullScreen ? <Minimize2 className="w-5 h-5 flex-shrink-0" /> : <Maximize2 className="w-5 h-5 flex-shrink-0" />}
+                                    <span className="text-sm font-medium">{isFullScreen ? '축소' : '전체화면'}</span>
                                 </button>
                             </div>
                         </div>
@@ -1438,109 +2075,156 @@ export const TechniqueSkillTree: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Mobile Title Input */}
+                            <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                                <input
+                                    type="text"
+                                    value={currentTreeTitle}
+                                    onChange={(e) => setCurrentTreeTitle(e.target.value)}
+                                    className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-full px-4 py-2 text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none w-64 text-center"
+                                    placeholder="로드맵 이름..."
+                                />
+                            </div>
+
                             {/* FAB Main Button */}
                             <button
                                 onClick={() => setIsFabOpen(!isFabOpen)}
-                                className={`fixed bottom-24 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
+                                className={`fixed bottom-36 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
                                     } ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Plus className="w-6 h-6 text-white" />
                             </button>
 
-                            {/* FAB Arc Menu */}
+                            {/* FAB Grid Menu */}
                             {isFabOpen && (
-                                <div className="fixed bottom-24 right-6 z-40">
-                                    <div className="relative">
-                                        {/* Add Content (Top) */}
-                                        <button
-                                            onClick={() => {
-                                                setIsAddModalOpen(true);
-                                                setIsFabOpen(false);
-                                            }}
-                                            className="absolute bottom-20 right-1 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
-                                            style={{ animationDelay: '0ms' }}
-                                        >
-                                            <Plus className="w-5 h-5 text-violet-400" />
-                                        </button>
+                                <div className="fixed bottom-52 right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in">
+                                    <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {/* Row 1 */}
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={() => {
+                                                        handleNewTree();
+                                                        setIsFabOpen(false);
+                                                    }}
+                                                    className="flex flex-col items-center gap-1 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                                >
+                                                    <FilePlus className="w-5 h-5 text-cyan-400" />
+                                                    <span className="text-[10px] text-zinc-400">새로만들기</span>
+                                                </button>
+                                            )}
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={() => {
+                                                        loadTreeList();
+                                                        setIsFabOpen(false);
+                                                    }}
+                                                    className="flex flex-col items-center gap-1 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                                >
+                                                    <FolderOpen className="w-5 h-5 text-blue-400" />
+                                                    <span className="text-[10px] text-zinc-400">불러오기</span>
+                                                </button>
+                                            )}
 
-                                        {/* Fullscreen (Top-Left Diagonal) */}
-                                        <button
-                                            onClick={() => {
-                                                handleFullScreenToggle();
-                                                setIsFabOpen(false);
-                                            }}
-                                            className="absolute bottom-16 right-16 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
-                                            style={{ animationDelay: '50ms' }}
-                                        >
-                                            {isFullScreen ? <Minimize2 className="w-5 h-5 text-orange-400" /> : <Maximize2 className="w-5 h-5 text-orange-400" />}
-                                        </button>
+                                            {/* Row 2 */}
+                                            <button
+                                                onClick={() => {
+                                                    handleAddTextNode();
+                                                    setIsFabOpen(false);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                            >
+                                                <Type className="w-5 h-5 text-zinc-400" />
+                                                <span className="text-[10px] text-zinc-400">텍스트</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsAddModalOpen(true);
+                                                    setIsFabOpen(false);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 bg-violet-600 hover:bg-violet-500 rounded-xl transition-all"
+                                            >
+                                                <Plus className="w-5 h-5 text-white" />
+                                                <span className="text-[10px] text-white font-medium">콘텐츠추가</span>
+                                            </button>
 
-                                        {/* Share (Left) */}
-                                        <button
-                                            onClick={async () => {
-                                                setIsFabOpen(false);
-                                                if (!user) {
-                                                    const guestData = {
-                                                        title: currentTreeTitle,
-                                                        nodes: nodes.map(node => ({
-                                                            id: node.id,
-                                                            type: node.type,
-                                                            position: node.position,
-                                                            data: {
-                                                                label: node.data.label,
-                                                                style: node.data.style,
+                                            {/* Row 3 */}
+                                            <button
+                                                onClick={async () => {
+                                                    setIsFabOpen(false);
+                                                    if (!user) {
+                                                        const guestData = {
+                                                            title: currentTreeTitle,
+                                                            nodes: nodes.map(node => ({
+                                                                id: node.id,
+                                                                type: node.type,
+                                                                position: node.position,
+                                                                data: {
+                                                                    label: node.data.label,
+                                                                    style: node.data.style,
+                                                                    contentType: node.data.contentType,
+                                                                    contentId: node.data.contentId
+                                                                },
                                                                 contentType: node.data.contentType,
                                                                 contentId: node.data.contentId
-                                                            },
-                                                            contentType: node.data.contentType,
-                                                            contentId: node.data.contentId
-                                                        })),
-                                                        edges: edges.map(e => ({
-                                                            id: e.id,
-                                                            source: e.source,
-                                                            target: e.target,
-                                                            type: e.type,
-                                                            animated: e.animated
-                                                        }))
-                                                    };
-                                                    const encoded = encodeGuestData(guestData);
-                                                    if (encoded) {
-                                                        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-                                                        setCustomShareUrl(url);
-                                                        setIsShareModalOpen(true);
+                                                            })),
+                                                            edges: edges.map(e => ({
+                                                                id: e.id,
+                                                                source: e.source,
+                                                                target: e.target,
+                                                                type: e.type,
+                                                                animated: e.animated
+                                                            }))
+                                                        };
+                                                        const encoded = encodeGuestData(guestData);
+                                                        if (encoded) {
+                                                            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                                            setCustomShareUrl(url);
+                                                            setIsShareModalOpen(true);
+                                                        }
+                                                        return;
                                                     }
-                                                    return;
-                                                }
-                                                if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
-                                                    const titleToUse = currentTreeTitle || '나의 스킬 트리';
-                                                    const saved = await executeSave(titleToUse);
-                                                    if (saved && currentTreeId) {
+                                                    if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
+                                                        const titleToUse = currentTreeTitle || '나의 스킬 트리';
+                                                        const saved = await executeSave(titleToUse);
+                                                        if (saved && currentTreeId) {
+                                                            setCustomShareUrl(null);
+                                                            setIsShareModalOpen(true);
+                                                        }
+                                                    } else {
                                                         setCustomShareUrl(null);
                                                         setIsShareModalOpen(true);
                                                     }
-                                                } else {
-                                                    setCustomShareUrl(null);
-                                                    setIsShareModalOpen(true);
-                                                }
-                                            }}
-                                            className="absolute bottom-1 right-20 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
-                                            style={{ animationDelay: '100ms' }}
-                                        >
-                                            <Share2 className="w-5 h-5 text-blue-400" />
-                                        </button>
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                            >
+                                                <Share2 className="w-5 h-5 text-zinc-400" />
+                                                <span className="text-[10px] text-zinc-400">공유</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    handleSave();
+                                                    setIsFabOpen(false);
+                                                }}
+                                                disabled={saving}
+                                                className="flex flex-col items-center gap-1 p-2 bg-green-600 hover:bg-green-500 rounded-xl transition-all"
+                                            >
+                                                <Save className={`w-5 h-5 text-white ${saving ? 'animate-spin' : ''}`} />
+                                                <span className="text-[10px] text-white font-medium">저장</span>
+                                            </button>
 
-                                        {/* Save (Far Top Left) */}
-                                        <button
-                                            onClick={() => {
-                                                handleSave();
-                                                setIsFabOpen(false);
-                                            }}
-                                            disabled={saving}
-                                            className="absolute bottom-28 right-12 w-12 h-12 bg-green-600 hover:bg-green-500 rounded-full shadow-xl flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
-                                            style={{ animationDelay: '150ms' }}
-                                        >
-                                            <Save className={`w-5 h-5 text-white ${saving ? 'animate-spin' : ''}`} />
-                                        </button>
+                                            {/* Row 4 - Full width */}
+                                            <button
+                                                onClick={() => {
+                                                    handleFullScreenToggle();
+                                                    setIsFabOpen(false);
+                                                }}
+                                                className="col-span-2 flex items-center justify-center gap-2 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                            >
+                                                {isFullScreen ? <Minimize2 className="w-5 h-5 text-orange-400" /> : <Maximize2 className="w-5 h-5 text-orange-400" />}
+                                                <span className="text-[10px] text-zinc-400">{isFullScreen ? '축소' : '전체화면'}</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1563,6 +2247,41 @@ export const TechniqueSkillTree: React.FC = () => {
                             }
                         `}</style>
                     )}
+                    {/* Custom Arrow Markers */}
+                    <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+                        <defs>
+                            <marker
+                                id="arrow-end"
+                                viewBox="0 0 10 10"
+                                refX="9"
+                                refY="5"
+                                markerWidth="6"
+                                markerHeight="6"
+                                orient="auto"
+                            >
+                                <path
+                                    d="M 0 0 L 10 5 L 0 10 L 3 5 z"
+                                    fill="#7c3aed"
+                                    stroke="none"
+                                />
+                            </marker>
+                            <marker
+                                id="arrow-start"
+                                viewBox="0 0 10 10"
+                                refX="1"
+                                refY="5"
+                                markerWidth="6"
+                                markerHeight="6"
+                                orient="auto-start-reverse"
+                            >
+                                <path
+                                    d="M 10 0 L 0 5 L 10 10 L 7 5 z"
+                                    fill="#7c3aed"
+                                    stroke="none"
+                                />
+                            </marker>
+                        </defs>
+                    </svg>
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -1576,15 +2295,28 @@ export const TechniqueSkillTree: React.FC = () => {
                         onDrop={onDrop}
                         onNodeClick={onNodeClick}
                         onNodeDrag={onNodeDrag}
+                        onNodeDragStart={onNodeDragStart}
                         onNodeDragStop={onNodeDragStop}
                         onNodeDoubleClick={onNodeDoubleClick}
+                        onNodeContextMenu={onNodeContextMenu}
+                        onPaneContextMenu={onPaneContextMenu}
+                        onEdgeContextMenu={onEdgeContextMenu}
                         onEdgeClick={onEdgeClick}
-                        onPaneClick={handlePaneClick}
+                        onEdgeDoubleClick={onEdgeDoubleClick}
+                        onNodesDelete={(deletedNodes) => {
+                            const deletedIds = deletedNodes.map(n => n.id);
+                            setEdges(eds => eds.filter(e => !deletedIds.includes(e.source) && !deletedIds.includes(e.target)));
+                        }}
+                        onPaneClick={() => { handlePaneClick(); setMenu(null); }}
                         nodeTypes={nodeTypes}
+                        selectionMode={SelectionMode.Partial}
+                        multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
+                        snapToGrid={true}
+                        snapGrid={[20, 20]}
                         defaultEdgeOptions={{
-                            style: { stroke: '#8b5cf6', strokeWidth: 3 },
-                            interactionWidth: 20, // Make edges easier to click
-                            animated: false,
+                            type: 'default',
+                            style: { stroke: '#7c3aed', strokeWidth: 4, cursor: 'pointer' },
+                            interactionWidth: 50,
                         }}
                         fitView
                         minZoom={isMobile ? 0.5 : 0.1}
@@ -1599,33 +2331,33 @@ export const TechniqueSkillTree: React.FC = () => {
                         proOptions={{ hideAttribution: true }}
                     >
                         <style>{`
-                        .react-flow__edge.selected .react-flow__edge-path {
-                            stroke: #8b5cf6 !important;
-                            stroke-width: 5 !important;
-                            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
-                        }
-                        .react-flow__edge:hover .react-flow__edge-path {
-                            stroke-width: 5 !important;
-                        }
                         .react-flow__edge-path {
-                            stroke: #8b5cf6;
-                            stroke-width: 3;
-                            animation: pulse-edge 2s ease-in-out infinite;
+                            stroke: #7c3aed !important;
+                            stroke-width: 3 !important;
+                            stroke-dasharray: 15 15;
+                            animation: flow 50s linear infinite;
                         }
-                        @keyframes pulse-edge {
-                            0%, 100% { opacity: 0.6; }
-                            50% { opacity: 1; }
+
+                        @keyframes flow {
+                            from { stroke-dashoffset: 500; }
+                            to { stroke-dashoffset: 0; }
                         }
                     `}</style>
+
+
+
                         <Background
                             variant={BackgroundVariant.Dots}
                             gap={20}
                             size={1}
                             color="#334155"
                         />
-                        <Controls className="bg-slate-800 border border-slate-700" />
+                        <Controls
+                            className="bg-slate-800 border border-slate-700"
+                            style={isMobile ? { bottom: '120px', left: '16px' } : undefined}
+                        />
                         <MiniMap
-                            className={`border border-slate-700/50 ${isMobile ? '!w-20 !h-16 !opacity-70' : '!w-32 !h-24'} !bottom-4 !right-4 !bg-slate-900/80 backdrop-blur-sm`}
+                            className={`border border-slate-700/50 ${isMobile ? '!w-20 !h-16 !opacity-70 !top-24 !right-4 !bottom-auto' : '!w-32 !h-24 !bottom-4 !right-4'} !bg-slate-900/80 backdrop-blur-sm`}
                             nodeColor={(node) => {
                                 const mastery = node.data.mastery;
                                 const isCompleted = node.data.isCompleted;
@@ -1644,6 +2376,49 @@ export const TechniqueSkillTree: React.FC = () => {
                             maskColor="rgba(15, 23, 42, 0.7)"
                         />
 
+                        {/* Multi-Selection & Grouping Toolbar (Integrated) */}
+                        <AnimatePresence>
+                            {(isGroupSelectionMode || nodes.filter(n => n.selected).length >= 2) && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 30 }}
+                                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-6 py-4 flex items-center gap-6"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-zinc-300 text-sm font-bold">
+                                            <span className="text-violet-400">
+                                                {isGroupSelectionMode ? selectedForGrouping.size : nodes.filter(n => n.selected).length}
+                                            </span>개 선택됨
+                                        </span>
+                                        <div className="w-px h-6 bg-zinc-800" />
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => {
+                                                const selected = isGroupSelectionMode
+                                                    ? nodes.filter(n => selectedForGrouping.has(n.id))
+                                                    : nodes.filter(n => n.selected);
+                                                confirmGroupCreation(selected);
+                                            }}
+                                            className="px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-violet-600/40"
+                                        >
+                                            그룹 생성
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (isGroupSelectionMode) cancelGroupSelection();
+                                                else setNodes(nds => nds.map(n => ({ ...n, selected: false })));
+                                            }}
+                                            className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl font-bold text-sm transition-all"
+                                        >
+                                            취소
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
 
                     </ReactFlow>
@@ -1736,7 +2511,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
             {/* Guest Experience Overlay - Bottom Discovery Bar */}
             {!user && String(viewMode) === 'map' && !hideGuestOverlay && (
-                <div className={`fixed ${isMobile ? 'bottom-24' : 'bottom-0'} left-0 right-0 z-40 pointer-events-none px-4 flex justify-center`}>
+                <div className={`fixed ${isMobile ? 'bottom-32' : 'bottom-0'} left-0 right-0 z-40 pointer-events-none px-4 flex justify-center`}>
                     <div className="h-40 flex items-end pb-4 pointer-events-auto w-full max-w-sm">
                         <div className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50 p-4 rounded-2xl w-full text-center shadow-2xl">
                             {/* Close Button */}
@@ -1889,7 +2664,11 @@ export const TechniqueSkillTree: React.FC = () => {
                     id: n.data.contentId || '',
                     type: n.data.contentType || 'technique'
                 }))}
-                onAddContent={handleAddContent}
+                onAddContent={(items) => {
+                    const targetGroupId = (window as any)._targetGroupId;
+                    handleAddContent(items, undefined, targetGroupId);
+                    (window as any)._targetGroupId = null; // Reset
+                }}
             />
 
             {/* Load Tree Modal */}
@@ -1936,6 +2715,336 @@ export const TechniqueSkillTree: React.FC = () => {
                                                 </button>
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* CONTEXT MENU */}
+            <AnimatePresence>
+                {menu && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                        className="fixed z-[100] bg-zinc-950/95 backdrop-blur-2xl rounded-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 min-w-[180px] overflow-hidden"
+                        style={{
+                            top: menu.top,
+                            left: menu.left,
+                            right: menu.right,
+                            bottom: menu.bottom
+                        }}
+                    >
+                        <div className="flex flex-col gap-1">
+                            {menu.type === 'node' && (
+                                <>
+                                    {menu.data.type !== 'text' && (
+                                        <button
+                                            onClick={() => {
+                                                const d = menu.data.data;
+                                                const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
+                                                    d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
+                                                    d?.technique?.videoUrl || d?.technique?.vimeoUrl;
+                                                if (videoUrl) {
+                                                    setVideoModal({
+                                                        isOpen: true,
+                                                        url: videoUrl,
+                                                        title: menu.data.data.lesson?.title || menu.data.data.drill?.title || '영상 미리보기'
+                                                    });
+                                                } else {
+                                                    alert('연결된 영상이 없습니다.');
+                                                }
+                                                setMenu(null);
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                        >
+                                            <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                                <PlayCircle className="w-3.5 h-3.5" />
+                                            </div>
+                                            영상 미리보기
+                                        </button>
+                                    )}
+
+                                    {menu.data.type !== 'text' && (
+                                        <button
+                                            onClick={() => {
+                                                const d = menu.data.data;
+                                                // 1. If it's a linked lesson/drill
+                                                if (d?.lesson?.id) navigate(`/lessons/${d.lesson.id}`);
+                                                else if (d?.drill?.id) navigate(`/drills/${d.drill.id}`);
+                                                // 2. Fallback to technique page
+                                                else if (d?.contentId || menu.data.id) {
+                                                    const targetId = d?.contentId || menu.data.id;
+                                                    navigate(`/technique/${targetId}`);
+                                                }
+                                                setMenu(null);
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-violet-600/20 text-zinc-300 hover:text-violet-300 transition-all font-bold text-xs group"
+                                        >
+                                            <div className="w-6 h-6 rounded-lg bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600/40">
+                                                <FilePlus className="w-3.5 h-3.5" />
+                                            </div>
+                                            상세페이지
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={() => {
+                                            duplicateNode(menu.data);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                            <Save className="w-3.5 h-3.5" />
+                                        </div>
+                                        복제
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            const nodesToGroup = menu.selectedNodes || [menu.data];
+                                            if (nodesToGroup.length >= 2) {
+                                                setSelectedForGrouping(new Set(nodesToGroup.map((n: any) => n.id)));
+                                                confirmGroupCreation(nodesToGroup);
+                                            } else {
+                                                startGroupSelection(menu.id);
+                                            }
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-violet-600/20 text-zinc-300 hover:text-violet-300 transition-all font-bold text-xs group"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600/40">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="14" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+                                            </svg>
+                                        </div>
+                                        {menu.selectedNodes && menu.selectedNodes.length >= 2
+                                            ? `${menu.selectedNodes.length}개 기술 묶기`
+                                            : '기술 묶기'
+                                        }
+                                    </button>
+
+                                    <div className="h-px bg-zinc-800/50 my-1 mx-2" />
+
+                                    <button
+                                        onClick={() => {
+                                            setNodes(nds => nds.filter(n => n.id !== menu.id));
+                                            setEdges(eds => eds.filter(e => e.source !== menu.id && e.target !== menu.id));
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </div>
+                                        삭제
+                                    </button>
+                                </>
+                            )}
+                            {menu.type === 'edge' && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setEdges(eds => eds.filter(e => e.id !== menu.id));
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </div>
+                                        연결선 삭제
+                                    </button>
+                                </>
+                            )}
+
+                            {menu.type === 'pane' && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setIsAddModalOpen(true);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-violet-600/20 text-zinc-300 hover:text-violet-300 transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-violet-600/20 flex items-center justify-center">
+                                            <Plus className="w-3.5 h-3.5" />
+                                        </div>
+                                        기술 추가
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const pane = reactFlowWrapper.current?.getBoundingClientRect();
+                                            if (pane && rfInstance) {
+                                                const position = rfInstance.project({
+                                                    x: (menu.left || 0) - pane.left,
+                                                    y: (menu.top || 0) - pane.top,
+                                                });
+                                                const newNode: Node = {
+                                                    id: `node-${Date.now()}`,
+                                                    type: 'text',
+                                                    position,
+                                                    data: {
+                                                        label: 'New Text',
+                                                        onChange: (newData: any) => handleNodeDataChange(String(newNode.id), newData),
+                                                        onDelete: () => {
+                                                            setNodes((nds) => nds.filter((n) => n.id !== String(newNode.id)));
+                                                            setEdges((eds) => eds.filter((e) => e.source !== String(newNode.id) && e.target !== String(newNode.id)));
+                                                        }
+                                                    }
+                                                };
+                                                setNodes(nds => [...nds, newNode]);
+                                            }
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                            <Type className="w-3.5 h-3.5" />
+                                        </div>
+                                        텍스트 상자 추가
+                                    </button>
+                                </>
+                            )}
+                            {menu.type === 'group' && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            focusNodeOrGroup(menu.id);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                            <Maximize2 className="w-3.5 h-3.5" />
+                                        </div>
+                                        확대해서 보기
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            ungroupNodes(menu.id);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" />
+                                            </svg>
+                                        </div>
+                                        그룹 해제
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            // Handle Group Add Content
+                                            setPendingConnection({
+                                                source: '',
+                                                sourceHandle: '',
+                                                position: { x: 50, y: 50 }, // Relative position inside group
+                                            });
+                                            // I'll need a trick to pass the group ID. 
+                                            // Let's modify handleAddContent to be callable from modal with parent.
+                                            // Actually, I'll store the target group ID in a ref or local state.
+                                            (window as any)._targetGroupId = menu.id;
+                                            setIsAddModalOpen(true);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-violet-600/20 text-zinc-300 hover:text-violet-300 transition-all font-bold text-xs group"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600/40">
+                                            <Plus className="w-3.5 h-3.5" />
+                                        </div>
+                                        그룹 내 콘텐츠 추가
+                                    </button>
+
+                                    <div className="h-px bg-zinc-800/50 my-1 mx-2" />
+
+                                    <button
+                                        onClick={() => {
+                                            deleteGroupAndContent(menu.id);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </div>
+                                        모두 삭제
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Video Preview Modal */}
+            {
+                videoModal.isOpen && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setVideoModal({ ...videoModal, isOpen: false })}>
+                        <div className="relative w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-zinc-800" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between p-4 bg-zinc-900 border-b border-zinc-800">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Video className="w-5 h-5 text-violet-500" />
+                                    {videoModal.title}
+                                </h3>
+                                <button
+                                    onClick={() => setVideoModal({ ...videoModal, isOpen: false })}
+                                    className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="relative aspect-video bg-black">
+                                {videoModal.url ? (
+                                    <iframe
+                                        src={(() => {
+                                            const url = videoModal.url || '';
+
+                                            // 1. YouTube Handling
+                                            const ytRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                            const ytMatch = url.match(ytRegExp);
+                                            if (ytMatch && ytMatch[2].length === 11) {
+                                                return `https://www.youtube.com/embed/${ytMatch[2]}?autoplay=1&rel=0`;
+                                            }
+
+                                            // 2. Vimeo Handling
+                                            // Matches: vimeo.com/123456789, vimeo.com/123456789/abcdef123, manage/videos/123456789
+                                            const vimeoRegExp = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/|manage\/videos\/|(?:\/))([0-9]+)(?:\/)?([a-z0-9]+)?/;
+                                            const vimeoMatch = url.match(vimeoRegExp);
+
+                                            if (vimeoMatch) {
+                                                const videoId = vimeoMatch[1];
+                                                const hash = vimeoMatch[2];
+                                                let embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=1&badge=0&autopause=0`;
+                                                if (hash) embedUrl += `&h=${hash}`;
+                                                return embedUrl;
+                                            }
+
+                                            // 3. Pure Numeric ID (Vimeo)
+                                            if (/^\d+$/.test(url)) {
+                                                return `https://player.vimeo.com/video/${url}?autoplay=1&badge=0&autopause=0`;
+                                            }
+
+                                            // Fallback
+                                            return url;
+                                        })()}
+                                        className="w-full h-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-zinc-500">
+                                        영상을 불러올 수 없습니다.
                                     </div>
                                 )}
                             </div>

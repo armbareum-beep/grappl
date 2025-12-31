@@ -33,13 +33,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
             };
 
             // Ensure vimeoId is a string for checking
-            const vimeoIdStr = String(vimeoId);
+            const vimeoIdStr = String(vimeoId || '').trim();
 
-            // Check if vimeoId is a URL or an ID
             if (vimeoIdStr.startsWith('http')) {
                 options.url = vimeoIdStr;
-            } else {
+
+                // Extra safety: extract hash if present for some Vimeo API edge cases
+                const hashMatch = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
+                if (hashMatch) {
+                    options.h = hashMatch[1];
+                }
+            } else if (/^\d+$/.test(vimeoIdStr)) {
                 options.id = Number(vimeoIdStr);
+            } else if (vimeoIdStr.includes('/')) {
+                // Handle complex IDs like "12345/abcde"
+                const [id, h] = vimeoIdStr.split('/');
+                options.id = Number(id);
+                options.h = h;
+            } else {
+                options.url = vimeoIdStr; // Fallback
             }
 
             player = new Player(containerRef.current, options);

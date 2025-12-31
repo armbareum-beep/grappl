@@ -152,3 +152,116 @@
 .animate-violet-pulse {
   animation: violet-pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Technique Roadmap Edge Animations */
+@keyframes dash-move {
+  from {
+    stroke-dashoffset: 24;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.roadmap-edge-dash {
+  stroke-dasharray: 15 15;
+}
+
+
+
+@keyframes bidirectional-outward {
+  0% {
+    stroke-dashoffset: 0;
+  }
+
+  100% {
+    stroke-dashoffset: -12;
+  }
+}
+
+.roadmap-edge-bidirectional {
+  stroke-dasharray: 4 4;
+  animation: bidirectional-outward 0.8s linear infinite;
+  stroke: #8b5cf6 !important;
+  stroke-width: 3 !important;
+}
+
+.roadmap-edge-completed {
+  stroke-dasharray: 0 !important;
+  stroke-width: 4 !important;
+}
+
+/* Sharp arrow markers - override React Flow defaults */
+.react-flow__edge path {
+  stroke-linecap: butt !important;
+}
+
+.react-flow__arrowhead polyline {
+  stroke: #8b5cf6 !important;
+  stroke-width: 1.5 !important;
+  fill: none !important;
+  stroke-linecap: butt !important;
+  stroke-linejoin: miter !important;
+}
+
+/* Prevent ALL edge scaling/zooming */
+.react-flow__edge {
+  pointer-events: all !important;
+}
+
+/* Hover effects - keep default behavior */
+.react-flow__edge:hover path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #a78bfa !important;
+}
+
+/* Keep highlight effect for selected edges only */
+.react-flow__edge.selected path,
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #a78bfa !important;
+  stroke-width: 4 !important;
+}
+
+/* Remove focus effects */
+.react-flow__edge:focus,
+.react-flow__edge:focus path,
+.react-flow__edge:focus .react-flow__edge-path {
+  outline: none !important;
+}
+
+/* Disable selection visual feedback pseudo-elements */
+.react-flow__edge.selected::before,
+.react-flow__edge.selected::after {
+  display: none !important;
+}
+
+/* Wide interaction area for easier clicking */
+.react-flow__edge-interaction {
+  stroke-width: 40 !important;
+  opacity: 0 !important;
+}
+
+/* Group Node Overrides - Remove Rectangular Box completely */
+.react-flow__node-group {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.react-flow__node-group.selected,
+.react-flow__node-group:focus,
+.react-flow__node-group:focus-within,
+.react-flow__node-group:active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Remove resize handles visual if present */
+.react-flow__resize-control {
+  background: transparent !important;
+  border: none !important;
+}

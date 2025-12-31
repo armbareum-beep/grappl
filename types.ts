@@ -63,6 +63,7 @@ export interface Lesson {
   durationMinutes?: number; // Added for dashboard display
   length: string;
   difficulty: Difficulty;
+  videoUrl?: string; // Support for Vimeo or direct URLs
   views?: number; // Added for dashboard display
   createdAt: string;
 }
@@ -78,6 +79,7 @@ export interface Video {
   difficulty: Difficulty;
   thumbnailUrl: string;
   vimeoUrl?: string;
+  videoUrl?: string; // Support for Vimeo or direct URLs
   length: string;
   price: number;
   views: number;
@@ -370,7 +372,7 @@ export interface Drill {
   category: VideoCategory;
   difficulty: Difficulty;
   thumbnailUrl: string;
-  videoUrl?: string; // Direct video URL for Reels
+  videoUrl?: string; // Direct video URL or Vimeo URL
   descriptionVideoUrl?: string; // 설명 영상 URL
   vimeoUrl?: string;
   aspectRatio: '9:16'; // 세로 영상

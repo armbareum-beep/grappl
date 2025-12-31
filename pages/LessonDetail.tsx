@@ -72,9 +72,9 @@ export const LessonDetail: React.FC = () => {
             {/* Video Player Section */}
             <div className="w-full bg-black aspect-video max-h-[70vh] flex justify-center border-b border-zinc-800">
                 <div className="w-full h-full max-w-7xl mx-auto">
-                    {lesson.vimeoUrl ? (
+                    {lesson.videoUrl || lesson.vimeoUrl ? (
                         <VideoPlayer
-                            vimeoId={lesson.vimeoUrl}
+                            vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                             title={lesson.title}
                             onProgress={() => { }}
                             onEnded={() => { }}

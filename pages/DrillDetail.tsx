@@ -117,7 +117,7 @@ export const DrillDetail: React.FC = () => {
     };
 
     const isActionVideo = currentVideoType === 'action';
-    const rawVimeoUrl = drill ? (isActionVideo ? drill.vimeoUrl : drill.descriptionVideoUrl) : undefined;
+    const rawVimeoUrl = drill ? (isActionVideo ? (drill.videoUrl || drill.vimeoUrl) : (drill.descriptionVideoUrl || drill.videoUrl || drill.vimeoUrl)) : undefined;
     const vimeoId = extractVimeoId(rawVimeoUrl);
     const useVimeo = !!vimeoId && owns;
 
@@ -615,7 +615,7 @@ export const DrillDetail: React.FC = () => {
                 <div className="relative h-full w-full max-w-[56.25vh] flex">
                     {/* Spacer for video width */}
                     <div className="flex-1"></div>
-                    
+
                     {/* Actions Container - Sticks to right edge of video on mobile, outside on desktop */}
                     <div className="absolute right-0 md:relative md:right-auto top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto
                                     md:translate-x-full md:ml-4">

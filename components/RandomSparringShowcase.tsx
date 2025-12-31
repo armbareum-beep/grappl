@@ -97,7 +97,7 @@ export function RandomSparringShowcase() {
                         >
                             <iframe
                                 src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1`}
-                                className="absolute inset-0 w-full h-full transform scale-105 transition-transform duration-700 group-hover:scale-100"
+                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.77%] h-full transform scale-105 transition-transform duration-700 group-hover:scale-100 pointer-events-none"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"
                                 title={video.title}

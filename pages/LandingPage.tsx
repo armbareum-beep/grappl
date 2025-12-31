@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Play, Star, ChevronRight, Zap, BookOpen, Map, Search, Menu, X } from 'lucide-react';
+import { Play, Star, Zap, BookOpen, Map, Search, Menu, X } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
-import { FreeDrillShowcase } from '../components/FreeDrillShowcase';
+
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { ClassShowcase } from '../components/ClassShowcase';
+import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
@@ -208,17 +209,11 @@ export const LandingPage: React.FC = () => {
                     >
                         독점 강의 지금 보기
                     </button>
-                    <button
-                        className="px-8 py-4 bg-transparent border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 font-bold rounded-full transition-all"
-                        onClick={() => {
-                            const nextSection = document.getElementById('instructors');
-                            if (nextSection) nextSection.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                    >
-                        더 알아보기
-                    </button>
                 </div>
             </section>
+
+            {/* Daily Free Pass Section */}
+            <DailyFreeDrillSection />
 
             {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
             <section id="instructors" className="py-24 md:py-40 bg-zinc-950 relative overflow-hidden">
@@ -279,45 +274,7 @@ export const LandingPage: React.FC = () => {
 
             <ClassShowcase />
 
-            {/* 5. Drill Video Showcase */}
-            <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
-                {/* Background Decoration */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/5 rounded-full blur-[100px] pointer-events-none"></div>
-
-                <div className="max-w-7xl mx-auto px-4 relative z-10">
-                    <div className="text-center mb-16">
-                        <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
-                            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
-                                DAILY DRILLS
-                            </span>
-                        </div>
-                        <h2 className="text-4xl md:text-5xl font-black mb-6 text-zinc-50 leading-tight">
-                            매일 10분, <br className="md:hidden" />
-                            <span className="text-violet-400">당신의 주짓수가 선명해집니다.</span>
-                        </h2>
-                        <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed">
-                            핵심 드릴과 루틴으로 신체 능력을 극대화하세요.<br className="hidden md:block" />
-                            모든 루틴의 첫 번째 영상은 무료입니다.
-                        </p>
-                    </div>
-
-                    {/* Free Drill Grid */}
-                    <FreeDrillShowcase />
-
-                    <div className="text-center mt-8">
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 transition-all font-medium backdrop-blur-sm"
-                            onClick={() => navigate('/drills')}
-                        >
-                            더 많은 루틴 보기
-                            <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                    </div>
-                </div>
-            </section>
+            {/* 5. Daily Free Pass Section was here - removed */}
 
             {/* 6. Arena System Promotion Section */}
             <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">

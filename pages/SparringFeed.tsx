@@ -240,36 +240,53 @@ const VideoItem: React.FC<{
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
                 <div className="absolute inset-0 pointer-events-none flex items-start justify-center pt-16 z-40">
-                    <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square flex">
-                        <div className="flex-1"></div>
-                        <div className="absolute right-0 md:relative md:right-auto top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto md:translate-x-full md:ml-4">
-                            <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
-                                <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
-                                    {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                    <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square">
+                        {/* Top-Right Group: Speaker & Grid View */}
+                        <div className="absolute top-4 right-4 flex flex-col gap-3 z-50 pointer-events-auto items-center">
+                            <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl">
+                                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); onChangeView(); }} className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl">
+                                <Grid className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Bottom-Right Group: Heart, Save, Share */}
+                        <div className="absolute bottom-4 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-xl">
+                                    <Heart className={`w-6 h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); onChangeView(); }} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
-                                    <Grid className="w-6 h-6" />
-                                </button>
+                                <span className="text-[11px] font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                             </div>
-                            <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
-                                <div className="flex flex-col items-center gap-0.5">
-                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
-                                        <Heart className={`w-6 h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                    </button>
-                                    <span className="text-[10px] font-medium text-zinc-200">{localLikes.toLocaleString()}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
-                                    <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
-                                    <Share2 className="w-6 h-6" />
-                                </button>
-                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-xl">
+                                <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-white' : ''}`} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-xl">
+                                <Share2 className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div className="fixed left-0 right-0 w-full bottom-28 px-6 z-20 text-white flex flex-col items-start gap-1 pointer-events-none">
+                <div className="fixed left-0 right-0 w-full bottom-24 px-6 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
                     <div className="w-full pointer-events-auto pr-16">
+                        {/* Learn This - Moved above Title */}
+                        {video.relatedItems && video.relatedItems.length > 0 && (
+                            <div className="w-full pointer-events-auto mb-4">
+                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 scrollbar-hide snap-x">
+                                    {video.relatedItems.map((item, idx) => (
+                                        <Link key={idx} to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`} className="snap-start flex items-center justify-between gap-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 min-w-[200px] hover:bg-zinc-900 transition-all active:scale-95 group shadow-2xl">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] text-violet-400 font-black tracking-wider uppercase mb-0.5">Learn This</span>
+                                                <span className="text-sm font-bold text-white truncate leading-tight group-hover:text-violet-300 transition-colors uppercase">{item.title}</span>
+                                            </div>
+                                            <ChevronRight className="w-4 h-4 text-violet-400 group-hover:text-white transition-colors shrink-0" />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {video.creator && (
                             <div className="flex items-center gap-3 mb-3">
                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -283,24 +300,9 @@ const VideoItem: React.FC<{
                             </div>
                         )}
                         <div className="mb-4">
-                            <h3 className="font-black text-xl leading-tight text-shadow-md line-clamp-2">{video.title}</h3>
+                            <h3 className="font-black text-2xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
                         </div>
-                        {video.relatedItems && video.relatedItems.length > 0 && (
-                            <div className="w-full pointer-events-auto mb-4">
-                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 scrollbar-hide snap-x">
-                                    {video.relatedItems.map((item, idx) => (
-                                        <Link key={idx} to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`} className="snap-start flex items-center justify-between gap-3 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 rounded-2xl p-3 min-w-[180px] hover:bg-zinc-900/60 transition-all active:scale-95 group shadow-2xl">
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[10px] text-zinc-500 font-bold tracking-wider uppercase">Learn This</span>
-                                                <span className="text-sm font-bold text-zinc-100 truncate leading-tight group-hover:text-violet-400 transition-colors">{item.title}</span>
-                                            </div>
-                                            <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors shrink-0" />
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        <p className="text-sm text-white/80 line-clamp-1 text-shadow-sm opacity-80" onClick={(e) => e.stopPropagation()}>{video.description}</p>
+                        <p className="text-sm text-white/90 line-clamp-1 drop-shadow-sm" onClick={(e) => e.stopPropagation()}>{video.description}</p>
                     </div>
                 </div>
             </div>

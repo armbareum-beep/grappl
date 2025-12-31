@@ -340,9 +340,9 @@ export const CourseDetail: React.FC = () => {
                             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 
                             <div className="relative h-full z-10">
-                                {selectedLesson && canWatchLesson(selectedLesson) && selectedLesson.vimeoUrl ? (
+                                {selectedLesson && canWatchLesson(selectedLesson) && (selectedLesson.videoUrl || selectedLesson.vimeoUrl) ? (
                                     <VideoPlayer
-                                        vimeoId={selectedLesson.vimeoUrl}
+                                        vimeoId={selectedLesson.videoUrl || selectedLesson.vimeoUrl || ''}
                                         title={selectedLesson.title}
                                         onEnded={handleVideoEnded}
                                         onProgress={handleProgress}

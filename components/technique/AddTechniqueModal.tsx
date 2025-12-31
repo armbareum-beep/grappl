@@ -49,12 +49,29 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
         }
     };
 
+    // Enhanced filter with instructor name search
     const filterItem = (item: Lesson | Drill) => {
-        const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-        // Lessons don't have a category field directly, so we skip category filtering for them
+        const query = searchQuery.toLowerCase();
+        const titleMatch = item.title.toLowerCase().includes(query);
+
+        // Check instructor name for both lessons and drills
+        let instructorMatch = false;
+        if ('course' in item && item.course?.creatorName) {
+            instructorMatch = item.course.creatorName.toLowerCase().includes(query);
+        } else if ('category' in item) {
+            // This is a Drill
+            const drill = item as Drill;
+            if (drill.creatorName) {
+                instructorMatch = drill.creatorName.toLowerCase().includes(query);
+            }
+        }
+
+        const matchesSearch = titleMatch || instructorMatch;
+
         // Only apply category filter to Drills
         const matchesCategory = activeCategory === 'All' ||
             ('category' in item && item.category === activeCategory);
+
         return matchesSearch && matchesCategory;
     };
 
@@ -71,20 +88,20 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="bg-zinc-950 rounded-2xl border border-zinc-800 w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/50">
+                <div className="flex items-center justify-between p-6 border-b border-zinc-800 bg-zinc-900/50">
                     <div>
-                        <h2 className="text-2xl font-bold text-white">콘텐츠 추가</h2>
-                        <p className="text-sm text-slate-400">로드맵에 추가할 레슨과 드릴을 선택하세요.</p>
+                        <h2 className="text-2xl font-bold text-zinc-50">콘텐츠 추가</h2>
+                        <p className="text-sm text-zinc-400">로드맵에 추가할 레슨과 드릴을 선택하세요.</p>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800 rounded-full">
+                    <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-slate-800 px-6 overflow-x-auto no-scrollbar">
+                <div className="flex border-b border-zinc-800 px-6 overflow-x-auto no-scrollbar">
                     {(['all', 'lesson', 'drill'] as const).map(tab => (
                         <button
                             key={tab}
@@ -92,7 +109,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                 setActiveTab(tab);
                                 setSearchQuery('');
                             }}
-                            className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all relative shrink-0 ${activeTab === tab ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
+                            className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all relative shrink-0 ${activeTab === tab ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'
                                 }`}
                         >
                             {tab === 'all' && <LayoutGrid className="w-4 h-4" />}
@@ -100,22 +117,22 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                             {tab === 'drill' && <Target className="w-4 h-4" />}
                             {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : '드릴'}
                             {activeTab === tab && (
-                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
                             )}
                         </button>
                     ))}
                 </div>
 
                 {/* Search & Category Filter */}
-                <div className="p-6 border-b border-slate-800 space-y-4 bg-slate-900/30">
+                <div className="p-6 border-b border-zinc-800 space-y-4 bg-zinc-900/30">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="검색..."
+                            placeholder="Search by technique title or instructor name (e.g., 이바름)"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            className="w-full pl-12 pr-4 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-50 placeholder-zinc-500 focus:outline-none focus:border-violet-500/50 transition-all"
                         />
                     </div>
 
@@ -125,8 +142,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                 key={category}
                                 onClick={() => setActiveCategory(category)}
                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeCategory === category
-                                    ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20'
-                                    : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-500'
+                                    ? 'bg-violet-600 text-white border-violet-500 shadow-lg shadow-violet-600/20'
+                                    : 'bg-zinc-800/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
                                     }`}
                             >
                                 {category === 'All' ? '전체' : category}
@@ -136,12 +153,13 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                 </div>
 
                 {/* Content List */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-3 max-h-[600px] scrollbar-thin scrollbar-thumb-zinc-800">
                     {(activeTab === 'all' || activeTab === 'lesson') && filteredLessons.map(lesson => (
                         <ContentItemRow
                             key={`lesson-${lesson.id}`}
                             title={lesson.title}
-                            subtitle={`${lesson.course?.creatorName ? lesson.course.creatorName + ' • ' : ''}${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
+                            instructor={lesson.course?.creatorName || ''}
+                            pathInfo={`${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
                             thumbnail={lesson.thumbnailUrl}
                             isAdded={isAlreadyAdded(lesson.id, 'lesson')}
                             isSelected={isItemSelected(lesson.id, 'lesson')}
@@ -157,7 +175,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                         <ContentItemRow
                             key={`drill-${drill.id}`}
                             title={drill.title}
-                            subtitle={`${drill.creatorName ? drill.creatorName + ' • ' : ''}${drill.category} • ${drill.length || ''}`}
+                            instructor={drill.creatorName || ''}
+                            pathInfo={`${drill.category} • ${drill.length || ''}`}
                             thumbnail={drill.thumbnailUrl}
                             isAdded={isAlreadyAdded(drill.id, 'drill')}
                             isSelected={isItemSelected(drill.id, 'drill')}
@@ -172,25 +191,25 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                     {((activeTab === 'all' && filteredLessons.length === 0 && filteredDrills.length === 0) ||
                         (activeTab === 'lesson' && filteredLessons.length === 0) ||
                         (activeTab === 'drill' && filteredDrills.length === 0)) && (
-                            <div className="text-center py-20 text-slate-500">
+                            <div className="text-center py-20 text-zinc-500">
                                 검색 결과가 없습니다.
                             </div>
                         )}
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-800 flex items-center justify-between bg-slate-900/50">
-                    <div className="text-sm font-bold text-slate-400">
-                        <span className="text-blue-400">{selectedItems.length}</span>개 선택됨
+                <div className="p-6 border-t border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+                    <div className="text-sm font-bold text-zinc-400">
+                        <span className="text-violet-400">{selectedItems.length}</span>개 선택됨
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={onClose} className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-bold">
+                        <button onClick={onClose} className="px-6 py-2.5 bg-zinc-800 text-white rounded-xl hover:bg-zinc-700 transition-all font-bold">
                             취소
                         </button>
                         <button
                             onClick={handleAddSelected}
                             disabled={selectedItems.length === 0}
-                            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-blue-600/20"
+                            className="px-8 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-violet-600/20"
                         >
                             추가하기
                         </button>
@@ -203,45 +222,60 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
 const ContentItemRow: React.FC<{
     title: string;
-    subtitle?: string;
+    instructor: string;
+    pathInfo: string;
     thumbnail?: string;
     isAdded: boolean;
     isSelected: boolean;
     onClick: () => void;
     onDragStart?: (e: React.DragEvent) => void;
-}> = ({ title, subtitle, thumbnail, isAdded, isSelected, onClick, onDragStart }) => (
+}> = ({ title, instructor, pathInfo, thumbnail, isAdded, isSelected, onClick, onDragStart }) => (
     <button
         draggable={!isAdded}
         onDragStart={onDragStart}
         onClick={() => !isAdded && onClick()}
         disabled={isAdded}
-        className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all text-left ${isAdded ? 'bg-slate-800/30 border-slate-700 opacity-50 cursor-not-allowed'
-            : isSelected ? 'bg-blue-500/10 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
-                : 'bg-slate-800/50 border-slate-700 hover:border-slate-500 hover:bg-slate-800'
+        className={`w-full flex flex-row items-center bg-zinc-900/40 border rounded-2xl p-4 mb-3 transition-all text-left ${isAdded
+            ? 'border-zinc-800 opacity-50 cursor-not-allowed'
+            : isSelected
+                ? 'border-violet-500/50 bg-violet-600/5 shadow-[0_4px_20px_rgba(124,58,237,0.1)]'
+                : 'border-zinc-800 hover:border-zinc-700 hover:translate-x-1 hover:shadow-[0_4px_20px_rgba(124,58,237,0.1)]'
             }`}
     >
-        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${isAdded ? 'border-slate-600 bg-slate-700'
-            : isSelected ? 'border-blue-500 bg-blue-500'
-                : 'border-slate-600'
-            }`}>
-            {(isSelected || isAdded) && (
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
+        {/* Left Visual */}
+        <div className="w-16 h-16 bg-zinc-800 rounded-xl flex-shrink-0 overflow-hidden">
+            {thumbnail ? (
+                <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                    <GraduationCap className="w-8 h-8 text-zinc-600" />
+                </div>
             )}
         </div>
 
-        {thumbnail && (
-            <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-700">
-                <img src={thumbnail} alt="" className="w-full h-full object-cover" />
-            </div>
-        )}
-
-        <div className="flex-1 min-w-0">
-            <div className="text-white font-bold truncate">{title}</div>
-            {subtitle && <div className="text-xs text-slate-400 truncate font-medium">{subtitle}</div>}
+        {/* Center Info */}
+        <div className="flex-grow px-5">
+            <div className="text-zinc-50 text-lg font-bold truncate">{title}</div>
+            {instructor && (
+                <div className="text-violet-400 text-sm font-medium truncate">
+                    {instructor}
+                </div>
+            )}
+            <div className="text-zinc-500 text-xs truncate">{pathInfo}</div>
         </div>
 
-        {isAdded && <span className="text-[10px] font-bold text-slate-500 px-2 py-1 bg-slate-700/50 rounded-lg">추가됨</span>}
+        {/* Right Action */}
+        {isAdded ? (
+            <span className="text-zinc-600 bg-zinc-800 px-3 py-1 rounded-lg text-xs font-bold">
+                Added
+            </span>
+        ) : (
+            <div className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${isSelected
+                ? 'bg-violet-600 text-white'
+                : 'bg-violet-600 hover:bg-violet-500 text-white'
+                }`}>
+                {isSelected ? '선택됨' : '추가'}
+            </div>
+        )}
     </button>
 );
