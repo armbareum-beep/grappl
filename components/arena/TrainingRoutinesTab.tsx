@@ -517,33 +517,15 @@ export const TrainingRoutinesTab: React.FC = () => {
                             </Button>
                         )}
                         {selectedRoutineForPlacement && (
-                            <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2 bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">
+                            <div className="text-sm text-violet-400 font-bold animate-pulse flex items-center gap-2 bg-violet-600/10 px-3 py-1.5 rounded-full border border-violet-500/30">
                                 <MousePointerClick className="w-4 h-4" />
                                 배치할 요일을 선택하세요
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedRoutineForPlacement(null);
-                                    }}
-                                    className="text-zinc-500 hover:text-white underline ml-1"
-                                >
-                                    취소
-                                </button>
                             </div>
                         )}
                         {selectedDayForPlacement && (
-                            <div className="text-sm text-purple-400 font-bold animate-pulse flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-full border border-purple-500/20">
+                            <div className="text-sm text-violet-400 font-bold animate-pulse flex items-center gap-2 bg-violet-600/10 px-3 py-1.5 rounded-full border border-violet-500/30">
                                 <MousePointerClick className="w-4 h-4" />
                                 추가할 루틴을 선택하세요
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedDayForPlacement(null);
-                                    }}
-                                    className="text-zinc-500 hover:text-white underline ml-1"
-                                >
-                                    취소
-                                </button>
                             </div>
                         )}
                     </div>
