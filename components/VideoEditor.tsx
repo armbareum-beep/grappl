@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Scissors, Trash2, Check, RotateCcw } from 'lucide-react';
+import { Play, Pause, Scissors, Trash2, Check, RotateCcw, Camera } from 'lucide-react';
 import { Button } from './Button';
 
 interface Cut {
@@ -10,7 +10,7 @@ interface Cut {
 
 interface VideoEditorProps {
     videoUrl: string;
-    onSave: (cuts: { start: number; end: number }[]) => void;
+    onSave: (cuts: { start: number; end: number }[], thumbnailBlob?: Blob) => void;
     onCancel: () => void;
     aspectRatio?: '16:9' | '9:16';
 }
@@ -21,6 +21,10 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [cuts, setCuts] = useState<Cut[]>([]);
+
+    // Thumbnail state
+    const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
+    const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
     // Selection state
     const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -95,12 +99,32 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
         setCuts(cuts.filter(c => c.id !== id));
     };
 
+    const handleCaptureThumbnail = () => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+            if (blob) {
+                setThumbnailBlob(blob);
+                setThumbnailPreview(canvas.toDataURL('image/jpeg', 0.8));
+            }
+        }, 'image/jpeg', 0.8);
+    };
+
     const handleSave = () => {
         // If no cuts defined, assume the whole video? Or force at least one cut?
         // Let's assume if no cuts, we use the whole video (or user must add cuts).
         // For this requirement, let's just pass the cuts.
         const finalCuts = cuts.length > 0 ? cuts : [{ start: 0, end: duration }];
-        onSave(finalCuts.map(({ start, end }) => ({ start, end })));
+        onSave(finalCuts.map(({ start, end }) => ({ start, end })), thumbnailBlob || undefined);
     };
 
     const isVertical = aspectRatio === '9:16';
@@ -170,6 +194,31 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
 
             {/* Editor Controls */}
             <div className="p-6 space-y-6">
+                {/* Thumbnail Capture Section */}
+                <div className="flex flex-col gap-4 border-b border-slate-800 pb-6">
+                    <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                        <Camera className="w-4 h-4" /> 썸네일 선택
+                    </h3>
+                    <div className="flex items-center gap-4">
+                        <Button 
+                            variant="secondary" 
+                            onClick={handleCaptureThumbnail} 
+                            className="flex-1 h-12"
+                        >
+                            현재 화면을 썸네일로 지정
+                        </Button>
+                        {thumbnailPreview && (
+                            <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-blue-500 shadow-lg shadow-blue-500/20 flex-shrink-0">
+                                <img src={thumbnailPreview} className="w-full h-full object-cover" alt="Thumbnail preview" />
+                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                    <Check className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-xs text-slate-500">영상을 재생하다가 원하는 장면에서 버튼을 눌러주세요.</p>
+                </div>
+
                 <div className="flex flex-wrap gap-4 items-center justify-between border-b border-slate-800 pb-6">
                     <div className="flex gap-2">
                         <Button

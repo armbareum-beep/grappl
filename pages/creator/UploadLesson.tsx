@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Difficulty } from '../../types';
+import { Difficulty, VideoCategory } from '../../types';
 import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
+import { uploadThumbnail } from '../../lib/api';
 import { Button } from '../../components/Button';
 import { formatDuration } from '../../lib/vimeo';
 import { ArrowLeft, Upload, FileVideo, Scissors, Loader } from 'lucide-react';
@@ -15,6 +16,7 @@ type ProcessingState = {
     filename: string | null;
     previewUrl: string | null;
     cuts: { start: number; end: number }[] | null;
+    thumbnailBlob: Blob | null;
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'complete' | 'error';
     progress: number;
     error: string | null;
@@ -26,6 +28,7 @@ const initialProcessingState: ProcessingState = {
     filename: null,
     previewUrl: null,
     cuts: null,
+    thumbnailBlob: null,
     status: 'idle',
     progress: 0,
     error: null
@@ -43,6 +46,7 @@ export const UploadLesson: React.FC = () => {
         title: '',
         description: '',
         difficulty: Difficulty.Beginner,
+        category: VideoCategory.Standing,
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -63,6 +67,7 @@ export const UploadLesson: React.FC = () => {
                         title: data.title,
                         description: data.description || '',
                         difficulty: data.difficulty || Difficulty.Beginner,
+                        category: data.category || VideoCategory.Standing,
                     });
                     // We don't preload videoState as we only show it if user wants to replace video
                 }
@@ -100,8 +105,8 @@ export const UploadLesson: React.FC = () => {
         setIsVideoEditorOpen(true);
     };
 
-    const handleCutsSave = (cuts: { start: number; end: number }[]) => {
-        setVideoState(prev => ({ ...prev, cuts }));
+    const handleCutsSave = (cuts: { start: number; end: number }[], thumbnailBlob?: Blob) => {
+        setVideoState(prev => ({ ...prev, cuts, thumbnailBlob: thumbnailBlob || null }));
         setIsVideoEditorOpen(false);
     };
 
@@ -150,9 +155,17 @@ export const UploadLesson: React.FC = () => {
                     title: formData.title,
                     description: formData.description,
                     difficulty: formData.difficulty,
+                    category: formData.category,
                     // Only update video fields if a new video is being uploaded
                     vimeoUrl: videoState.videoId ? '' : undefined, // Reset vimeoUrl if new video
                 };
+
+                if (videoState.thumbnailBlob) {
+                    const { url, error: thumbError } = await uploadThumbnail(videoState.thumbnailBlob);
+                    if (!thumbError && url) {
+                        updatePayload.thumbnailUrl = url;
+                    }
+                }
 
                 if (videoState.videoId) {
                     updatePayload.durationMinutes = durationMinutes;
@@ -166,24 +179,25 @@ export const UploadLesson: React.FC = () => {
                 if (!videoState.file) throw new Error('No video file');
                 finalVideoId = crypto.randomUUID();
 
+                let thumbnailUrl = '';
+                if (videoState.thumbnailBlob) {
+                    const { url, error: thumbError } = await uploadThumbnail(videoState.thumbnailBlob);
+                    if (!thumbError && url) {
+                        thumbnailUrl = url;
+                    }
+                }
+
                 const { data: newLesson, error } = await createLesson({
                     courseId: null,
                     title: formData.title,
                     description: formData.description,
+                    category: formData.category,
                     lessonNumber: 1,
                     vimeoUrl: '',
                     length: formatDuration(totalSeconds), // Passing number, will be formatted inside API or I should format here if API expects string? API logic I wrote: length: String(data.length). So if I pass seconds, it becomes "300". 
-                    // I MUST CHANGE API TO EXPECT STRING OR FORMAT HERE. 
-                    // Let's format here and update API signature to string/number union or just string?
-                    // Better: Update this call to pass formatDuration(totalSeconds) but createLesson expects number currently (based on my read/edit).
-                    // Wait, I updated createLesson signature to accept `length: number` in step 145.
-                    // But inside createLesson I did `length: String(lessonData.length)`.
-                    // So I should pass raw seconds/number to createLesson, AND createLesson should format it? 
-                    // NO, `formatDuration` is in `lib/vimeo`. `api-lessons` might not have it.
-                    // BEST PATH: Update createLesson signature to `length: string | number`.
-                    // AND pass `formatDuration(totalSeconds)` here.
                     difficulty: formData.difficulty,
                     durationMinutes: durationMinutes,
+                    thumbnailUrl: thumbnailUrl,
                 });
                 if (error || !newLesson) throw error || new Error('Failed to create lesson');
                 lessonId = newLesson.id;
@@ -306,11 +320,23 @@ export const UploadLesson: React.FC = () => {
                             </div>
                             <div className="space-y-4">
                                 <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">카테고리</label>
+                                    <select
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })}
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        {Object.values(VideoCategory).map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-2">난이도</label>
                                     <select
                                         value={formData.difficulty}
                                         onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
+                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                         {Object.values(Difficulty).map(diff => (
                                             <option key={diff} value={diff}>{diff}</option>

@@ -60,25 +60,25 @@ export const Browse: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row pt-20">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row pt-8 pb-20 px-6 md:px-10">
 
       {/* Sidebar Filters (Desktop: Fixed / Mobile: Horizontal Scroll or Stack) */}
-      <aside className="w-full md:w-[240px] md:h-[calc(100vh-5rem)] md:sticky md:top-20 bg-zinc-950/50 backdrop-blur-sm p-6 border-b md:border-b-0 md:border-r border-zinc-900 overflow-y-auto shrink-0 z-30">
-        <div className="space-y-8">
+      <aside className="w-full md:w-[260px] md:h-[calc(100vh-6rem)] md:sticky md:top-24 bg-zinc-950/50 backdrop-blur-sm p-6 border-b md:border-b-0 md:border-r border-zinc-900 overflow-y-auto shrink-0 z-30 custom-scrollbar">
+        <div className="space-y-10">
 
           {/* Position Group */}
           <div>
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 px-2">Position</h3>
-            <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible gap-1 pb-2 md:pb-0 scrollbar-hide">
+            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Position</h3>
+            <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible gap-2 pb-2 md:pb-0 no-scrollbar">
               {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-sm transition-all text-left whitespace-nowrap",
+                    "px-5 py-2.5 rounded-full text-xs transition-all text-left whitespace-nowrap border mb-1",
                     selectedCategory === cat
-                      ? "text-violet-400 font-bold bg-violet-500/10 border-l-2 border-violet-500 pl-3 md:pl-4"
-                      : "text-zinc-400 hover:text-violet-400 hover:bg-zinc-900/50 border-l-2 border-transparent"
+                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
+                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                   )}
                 >
                   {cat}
@@ -89,17 +89,17 @@ export const Browse: React.FC = () => {
 
           {/* Uniform Group */}
           <div>
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 px-2">Uniform</h3>
-            <div className="flex flex-row md:flex-col gap-1">
+            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Uniform</h3>
+            <div className="flex flex-row md:flex-col gap-2">
               {uniforms.map(type => (
                 <button
                   key={type}
                   onClick={() => setSelectedUniform(type)}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-sm transition-all text-left",
+                    "px-5 py-2.5 rounded-full text-xs transition-all text-left border mb-1",
                     selectedUniform === type
-                      ? "text-violet-400 font-bold bg-violet-500/10 border-l-2 border-violet-500 pl-3 md:pl-4"
-                      : "text-zinc-400 hover:text-violet-400 hover:bg-zinc-900/50 border-l-2 border-transparent"
+                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
+                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                   )}
                 >
                   {type}
@@ -110,17 +110,17 @@ export const Browse: React.FC = () => {
 
           {/* Difficulty Group */}
           <div>
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4 px-2">Difficulty</h3>
-            <div className="flex flex-row md:flex-col gap-1">
+            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Difficulty</h3>
+            <div className="flex flex-row md:flex-col gap-2">
               {difficulties.map(diff => (
                 <button
                   key={diff}
                   onClick={() => setSelectedDifficulty(diff)}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-sm transition-all text-left",
+                    "px-5 py-2.5 rounded-full text-xs transition-all text-left border mb-1",
                     selectedDifficulty === diff
-                      ? "text-violet-400 font-bold bg-violet-500/10 border-l-2 border-violet-500 pl-3 md:pl-4"
-                      : "text-zinc-400 hover:text-violet-400 hover:bg-zinc-900/50 border-l-2 border-transparent"
+                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
+                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                   )}
                 >
                   {diff}
@@ -133,32 +133,35 @@ export const Browse: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:pt-4 md:px-12 md:pb-8 overflow-y-auto">
         <div className="max-w-[1600px] mx-auto">
 
-          {/* Top Search Bar */}
-          <div className="mb-8 flex justify-between items-center">
-            <div className="relative w-full max-w-md group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none transition-colors group-focus-within:text-violet-500">
-                <Search className="h-4 w-4 text-zinc-500" />
+          {/* Header Section (Category then Search/Reels) */}
+          <div className="flex flex-col gap-6 mb-12">
+            <div className="flex justify-between items-center w-full">
+              <div className="relative w-full max-w-md group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none transition-colors group-focus-within:text-violet-500">
+                  <Search className="h-4 w-4 text-zinc-500" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search classes..."
+                  className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search classes..."
-                className="w-full pl-10 pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-full text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+
+              <div className="text-zinc-500 text-sm font-medium hidden md:block">
+                Showing <span className="text-zinc-200 font-bold">{filteredCourses.length}</span> classes
+              </div>
             </div>
 
-            <div className="text-zinc-500 text-sm font-medium hidden md:block">
-              Showing <span className="text-zinc-200 font-bold">{filteredCourses.length}</span> classes
-            </div>
-          </div>
+          </div> {/* Closing div for "Header Section (Category then Search/Reels)" */}
 
           {/* Course Grid */}
           {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {filteredCourses.map(course => (
                 <CourseCard key={course.id} course={course} />
               ))}

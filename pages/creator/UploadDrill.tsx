@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, Drill } from '../../types';
-import { createDrill, getDrillById, updateDrill } from '../../lib/api';
+import { createDrill, getDrillById, updateDrill, uploadThumbnail } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, AlertCircle, CheckCircle, Scissors, FileVideo, Trash2 } from 'lucide-react';
@@ -15,6 +15,7 @@ type ProcessingState = {
     filename: string | null;
     previewUrl: string | null;
     cuts: { start: number; end: number }[] | null;
+    thumbnailBlob: Blob | null;
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'completed' | 'complete' | 'error';
     error: string | null;
     isBackgroundUploading?: boolean;
@@ -27,6 +28,7 @@ const initialProcessingState: ProcessingState = {
     filename: null,
     previewUrl: null,
     cuts: null,
+    thumbnailBlob: null,
     status: 'idle',
     error: null,
     isBackgroundUploading: false
@@ -188,14 +190,14 @@ export const UploadDrill: React.FC = () => {
 
     };
 
-    const handleCutsSave = async (cuts: { start: number; end: number }[]) => {
+    const handleCutsSave = async (cuts: { start: number; end: number }[], thumbnailBlob?: Blob) => {
         let currentDrillId = id || createdDrillId;
 
         // Update local state first for immediate UI feedback
         if (activeEditor === 'action') {
-            setActionVideo(prev => ({ ...prev, cuts, status: 'ready' }));
+            setActionVideo(prev => ({ ...prev, cuts, status: 'ready', thumbnailBlob: thumbnailBlob || null }));
         } else if (activeEditor === 'desc') {
-            setDescVideo(prev => ({ ...prev, cuts, status: 'ready' }));
+            setDescVideo(prev => ({ ...prev, cuts, status: 'ready', thumbnailBlob: thumbnailBlob || null }));
         }
 
         // Trigger auto-upload if we have all requirements (file and cuts)
@@ -339,6 +341,15 @@ export const UploadDrill: React.FC = () => {
                 const totalSeconds = actionVideo.cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
                 const durationMinutes = Math.floor(totalSeconds / 60);
 
+                // Handle Thumbnail Upload if capture exists
+                let thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+                if (actionVideo.thumbnailBlob) {
+                    const { url, error: thumbError } = await uploadThumbnail(actionVideo.thumbnailBlob);
+                    if (!thumbError && url) {
+                        thumbnailUrl = url;
+                    }
+                }
+
                 const { data: drill, error: dbError } = await createDrill({
                     title: formData.title,
                     description: formData.description,
@@ -347,7 +358,7 @@ export const UploadDrill: React.FC = () => {
                     difficulty: formData.difficulty,
                     vimeoUrl: '',
                     descriptionVideoUrl: '',
-                    thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+                    thumbnailUrl: thumbnailUrl,
                     durationMinutes: durationMinutes,
                     length: formatDuration(totalSeconds),
                 });
@@ -369,12 +380,22 @@ export const UploadDrill: React.FC = () => {
                     updateParams.length = formatDuration(totalSeconds);
                 }
 
+                // Handle Thumbnail Upload if capture exists
+                if (actionVideo.thumbnailBlob) {
+                    const { url, error: thumbError } = await uploadThumbnail(actionVideo.thumbnailBlob);
+                    if (!thumbError && url) {
+                        updateParams.thumbnailUrl = url;
+                    }
+                }
+
                 // If a new video is being uploaded, reset the corresponding URL in DB 
                 // to trigger 'isProcessing' in other views immediately
                 if (actionVideo.file) {
                     updateParams.vimeoUrl = '';
                     updateParams.videoUrl = ''; // Clear actual video URL to trigger processing view
-                    updateParams.thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+                    if (!updateParams.thumbnailUrl) {
+                        updateParams.thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+                    }
                 }
                 if (descVideo.file) {
                     updateParams.descriptionVideoUrl = '';

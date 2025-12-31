@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap, Calendar } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getUserRoutines, getCompletedRoutinesToday, getUserSavedDrills, toggleDrillSave } from '../../lib/api';
+import { getUserRoutines, getCompletedRoutinesToday, getUserSavedDrills, toggleDrillSave, getRandomSampleRoutines } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
 import { supabase } from '../../lib/supabase';
 import { ErrorScreen } from '../ErrorScreen';
+import { Modal } from '../Modal';
+
 
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
@@ -33,53 +35,36 @@ export const TrainingRoutinesTab: React.FC = () => {
     // Collapsible Create Section State
     const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
 
+    // Premium Modal State for non-logged-in users
+    const [showPremiumModal, setShowPremiumModal] = useState(false);
+
     useEffect(() => {
         const loadSavedDrills = async () => {
-            console.log('=== loadSavedDrills called ===', { hasUser: !!user });
-
-            // First, load from localStorage immediately for instant display
             const localSaved = JSON.parse(localStorage.getItem('saved_drills') || '[]');
             setSavedDrills(localSaved);
 
             if (user) {
                 try {
                     const drills = await getUserSavedDrills(user.id);
-
-                    // Only update if DB returned data
                     if (drills && drills.length > 0) {
                         setSavedDrills(drills);
-                        // Sync to localStorage
                         localStorage.setItem('saved_drills', JSON.stringify(drills));
                     } else if (localSaved.length === 0) {
-                        // If both DB and localStorage are empty, show empty state
                         setSavedDrills([]);
                     }
-                    // If DB is empty but localStorage has data, keep localStorage data
                 } catch (error) {
                     console.error('Error loading saved drills from DB:', error);
-                    // Keep using localStorage data on error
                 }
             }
         };
 
         loadSavedDrills();
 
-        // Reload when window regains focus (user comes back from drill page)
-        const handleFocus = () => {
-            loadSavedDrills();
-        };
-
-        // Reload when localStorage changes (from other tabs or components)
+        const handleFocus = () => loadSavedDrills();
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'saved_drills') {
-                loadSavedDrills();
-            }
+            if (e.key === 'saved_drills') loadSavedDrills();
         };
-
-        // Custom event for same-tab updates
-        const handleCustomStorage = () => {
-            loadSavedDrills();
-        };
+        const handleCustomStorage = () => loadSavedDrills();
 
         window.addEventListener('focus', handleFocus);
         window.addEventListener('storage', handleStorageChange);
@@ -108,17 +93,14 @@ export const TrainingRoutinesTab: React.FC = () => {
             setLoading(true);
             setError(null);
 
-            // Load all user routines (purchased + created)
             const result = await getUserRoutines(user.id);
             if (result.error) throw result.error;
 
-            // Load custom routines from LocalStorage
             const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
 
-            // Merge and set
             if (result.data) {
                 const combined = [...customRoutines, ...result.data];
-                // Shuffle for dynamic display
+                // Shuffle logic preserved
                 for (let i = combined.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [combined[i], combined[j]] = [combined[j], combined[i]];
@@ -128,7 +110,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                 setRoutines(customRoutines);
             }
 
-            // Load completed routines for today
             const completedIds = await getCompletedRoutinesToday(user.id);
             setCompletedRoutineIds(new Set(completedIds));
         } catch (err: any) {
@@ -145,13 +126,22 @@ export const TrainingRoutinesTab: React.FC = () => {
         if (user) {
             loadRoutines();
         } else {
-            setLoading(false);
+            // Load random sample routines for non-logged-in users
+            const loadSampleRoutines = async () => {
+                setLoading(true);
+                const result = await getRandomSampleRoutines(3);
+                if (result.data) {
+                    setRoutines(result.data);
+                }
+                setLoading(false);
+            };
+            loadSampleRoutines();
         }
     }, [user]);
 
     const handleCreateRoutine = () => {
         if (!user) {
-            navigate('/login');
+            setShowPremiumModal(true);
             return;
         }
 
@@ -174,7 +164,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             createdAt: new Date().toISOString(),
             difficulty: Difficulty.Intermediate,
             category: VideoCategory.Standing,
-            totalDurationMinutes: selectedDrillsList.length // 1 drill = 1 minute rule
+            totalDurationMinutes: selectedDrillsList.length
         };
 
         const existingCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
@@ -183,12 +173,18 @@ export const TrainingRoutinesTab: React.FC = () => {
         success('루틴이 생성되었습니다!');
         setIsSelectionMode(false);
         setSelectedDrills(new Set());
-        loadRoutines(); // Reload to show the new routine immediately
+        loadRoutines();
     };
 
     const handleRoutineClick = (routine: DrillRoutine) => {
+        if (!user) {
+            setShowPremiumModal(true);
+            // Even if not logged in, allow selecting for placement preview
+            setSelectedRoutineForPlacement(routine);
+            return;
+        }
+
         if (selectedDayForPlacement) {
-            // Case: Day First -> Add routine to that day
             const savedSchedule = JSON.parse(localStorage.getItem('weekly_routine_schedule') || '{"월":[],"화":[],"수":[],"목":[],"금":[],"토":[],"일":[]}');
             const currentDayRoutines = savedSchedule[selectedDayForPlacement] || [];
 
@@ -206,7 +202,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             window.dispatchEvent(new Event('weekly_schedule_update'));
 
             success(`${selectedDayForPlacement}요일에 루틴이 추가되었습니다.`);
-            // setSelectedDayForPlacement(null); // Keep selected for continuous add
+            // Keep selection active for rapid add
             return;
         }
 
@@ -214,7 +210,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             navigate(`/my-routines/${routine.id}`);
         } else {
             setSelectedRoutineForPlacement(routine);
-            setSelectedDayForPlacement(null); // Ensure mutually exclusive
+            setSelectedDayForPlacement(null);
         }
     };
 
@@ -229,48 +225,42 @@ export const TrainingRoutinesTab: React.FC = () => {
             const offsetY = e.clientY - rect.top;
 
             const clone = target.cloneNode(true) as HTMLElement;
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            clone.style.left = '-9999px';
-            clone.style.width = `${rect.width}px`;
-            clone.style.height = `${rect.height}px`;
-            clone.style.zIndex = '1000';
-            clone.style.pointerEvents = 'none';
-            clone.style.transition = 'none';
-            clone.style.transform = 'none';
-            clone.classList.add('bg-slate-900');
+            Object.assign(clone.style, {
+                position: 'absolute',
+                top: '-9999px',
+                left: '-9999px',
+                width: `${rect.width}px`,
+                height: `${rect.height}px`,
+                zIndex: '1000',
+                pointerEvents: 'none',
+                transition: 'none',
+                transform: 'none'
+            });
+            clone.classList.add('bg-zinc-900'); // Updated to zinc
 
             document.body.appendChild(clone);
             e.dataTransfer.setDragImage(clone, offsetX, offsetY);
 
             setTimeout(() => {
-                if (document.body.contains(clone)) {
-                    document.body.removeChild(clone);
-                }
+                if (document.body.contains(clone)) document.body.removeChild(clone);
             }, 0);
         }
     };
 
     const handleRoutineAdded = (_day: string) => {
-        // Optional: Show a toast or feedback
-        // We keep the selection active for multiple placements
+        // Feedback handled in WeeklyRoutinePlanner or elsewhere
     };
 
     const handleDeleteRoutine = async (e: React.MouseEvent, routineId: string) => {
-        e.stopPropagation(); // Prevent navigation
+        e.stopPropagation();
 
-        if (!confirm('이 루틴을 삭제하시겠습니까?')) {
-            return;
-        }
+        if (!confirm('이 루틴을 삭제하시겠습니까?')) return;
 
-        // Check if it's a custom routine
         if (routineId.startsWith('custom-')) {
-            // Remove from localStorage
             const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
             const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
             localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
         } else {
-            // For purchased routines, remove from user_routines table
             if (user) {
                 const { error } = await supabase
                     .from('user_routines')
@@ -285,8 +275,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                 }
             }
         }
-
-        // Update state
         setRoutines(prev => prev.filter(r => r.id !== routineId));
     };
 
@@ -294,34 +282,32 @@ export const TrainingRoutinesTab: React.FC = () => {
     const displayedRoutines = showAllRoutines ? routines : routines.slice(0, ROUTINES_DISPLAY_LIMIT);
 
     if (error) {
-        return <ErrorScreen error={error} resetMessage="훈련 루틴 목록을 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+        return <ErrorScreen error={error} resetMessage="훈련 루틴 목록을 불러오는 중 오류가 발생했습니다." />;
     }
 
     return (
         <div
-            className="space-y-8 min-h-screen"
+            className="space-y-8 min-h-screen pb-20"
             onClick={() => {
-                // Background click dismisses selection mode
                 if (selectedDayForPlacement || selectedRoutineForPlacement) {
                     setSelectedDayForPlacement(null);
                     setSelectedRoutineForPlacement(null);
                 }
             }}
         >
-
             {/* Contextual Action Bar */}
             {(selectedDayForPlacement || selectedRoutineForPlacement) && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 w-[90%] max-w-md">
-                    <div className="bg-slate-900/90 backdrop-blur-md border border-purple-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 ring-1 ring-white/10">
+                    <div className="bg-zinc-900/90 backdrop-blur-md border border-violet-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 ring-1 ring-white/10">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0 animate-pulse">
+                            <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0 animate-pulse border border-white/10">
                                 {selectedDayForPlacement ? <div className="text-white font-bold text-lg">{selectedDayForPlacement[0]}</div> : <Dumbbell className="w-5 h-5 text-white" />}
                             </div>
                             <div>
                                 <h3 className="text-white font-bold text-sm">
                                     {selectedDayForPlacement ? '루틴 선택 모드' : '배치할 요일 선택'}
                                 </h3>
-                                <p className="text-purple-200 text-xs">
+                                <p className="text-violet-200 text-xs">
                                     {selectedDayForPlacement
                                         ? `'${selectedDayForPlacement}'요일에 추가할 루틴을 선택하세요`
                                         : `루틴을 추가할 요일을 선택하세요`}
@@ -336,27 +322,38 @@ export const TrainingRoutinesTab: React.FC = () => {
                             }}
                             className="p-2 hover:bg-white/10 rounded-full transition-colors"
                         >
-                            <X className="w-5 h-5 text-slate-400" />
+                            <X className="w-5 h-5 text-zinc-400" />
                         </button>
                     </div>
                 </div>
             )}
-            {/* Create Routine Section - MOVED TO TOP */}
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 transition-all">
+
+            {/* Create Routine Section */}
+            <section className="bg-zinc-900/40 backdrop-blur-md rounded-3xl border border-zinc-800/50 transition-all overflow-hidden relative group">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 blur-[80px] rounded-full pointer-events-none" />
+
                 <div
-                    className="p-4 sm:p-6 flex items-center justify-between cursor-pointer md:cursor-default"
+                    className="p-6 sm:p-8 flex items-center justify-between cursor-pointer md:cursor-default"
                     onClick={() => setIsCreateSectionOpen(!isCreateSectionOpen)}
                 >
-                    <div className="flex items-center gap-2">
-                        <div>
-                            <h2 className="text-xl font-bold text-white mb-1">새 루틴 만들기</h2>
-                            <p className="text-slate-400 text-sm break-keep">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-violet-500" />
                         </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-zinc-50 mb-1 flex items-center gap-2">새 루틴 만들기</h2>
+                            <p className="text-zinc-500 text-sm">저장된 드릴을 조합하여 새로운 루틴을 생성하세요.</p>
+                        </div>
+                    </div>
+                    {/* Toggle Icon for Mobile */}
+                    <div className="md:hidden text-zinc-500">
+                        {isCreateSectionOpen ? <ChevronUp /> : <ChevronDown />}
                     </div>
                 </div>
 
                 {/* Collapsible Content */}
-                <div className={`${isCreateSectionOpen ? 'block' : 'hidden md:block'} px-4 sm:px-6 pb-6`}>
+                <div className={`${isCreateSectionOpen ? 'block' : 'hidden md:block'} px-6 sm:px-8 pb-8 border-t border-zinc-800/50 pt-8`}>
                     <div className="flex justify-end mb-6">
                         {isSelectionMode ? (
                             <div className="flex gap-2 w-full sm:w-auto">
@@ -367,7 +364,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         setIsSelectionMode(false);
                                         setSelectedDrills(new Set());
                                     }}
-                                    className="flex-1 sm:flex-none"
+                                    className="flex-1 sm:flex-none border-zinc-700 hover:bg-zinc-800 text-zinc-400"
                                 >
                                     취소
                                 </Button>
@@ -377,7 +374,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         handleCreateRoutine();
                                     }}
                                     disabled={selectedDrills.size === 0}
-                                    className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
+                                    className="bg-violet-600 hover:bg-violet-500 text-white font-bold border-none shadow-lg shadow-violet-900/40 flex-1 sm:flex-none"
                                 >
                                     {selectedDrills.size}개 선택됨 - 루틴 생성
                                 </Button>
@@ -386,9 +383,13 @@ export const TrainingRoutinesTab: React.FC = () => {
                             <Button
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (!user) {
+                                        setShowPremiumModal(true);
+                                        return;
+                                    }
                                     setIsSelectionMode(true);
                                 }}
-                                className="bg-slate-800 hover:bg-slate-700 w-full sm:w-auto whitespace-nowrap"
+                                className="bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300 w-full sm:w-auto whitespace-nowrap"
                             >
                                 드릴 선택하기
                             </Button>
@@ -400,17 +401,17 @@ export const TrainingRoutinesTab: React.FC = () => {
                             {savedDrills.map((drill) => {
                                 const cardContent = (
                                     <>
-                                        <div className="w-20 h-12 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                        <div className="w-20 h-12 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                                             <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
                                             {isSelectionMode && selectedDrills.has(drill.id) && (
-                                                <div className="absolute inset-0 bg-blue-500/50 flex items-center justify-center">
+                                                <div className="absolute inset-0 bg-violet-600/50 flex items-center justify-center">
                                                     <Check className="w-6 h-6 text-white" />
                                                 </div>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-white font-medium text-sm truncate">{drill.title}</h4>
-                                            <p className="text-slate-400 text-xs">{drill.length || '0:00'}</p>
+                                            <h4 className="text-zinc-200 font-medium text-sm truncate">{drill.title}</h4>
+                                            <p className="text-zinc-500 text-xs">{drill.length || '0:00'}</p>
                                         </div>
                                     </>
                                 );
@@ -419,7 +420,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
-                                        // Optimistic update
                                         const updatedDrills = savedDrills.filter(d => d.id !== drillId);
                                         setSavedDrills(updatedDrills);
                                         localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
@@ -429,7 +429,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             if (error) {
                                                 console.error('Error removing saved drill:', error);
                                                 alert('삭제에 실패했습니다.');
-                                                // Revert
                                                 setSavedDrills(savedDrills);
                                                 localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
                                             }
@@ -444,8 +443,8 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         className={`
                                             relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
                                             ${selectedDrills.has(drill.id)
-                                                ? 'bg-blue-900/20 border-blue-500'
-                                                : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                                                ? 'bg-violet-900/20 border-violet-500'
+                                                : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
                                             }
                                         `}
                                     >
@@ -455,7 +454,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     <div key={drill.id} className="relative group">
                                         <Link
                                             to={`/drills/${drill.id}?source=saved`}
-                                            className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-slate-800/50 border-slate-800 hover:border-slate-600"
+                                            className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-zinc-800/50 border-zinc-800 hover:border-zinc-600"
                                         >
                                             {cardContent}
                                         </Link>
@@ -472,16 +471,18 @@ export const TrainingRoutinesTab: React.FC = () => {
                             })}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-800/20 rounded-xl border border-slate-800/50">
-                            <p className="text-slate-500 text-sm mb-4">저장된 드릴이 없습니다.</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-center bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-800">
+                            <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4">
+                                <Zap className="w-8 h-8 text-zinc-600" />
+                            </div>
+                            <p className="text-zinc-400 font-bold mb-2">저장된 드릴이 없습니다.</p>
+                            <p className="text-zinc-500 text-sm mb-6 max-w-xs mx-auto">드릴 페이지에서 마음에 드는 드릴을 저장하여 나만의 루틴을 만들어보세요.</p>
                             <Button
-                                size="sm"
-                                variant="outline"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     navigate('/drills');
                                 }}
-                                className="flex items-center gap-2"
+                                className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-8 py-3 shadow-[0_10px_30px_rgba(124,58,237,0.2)] flex items-center gap-2 border-none"
                             >
                                 <Zap className="w-4 h-4" />
                                 드릴 찾아보기
@@ -492,40 +493,64 @@ export const TrainingRoutinesTab: React.FC = () => {
             </section>
 
             {/* My Routines Section */}
-            <section onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <PlaySquare className="w-5 h-5 text-blue-500" />
-                        나의 훈련 루틴
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-zinc-50 flex items-center gap-2">
+                        <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800">
+                            <PlaySquare className="w-5 h-5 text-violet-500" />
+                        </div>
+                        {user ? '나의 훈련 루틴' : '오늘의 샘플 루틴'}
                     </h2>
-                    {selectedRoutineForPlacement && (
-                        <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2">
-                            <MousePointerClick className="w-4 h-4" />
-                            배치할 요일을 선택하세요
-                            <button
-                                onClick={() => setSelectedRoutineForPlacement(null)}
-                                className="text-slate-500 hover:text-white underline ml-2"
+                    <div className="flex flex-wrap items-center gap-3">
+                        {user && (
+                            <Button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/my-schedule');
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 hover:border-violet-500 flex items-center gap-2 rounded-full h-9"
                             >
-                                취소
-                            </button>
-                        </div>
-                    )}
-                    {selectedDayForPlacement && (
-                        <div className="text-sm text-purple-400 font-bold animate-pulse flex items-center gap-2">
-                            <MousePointerClick className="w-4 h-4" />
-                            추가할 루틴을 선택하세요
-                            <button
-                                onClick={() => setSelectedDayForPlacement(null)}
-                                className="text-slate-500 hover:text-white underline ml-2"
-                            >
-                                취소
-                            </button>
-                        </div>
-                    )}
+                                <Calendar className="w-4 h-4" />
+                                <span>내 훈련 스케줄 보기</span>
+                            </Button>
+                        )}
+                        {selectedRoutineForPlacement && (
+                            <div className="text-sm text-blue-400 font-bold animate-pulse flex items-center gap-2 bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">
+                                <MousePointerClick className="w-4 h-4" />
+                                배치할 요일을 선택하세요
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedRoutineForPlacement(null);
+                                    }}
+                                    className="text-zinc-500 hover:text-white underline ml-1"
+                                >
+                                    취소
+                                </button>
+                            </div>
+                        )}
+                        {selectedDayForPlacement && (
+                            <div className="text-sm text-purple-400 font-bold animate-pulse flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-full border border-purple-500/20">
+                                <MousePointerClick className="w-4 h-4" />
+                                추가할 루틴을 선택하세요
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedDayForPlacement(null);
+                                    }}
+                                    className="text-zinc-500 hover:text-white underline ml-1"
+                                >
+                                    취소
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-12 text-slate-500">로딩 중...</div>
+                    <div className="text-center py-12 text-zinc-500">로딩 중...</div>
                 ) : routines.length > 0 ? (
                     <>
                         {/* Mobile List View */}
@@ -543,31 +568,31 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             e.stopPropagation();
                                             handleRoutineClick(routine);
                                         }}
-                                        className={`bg-slate-900 rounded-xl border transition-all cursor-pointer group relative p-4
-                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent' : ''}
-                                            ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
+                                        className={`bg-zinc-900 rounded-xl border transition-all cursor-pointer group relative p-4
+                                            ${isSelected ? 'ring-2 ring-violet-500 border-transparent' : ''}
+                                            ${isCompleted ? 'border-emerald-500/50' : 'border-zinc-800 hover:border-violet-500/50'}
                                         `}
                                     >
                                         <div className="flex items-center gap-3">
                                             {/* Icon */}
-                                            <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <Dumbbell className="w-6 h-6 text-slate-600" />
+                                            <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <Dumbbell className="w-6 h-6 text-zinc-600" />
                                             </div>
 
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className={`font-bold text-sm truncate ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                                                    <h3 className={`font-bold text-sm truncate ${isCompleted ? 'text-emerald-400' : 'text-zinc-100'}`}>
                                                         {routine.title}
                                                     </h3>
                                                     {isCompleted && (
-                                                        <div className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
+                                                        <div className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
                                                             <CalendarCheck className="w-2.5 h-2.5" />
                                                             완료
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-slate-400 mb-1">
+                                                <div className="flex items-center gap-3 text-xs text-zinc-400 mb-1">
                                                     <span className="flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
                                                         {routine.totalDurationMinutes}분
@@ -575,13 +600,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                     <span>{routine.drillCount}개 드릴</span>
                                                 </div>
                                                 {/* Creator Info */}
-                                                <div
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        // if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
-                                                    }}
-                                                    className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-white transition-colors"
-                                                >
+                                                <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-white transition-colors">
                                                     <img
                                                         src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
                                                         className="w-4 h-4 rounded-full"
@@ -591,16 +610,18 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Action Buttons - Only Delete */}
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <button
-                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                    className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-all"
-                                                    title="루틴 삭제"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                            {/* Action Buttons - Only Delete (Show only for logged in user) */}
+                                            {user && (
+                                                <div className="flex gap-2 flex-shrink-0">
+                                                    <button
+                                                        onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                        className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:bg-red-500 hover:text-white transition-all"
+                                                        title="루틴 삭제"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -622,32 +643,30 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             e.stopPropagation();
                                             handleRoutineClick(routine);
                                         }}
-                                        className={`bg-slate-900 rounded-xl overflow-hidden border transition-all cursor-pointer group relative 
-                                            ${isSelected ? 'ring-2 ring-blue-500 border-transparent shadow-[0_0_15px_rgba(59,130,246,0.5)]' : ''}
-                                            ${isCompleted ? 'border-green-500/50' : 'border-slate-800 hover:border-blue-500/50'}
+                                        className={`bg-zinc-900 rounded-2xl overflow-hidden border transition-all cursor-pointer group relative 
+                                            ${isSelected ? 'ring-2 ring-violet-500 border-transparent shadow-[0_0_15px_rgba(124,58,237,0.5)]' : ''}
+                                            ${isCompleted ? 'border-emerald-500/50' : 'border-zinc-800 hover:border-violet-500/50'}
                                         `}
                                     >
-
-                                        {/* Top Right Actions (Completed Badge & Delete) */}
                                         <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
                                             {isCompleted && (
-                                                <div className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
+                                                <div className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
                                                     <CalendarCheck className="w-3 h-3" />
                                                     <span>완료</span>
                                                 </div>
                                             )}
-
-                                            {/* Delete Button */}
-                                            <button
-                                                onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                className="p-1.5 bg-slate-800/80 hover:bg-red-600 text-slate-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm"
-                                                title="루틴 삭제"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            {user && (
+                                                <button
+                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                    className="p-1.5 bg-zinc-800/80 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                                                    title="루틴 삭제"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                         </div>
 
-                                        <div className="aspect-video bg-slate-800 relative">
+                                        <div className="aspect-video bg-zinc-800 relative">
                                             {routine.thumbnailUrl ? (
                                                 <img
                                                     draggable={false}
@@ -657,7 +676,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         }`}
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                     <Dumbbell className="w-8 h-8" />
                                                 </div>
                                             )}
@@ -670,32 +689,25 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="p-4">
-                                            <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-green-400' : 'text-white group-hover:text-blue-400'
+                                            <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-emerald-400' : 'text-zinc-100 group-hover:text-violet-400'
                                                 }`}>
                                                 {routine.title}
                                             </h3>
-                                            <p className="text-xs text-slate-500 mb-1.5 whitespace-pre-wrap">{routine.description}</p>
-                                            <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                                            <p className="text-xs text-zinc-500 mb-1.5 whitespace-pre-wrap">{routine.description}</p>
+                                            <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
                                                 <span>{routine.drillCount}개 드릴</span>
                                                 <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
                                             </div>
-                                            {/* Creator Info Footer */}
-                                            <div
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // if (routine.creatorId) navigate(`/creator/${routine.creatorId}`);
-                                                }}
-                                                className="pt-3 border-t border-slate-800/50 flex items-center justify-between group/creator"
-                                            >
+                                            <div className="pt-3 border-t border-zinc-800/50 flex items-center justify-between group/creator">
                                                 <div className="flex items-center gap-2">
                                                     <img
                                                         src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
-                                                        className="w-6 h-6 rounded-full ring-1 ring-slate-800 group-hover/creator:ring-blue-500 transition-all"
+                                                        className="w-6 h-6 rounded-full ring-1 ring-zinc-800 group-hover/creator:ring-violet-500 transition-all"
                                                         alt={routine.creatorName}
                                                     />
-                                                    <span className="text-xs font-semibold text-slate-400 group-hover/creator:text-white transition-colors">{routine.creatorName}</span>
+                                                    <span className="text-xs font-semibold text-zinc-400 group-hover/creator:text-white transition-colors">{routine.creatorName}</span>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
+                                                <span className="text-[10px] font-bold text-violet-500 bg-violet-500/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
                                             </div>
                                         </div>
                                     </div>
@@ -708,7 +720,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                 <Button
                                     variant="outline"
                                     onClick={() => setShowAllRoutines(!showAllRoutines)}
-                                    className="min-w-[200px]"
+                                    className="min-w-[200px] border-zinc-700 hover:bg-zinc-800 text-zinc-400"
                                 >
                                     {showAllRoutines ? '접기' : `더보기 (${routines.length - ROUTINES_DISPLAY_LIMIT}개 더)`}
                                 </Button>
@@ -716,13 +728,15 @@ export const TrainingRoutinesTab: React.FC = () => {
                         )}
                     </>
                 ) : (
-                    <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-                        <Dumbbell className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                        <p className="text-slate-400 mb-2">아직 생성된 루틴이 없습니다.</p>
-                        <p className="text-sm text-slate-500 mb-6">저장된 드릴을 선택하여 나만의 루틴을 만들어보세요!</p>
+                    <div className="text-center py-16 bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800 flex flex-col items-center justify-center">
+                        <div className="w-20 h-20 rounded-full bg-zinc-800/50 flex items-center justify-center mb-6">
+                            <Dumbbell className="w-10 h-10 text-zinc-600" />
+                        </div>
+                        <h3 className="text-zinc-200 font-bold text-lg mb-2">아직 생성된 루틴이 없습니다.</h3>
+                        <p className="text-sm text-zinc-500 mb-8 max-w-sm">드릴을 선택하고 조합하여 나만의 최적화된 훈련 루틴을 계획해보세요!</p>
                         <Button
                             onClick={() => navigate('/drills')}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-200"
+                            className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-8 py-3 shadow-lg shadow-violet-900/30 border-none"
                         >
                             드릴 탐색하러 가기
                         </Button>
@@ -730,19 +744,91 @@ export const TrainingRoutinesTab: React.FC = () => {
                 )}
             </section>
 
-            {/* Weekly Planner - MOVED TO BOTTOM */}
-            <WeeklyRoutinePlanner
-                selectedRoutine={selectedRoutineForPlacement}
-                onAddToDay={handleRoutineAdded}
-                selectedDay={selectedDayForPlacement}
-                onSelectDay={(day) => {
-                    // Only select the day if we aren't in placement mode
-                    if (!selectedRoutineForPlacement) {
-                        setSelectedDayForPlacement(day);
-                    }
-                    // We don't clear selectedRoutineForPlacement here, enabling continuous add
-                }}
-            />
+            {/* Weekly Planner */}
+            <div className="relative">
+                <div>
+                    <WeeklyRoutinePlanner
+                        selectedRoutine={selectedRoutineForPlacement}
+                        onAddToDay={handleRoutineAdded}
+                        selectedDay={selectedDayForPlacement}
+                        isGuest={!user}
+                        guestRoutines={routines}
+                        onSelectDay={(day) => {
+                            if (!user) {
+                                setShowPremiumModal(true);
+                                return;
+                            }
+                            if (!selectedRoutineForPlacement) {
+                                setSelectedDayForPlacement(day);
+                            }
+                        }}
+                    />
+                </div>
+
+                {/* Social Proof Caption */}
+                {!user && (
+                    <div className="mt-6 text-center">
+                        <p className="text-zinc-500 text-sm">
+                            <span className="text-violet-400 font-bold">5,000명 이상</span>의 그래플러들이 이 플래너로 꾸준한 훈련을 이어가고 있습니다.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Premium Modal */}
+            <Modal
+                isOpen={showPremiumModal}
+                onClose={() => setShowPremiumModal(false)}
+                title="훈련 시작하기"
+                icon={Zap}
+                iconColor="indigo"
+                maxWidth="md"
+                footer={
+                    <>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowPremiumModal(false)}
+                            className="flex-1 border-zinc-700 hover:bg-zinc-800 text-zinc-400"
+                        >
+                            나중에 하기
+                        </Button>
+                        <Button
+                            onClick={() => navigate('/login')}
+                            className="flex-1 bg-violet-600 hover:bg-violet-500 text-zinc-50 font-bold rounded-full shadow-[0_10px_30px_rgba(124,58,237,0.3)] border-none"
+                        >
+                            로그인하고 루틴 시작
+                        </Button>
+                    </>
+                }
+            >
+                <div className="text-center mb-6">
+                    <p className="text-zinc-300 text-lg font-bold mb-2">
+                        이 루틴으로 훈련을 시작하시겠습니까?
+                    </p>
+                    <p className="text-zinc-400 text-sm">
+                        로그인하시면 모든 루틴을 무료로 시청하고<br />
+                        나만의 훈련 계획을 세울 수 있습니다.
+                    </p>
+                </div>
+
+                <div className="bg-zinc-800/50 rounded-xl p-4 mb-4 text-left border border-zinc-700">
+                    <p className="text-zinc-200 font-semibold mb-3">포함된 혜택:</p>
+                    <ul className="space-y-2.5 text-zinc-400 text-sm">
+                        <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-violet-500" />
+                            <span>모든 샘플 루틴 즉시 시청</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-violet-500" />
+                            <span>나만의 커스텀 루틴 생성 및 저장</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-violet-500" />
+                            <span>주간 훈련 플래너 사용 권한</span>
+                        </li>
+                    </ul>
+                </div>
+            </Modal>
         </div>
     );
 };

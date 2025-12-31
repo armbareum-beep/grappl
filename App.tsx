@@ -1,4 +1,5 @@
 import React from 'react';
+// FORCE HMR UPDATE APP - NEW UI TEST
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -16,7 +17,7 @@ import { SparringFeed } from './pages/SparringFeed';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
-import { Journal } from './pages/Journal';
+import { CommunityFeed } from './pages/CommunityFeed';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
 import { AdminCourseList } from './pages/admin/AdminCourseList';
@@ -55,6 +56,7 @@ import { Privacy } from './pages/Privacy';
 import { Contact } from './pages/Contact';
 import { GlobalSearch } from './pages/GlobalSearch';
 import UserProfile from './pages/UserProfile';
+import MyRoutineSchedule from './pages/MyRoutineSchedule';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -132,11 +134,12 @@ const App: React.FC = () => {
                 <Route path="/become-creator" element={<BecomeCreator />} />
                 <Route path="/creator/:id" element={<CreatorProfile />} />
                 <Route path="/library" element={<MyLibrary />} />
-                <Route path="/journal" element={<Journal />} />
+                <Route path="/journal" element={<CommunityFeed />} />
                 <Route path="/drills" element={<Drills />} />
                 <Route path="/drills/:id" element={<DrillDetail />} />
                 <Route path="/routines/:id" element={<RoutineDetail />} />
                 <Route path="/my-routines/:id" element={<RoutineDetail />} />
+                <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                 <Route path="/arena" element={<Arena />} />
                 <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />

@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Trophy, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-// Helper function to convert YouTube URL to embed URL (kept for future reference or removed if strictly unused)
-
-
 
 interface SocialPostProps {
     post: TrainingLog;
@@ -248,119 +245,129 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const postUrl = `${window.location.origin}/journal#${post.id}`;
 
     return (
-        <div className="bg-slate-950 border-b border-slate-900 last:border-0 hover:bg-slate-900/10 transition-colors">
-            <div className="p-4 sm:p-5">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-3">
-                    <div className="flex gap-3 items-center group cursor-pointer" onClick={() => navigate(`/profile/${post.userId}`)}>
-                        <div className="w-10 h-10 rounded-full bg-slate-800 overflow-hidden ring-2 ring-transparent group-hover:ring-blue-500 transition-all">
-                            {post.userAvatar ? (
-                                <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold">
-                                    {post.userName?.[0]}
-                                </div>
-                            )}
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-white text-[15px] group-hover:text-blue-400 transition-colors">{post.userName}</h3>
-                                {post.user?.belt && !post.user?.isInstructor && (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 uppercase tracking-wide">
-                                        {post.user.belt}
-                                    </span>
-                                )}
-                                {post.user?.isInstructor && (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white flex items-center gap-0.5">
-                                        <Sparkles className="w-2 h-2" />
-                                        인스트럭터
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-slate-500 text-xs">
-                                {formatDistanceToNow(new Date(post.date), { addSuffix: true, locale: ko })}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="relative">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-                            className="text-slate-500 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors"
-                        >
-                            <MoreHorizontal className="w-5 h-5" />
-                        </button>
-                        {showMenu && (
-                            <div className="absolute right-0 mt-2 w-32 bg-slate-900 rounded-lg shadow-xl border border-slate-800 py-1 z-10">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleReport();
-                                    }}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800"
-                                >
-                                    신고하기
-                                </button>
-                                {post.metadata?.sharedRoutine && (
-                                    <button
-                                        onClick={handleSaveRoutine}
-                                        className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-slate-800 flex items-center gap-2"
-                                    >
-                                        <Save className="w-3 h-3" />
-                                        루틴 저장
-                                    </button>
-                                )}
+        <div className="border-b border-zinc-900 py-8 px-4 hover:bg-zinc-900/20 transition-all group/post">
+            <div className="flex gap-4">
+                {/* Avatar Column */}
+                <div className="flex-shrink-0 pt-1">
+                    <div
+                        onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.userId}`); }}
+                        className="w-[44px] h-[44px] rounded-full border border-zinc-800 overflow-hidden cursor-pointer hover:border-zinc-700 transition-colors"
+                    >
+                        {post.userAvatar ? (
+                            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-500 font-bold">
+                                {post.userName?.[0]}
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="pl-[52px]">
-                    {/* Text Body */}
-                    <div className="mb-4">
-                        <p className={`text-slate-200 text-[15px] leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
+                {/* Content Column */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                            <h3
+                                onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.userId}`); }}
+                                className="font-bold text-zinc-100 text-[15px] hover:underline cursor-pointer"
+                            >
+                                {post.userName}
+                            </h3>
+                            {post.user?.isInstructor && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 flex items-center gap-0.5">
+                                    <Sparkles className="w-2 h-2" />
+                                    <span>Instructor</span>
+                                </span>
+                            )}
+                            <span className="text-zinc-600 text-xs">
+                                {formatDistanceToNow(new Date(post.date), { addSuffix: true, locale: ko })}
+                            </span>
+                        </div>
+
+                        <div className="relative">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                                className="text-zinc-500 hover:text-zinc-300 p-1 rounded-full hover:bg-zinc-800/50 transition-colors"
+                            >
+                                <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                            {showMenu && (
+                                <div className="absolute right-0 mt-2 w-32 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-10">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReport();
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-zinc-800"
+                                    >
+                                        신고하기
+                                    </button>
+                                    {post.metadata?.sharedRoutine && (
+                                        <button
+                                            onClick={handleSaveRoutine}
+                                            className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                                        >
+                                            <Save className="w-3 h-3" />
+                                            루틴 저장
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Body Text */}
+                    <div className="mb-3">
+                        <p className={`text-zinc-200 text-base leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
                             {post.notes}
                         </p>
                         {post.notes.length > 200 && !isExpanded && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                                className="text-slate-500 text-sm mt-1 hover:text-slate-300"
+                                className="text-zinc-500 text-sm mt-1 hover:text-zinc-300 font-medium"
                             >
                                 더 보기
                             </button>
                         )}
                     </div>
 
-                    {/* Sparring Summary Card (if it's a sparring review) */}
-                    {post.notes.includes('🥋') && post.notes.includes('Sparring Session Summary') && (
-                        <div className="mb-4 p-4 rounded-2xl bg-gradient-to-br from-blue-600/10 to-indigo-600/10 border border-blue-500/20 backdrop-blur-sm shadow-inner group">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Trophy className="w-4 h-4 text-yellow-500" />
-                                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">스파링 요약</span>
+                    {/* Specialized Content Box (Training Summary) */}
+                    {post.notes.includes('🥋') && (post.notes.includes('Sparring Session Summary') || post.notes.includes('Sparring Log')) && (
+                        <div className="my-4 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/50 backdrop-blur-sm">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Sparkles className="w-4 h-4 text-violet-500 fill-violet-500" />
+                                <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">Training Complete</span>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-12 text-xs text-zinc-500 font-medium px-2 mb-1 uppercase tracking-wide">
+                                    <div className="col-span-6">Opponent</div>
+                                    <div className="col-span-3 text-center">Rounds</div>
+                                    <div className="col-span-3 text-right">Result</div>
+                                </div>
                                 {post.notes.split('\n').filter(line => line.includes('vs')).slice(0, 3).map((session, idx) => {
                                     const match = session.match(/vs (.*?) \((.*?)\): (.*?) rounds - (.*)/);
                                     if (!match) return null;
                                     const [_, opponent, belt, rounds, result] = match;
                                     return (
-                                        <div key={idx} className="flex items-center justify-between text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-slate-200 font-medium">{opponent}</span>
-                                                <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase ${belt === 'black' ? 'bg-black text-white' :
-                                                    belt === 'brown' ? 'bg-amber-900 text-amber-200' :
-                                                        belt === 'purple' ? 'bg-purple-900 text-purple-200' :
-                                                            belt === 'blue' ? 'bg-blue-900 text-blue-200' :
-                                                                'bg-slate-800 text-slate-400'
+                                        <div key={idx} className="grid grid-cols-12 items-center px-2 py-2 rounded-lg hover:bg-zinc-800/40 transition-colors">
+                                            <div className="col-span-6 flex items-center gap-2">
+                                                <span className="text-zinc-200 font-medium text-sm">{opponent}</span>
+                                                <span className={`px-1.5 py-[2px] rounded text-[9px] font-bold uppercase border ${belt === 'black' ? 'border-zinc-700 bg-zinc-950 text-zinc-400' :
+                                                    belt === 'brown' ? 'border-amber-900/30 bg-amber-950/30 text-amber-500' :
+                                                        belt === 'purple' ? 'border-purple-900/30 bg-purple-950/30 text-purple-400' :
+                                                            belt === 'blue' ? 'border-blue-900/30 bg-blue-950/30 text-blue-400' :
+                                                                'border-zinc-800 bg-zinc-900 text-zinc-500'
                                                     }`}>
                                                     {belt}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-slate-500 text-xs">{rounds}R</span>
-                                                <span className={`font-bold ${result.includes('승') ? 'text-emerald-400' :
-                                                    result.includes('패') ? 'text-rose-400' :
-                                                        'text-slate-400'
+                                            <div className="col-span-3 text-center">
+                                                <span className="text-zinc-300 font-medium text-sm">{rounds}R</span>
+                                            </div>
+                                            <div className="col-span-3 text-right">
+                                                <span className={`text-sm font-medium ${result.includes('승') ? 'text-violet-400' :
+                                                    result.includes('패') ? 'text-zinc-500' :
+                                                        'text-zinc-600'
                                                     }`}>
                                                     {result}
                                                 </span>
@@ -369,17 +376,17 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     );
                                 })}
                                 {post.notes.split('\n').filter(line => line.includes('vs')).length > 3 && (
-                                    <div className="text-[10px] text-slate-500 text-center pt-1 border-t border-white/5">
-                                        외 {post.notes.split('\n').filter(line => line.includes('vs')).length - 3}명의 상대와 더 스파링했습니다
+                                    <div className="text-xs text-zinc-500 text-center pt-2 mt-2 border-t border-zinc-800/50">
+                                        + {post.notes.split('\n').filter(line => line.includes('vs')).length - 3} more rounds
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Technique Tags with Search */}
+                    {/* Technique Tags */}
                     {post.techniques && post.techniques.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-3">
                             {post.techniques.map((tech, idx) => (
                                 <button
                                     key={idx}
@@ -387,7 +394,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         e.stopPropagation();
                                         navigate(`/search?q=${encodeURIComponent(tech)}`);
                                     }}
-                                    className="px-3 py-1.5 rounded-full bg-slate-900/50 border border-slate-800/50 text-blue-400 text-sm font-medium hover:bg-blue-900/20 hover:border-blue-800 transition-all hover:scale-105 active:scale-95"
+                                    className="text-violet-400 text-sm font-medium hover:underline"
                                 >
                                     #{tech}
                                 </button>
@@ -395,178 +402,129 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         </div>
                     )}
 
-                    {/* Media Content */}
-                    {images.length > 0 && !isVideo && !youtubeUrl && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/media">
-                            <div className="relative w-full">
-                                <img
-                                    src={images[currentImageIndex]}
-                                    alt={`Post content ${currentImageIndex + 1}`}
-                                    className="w-full h-auto max-h-[600px] object-cover transition-transform duration-500 group-hover/media:scale-102"
-                                />
-                                {/* Navigation Arrows */}
-                                {images.length > 1 && (
-                                    <>
-                                        <button
-                                            onClick={prevImage}
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition-opacity"
-                                        >
-                                            <ChevronLeft className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={nextImage}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-md opacity-0 group-hover/media:opacity-100 transition-opacity"
-                                        >
-                                            <ChevronRight className="w-5 h-5" />
-                                        </button>
-                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                            {images.map((_, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${currentImageIndex === idx ? 'bg-white w-4' : 'bg-white/30'}`}
-                                                />
-                                            ))}
+                    {/* Media Content - Simplified for Premium Feel */}
+                    {(images.length > 0 || youtubeUrl || isVideo) && (
+                        <div className="mb-4 rounded-xl overflow-hidden border border-zinc-800/50 bg-black relative shadow-lg">
+                            {/* Reusing existing media logic within new wrapper */}
+                            {images.length > 0 && !isVideo && !youtubeUrl && (
+                                <div className="relative w-full group/media">
+                                    <img
+                                        src={images[currentImageIndex]}
+                                        alt={`Post content ${currentImageIndex + 1}`}
+                                        className="w-full h-auto max-h-[600px] object-cover"
+                                    />
+                                    {images.length > 1 && (
+                                        <>
+                                            <button onClick={prevImage} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronLeft className="w-5 h-5" /></button>
+                                            <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronRight className="w-5 h-5" /></button>
+                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                                {images.map((_, idx) => (
+                                                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${currentImageIndex === idx ? 'bg-white w-4' : 'bg-white/30'}`} />
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            {youtubeUrl && (
+                                <div className="relative w-full aspect-video">
+                                    <iframe src={getYouTubeEmbedUrl(youtubeUrl)} className="w-full h-full" title="YouTube" frameBorder="0" allowFullScreen />
+                                </div>
+                            )}
+                            {isVideo && !youtubeUrl && (
+                                <div className="relative w-full aspect-[4/5] sm:aspect-video group/video">
+                                    <video src={post.mediaUrl} className="w-full h-full object-cover" loop muted={isMuted} onClick={togglePlay} playsInline />
+                                    <button onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} className="absolute bottom-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors">
+                                        {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                                    </button>
+                                    {!isPlaying && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
+                                            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                            </div>
                                         </div>
-                                    </>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* YouTube Embed */}
-                    {youtubeUrl && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/video">
-                            <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
-                                <iframe
-                                    src={getYouTubeEmbedUrl(youtubeUrl!)}
-                                    className="w-full h-full"
-                                    title="YouTube video player"
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {isVideo && !youtubeUrl && (
-                        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-800 bg-black relative shadow-lg group/video">
-                            <div className="relative w-full h-full aspect-[4/5] sm:aspect-video">
-                                <video
-                                    src={post.mediaUrl}
-                                    className="w-full h-full object-cover"
-                                    loop
-                                    muted={isMuted}
-                                    onClick={togglePlay}
-                                    playsInline
-                                />
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                                    className="absolute bottom-4 right-4 p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-md transition-all scale-90 group-hover/video:scale-100"
-                                >
-                                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                                </button>
-                                {!isPlaying && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20 group-hover/video:bg-black/40 transition-colors">
-                                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 transition-transform group-hover/video:scale-110">
-                                            <Play className="w-8 h-8 text-white ml-1 fill-white" />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-8 pt-2">
+                    {/* Interaction Bar */}
+                    <div className="flex items-center gap-1 pt-2 -ml-2">
                         <button
                             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                            className={`flex items-center gap-2 text-sm font-medium transition-all hover:scale-110 active:scale-90 ${liked ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
+                            className="group flex items-center gap-1.5 p-2 rounded-full hover:bg-zinc-800/50 transition-colors"
                         >
-                            <Heart className={`w-5 h-5 ${liked ? 'fill-pink-500' : ''}`} />
-                            <span>{likeCount}</span>
+                            <Heart className={`w-[20px] h-[20px] transition-all ${liked ? 'fill-violet-500 text-violet-500' : 'text-zinc-500 group-hover:text-violet-400'}`} />
+                            {likeCount > 0 && <span className={`text-sm ${liked ? 'text-violet-500' : 'text-zinc-500 group-hover:text-violet-400'}`}>{likeCount}</span>}
                         </button>
+
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }}
-                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-blue-400 transition-all hover:scale-110 active:scale-90"
+                            className="group flex items-center gap-1.5 p-2 rounded-full hover:bg-zinc-800/50 transition-colors"
                         >
-                            <MessageCircle className="w-5 h-5" />
-                            <span>{post.comments || 0}</span>
+                            <MessageCircle className="w-[20px] h-[20px] text-zinc-500 group-hover:text-violet-400 transition-colors" />
+                            {(post.comments || 0) > 0 && <span className="text-sm text-zinc-500 group-hover:text-violet-400">{post.comments}</span>}
                         </button>
+
+                        <button
+                            onClick={(e) => { e.stopPropagation(); }}
+                            className="group flex items-center p-2 rounded-full hover:bg-zinc-800/50 transition-colors"
+                        >
+                            <Repeat className="w-[20px] h-[20px] text-zinc-500 group-hover:text-violet-400 transition-colors" />
+                        </button>
+
                         <button
                             onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-green-400 transition-all hover:scale-110 active:scale-90 ml-auto"
+                            className="group flex items-center p-2 rounded-full hover:bg-zinc-800/50 transition-colors"
                         >
-                            <Share2 className="w-5 h-5" />
+                            <Send className="w-[20px] h-[20px] text-zinc-500 group-hover:text-violet-400 transition-colors" />
                         </button>
                     </div>
 
-                    {/* Comments Section */}
+                    {/* Comments Section (Simplified style) */}
                     {showComments && (
-                        <div className="mt-4 pt-4 border-t border-slate-900">
-                            <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-800">
+                        <div className="mt-4 pt-4 border-t border-zinc-900/50">
+                            {/* Existing comment logic - styling update */}
+                            <div className="space-y-4 mb-4">
                                 {loadingComments ? (
-                                    <div className="text-sm text-slate-500 text-center py-4">
-                                        로딩 중...
+                                    <div className="flex justify-center py-4">
+                                        <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
                                     </div>
                                 ) : comments.length === 0 ? (
-                                    <div className="text-sm text-slate-500 text-center py-4">
-                                        아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
+                                    <div className="text-center py-4 text-zinc-500 text-sm">
+                                        No comments yet. Be the first to reply!
                                     </div>
                                 ) : (
                                     comments.map((comment: any) => (
                                         <div key={comment.id} className="flex gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                                {comment.user?.avatar_url ? (
-                                                    <img src={comment.user.avatar_url} alt="User" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-slate-400 text-xs font-bold">
-                                                        {comment.user?.name?.[0]?.toUpperCase() || '?'}
-                                                    </span>
-                                                )}
+                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
+                                                {comment.user?.avatar_url && <img src={comment.user.avatar_url} className="w-full h-full object-cover" />}
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-xs font-bold text-slate-300">
-                                                        {comment.user?.name || 'User'}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-500">
-                                                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })}
-                                                    </span>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-xs font-bold text-zinc-300">{comment.user?.name}</span>
+                                                    <span className="text-[10px] text-zinc-600">{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })}</span>
                                                 </div>
-                                                <div className="text-sm text-slate-300 bg-slate-900/50 p-2 rounded-lg rounded-tl-none">
-                                                    {comment.content}
-                                                </div>
+                                                <p className="text-sm text-zinc-400">{comment.content}</p>
                                             </div>
                                         </div>
                                     ))
                                 )}
                             </div>
-                            <div className="flex gap-2 relative">
+                            <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={commentText}
                                     onChange={(e) => setCommentText(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleAddComment();
-                                        }
-                                    }}
-                                    placeholder="댓글을 입력하세요..."
-                                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-600 focus:bg-slate-800/80 transition-all"
+                                    placeholder="Add a reply..."
+                                    className="flex-1 bg-transparent border-b border-zinc-800 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
                                     onClick={(e) => e.stopPropagation()}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
                                 />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddComment();
-                                    }}
-                                    disabled={!commentText.trim()}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap"
-                                >
-                                    게시
-                                </button>
+                                {commentText && (
+                                    <button onClick={(e) => { e.stopPropagation(); handleAddComment(); }} className="text-violet-400 text-sm font-bold">Post</button>
+                                )}
                             </div>
                         </div>
                     )}

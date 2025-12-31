@@ -132,6 +132,7 @@ export const CourseEditor: React.FC = () => {
 
     // Import Lesson State
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showThumbnailModal, setShowThumbnailModal] = useState(false);
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
     const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
 
@@ -349,16 +350,26 @@ export const CourseEditor: React.FC = () => {
         let courseToSave = { ...courseData };
 
         // Auto-capture thumbnail if missing
-        if (!courseToSave.thumbnailUrl && lessons.length > 0 && lessons[0].vimeoUrl) {
-            try {
-                const videoInfo = await getVimeoVideoInfo(lessons[0].vimeoUrl);
-                if (videoInfo && videoInfo.thumbnail) {
-                    courseToSave.thumbnailUrl = videoInfo.thumbnail;
-                    setCourseData(prev => ({ ...prev, thumbnailUrl: videoInfo.thumbnail }));
-                    success('썸네일이 없어 첫 번째 레슨에서 자동으로 설정되었습니다.');
+        if (!courseToSave.thumbnailUrl && lessons.length > 0) {
+            // Priority 1: Use lesson's thumbnailUrl if available
+            const firstLessonWithThumb = lessons.find(l => l.thumbnailUrl);
+            if (firstLessonWithThumb?.thumbnailUrl) {
+                courseToSave.thumbnailUrl = firstLessonWithThumb.thumbnailUrl;
+                setCourseData(prev => ({ ...prev, thumbnailUrl: firstLessonWithThumb.thumbnailUrl }));
+                success('썸네일이 없어 레슨에서 자동으로 설정되었습니다.');
+            } 
+            // Priority 2: Try to fetch from Vimeo (legacy/fallback)
+            else if (lessons[0].vimeoUrl) {
+                try {
+                    const videoInfo = await getVimeoVideoInfo(lessons[0].vimeoUrl);
+                    if (videoInfo && videoInfo.thumbnail) {
+                        courseToSave.thumbnailUrl = videoInfo.thumbnail;
+                        setCourseData(prev => ({ ...prev, thumbnailUrl: videoInfo.thumbnail }));
+                        success('썸네일이 없어 첫 번째 레슨에서 자동으로 설정되었습니다.');
+                    }
+                } catch (error) {
+                    console.warn('Auto-thumbnail capture failed:', error);
                 }
-            } catch (error) {
-                console.warn('Auto-thumbnail capture failed:', error);
             }
         }
 
@@ -722,7 +733,17 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">썸네일 이미지</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-sm font-medium text-slate-300">썸네일 이미지</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowThumbnailModal(true)}
+                                            disabled={lessons.length === 0}
+                                            className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed font-medium"
+                                        >
+                                            레슨에서 선택하기
+                                        </button>
+                                    </div>
                                     <ImageUploader
                                         currentImageUrl={courseData.thumbnailUrl}
                                         onUploadComplete={(url) => setCourseData({ ...courseData, thumbnailUrl: url })}
@@ -730,7 +751,7 @@ export const CourseEditor: React.FC = () => {
                                     />
                                     <div className="mt-3">
                                         <p className="text-xs text-slate-500 mt-2">
-                                            썸네일을 업로드하지 않으면 첫 번째 레슨 영상에서 자동으로 캡처됩니다
+                                            썸네일을 업로드하거나 레슨에서 선택하지 않으면 첫 번째 레슨 영상에서 자동으로 캡처됩니다
                                         </p>
                                     </div>
                                 </div>
@@ -1088,6 +1109,66 @@ export const CourseEditor: React.FC = () => {
                     ) : null}
                 </div>
             </div>
+
+            {/* Thumbnail Selection Modal */}
+            {showThumbnailModal && (
+                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-white">레슨 썸네일 선택</h3>
+                            <button onClick={() => setShowThumbnailModal(false)} className="text-slate-400 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 pr-2">
+                            {lessons.filter(l => l.thumbnailUrl).length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <p>썸네일이 있는 레슨이 없습니다.</p>
+                                    <p className="text-xs mt-2">먼저 레슨 편집기에서 썸네일을 캡처해주세요.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {lessons.filter(l => l.thumbnailUrl).map((lesson) => (
+                                        <div
+                                            key={lesson.id}
+                                            onClick={() => {
+                                                setCourseData({ ...courseData, thumbnailUrl: lesson.thumbnailUrl });
+                                                setShowThumbnailModal(false);
+                                                success('강좌 썸네일이 설정되었습니다.');
+                                            }}
+                                            className="group relative aspect-video bg-slate-800 rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-blue-500 transition-all shadow-lg"
+                                        >
+                                            <img
+                                                src={lesson.thumbnailUrl}
+                                                alt={lesson.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                                <p className="text-[10px] text-white font-medium truncate">{lesson.title}</p>
+                                            </div>
+                                            {courseData.thumbnailUrl === lesson.thumbnailUrl && (
+                                                <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1 shadow-lg">
+                                                    <CheckCircle className="w-4 h-4 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-slate-800">
+                            <button
+                                onClick={() => setShowThumbnailModal(false)}
+                                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

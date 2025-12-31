@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo } from 'lucide-react';
+import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, Grid } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DrillReelItemProps {
@@ -17,6 +17,7 @@ interface DrillReelItemProps {
     onFollow: () => void;
     onShare: () => void;
     onViewRoutine: () => void;
+    onChangeView: () => void;
     offset: number; // -1, 0, 1 for sliding effect
 }
 
@@ -24,6 +25,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     drill,
     isActive,
     isMuted,
+    onToggleMute,
     isLiked,
     onLike,
     likeCount,
@@ -33,6 +35,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     onFollow,
     onShare,
     onViewRoutine,
+    onChangeView,
     offset
 }) => {
 
@@ -169,9 +172,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             >
                 {/* Video Container */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black">
-                    <div className="relative w-full h-full max-w-[56.25vh] flex">
+                    <div className="relative w-full h-full max-w-[56.25vh]">
                         {/* Video */}
-                        <div className="relative flex-1">
+                        <div className="relative w-full h-full">
                             {useVimeo ? (
                                 <iframe
                                     ref={iframeRef}
@@ -235,72 +238,91 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             )}
                         </div>
 
-                        {/* Desktop Actions - Moved to bottom right style */}
-                        <div className="hidden md:flex flex-col gap-6 items-center justify-end pb-12 ml-6 z-40">
-                            {/* Like */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onLike(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Heart className={`w-8 h-8 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">{likeCount.toLocaleString()}</span>
-                            </div>
-
-                            {/* Routine View */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <ListVideo className="w-8 h-8" />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Routine</span>
-                            </div>
-
-                            {/* Save */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onSave(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Bookmark className={`w-8 h-8 ${isSaved ? 'fill-zinc-100' : ''}`} />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Save</span>
-                            </div>
-
-                            {/* Share */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onShare(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Share2 className="w-8 h-8" />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Share</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 {/* Video Type Toggles (Top Left) - Only show if active */}
                 {isActive && (
-                    <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
-                        <div className="max-w-[56.25vh] mx-auto relative">
-                            <div className="absolute top-14 left-0 flex pointer-events-auto">
-                                <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto border border-white/10">
+                    <div className="absolute left-4 top-20 z-40 flex pointer-events-auto">
+                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full border border-white/10">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
+                                className={`p-2 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <Zap className="w-6 h-6" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
+                                className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Right Side Actions - Unified Container for both Mobile & Desktop */}
+                {/* Mobile: Inside video (absolute right), Desktop: Outside video (relative to video container) */}
+                {isActive && (
+                    <div className="absolute inset-0 z-40 pointer-events-none flex justify-center">
+                        <div className="relative h-full w-full max-w-[56.25vh] flex">
+                            {/* Spacer for video width */}
+                            <div className="flex-1"></div>
+                            
+                            {/* Actions Container - Sticks to right edge of video on mobile, outside on desktop */}
+                            <div className="absolute right-0 md:relative md:right-auto top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto
+                                            md:translate-x-full md:ml-4">
+                                {/* Top Actions: Mute & Grid View */}
+                                <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                        className={`p-2 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
+                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                                     >
-                                        <Zap className="w-6 h-6" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
+                                        {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                                     </button>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                                        className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        onClick={(e) => { e.stopPropagation(); onChangeView(); }}
+                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                                     >
-                                        <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
+                                        <Grid className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Bottom Actions: Like, Routine, Save, Share */}
+                                <div className="flex flex-col gap-3 items-center pr-4 md:pr-0 pb-24 md:pb-0">
+                                    {/* Like */}
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onLike(); }}
+                                            className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                        >
+                                            <Heart className={`w-6 h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                        </button>
+                                        <span className="text-[10px] font-medium text-zinc-200">{likeCount.toLocaleString()}</span>
+                                    </div>
+
+                                    {/* Routine View */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
+                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    >
+                                        <ListVideo className="w-6 h-6" />
+                                    </button>
+
+                                    {/* Save */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onSave(); }}
+                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    >
+                                        <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
+                                    </button>
+
+                                    {/* Share */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onShare(); }}
+                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    >
+                                        <Share2 className="w-6 h-6" />
                                     </button>
                                 </div>
                             </div>
@@ -308,11 +330,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     </div>
                 )}
 
-                {/* Content & Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-40 pointer-events-none md:pointer-events-auto">
+                {/* Content & Info - Bottom */}
+                <div className="fixed left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
                     <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                         {/* Info - Always inside video */}
-                        <div className="flex-1 pr-4">
+                        <div className="flex-1 pr-16">
                             <div className="flex items-center gap-3 mb-3">
                                 <Link
                                     to={`/creator/${drill.creatorId}`}
@@ -356,53 +378,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                     ))}
                                 </div>
                             )}
-                        </div>
-
-                        {/* Right Side Actions - Mobile style (stacked bottom right) */}
-                        <div className="flex flex-col gap-5 items-center pb-24 md:hidden">
-                            {/* Like */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onLike(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Heart className={`w-8 h-8 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">{likeCount.toLocaleString()}</span>
-                            </div>
-
-                            {/* Routine View */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <ListVideo className="w-8 h-8" />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Routine</span>
-                            </div>
-
-                            {/* Save */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onSave(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Bookmark className={`w-8 h-8 ${isSaved ? 'fill-zinc-100' : ''}`} />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Save</span>
-                            </div>
-
-                            {/* Share */}
-                            <div className="flex flex-col items-center gap-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onShare(); }}
-                                    className="p-3 rounded-full text-zinc-100 transition-all active:scale-90 [filter:drop-shadow(0_1px_1px_rgb(24_24_27))]"
-                                >
-                                    <Share2 className="w-8 h-8" />
-                                </button>
-                                <span className="text-xs font-medium text-zinc-200">Share</span>
-                            </div>
                         </div>
                     </div>
                 </div>

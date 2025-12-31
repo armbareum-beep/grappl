@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
@@ -51,6 +51,9 @@ const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentD
 export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const playlistParam = searchParams.get('playlist');
+    const playlist = useMemo(() => playlistParam ? playlistParam.split(',') : [], [playlistParam]);
     const { user: contextUser, loading: authLoading } = useAuth();
 
     // Playback Refs
@@ -287,6 +290,24 @@ export const RoutineDetail: React.FC = () => {
         setIsCompletedToday(true); setShowQuestComplete(true);
     };
 
+    const handleNextRoutine = () => {
+        if (!id) return;
+        const currentIndex = playlist.indexOf(id);
+        if (currentIndex !== -1 && currentIndex < playlist.length - 1) {
+            const nextId = playlist[currentIndex + 1];
+            setShowQuestComplete(false);
+            setCurrentDrillIndex(0);
+            setCompletedDrills(new Set());
+            setIsCompletedToday(false);
+            setElapsedSeconds(0);
+            setViewMode('landing');
+            navigate(`/my-routines/${nextId}?playlist=${playlistParam}`);
+        } else {
+            setShowQuestComplete(false);
+            setShowShareModal(true);
+        }
+    };
+
     const handleShareToFeed = async (comment: string) => {
         if (!user || !shareModalData) return;
         await createFeedPost({ userId: user.id, content: comment, type: 'routine', metadata: shareModalData.metadata });
@@ -414,12 +435,9 @@ export const RoutineDetail: React.FC = () => {
                     </>
                 ) : (
                     <div className="w-full h-full fixed inset-0 z-50 bg-black overflow-hidden">
-                        {/* Top Bar Controls */}
-                        <div className="absolute top-0 left-0 right-0 z-[60] p-6 pointer-events-none">
-                            <div className="flex justify-between items-start">
-                                <button onClick={() => setViewMode('landing')} className="pointer-events-auto p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"><ChevronLeft className="w-6 h-6" /></button>
-                                <button onClick={toggleMute} className="pointer-events-auto p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">{muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}</button>
-                            </div>
+                        {/* Back Button - Top Left */}
+                        <div className="absolute top-6 left-4 z-[60] pointer-events-auto">
+                            <button onClick={() => setViewMode('landing')} className="p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"><ChevronLeft className="w-6 h-6" /></button>
                         </div>
 
                         {/* Mobile Player Content */}
@@ -439,21 +457,49 @@ export const RoutineDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Controls Overlay */}
-                            <div className="absolute inset-0 z-30 pointer-events-none p-4 pb-24 flex flex-col justify-end">
+                            {/* Right Side Actions - Unified Container (Top: Mute/List, Bottom: Like/Save/Share) */}
+                            <div className="absolute top-0 bottom-0 right-4 z-40 flex flex-col justify-between py-6 pointer-events-auto">
+                                {/* Top Actions: Mute & List */}
+                                <div className="flex flex-col gap-3 items-center">
+                                    <button onClick={toggleMute} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                        {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                                    </button>
+                                    <button onClick={() => setShowMobileList(true)} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                        <List className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Bottom Actions: Like, Save, Share */}
+                                <div className="flex flex-col gap-3 items-center pb-48">
+                                    {/* Like */}
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <button onClick={handleLikeDrill} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                            <Heart className={`w-6 h-6 ${likedDrills.has(currentDrill.id) ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                        </button>
+                                        <span className="text-[10px] font-medium text-zinc-200">{(currentDrill.likes || 0).toLocaleString()}</span>
+                                    </div>
+
+                                    {/* Save */}
+                                    <button onClick={handleSaveDrill} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                        <Bookmark className={`w-6 h-6 ${savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
+                                    </button>
+
+                                    {/* Share */}
+                                    <button onClick={handleShare} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                        <Share2 className="w-6 h-6" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Bottom Content & Info */}
+                            <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none p-4 pb-24 flex flex-col justify-end">
                                 <div className="flex items-end justify-between pointer-events-auto">
-                                    <div className="flex-1 mr-4">
+                                    <div className="flex-1 pr-16">
                                         <h2 className="text-2xl font-bold text-white mb-2">{currentDrill.title}</h2>
                                         <div className="flex items-center gap-2 text-zinc-300 text-sm">
                                             <span className="bg-white/20 px-2 py-0.5 rounded text-xs">{currentDrillIndex + 1} / {routine?.drills?.length}</span>
                                             <span>•</span><span>{currentDrill.duration || '1분'}</span>
-                                            <button onClick={() => setShowMobileList(true)} className="ml-2"><List className="w-4 h-4" /></button>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col gap-5 items-center">
-                                        <button onClick={handleLikeDrill} className="flex flex-col items-center gap-1"><div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${likedDrills.has(currentDrill.id) ? 'text-pink-500' : 'text-white'}`}><Heart className={`w-8 h-8 ${likedDrills.has(currentDrill.id) ? 'fill-current' : ''}`} /></div><span className="text-white text-xs">{currentDrill.likes || 0}</span></button>
-                                        <button onClick={handleSaveDrill} className="flex flex-col items-center gap-1"><div className={`p-2 rounded-full bg-black/40 backdrop-blur-md ${savedDrills.has(currentDrill.id) ? 'text-yellow-500' : 'text-white'}`}><Bookmark className={`w-8 h-8 ${savedDrills.has(currentDrill.id) ? 'fill-current' : ''}`} /></div><span className="text-white text-xs" /></button>
-                                        <button onClick={handleShare} className="flex flex-col items-center gap-1"><div className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white"><Share2 className="w-8 h-8" /></div></button>
                                     </div>
                                 </div>
                                 <Button size="lg" onClick={handleDrillComplete} className="w-full mt-6 bg-violet-600 active:bg-violet-700 hover:bg-violet-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 pointer-events-auto shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-colors"><CheckCircle className="w-5 h-5" /><span>드릴 완료 & 다음으로</span></Button>
@@ -547,45 +593,74 @@ export const RoutineDetail: React.FC = () => {
                 ) : (
                     <div className="flex flex-row w-full h-[calc(100vh-80px)] bg-black relative overflow-hidden">
                         <div className="flex-1 relative flex items-center justify-center p-4">
-                            <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
-                                {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
-                                {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
+                            {/* Video Container with Actions Outside */}
+                            <div className="relative h-full flex">
+                                {/* Video */}
+                                <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
+                                    {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
+                                    {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
 
-                                {/* Desktop Player Overlay UI */}
-                                <div className="absolute top-6 left-6 right-6 z-[60] flex justify-between items-start pointer-events-none">
-                                    <div className="flex flex-col gap-4 items-start">
-                                        <button onClick={() => setViewMode('landing')} className="pointer-events-auto p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60"><ChevronLeft className="w-6 h-6" /></button>
+                                    {/* Back Button & Video Type Toggle - Inside Video */}
+                                    <div className="absolute top-6 left-6 z-[60] flex flex-col gap-4 items-start pointer-events-auto">
+                                        <button onClick={() => setViewMode('landing')} className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60"><ChevronLeft className="w-6 h-6" /></button>
                                         {/* Video Type Toggle */}
-                                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full border border-white/10 pointer-events-auto">
+                                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full border border-white/10">
                                             <button onClick={() => setVideoType('main')} className={`p-2 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}><Zap className="w-5 h-5" fill={videoType === 'main' ? "currentColor" : "none"} /></button>
                                             <button onClick={() => setVideoType('description')} className={`p-2 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}><MessageCircle className="w-5 h-5" fill={videoType === 'description' ? "currentColor" : "none"} /></button>
                                         </div>
                                     </div>
-                                    <button onClick={toggleMute} className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 pointer-events-auto hover:bg-black/60 transition-all">{muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}</button>
-                                </div>
 
-                                <div className="absolute right-6 bottom-10 flex flex-col items-center gap-6 z-40">
-                                    <button onClick={handleLikeDrill} className="flex flex-col items-center gap-1 text-white hover:text-white/80 transition-all active:scale-90"><Heart className={`w-8 h-8 ${currentDrill && likedDrills.has(currentDrill.id) ? 'fill-red-500 text-red-500' : ''}`} /><span className="text-xs font-bold drop-shadow-sm">{currentDrill?.likes || 0}</span></button>
-                                    <button onClick={handleSaveDrill} className="text-white hover:text-white/80 transition-all active:scale-90"><Bookmark className={`w-8 h-8 ${currentDrill && savedDrills.has(currentDrill.id) ? 'fill-yellow-400 text-yellow-400' : ''}`} /></button>
-                                    <button onClick={handleShare} className="text-white hover:text-white/80 transition-all active:scale-90"><Share2 className="w-8 h-8" /></button>
-                                </div>
-
-                                {/* Bottom Info - Left side (matches Drill style) */}
-                                <div className="absolute bottom-10 left-6 right-20 z-40 pointer-events-none">
-                                    <div className="flex flex-col gap-3 pointer-events-auto">
-                                        <div className="flex items-center gap-3">
-                                            <div onClick={navigateToCreator} className="flex items-center gap-2 cursor-pointer group">
-                                                <span className="text-white font-bold text-sm drop-shadow-md">{routine.creatorName}</span>
+                                    {/* Bottom Info - Left side (matches Drill style) */}
+                                    <div className="absolute bottom-10 left-6 right-6 z-40 pointer-events-none">
+                                        <div className="flex flex-col gap-3 pointer-events-auto">
+                                            <div className="flex items-center gap-3">
+                                                <div onClick={navigateToCreator} className="flex items-center gap-2 cursor-pointer group">
+                                                    <span className="text-white font-bold text-sm drop-shadow-md">{routine.creatorName}</span>
+                                                </div>
+                                                <span className="text-white/40 text-xs">•</span>
+                                                <button
+                                                    onClick={handleFollow}
+                                                    className={`px-4 py-1 rounded-full text-[10px] font-bold border transition-all active:scale-95 ${isFollowing ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}
+                                                >
+                                                    {isFollowing ? 'Following' : 'Follow'}
+                                                </button>
                                             </div>
-                                            <span className="text-white/40 text-xs">•</span>
-                                            <button
-                                                onClick={handleFollow}
-                                                className={`px-4 py-1 rounded-full text-[10px] font-bold border transition-all active:scale-95 ${isFollowing ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}
-                                            >
-                                                {isFollowing ? 'Following' : 'Follow'}
-                                            </button>
+                                            <h2 className="text-white font-bold text-lg drop-shadow-md line-clamp-2">{currentDrill?.title}</h2>
                                         </div>
-                                        <h2 className="text-white font-bold text-lg drop-shadow-md line-clamp-2">{currentDrill?.title}</h2>
+                                    </div>
+                                </div>
+
+                                {/* Right Side Actions - Outside Video */}
+                                <div className="flex flex-col justify-between py-6 ml-4">
+                                    {/* Top Actions: Mute & List */}
+                                    <div className="flex flex-col gap-3 items-center">
+                                        <button onClick={toggleMute} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                            {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                                        </button>
+                                        <button onClick={() => setShowMobileList(true)} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                            <List className="w-6 h-6" />
+                                        </button>
+                                    </div>
+
+                                    {/* Bottom Actions: Like, Save, Share */}
+                                    <div className="flex flex-col gap-3 items-center">
+                                        {/* Like */}
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <button onClick={handleLikeDrill} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                                <Heart className={`w-6 h-6 ${currentDrill && likedDrills.has(currentDrill.id) ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                            </button>
+                                            <span className="text-[10px] font-medium text-zinc-200">{(currentDrill?.likes || 0).toLocaleString()}</span>
+                                        </div>
+
+                                        {/* Save */}
+                                        <button onClick={handleSaveDrill} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                            <Bookmark className={`w-6 h-6 ${currentDrill && savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
+                                        </button>
+
+                                        {/* Share */}
+                                        <button onClick={handleShare} className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                            <Share2 className="w-6 h-6" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -642,7 +717,25 @@ export const RoutineDetail: React.FC = () => {
                 )
             }
 
-            <QuestCompleteModal isOpen={showQuestComplete} onClose={() => setShowQuestComplete(false)} onContinue={() => { setShowQuestComplete(false); setShowShareModal(true); }} questName={routine.title} xpEarned={xpEarned} streak={streak} bonusReward={bonusReward} />
+            <QuestCompleteModal
+                isOpen={showQuestComplete}
+                onClose={() => setShowQuestComplete(false)}
+                onContinue={() => {
+                    const currentIndex = id ? playlist.indexOf(id) : -1;
+                    const hasNext = currentIndex !== -1 && currentIndex < playlist.length - 1;
+                    if (hasNext) {
+                        handleNextRoutine();
+                    } else {
+                        setShowQuestComplete(false);
+                        setShowShareModal(true);
+                    }
+                }}
+                questName={routine.title}
+                xpEarned={xpEarned}
+                streak={streak}
+                bonusReward={bonusReward}
+                continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '포스트 작성하기'}
+            />
             {showShareModal && shareModalData && <ShareToFeedModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} onShare={handleShareToFeed} activityType="routine" defaultContent={shareModalData.defaultContent} metadata={shareModalData.metadata} />}
             {isShareModalOpen && shareModalData2 && <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={shareModalData2.title} text={shareModalData2.text} url={shareModalData2.url} imageUrl={currentDrill.thumbnailUrl} />}
             {isCompletedToday && isCompletedToday && <div className="hidden" />}

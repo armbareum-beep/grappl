@@ -118,7 +118,7 @@ export const LessonDetail: React.FC = () => {
                             {course && (
                                 <Link to={`/courses/${course.id}`} className="flex items-center text-blue-400 hover:text-blue-300 ml-auto">
                                     <BookOpen className="w-4 h-4 mr-1.5" />
-                                    강좌 보기: {course.title}
+                                    클래스 보기: {course.title}
                                 </Link>
                             )}
                         </div>
@@ -133,7 +133,7 @@ export const LessonDetail: React.FC = () => {
                     {course && (
                         <div className="lg:w-1/4">
                             <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-6 sticky top-24">
-                                <h3 className="font-bold text-white mb-4">포함된 강좌</h3>
+                                <h3 className="font-bold text-white mb-4">포함된 클래스</h3>
                                 <Link to={`/courses/${course.id}`} className="block group">
                                     <div className="aspect-video rounded-lg overflow-hidden bg-zinc-800 mb-3">
                                         <img
@@ -151,7 +151,7 @@ export const LessonDetail: React.FC = () => {
                                 </Link>
                                 <Link to={`/courses/${course.id}`}>
                                     <Button className="w-full mt-4 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700" variant="outline">
-                                        강좌 전체 보기
+                                        클래스 전체 보기
                                     </Button>
                                 </Link>
                             </div>

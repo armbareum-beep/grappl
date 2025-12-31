@@ -290,7 +290,7 @@ export const CreatorProfile: React.FC = () => {
                             }`}
                     >
                         <BookOpen className="w-4 h-4" />
-                        <span>강좌</span>
+                        <span>클래스</span>
                         <span className="text-xs opacity-60">({courses.length})</span>
                         {activeTab === 'courses' && (
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
@@ -340,7 +340,7 @@ export const CreatorProfile: React.FC = () => {
                                 <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <BookOpen className="w-8 h-8 text-zinc-600" />
                                 </div>
-                                <p className="text-zinc-400 font-medium">아직 개설된 강좌가 없습니다.</p>
+                                <p className="text-zinc-400 font-medium">아직 개설된 클래스가 없습니다.</p>
                             </div>
                         )}
                     </>
@@ -370,28 +370,32 @@ export const CreatorProfile: React.FC = () => {
                 {activeTab === 'sparring' && (
                     <>
                         {sparringVideos.length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {sparringVideos.map((video) => (
-                                    <Link key={video.id} to={`/sparring?id=${video.id}`} className="group block relative aspect-video bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:shadow-lg hover:shadow-black/50 hover:border-zinc-700 transition-all">
-                                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                                        <Link to={`/sparring?id=${video.id}`} className="relative aspect-square bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all">
+                                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100" />
+                                            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                                        {/* Play Icon Overlay */}
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                                                <PlayCircle className="w-8 h-8 text-white fill-white/20" />
+                                            {/* Play Icon Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                                                <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                                                    <PlayCircle className="w-8 h-8 text-white fill-white/20" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        </Link>
 
-                                        <div className="absolute bottom-3 left-3 right-3">
-                                            <h4 className="font-bold text-zinc-100 text-sm line-clamp-2 leading-tight mb-1.5 group-hover:text-blue-400 transition-colors">{video.title}</h4>
-                                            <div className="flex items-center text-[10px] text-zinc-400 gap-2">
+                                        <div className="px-1">
+                                            <Link to={`/sparring?id=${video.id}`}>
+                                                <h4 className="font-bold text-zinc-100 text-sm md:text-base line-clamp-1 leading-tight mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h4>
+                                            </Link>
+                                            <div className="flex items-center text-[10px] md:text-xs text-zinc-500 gap-2 font-medium">
                                                 <span>{video.views.toLocaleString()} views</span>
                                                 <span>•</span>
                                                 <span>{new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
                                             </div>
                                         </div>
-                                    </Link>
+                                    </div>
                                 ))}
                             </div>
                         ) : (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Target, BookOpen, Swords, Dumbbell } from 'lucide-react';
+import { Target, BookOpen, Dumbbell } from 'lucide-react';
 import { TechniqueRoadmapDashboard } from '../components/technique/TechniqueRoadmapDashboard';
 import { JournalTab } from '../components/arena/JournalTab';
 import { SparringReviewTab } from '../components/arena/SparringReviewTab';
@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 type ArenaTab = 'routines' | 'sparring' | 'skills' | 'journal';
 
 export const Arena: React.FC = () => {
-    const { } = useAuth();
+    const { user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<ArenaTab>('journal');
 
@@ -28,12 +28,11 @@ export const Arena: React.FC = () => {
         if (tabParam && ['routines', 'sparring', 'skills', 'journal'].includes(tabParam)) {
             setActiveTab(tabParam as ArenaTab);
         } else if (!tabParam) {
-            // If no tab param, default to journal but don't force URL update yet to avoid replace loop
-            // unless we want to canonicalize the URL.
-            // For now, just let the state handle it.
-            setActiveTab('journal');
+            // Guest users: default to 'skills' (Roadmap) to showcase content
+            // Logged-in users: default to 'journal'
+            setActiveTab(user ? 'journal' : 'skills');
         }
-    }, [searchParams]);
+    }, [searchParams, user]);
 
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId as ArenaTab);
@@ -41,98 +40,74 @@ export const Arena: React.FC = () => {
     };
 
     const ARENA_TABS = [
-        { id: 'journal', label: '수련일지', icon: BookOpen, color: 'blue', desc: '성장 기록' },
+        { id: 'journal', label: '수련일지', icon: BookOpen, color: 'violet', desc: '성장 기록' },
         { id: 'routines', label: '훈련 루틴', icon: Dumbbell, color: 'emerald', desc: '매일 10분 드릴' },
         { id: 'skills', label: '테크닉 로드맵', icon: Target, color: 'purple', desc: '기술 체계화' },
     ];
 
     return (
         <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
-            {/* Tab Navigation Area */}
-            <div className="flex-none bg-slate-900 border-b border-slate-800 z-20">
-                <div className="max-w-7xl mx-auto px-4 md:px-8">
-                    {/* Desktop Tabs */}
-                    <div className="hidden md:flex py-4 gap-3">
-                        {ARENA_TABS.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.id;
-                            const colorClasses = {
-                                blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/50', shadow: 'shadow-blue-900/20', ring: 'ring-blue-500/20', bottomBar: 'bg-blue-500' },
-                                emerald: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/50', shadow: 'shadow-emerald-900/20', ring: 'ring-emerald-500/20', bottomBar: 'bg-emerald-500' },
-                                purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/50', shadow: 'shadow-purple-900/20', ring: 'ring-purple-500/20', bottomBar: 'bg-purple-500' },
-                            };
-                            const colors = colorClasses[tab.color as keyof typeof colorClasses] || colorClasses.blue;
+            {/* Tab Navigation Area - iOS Segmented Capsule Style */}
+            <div className="flex-none bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-900 z-20 sticky top-0">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6">
+                    {/* Unified Capsule Navigation */}
+                    <div className="flex justify-center">
+                        <div className="inline-flex items-center bg-zinc-900/30 backdrop-blur-md rounded-full p-1.5 border border-zinc-800/50 gap-2">
+                            {ARENA_TABS.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                const isLocked = !user && tab.id !== 'skills' && tab.id !== 'routines';
 
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleTabChange(tab.id)}
-                                    className={`
-                                        relative group flex items-center gap-3 p-3 rounded-xl transition-all duration-300 border text-left
-                                        ${isActive
-                                            ? `bg-slate-800 ${colors.border} shadow-lg ${colors.shadow} ring-1 ${colors.ring}`
-                                            : 'bg-slate-900/50 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
-                                        }
-                                    `}
-                                >
-                                    <div className={`p-2 rounded-lg transition-colors ${isActive ? `${colors.bg} ${colors.text}` : 'bg-slate-800 text-slate-500 group-hover:text-slate-300'}`}>
-                                        <Icon className="w-5 h-5" />
+                                return (
+                                    <div key={tab.id} className="relative group">
+                                        <button
+                                            onClick={() => {
+                                                if (isLocked) {
+                                                    // Guest trying to access locked tab - redirect to login
+                                                    window.location.href = '/login';
+                                                } else {
+                                                    handleTabChange(tab.id);
+                                                }
+                                            }}
+                                            className={`
+                                                flex items-center gap-2 px-6 md:px-8 py-2.5 rounded-full text-sm font-bold transition-all duration-300
+                                                ${isActive
+                                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
+                                                    : isLocked
+                                                        ? 'bg-transparent text-zinc-600 hover:text-zinc-400 cursor-pointer'
+                                                        : 'bg-transparent text-zinc-500 hover:text-zinc-300'
+                                                }
+                                            `}
+                                        >
+                                            <Icon className="w-5 h-5" />
+                                            <span className="hidden sm:inline">{tab.label}</span>
+                                        </button>
+                                        {/* Tooltip for locked tabs */}
+                                        {isLocked && (
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-violet-500 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                                                로그인하여 모든 기능 활용하기
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-violet-500"></div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
-                                            {tab.label}
-                                        </span>
-                                        <span className="text-[10px] text-slate-500 font-medium hidden sm:block">
-                                            {tab.desc}
-                                        </span>
-                                    </div>
-                                    {isActive && (
-                                        <div className={`absolute bottom-0 left-0 w-full h-0.5 ${colors.bottomBar} rounded-b-xl opacity-50`}></div>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Mobile Tabs */}
-                    <div className="md:hidden flex overflow-x-auto scrollbar-hide py-0">
-                        {ARENA_TABS.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.id;
-                            const activeColor = tab.color === 'purple' ? 'text-purple-500 border-purple-500' :
-                                tab.color === 'emerald' ? 'text-emerald-500 border-emerald-500' :
-                                    'text-blue-500 border-blue-500';
-
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleTabChange(tab.id)}
-                                    className={`
-                                        flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap min-w-fit flex-1 justify-center
-                                        ${isActive
-                                            ? `${activeColor} bg-slate-900/50 font-bold`
-                                            : 'border-transparent text-slate-400 hover:text-slate-200'}
-                                    `}
-                                >
-                                    <Icon className={`w-4 h-4 ${isActive ? '' : 'opacity-70'}`} />
-                                    <span className="text-sm">{tab.label}</span>
-                                </button>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Content Area - Full height minus tabs */}
-            <div className="flex-1 overflow-hidden relative bg-slate-950">
+            <div className="flex-1 overflow-hidden relative bg-zinc-950">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-violet-900/10 blur-[100px] pointer-events-none rounded-full" />
                 {activeTab === 'skills' ? (
                     // Skills: No scroll, full height (TechniqueRoadmapDashboard handles full screen fixed positioning)
-                    <div className="w-full h-full">
+                    <div className="w-full h-full relative z-10">
                         <TechniqueRoadmapDashboard />
                     </div>
                 ) : (
-                    // Others: Scrollable content
-                    <div className="h-full overflow-y-auto overflow-x-hidden">
+                    // Others: Scrollable content with blur effect for guests (except routines)
+                    <div className={`h-full overflow-y-auto overflow-x-hidden relative z-10 ${(!user && activeTab !== 'routines') ? 'blur-sm pointer-events-none' : ''}`}>
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
                             {activeTab === 'routines' && <TrainingRoutinesTab />}
                             {activeTab === 'sparring' && (
@@ -145,6 +120,7 @@ export const Arena: React.FC = () => {
                     </div>
                 )}
             </div>
+
         </div>
     );
 };

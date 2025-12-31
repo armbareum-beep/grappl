@@ -24,6 +24,8 @@ export const UploadSparring: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [relatedItems, setRelatedItems] = useState<SparringVideo['relatedItems']>([]);
+    const [category, setCategory] = useState<'Sparring' | 'Competition'>('Sparring');
+    const [uniformType, setUniformType] = useState<'Gi' | 'No-Gi'>('Gi');
 
     // Editor State
     const [cuts, setCuts] = useState<{ start: number; end: number }[] | null>(null);
@@ -91,6 +93,8 @@ export const UploadSparring: React.FC = () => {
                 relatedItems,
                 videoUrl: '', // Will be updated by background upload
                 thumbnailUrl: '',
+                category,
+                uniformType,
             });
 
             if (error || !video) throw error;
@@ -244,6 +248,45 @@ export const UploadSparring: React.FC = () => {
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-600 outline-none resize-none h-24"
                                 placeholder="영상에 대한 설명을 입력하세요."
                             />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Uniform</label>
+                                <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1">
+                                    {(['Gi', 'No-Gi'] as const).map((type) => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setUniformType(type)}
+                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${uniformType === type
+                                                ? 'bg-violet-600 text-white shadow-lg'
+                                                : 'text-slate-500 hover:text-slate-300'
+                                                }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Category</label>
+                                <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1">
+                                    {(['Sparring', 'Competition'] as const).map((cat) => (
+                                        <button
+                                            key={cat}
+                                            type="button"
+                                            onClick={() => setCategory(cat)}
+                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${category === cat
+                                                ? 'bg-violet-600 text-white shadow-lg'
+                                                : 'text-slate-500 hover:text-slate-300'
+                                                }`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Related Items Search */}

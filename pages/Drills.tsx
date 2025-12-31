@@ -129,17 +129,18 @@ export const Drills: React.FC = () => {
 
     // Grid mode - clean drill display
     return (
-        <div className="min-h-screen bg-zinc-950 md:pl-28 pt-24 pb-20 px-6">
+        <div className="min-h-screen bg-zinc-950 md:pl-28 pt-8 pb-20 px-6 md:px-10">
             <div className="max-w-[1600px] mx-auto">
                 {/* Header Section (Category then Search/Reels) */}
-                <div className="flex flex-col gap-6 mb-10">
+                <div className="flex flex-col gap-8 mb-12">
                     {/* Row 1: Category Row */}
-                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide no-scrollbar">
+                    <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mr-3 whitespace-nowrap">Position</span>
                         {categories.map(cat => (
                             <button
                                 key={cat}
                                 onClick={() => setSelectedCategory(cat)}
-                                className={`px-5 py-2 rounded-full text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap border ${selectedCategory === cat
+                                className={`px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap border ${selectedCategory === cat
                                     ? 'bg-violet-600 border-violet-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]'
                                     : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
                                     }`}
@@ -150,8 +151,8 @@ export const Drills: React.FC = () => {
                     </div>
 
                     {/* Row 2: Search & Reels View (Right Aligned) */}
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2 w-full max-w-sm sm:max-w-md">
+                    <div className="flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-3 w-full max-w-sm sm:max-w-md">
                             <div className="relative flex-1">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                                 <input
@@ -166,13 +167,13 @@ export const Drills: React.FC = () => {
                                             return prev;
                                         });
                                     }}
-                                    className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-11 pr-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 text-sm font-medium"
+                                    className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 text-sm font-medium"
                                 />
                             </div>
                             {searchTerm && (
                                 <button
                                     onClick={() => setSearchParams({ view: 'grid' })}
-                                    className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all"
+                                    className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -181,7 +182,7 @@ export const Drills: React.FC = () => {
 
                         <button
                             onClick={() => handleViewChange('reels')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:text-violet-400 hover:border-violet-500/50 transition-all shadow-xl group whitespace-nowrap"
+                            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:text-violet-400 hover:border-violet-500/50 transition-all shadow-xl group whitespace-nowrap"
                         >
                             <PlaySquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-bold tracking-tight">릴스 뷰</span>
@@ -199,7 +200,7 @@ export const Drills: React.FC = () => {
                         <p className="text-zinc-500 max-w-xs mx-auto mb-8">다른 키워드나 카테고리를 시도해보세요.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 md:gap-8">
                         {filteredDrills.map((drill) => (
                             <div
                                 key={drill.id}

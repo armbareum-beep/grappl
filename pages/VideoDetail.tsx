@@ -185,7 +185,7 @@ export const VideoDetail: React.FC = () => {
           <div className="prose max-w-none text-slate-600 mb-8">
             <p>{video.description}</p>
             <p className="mt-4">
-              이 강좌에서는 {video.category} 상황에서의 핵심 원리와 디테일한 메커니즘을 다룹니다.
+              이 클래스에서는 {video.category} 상황에서의 핵심 원리와 디테일한 메커니즘을 다룹니다.
               특히 {video.difficulty === 'Beginner' ? '입문자' : '숙련자'}가 범하기 쉬운 실수들을 교정하고,
               실전 스파링에서 바로 사용할 수 있는 팁들을 제공합니다.
             </p>
@@ -240,7 +240,7 @@ export const VideoDetail: React.FC = () => {
               <Link to="/pricing">
                 <Button variant="secondary" className="w-full mb-2">구독하고 전체 영상 보기</Button>
               </Link>
-              <p className="text-xs text-slate-400 text-center">모든 강좌 무제한 접근</p>
+              <p className="text-xs text-slate-400 text-center">모든 클래스 무제한 접근</p>
             </div>
           </div>
         </div>

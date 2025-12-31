@@ -64,8 +64,10 @@ function transformLesson(data: any): Lesson {
         courseId: data.course_id,
         title: data.title,
         description: data.description,
+        category: data.category,
         lessonNumber: data.lesson_number,
         vimeoUrl: data.vimeo_url,
+        thumbnailUrl: data.thumbnail_url,
         length: data.length,
         difficulty: data.difficulty,
         createdAt: data.created_at,
@@ -609,7 +611,9 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
-                    createdAt: v.created_at
+                    createdAt: v.created_at,
+                    category: v.category,
+                    uniformType: v.uniform_type
                 };
             });
 
@@ -1444,6 +1448,31 @@ export async function uploadHeroImage(file: File): Promise<{ url: string | null;
     // Get public URL
     const { data } = supabase.storage
         .from('hero-images')
+        .getPublicUrl(filePath);
+
+    return { url: data.publicUrl, error: null };
+}
+
+/**
+ * 썸네일 이미지를 Supabase Storage에 업로드
+ */
+export async function uploadThumbnail(blob: Blob): Promise<{ url: string | null; error: any }> {
+    const fileName = `thumb-${crypto.randomUUID()}.jpg`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('course-thumbnails')
+        .upload(filePath, blob, {
+            contentType: 'image/jpeg',
+            upsert: true,
+        });
+
+    if (uploadError) {
+        return { url: null, error: uploadError };
+    }
+
+    const { data } = supabase.storage
+        .from('course-thumbnails')
         .getPublicUrl(filePath);
 
     return { url: data.publicUrl, error: null };
@@ -2329,13 +2358,11 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 1. Fetch ONLY feed posts (shared content from Arena)
+    // 1. Fetch ALL public logs (including feed posts and regular logs)
     const fetchPromise = supabase
         .from('training_logs')
         .select('*', { count: 'exact' })
         .eq('is_public', true)
-        .eq('duration_minutes', -1)  // Feed posts are marked with -1
-        .like('location', '__FEED__%')  // Feed posts have location starting with __FEED__
         .order('created_at', { ascending: false })
         .range(from, to);
 
@@ -2484,6 +2511,7 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             location: log.location,
             youtubeUrl: log.youtube_url,
             mediaUrl: log.media_url,
+            mediaType: log.media_type,
             createdAt: log.created_at,
             metadata: log.metadata
         };
@@ -4082,6 +4110,8 @@ function transformSparringVideo(data: any): SparringVideo {
         likes: data.likes,
         creator: data.creators ? transformCreator(data.creators) : undefined,
         createdAt: data.created_at,
+        category: data.category,
+        uniformType: data.uniform_type
     };
 }
 
@@ -4093,6 +4123,8 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         video_url: videoData.videoUrl,
         thumbnail_url: videoData.thumbnailUrl,
         related_items: videoData.relatedItems,
+        category: videoData.category,
+        uniform_type: videoData.uniformType,
     };
 
     const { data, error } = await supabase
@@ -4169,6 +4201,8 @@ export async function getSparringVideos(limit = 10, creatorId?: string) {
                     subscriberCount: 0
                 } : undefined,
                 createdAt: v.created_at,
+                category: v.category,
+                uniformType: v.uniform_type
             };
         });
 
@@ -4215,6 +4249,8 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.videoUrl) dbData.video_url = updates.videoUrl;
     if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
+    if (updates.category) dbData.category = updates.category;
+    if (updates.uniformType) dbData.uniform_type = updates.uniformType;
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -4644,6 +4680,31 @@ export async function getUserCreatedRoutines(userId: string) {
     return { data: routines as DrillRoutine[], error: null };
 }
 
+// Get random sample routines for non-logged-in users
+export async function getRandomSampleRoutines(limit: number = 3) {
+    try {
+        const { data, error } = await supabase
+            .from('routines')
+            .select('*')
+            .limit(limit);
+
+        if (error || !data) {
+            console.error('API Error in getRandomSampleRoutines:', error);
+            return { data: [], error: error || new Error('Failed to fetch') };
+        }
+
+        const routines = data.map((r: any) => ({
+            ...transformDrillRoutine(r),
+            creatorName: 'Grapplay Team'
+        }));
+
+        return { data: routines as DrillRoutine[], error: null };
+    } catch (error) {
+        console.error('Exception in getRandomSampleRoutines:', error);
+        return { data: [], error };
+    }
+}
+
 // Helper for transforming drill data
 function transformDrill(data: any): Drill {
     console.log('transformDrill input:', data);
@@ -4687,8 +4748,9 @@ function transformDrillRoutine(data: any): DrillRoutine {
         price: data.price,
         difficulty: data.difficulty,
         category: data.category,
-        totalDurationMinutes: data.drill_count, // 1 drill = 1 minute rule
+        totalDurationMinutes: data.drill_count,
         drillCount: data.drill_count,
+        drills: [], // Add empty drills array to prevent frontend errors
         views: data.views || 0,
         createdAt: data.created_at,
     };

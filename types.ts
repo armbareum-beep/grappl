@@ -56,6 +56,7 @@ export interface Lesson {
   courseId: string;
   title: string;
   description: string;
+  category?: VideoCategory; // Added for categorization
   lessonNumber: number;
   vimeoUrl?: string;
   thumbnailUrl?: string; // Added for dashboard display
@@ -161,7 +162,7 @@ export interface TrainingLog {
   youtubeUrl?: string; // Legacy support
   mediaUrl?: string; // New: Direct video/image upload
   mediaType?: 'video' | 'image';
-  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general';
+  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'mastery';
   metadata?: Record<string, any>;
   likes?: number;
   comments?: number;
@@ -192,6 +193,8 @@ export interface SparringVideo {
   creator?: Creator; // Joined creator profile
   creatorProfileImage?: string; // Add for consistent access
   createdAt?: string; // Standardized to camelCase
+  category?: 'Sparring' | 'Competition'; // Competition vs Regular Sparring
+  uniformType?: 'Gi' | 'No-Gi'; // Gi vs No-Gi
 }
 
 export interface LogFeedback {

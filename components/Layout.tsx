@@ -433,8 +433,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) */}
-      <div className="md:hidden fixed bottom-6 left-4 right-4 z-[100] bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/50 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden">
-        <div className="grid grid-cols-5 h-16 items-center relative">
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-[100] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
+        <div className="grid grid-cols-5 h-full items-center relative">
           {[
             { name: '클래스', href: '/browse', icon: BookOpen },
             { name: '드릴', href: '/drills', icon: Zap },

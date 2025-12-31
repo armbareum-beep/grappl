@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
 import { VideoCategory, Difficulty, Drill } from '../../types';
 import { Button } from '../../components/Button';
-import { Image as ImageIcon, DollarSign, Type, AlignLeft } from 'lucide-react';
+import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
@@ -13,6 +13,7 @@ export const CreateRoutine: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
     const [loading, setLoading] = useState(false);
+    const [showThumbnailModal, setShowThumbnailModal] = useState(false);
     const [drills, setDrills] = useState<Drill[]>([]);
     const [selectedDrillIds, setSelectedDrillIds] = useState<string[]>([]);
     const { success, error: toastError } = useToast();
@@ -139,15 +140,25 @@ export const CreateRoutine: React.FC = () => {
         setLoading(true);
         try {
             let result;
+            const finalFormData = { ...formData };
+
+            // Auto-set thumbnail if missing
+            if (!finalFormData.thumbnailUrl && selectedDrillIds.length > 0) {
+                const firstDrill = drills.find(d => d.id === selectedDrillIds[0]);
+                if (firstDrill?.thumbnailUrl) {
+                    finalFormData.thumbnailUrl = firstDrill.thumbnailUrl;
+                    setFormData(prev => ({ ...prev, thumbnailUrl: firstDrill.thumbnailUrl }));
+                }
+            }
 
             if (isEditMode && id) {
                 result = await updateRoutine(id, {
-                    ...formData,
+                    ...finalFormData,
                     // Remove fields that shouldn't be updated or are handled separately
                 }, selectedDrillIds);
             } else {
                 result = await createRoutine({
-                    ...formData,
+                    ...finalFormData,
                     creatorId: user.id,
                     creatorName: user.user_metadata?.name || 'Unknown Creator'
                 }, selectedDrillIds);
@@ -298,18 +309,11 @@ export const CreateRoutine: React.FC = () => {
                             <label className="block text-sm font-medium text-slate-300">썸네일 이미지 URL</label>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    if (selectedDrillIds.length > 0) {
-                                        const firstDrill = drills.find(d => d.id === selectedDrillIds[0]);
-                                        if (firstDrill?.thumbnailUrl) {
-                                            setFormData(prev => ({ ...prev, thumbnailUrl: firstDrill.thumbnailUrl }));
-                                        }
-                                    }
-                                }}
+                                onClick={() => setShowThumbnailModal(true)}
                                 disabled={selectedDrillIds.length === 0}
-                                className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed"
+                                className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed font-medium"
                             >
-                                첫 번째 드릴에서 가져오기
+                                드릴에서 선택하기
                             </button>
                         </div>
                         <div className="relative">
@@ -323,7 +327,7 @@ export const CreateRoutine: React.FC = () => {
                                 placeholder="드릴을 선택하면 자동으로 채워집니다"
                             />
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">비워두면 첫 번째 드릴의 썸네일이 사용됩니다.</p>
+                        <p className="text-xs text-slate-500 mt-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
                     </div>
                 </div>
 
@@ -391,6 +395,63 @@ export const CreateRoutine: React.FC = () => {
                     </Button>
                 </div>
             </form>
+
+            {/* Thumbnail Selection Modal */}
+            {showThumbnailModal && (
+                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-white">드릴 썸네일 선택</h3>
+                            <button onClick={() => setShowThumbnailModal(false)} className="text-slate-400 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 pr-2">
+                            {selectedDrillIds.length === 0 ? (
+                                <p className="text-slate-500 text-center py-8">선택된 드릴이 없습니다.</p>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {drills.filter(d => selectedDrillIds.includes(d.id)).map((drill) => (
+                                        <div
+                                            key={drill.id}
+                                            onClick={() => {
+                                                setFormData({ ...formData, thumbnailUrl: drill.thumbnailUrl });
+                                                setShowThumbnailModal(false);
+                                                success('루틴 썸네일이 설정되었습니다.');
+                                            }}
+                                            className="group relative aspect-video bg-slate-800 rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-blue-500 transition-all shadow-lg"
+                                        >
+                                            <img
+                                                src={drill.thumbnailUrl}
+                                                alt={drill.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                                <p className="text-[10px] text-white font-medium truncate">{drill.title}</p>
+                                            </div>
+                                            {formData.thumbnailUrl === drill.thumbnailUrl && (
+                                                <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1 shadow-lg">
+                                                    <CheckCircle className="w-4 h-4 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-slate-800">
+                            <button
+                                onClick={() => setShowThumbnailModal(false)}
+                                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

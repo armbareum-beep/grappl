@@ -144,7 +144,7 @@ export const Instructors: React.FC = () => {
 
                                             {/* Courses */}
                                             <div className="flex flex-col items-center">
-                                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">강좌</span>
+                                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">클래스</span>
                                                 <div className="flex items-center gap-1 text-sm font-black text-white">
                                                     <BookOpen className="w-3 h-3 text-indigo-500" />
                                                     <span>5</span>

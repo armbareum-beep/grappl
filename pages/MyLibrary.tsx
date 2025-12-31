@@ -136,7 +136,7 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'courses' ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
           >
-            강좌 ({courses.length})
+            클래스 ({courses.length})
           </button>
           <button
             onClick={() => setActiveTab('routines')}
@@ -164,13 +164,13 @@ export const MyLibrary: React.FC = () => {
                 <div className="bg-slate-900 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-lg border border-slate-800">
                   <BookOpen className="w-12 h-12 text-slate-500" />
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-3">아직 구매한 강좌가 없습니다</h2>
-                <p className="text-slate-400 mb-8">관심 있는 강좌를 찾아보세요!</p>
+                <h2 className="text-2xl font-bold text-white mb-3">아직 구매한 클래스가 없습니다</h2>
+                <p className="text-slate-400 mb-8">관심 있는 클래스를 찾아보세요!</p>
                 <Link
                   to="/browse"
                   className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
                 >
-                  강좌 둘러보기
+                  클래스 둘러보기
                 </Link>
               </div>
             ) : (
@@ -259,25 +259,29 @@ export const MyLibrary: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                 {savedSparring.map((video) => (
-                  <Link key={video.id} to={`/sparring?id=${video.id}`} className="block group">
-                    <div className="relative aspect-[9/16] rounded-xl overflow-hidden bg-slate-800 mb-3 border border-slate-800 group-hover:border-blue-500 transition-colors">
+                  <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                    <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-800 group-hover:border-violet-500 transition-all">
                       <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
-                      <div className="absolute bottom-3 left-3 right-3">
-                        <h3 className="text-white font-bold text-lg line-clamp-2 mb-1">{video.title}</h3>
-                        <div className="flex items-center gap-2 text-xs text-slate-300">
-                          <span>{video.creator?.name || 'Unknown User'}</span>
-                          <span>•</span>
-                          <span>{video.views?.toLocaleString()} 조회</span>
+                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                          <Play className="w-6 h-6 text-white fill-white/20" />
                         </div>
                       </div>
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Play className="w-6 h-6 text-white fill-current" />
+                    </Link>
+                    <div className="px-1">
+                      <Link to={`/sparring?id=${video.id}`}>
+                        <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
+                      </Link>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+                        <span>{video.creator?.name || 'Unknown User'}</span>
+                        <span>•</span>
+                        <span>{video.views?.toLocaleString()} 조회</span>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -290,38 +294,46 @@ export const MyLibrary: React.FC = () => {
 
 function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: boolean }) {
   return (
-    <Link
-      to={`/my-routines/${routine.id}`}
-      className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 hover:border-slate-700 transition-colors group flex flex-col h-full"
-    >
-      <div className="aspect-video bg-slate-800 relative">
-        <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/30 transition-colors">
-            <Play className="w-8 h-8 text-white fill-current" />
+    <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+      <Link
+        to={`/my-routines/${routine.id}`}
+        className="relative aspect-[10/14] bg-slate-900 rounded-xl overflow-hidden border border-slate-800 transition-all"
+      >
+        <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+          <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+            <Play className="w-8 h-8 text-white fill-white/20 ml-1" />
           </div>
         </div>
+
         {isCustom && (
-          <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+          <div className="absolute top-3 left-3 bg-violet-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
             CUSTOM
           </div>
         )}
-      </div>
-      <div className="p-4 flex-1 flex flex-col">
-        <h3 className="text-white font-bold text-lg mb-1 line-clamp-1">{routine.title}</h3>
-        <p className="text-slate-400 text-sm mb-4 line-clamp-1">{routine.creatorName}</p>
+      </Link>
 
-        <div className="mt-auto flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {routine.totalDurationMinutes || 0}분
-          </div>
-          <div className="flex items-center gap-1">
-            <Dumbbell className="w-3 h-3" />
-            {routine.drillCount || 0}개 드릴
+      <div className="px-1">
+        <Link to={`/my-routines/${routine.id}`}>
+          <h3 className="text-white font-bold text-sm md:text-base mb-1 line-clamp-1 group-hover:text-violet-400 transition-colors">{routine.title}</h3>
+        </Link>
+        <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+          <span>{routine.creatorName}</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {routine.totalDurationMinutes || 0}분
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <Dumbbell className="w-3 h-3" />
+              {routine.drillCount || 0}개
+            </span>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle, Flame, Trophy, Zap, Star, Swords } from 'lucide-react';
+import React from 'react';
+import { Flame, Trophy, Zap, Star, Swords } from 'lucide-react';
 
 interface QuestCompleteModalProps {
     isOpen: boolean;
@@ -13,6 +13,7 @@ interface QuestCompleteModalProps {
         type: 'xp_boost' | 'badge' | 'unlock';
         value: string;
     };
+    continueLabel?: string;
 }
 
 export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
@@ -23,7 +24,8 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
     xpEarned,
     combatPowerEarned,
     streak,
-    bonusReward
+    bonusReward,
+    continueLabel
 }) => {
     // Remove internal state for animations to prevent race conditions
     // const [showContent, setShowContent] = useState(false);
@@ -48,90 +50,94 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
             ></div>
 
             {/* Content */}
-            <div className="relative z-10 w-full max-w-md">
-                {/* Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 to-green-500/30 rounded-3xl blur-3xl animate-pulse"></div>
+            <div className="relative z-10 w-full max-w-sm">
+                {/* Reward Icon & Animation Background Glow */}
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-violet-500/20 rounded-full blur-[60px] pointer-events-none"></div>
 
                 {/* Card */}
-                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-2xl">
+                <div className="relative bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800 rounded-[32px] p-8 shadow-[0_0_50px_rgba(124,58,237,0.15)] overflow-hidden">
                     {/* Success Icon */}
-                    <div className="text-center mb-6 animate-scale-in" style={{ animationDelay: '0.1s', opacity: 0, animationFillMode: 'forwards' }}>
-                        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-2xl shadow-emerald-500/50 mb-4 animate-bounce-once">
-                            <CheckCircle className="w-14 h-14 text-white" strokeWidth={2.5} />
+                    <div className="text-center mb-8 relative">
+                        {/* Radial Gradient Glow behind icon */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-600/20 rounded-full blur-2xl"></div>
+
+                        <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-zinc-900 border border-violet-500/30 shadow-[0_0_30px_rgba(124,58,237,0.2)] mb-6 animate-bounce">
+                            <Zap className="w-10 h-10 text-violet-500 fill-violet-500" />
                         </div>
-                        <h2 className="text-3xl font-black text-white mb-2">완료!</h2>
-                        <p className="text-slate-300 text-base font-medium">{questName}</p>
+
+                        <h2 className="text-zinc-50 text-3xl font-black mb-1">완료!</h2>
+                        <p className="text-zinc-500 text-sm font-medium">{questName}</p>
                     </div>
 
                     {/* Rewards */}
                     <div className="space-y-3">
                         {/* XP Reward Card */}
-                        <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-2 border-indigo-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.3s', opacity: 0, animationFillMode: 'forwards' }}>
+                        <div className="bg-zinc-900/50 border border-violet-500/30 rounded-2xl p-6 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.3s', opacity: 0, animationFillMode: 'forwards' }}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                        <Zap className="w-7 h-7 text-white fill-white" />
+                                    <div className="w-12 h-12 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+                                        <Zap className="w-6 h-6 text-violet-400 fill-violet-400" />
                                     </div>
                                     <div>
-                                        <p className="text-base font-bold text-white">경험치 획득</p>
-                                        <p className="text-sm text-indigo-300">레벨업까지 한 걸음!</p>
+                                        <p className="text-zinc-400 text-xs uppercase tracking-widest font-bold">경험치 획득</p>
+                                        <p className="text-xs text-zinc-500 mt-0.5">레벨업까지 한 걸음!</p>
                                     </div>
                                 </div>
-                                <span className="text-3xl font-black text-indigo-300">+{xpEarned}</span>
+                                <span className="text-violet-400 text-4xl font-black italic">+{xpEarned}</span>
                             </div>
                         </div>
 
                         {/* Combat Power Reward Card */}
                         {combatPowerEarned && combatPowerEarned > 0 && (
-                            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-2 border-blue-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.4s', opacity: 0, animationFillMode: 'forwards' }}>
+                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.4s', opacity: 0, animationFillMode: 'forwards' }}>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg">
-                                            <Swords className="w-7 h-7 text-white" />
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                            <Swords className="w-6 h-6 text-zinc-400" />
                                         </div>
                                         <div>
-                                            <p className="text-base font-bold text-white">전투력 상승</p>
-                                            <p className="text-sm text-blue-300">강해지고 있습니다!</p>
+                                            <p className="text-sm font-bold text-zinc-100">전투력 상승</p>
+                                            <p className="text-xs text-zinc-500">강해지고 있습니다!</p>
                                         </div>
                                     </div>
-                                    <span className="text-3xl font-black text-blue-300">+{combatPowerEarned}</span>
+                                    <span className="text-2xl font-black text-zinc-100">+{combatPowerEarned}</span>
                                 </div>
                             </div>
                         )}
 
                         {/* Streak Bonus Card */}
                         {streak !== undefined && streak > 0 && (
-                            <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 border-2 border-orange-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>
+                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
-                                            <Flame className="w-7 h-7 text-white fill-white" />
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                            <Flame className="w-6 h-6 text-zinc-400 fill-zinc-400" />
                                         </div>
                                         <div>
-                                            <p className="text-base font-bold text-white">연속 달성</p>
-                                            <p className="text-sm text-orange-300">불타는 열정!</p>
+                                            <p className="text-sm font-bold text-zinc-100">연속 달성</p>
+                                            <p className="text-xs text-zinc-500">불타는 열정!</p>
                                         </div>
                                     </div>
-                                    <span className="text-3xl font-black text-orange-300">{streak}일</span>
+                                    <span className="text-2xl font-black text-zinc-100">{streak}일</span>
                                 </div>
                             </div>
                         )}
 
                         {/* Bonus Reward Card */}
                         {bonusReward && (
-                            <div className="bg-gradient-to-r from-yellow-600/20 to-amber-600/20 border-2 border-yellow-500/40 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.7s', opacity: 0, animationFillMode: 'forwards' }}>
+                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.5s', opacity: 0, animationFillMode: 'forwards' }}>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center">
                                             {bonusReward.type === 'badge' ? (
-                                                <Trophy className="w-7 h-7 text-white" />
+                                                <Trophy className="w-6 h-6 text-zinc-400" />
                                             ) : (
-                                                <Star className="w-7 h-7 text-white fill-white" />
+                                                <Star className="w-6 h-6 text-zinc-400 fill-zinc-400" />
                                             )}
                                         </div>
                                         <div>
-                                            <p className="text-base font-bold text-white">보너스 보상</p>
-                                            <p className="text-sm text-yellow-300">{bonusReward.value}</p>
+                                            <p className="text-sm font-bold text-zinc-100">보너스 보상</p>
+                                            <p className="text-xs text-zinc-500">{bonusReward.value}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -148,10 +154,10 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
                                 onClose();
                             }
                         }}
-                        className="mt-8 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white text-lg font-black rounded-2xl transition-all duration-300 shadow-2xl shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-[1.02] active:scale-[0.98] animate-fade-in"
-                        style={{ animationDelay: '0.8s', opacity: 0, animationFillMode: 'forwards' }}
+                        className="mt-8 w-full py-4 bg-violet-600 hover:bg-violet-500 text-zinc-50 text-lg font-bold rounded-full transition-all duration-300 shadow-[0_10px_20px_rgba(124,58,237,0.3)] hover:scale-[1.02] active:scale-[0.98] animate-fade-in"
+                        style={{ animationDelay: '0.6s', opacity: 0, animationFillMode: 'forwards' }}
                     >
-                        계속하기
+                        {continueLabel || '계속하기'}
                     </button>
                 </div>
             </div>

@@ -304,16 +304,16 @@ export const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2: AI Recommended Courses */}
+        {/* AI Recommended Courses */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold">AI 맞춤 추천</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0">
             {recommendedCourses.slice(0, 4).map((course) => (
-              <div key={course.id} onClick={() => navigate(`/courses/${course.id}`)} className="group cursor-pointer">
+              <div key={course.id} onClick={() => navigate(`/courses/${course.id}`)} className="min-w-[280px] md:min-w-[320px] group cursor-pointer snap-start">
                 <div className="relative aspect-[16/9] rounded-xl overflow-hidden border border-border bg-muted mb-3">
                   <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
@@ -373,108 +373,9 @@ export const Home: React.FC = () => {
           )}
         </div>
 
-        {/* 3. New Sections: Sparring & Community (Restored & Styled) */}
-
-        {/* Public Sparring Feed */}
-        {publicSparrings.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Video className="w-5 h-5 text-indigo-500" />
-                <h2 className="text-lg font-bold">실시간 스파링</h2>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/arena?tab=sparring')} className="text-xs">
-                더보기 <ChevronRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {publicSparrings.map((video) => (
-                <div key={video.id} onClick={() => navigate(`/sparring/${video.id}`)} className="group cursor-pointer relative aspect-[9/16] bg-black/40 rounded-xl overflow-hidden border border-border/50 hover:border-indigo-500/50 transition-all">
-                  {video.thumbnailUrl ? (
-                    <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <Play className="w-8 h-8 text-muted-foreground/30" />
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                    <div className="text-xs font-bold text-white line-clamp-1 mb-0.5">{video.title || '스파링 영상'}</div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded-full bg-muted/20 overflow-hidden flex-shrink-0">
-                        {/* Placeholder for Creator Avatar if missing from API */}
-                        {video.creator?.profileImage ? (
-                          <img src={video.creator.profileImage} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-indigo-500/30" />
-                        )}
-                      </div>
-                      <span className="text-[10px] text-white/70 truncate">{video.creator?.name || 'User'}</span>
-                    </div>
-                  </div>
-                  <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[9px] text-white font-medium flex items-center gap-1">
-                    <Activity className="w-2.5 h-2.5" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Community Activity Feed */}
-        {trainingLogs.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-5 h-5 text-blue-500" />
-                <h2 className="text-lg font-bold">커뮤니티 활동</h2>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/arena?tab=logs')} className="text-xs">
-                더보기 <ChevronRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {trainingLogs.slice(0, 3).map((log) => (
-                <div key={log.id} className="flex gap-4 p-4 rounded-lg bg-muted/30 border border-border hover:bg-muted/50 transition-colors">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-muted border border-border overflow-hidden">
-                      {log.user?.profileImage ? (
-                        <img src={log.user.profileImage} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-secondary text-secondary-foreground">
-                          {log.user?.name?.[0] || 'U'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-bold text-foreground">{log.user?.name || '수련생'}</h4>
-                      <span className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-sm text-foreground/80 line-clamp-2 mb-2">{log.notes || '오늘도 열심히 수련했습니다!'}</p>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border text-xs text-muted-foreground">
-                        <Flame className="w-3 h-3 text-orange-500" />
-                        <span>{log.durationMinutes || 60}분</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border text-xs text-muted-foreground">
-                        <Trophy className="w-3 h-3 text-yellow-500" />
-                        <span>{log.xpEarned || 100} XP</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* 4. Recent Activity Tabs */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold mb-6">최근 내 활동</h2>
+        <div className="bg-card p-6">
+          <h2 className="text-lg font-bold mb-6">최근 시청 영상</h2>
           <div className="flex items-center gap-6 border-b border-border mb-6">
             {[
               { id: 'lesson', label: '레슨' },

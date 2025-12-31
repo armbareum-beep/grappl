@@ -136,7 +136,7 @@ export const InstructorCarousel: React.FC = () => {
                                         <div className="flex flex-col items-center">
                                             <BookOpen className="w-3.5 h-3.5 text-violet-500 mb-1" />
                                             <span className="text-sm font-bold text-white">{creator.course_count}</span>
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider">강좌</span>
+                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider">클래스</span>
                                         </div>
                                         <div className="flex flex-col items-center border-l border-zinc-800/50">
                                             <Dumbbell className="w-3.5 h-3.5 text-violet-500 mb-1" />

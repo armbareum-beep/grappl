@@ -146,27 +146,27 @@ export const LandingPage: React.FC = () => {
         <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
             {/* Navigation Header */}
             <header className={cn(
-                "sticky top-0 left-0 right-0 z-50 transition-all duration-300 h-20 flex items-center px-4 md:px-8 border-b",
+                "absolute top-0 left-0 w-full z-50 transition-all duration-300 h-20 flex items-center px-4 md:px-8",
                 isScrolled
-                    ? "bg-zinc-950/80 backdrop-blur-lg border-zinc-900"
-                    : "bg-zinc-950/70 backdrop-blur-md border-transparent"
+                    ? "bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900"
+                    : "bg-transparent"
             )}>
                 <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 group transition-transform hover:scale-105">
-                        <span className="text-xl md:text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
+                        <span className="text-2xl font-black text-zinc-50 tracking-tighter transition-colors group-hover:text-violet-400">
                             Grapplay
                         </span>
                     </Link>
 
                     <div className="flex items-center gap-4">
                         <button
-                            className="text-zinc-400 hover:text-zinc-100 text-sm font-medium px-2 py-1 transition-colors"
+                            className="text-zinc-400 hover:text-violet-400 text-sm font-medium px-2 py-1 transition-colors"
                             onClick={() => navigate('/login')}
                         >
                             로그인
                         </button>
                         <button
-                            className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                            className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-violet-900/20"
                             onClick={() => navigate('/pricing')}
                         >
                             시작하기
@@ -176,12 +176,7 @@ export const LandingPage: React.FC = () => {
             </header>
 
             {/* 1. Hero Section */}
-            <section className="relative min-h-[90vh] flex flex-col items-center justify-center bg-zinc-950 px-4 overflow-hidden pt-20 md:pt-0">
-                {/* 1. Background Effect: Subtle Violet Glow */}
-                <div className="absolute inset-0 pointer-events-none items-center justify-center flex">
-                    <div className="w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[120px]"></div>
-                </div>
-
+            <section className="relative min-h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950 to-zinc-950 px-4 overflow-hidden pt-40">
                 {/* Bottom Fade to make it seamless */}
                 <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none"></div>
 

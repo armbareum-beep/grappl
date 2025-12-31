@@ -30,6 +30,7 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
         const start = startOfMonth(today);
         const end = endOfMonth(today);
         const days = eachDayOfInterval({ start, end });
+        const hasData = items.length > 0;
 
         return days.map(day => {
             const dayItems = items.filter(item => isSameDay(parseISO(item.data.date), day));
@@ -57,6 +58,14 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
                     rounds += sparring.rounds || 0;
                 }
             });
+
+            // Add placeholder wave pattern for empty data
+            if (!hasData) {
+                const waveValue = Math.sin((days.indexOf(day)) * 0.3) * 0.5 + 1;
+                count = waveValue;
+                duration = waveValue * 60;
+                rounds = Math.floor(waveValue * 2);
+            }
 
             return {
                 date: format(day, 'd일', { locale: ko }),
@@ -95,37 +104,44 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
         }
     }, [metric]);
 
+    const hasData = items.length > 0;
+
     return (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-sm">
+        <div className="bg-zinc-900/40 backdrop-blur-md rounded-3xl border border-zinc-800/50 p-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         {config.name} 추이
                     </h3>
-                    <p className="text-sm text-slate-400">이번 달 {config.name} 변화 그래프</p>
+                    <p className="text-sm text-zinc-500">이번 달 {config.name} 변화 그래프</p>
                 </div>
             </div>
 
-            <div className="h-[250px] w-full">
+            <div className="h-[250px] w-full relative">
+                {!hasData && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                        <p className="text-zinc-700 text-sm font-medium">데이터를 기록하면 여기에 표시됩니다</p>
+                    </div>
+                )}
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
                         <defs>
                             <linearGradient id={`color-${metric}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={config.color} stopOpacity={0.3} />
-                                <stop offset="95%" stopColor={config.color} stopOpacity={0} />
+                                <stop offset="5%" stopColor="#a78bfa" stopOpacity={hasData ? 0.3 : 0.1} />
+                                <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid stroke="#1e293b" vertical={false} />
+                        <CartesianGrid stroke="#27272a" strokeDasharray="0" vertical={false} />
                         <XAxis
                             dataKey="date"
-                            stroke="#64748b"
+                            stroke="#52525b"
                             tick={{ fontSize: 12 }}
                             tickLine={false}
                             axisLine={false}
                             minTickGap={30}
                         />
                         <YAxis
-                            stroke="#64748b"
+                            stroke="#52525b"
                             tick={false}
                             tickLine={false}
                             axisLine={false}
@@ -133,25 +149,30 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#0f172a',
-                                border: '1px solid #1e293b',
+                                backgroundColor: '#09090b',
+                                border: '1px solid #27272a',
                                 borderRadius: '12px',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
                             itemStyle={{ fontSize: '13px', fontWeight: 500, color: '#fff' }}
-                            labelStyle={{ color: '#94a3b8', fontSize: '12px', marginBottom: '8px' }}
+                            labelStyle={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}
                             formatter={(value: number) => [`${value}${config.unit}`, config.name]}
+                            cursor={{ stroke: '#8b5cf6', strokeWidth: 1, strokeDasharray: '3 3' }}
                         />
                         <Area
                             type="monotone"
                             dataKey={config.dataKey}
-                            stroke={config.color}
+                            stroke="#a78bfa"
                             strokeWidth={3}
                             fillOpacity={1}
                             fill={`url(#color-${metric})`}
                             dot={false}
-                            activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                            activeDot={{ r: 6, strokeWidth: 0, fill: '#fff', stroke: '#a78bfa' }}
                             animationDuration={1000}
+                            style={{
+                                filter: hasData ? 'drop-shadow(0 0 8px rgba(167, 139, 250, 0.4))' : 'none',
+                                opacity: hasData ? 1 : 0.3
+                            }}
                         />
                     </AreaChart>
                 </ResponsiveContainer>

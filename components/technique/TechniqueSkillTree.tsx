@@ -34,7 +34,7 @@ import { TechniqueNode } from './TechniqueNode';
 import { AddTechniqueModal } from './AddTechniqueModal';
 import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
-import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type } from 'lucide-react';
+import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2 } from 'lucide-react';
 import ShareModal from '../social/ShareModal';
 
 const nodeTypes: NodeTypes = {
@@ -77,6 +77,25 @@ export const TechniqueSkillTree: React.FC = () => {
     const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; onConfirm?: () => void; confirmText?: string; cancelText?: string } | null>(null);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [customShareUrl, setCustomShareUrl] = useState<string | null>(null);
+
+    // Mobile Optimization States
+    const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+    const [isMobile, setIsMobile] = useState(false);
+    const [isFabOpen, setIsFabOpen] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isUIHidden, setIsUIHidden] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [hideGuestOverlay, setHideGuestOverlay] = useState(false);
+
+    // Detect mobile viewport
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Encode/Decode Helpers
     const encodeGuestData = (data: any) => {
@@ -212,7 +231,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                 animated: edge.type === 'animated',
                                 sourceHandle: edge.sourceHandle,
                                 targetHandle: edge.targetHandle,
-                                style: { stroke: '#facc15', strokeWidth: 3 }
+                                style: { stroke: '#8b5cf6', strokeWidth: 3 }
                             }));
                             setNodes(flowNodes);
                             setEdges(flowEdges);
@@ -370,7 +389,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     animated: edge.type === 'animated',
                     sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
-                    style: { stroke: '#facc15', strokeWidth: 3 }
+                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
                 }));
 
                 setNodes(flowNodes);
@@ -428,7 +447,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                     animated: edge.type === 'animated',
                                     sourceHandle: edge.sourceHandle,
                                     targetHandle: edge.targetHandle,
-                                    style: { stroke: '#facc15', strokeWidth: 3 }
+                                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
                                 }));
                                 setNodes(flowNodes);
                                 setEdges(flowEdges);
@@ -496,7 +515,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                         animated: edge.type === 'animated',
                                         sourceHandle: edge.sourceHandle,
                                         targetHandle: edge.targetHandle,
-                                        style: { stroke: '#facc15', strokeWidth: 3 }
+                                        style: { stroke: '#8b5cf6', strokeWidth: 3 }
                                     }));
                                     setNodes(flowNodes);
                                     setEdges(flowEdges);
@@ -580,7 +599,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             animated: edge.type === 'animated',
                             sourceHandle: edge.sourceHandle,
                             targetHandle: edge.targetHandle,
-                            style: { stroke: '#facc15', strokeWidth: 3 }
+                            style: { stroke: '#8b5cf6', strokeWidth: 3 }
                         }));
 
                         setNodes(flowNodes);
@@ -777,7 +796,7 @@ export const TechniqueSkillTree: React.FC = () => {
             sourceHandle,
             targetHandle,
             type: 'default',
-            style: { stroke: '#facc15', strokeWidth: 3 }
+            style: { stroke: '#8b5cf6', strokeWidth: 3 }
         };
 
         setEdges(eds => {
@@ -869,7 +888,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 target: params.target,
                 sourceHandle: optimalHandle.sourceHandle,
                 targetHandle: optimalHandle.targetHandle,
-                style: { stroke: '#facc15', strokeWidth: 3 }
+                style: { stroke: '#8b5cf6', strokeWidth: 3 }
             };
             return addEdge(newEdge, eds);
         });
@@ -1000,7 +1019,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     sourceHandle: optimalSource,
                     targetHandle: optimalTarget,
                     type: 'default',
-                    style: { stroke: '#facc15', strokeWidth: 3 }
+                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
                 });
             }
         });
@@ -1107,6 +1126,23 @@ export const TechniqueSkillTree: React.FC = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    // Fullscreen Toggle with Browser API Support
+    const handleFullScreenToggle = () => {
+        if (!isFullScreen) {
+            // Enter Fullscreen
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            }
+        } else {
+            // Exit Fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+        setIsFullScreen(!isFullScreen);
     };
 
     const handleSave = async () => {
@@ -1232,299 +1268,572 @@ export const TechniqueSkillTree: React.FC = () => {
     }
 
     return (
-        <div className="h-full w-full bg-slate-950 flex flex-col overflow-hidden">
-            {/* Toolbar */}
-            {/* Toolbar */}
-            <div className="bg-slate-900 border-b border-slate-800 p-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-                    {/* Left: Title */}
-                    <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-                        <div className="p-2 bg-blue-500/10 rounded-lg">
-                            <FolderOpen className="w-5 h-5 text-blue-500" />
+        <div className={`w-full bg-zinc-950 flex flex-col overflow-hidden transition-all duration-500 ${isFullScreen
+            ? 'fixed inset-0 !z-[9999] h-[100dvh] w-full top-0 left-0'
+            : 'relative h-full'
+            }`}>
+            {/* Floating Adaptive Toolbar */}
+            {String(viewMode) === 'map' && (
+                <>
+                    {/* Desktop: Floating Vertical Toolbar */}
+                    {!isMobile && (
+                        <div className={`fixed top-28 right-8 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="flex flex-col gap-3 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 p-3 rounded-2xl shadow-2xl">
+                                {/* Title Input */}
+                                <div className="pb-3 border-b border-zinc-800/50">
+                                    <input
+                                        type="text"
+                                        value={currentTreeTitle}
+                                        onChange={(e) => setCurrentTreeTitle(e.target.value)}
+                                        className="bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none w-48"
+                                        placeholder="로드맵 이름..."
+                                    />
+                                </div>
+
+                                {/* Action Buttons */}
+                                {!isReadOnly && (
+                                    <>
+                                        <button
+                                            onClick={handleNewTree}
+                                            className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            title="새 로드맵"
+                                        >
+                                            <FilePlus className="w-5 h-5" />
+                                        </button>
+
+                                        <button
+                                            onClick={loadTreeList}
+                                            className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            title="불러오기"
+                                        >
+                                            <FolderOpen className="w-5 h-5" />
+                                        </button>
+
+                                        <div className="h-px bg-zinc-800/50 my-1" />
+                                    </>
+                                )}
+
+                                <button
+                                    onClick={handleAddTextNode}
+                                    className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    title="글자 박스 추가"
+                                >
+                                    <Type className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="p-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-white transition-all shadow-lg shadow-violet-500/20"
+                                    title="콘텐츠 추가"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+
+                                <div className="h-px bg-zinc-800/50 my-1" />
+
+                                <button
+                                    onClick={async () => {
+                                        if (!user) {
+                                            const guestData = {
+                                                title: currentTreeTitle,
+                                                nodes: nodes.map(node => ({
+                                                    id: node.id,
+                                                    type: node.type,
+                                                    position: node.position,
+                                                    data: {
+                                                        label: node.data.label,
+                                                        style: node.data.style,
+                                                        contentType: node.data.contentType,
+                                                        contentId: node.data.contentId
+                                                    },
+                                                    contentType: node.data.contentType,
+                                                    contentId: node.data.contentId
+                                                })),
+                                                edges: edges.map(e => ({
+                                                    id: e.id,
+                                                    source: e.source,
+                                                    target: e.target,
+                                                    type: e.type,
+                                                    animated: e.animated
+                                                }))
+                                            };
+                                            const encoded = encodeGuestData(guestData);
+                                            if (encoded) {
+                                                const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                                setCustomShareUrl(url);
+                                                setIsShareModalOpen(true);
+                                            } else {
+                                                alert('데이터가 너무 커서 공유 링크를 생성할 수 없습니다.');
+                                            }
+                                            return;
+                                        }
+                                        if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
+                                            const titleToUse = currentTreeTitle || '나의 스킬 트리';
+                                            const saved = await executeSave(titleToUse);
+                                            if (saved && currentTreeId) {
+                                                setCustomShareUrl(null);
+                                                setIsShareModalOpen(true);
+                                            }
+                                        } else {
+                                            setCustomShareUrl(null);
+                                            setIsShareModalOpen(true);
+                                        }
+                                    }}
+                                    className="p-3 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    title="공유"
+                                >
+                                    <Share2 className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className={`p-3 rounded-xl text-white transition-all ${saving
+                                        ? 'bg-yellow-600 cursor-wait'
+                                        : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-500/20'
+                                        }`}
+                                    title={saving ? '저장 중...' : '저장'}
+                                >
+                                    <Save className={`w-5 h-5 ${saving ? 'animate-spin' : ''}`} />
+                                </button>
+
+                                <div className="h-px bg-zinc-800/50 my-1" />
+
+                                <button
+                                    onClick={handleFullScreenToggle}
+                                    className={`p-3 rounded-xl transition-all border border-zinc-800/50 hover:border-zinc-700 ${isFullScreen ? 'bg-violet-600 text-white' : 'bg-zinc-900/60 text-zinc-400 hover:text-white'
+                                        }`}
+                                    title={isFullScreen ? '전체화면 해제' : '전체화면'}
+                                >
+                                    {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
-                        <input
-                            type="text"
-                            value={currentTreeTitle}
-                            onChange={(e) => setCurrentTreeTitle(e.target.value)}
-                            className="bg-transparent border-none text-xl font-bold text-white focus:ring-0 placeholder-slate-600 w-full"
-                            placeholder="로드맵 이름 입력..."
-                        />
-                    </div>
+                    )}
 
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {!isReadOnly && (
-                            <>
-                                {/* File Management */}
-                                <button
-                                    onClick={handleNewTree}
-                                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors border border-slate-700"
-                                    title="새 로드맵"
-                                >
-                                    <FilePlus className="w-5 h-5" />
-                                </button>
+                    {/* Mobile: FAB with Arc Menu */}
+                    {isMobile && (
+                        <>
+                            {/* View Mode Toggle */}
+                            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                                <div className="flex items-center gap-1 bg-zinc-900/80 backdrop-blur-xl p-1 rounded-full border border-zinc-800/50">
+                                    <button
+                                        onClick={() => setViewMode('map')}
+                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'map'
+                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                                            : 'text-zinc-400 hover:text-white'
+                                            }`}
+                                    >
+                                        맵
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('list')}
+                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'list'
+                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                                            : 'text-zinc-400 hover:text-white'
+                                            }`}
+                                    >
+                                        리스트
+                                    </button>
+                                </div>
+                            </div>
 
-                                <button
-                                    onClick={loadTreeList}
-                                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors border border-slate-700"
-                                    title="불러오기"
-                                >
-                                    <FolderOpen className="w-5 h-5" />
-                                </button>
+                            {/* FAB Main Button */}
+                            <button
+                                onClick={() => setIsFabOpen(!isFabOpen)}
+                                className={`fixed bottom-24 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
+                                    } ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                            >
+                                <Plus className="w-6 h-6 text-white" />
+                            </button>
 
+                            {/* FAB Arc Menu */}
+                            {isFabOpen && (
+                                <div className="fixed bottom-24 right-6 z-40">
+                                    <div className="relative">
+                                        {/* Add Content (Top) */}
+                                        <button
+                                            onClick={() => {
+                                                setIsAddModalOpen(true);
+                                                setIsFabOpen(false);
+                                            }}
+                                            className="absolute bottom-20 right-1 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+                                            style={{ animationDelay: '0ms' }}
+                                        >
+                                            <Plus className="w-5 h-5 text-violet-400" />
+                                        </button>
 
+                                        {/* Fullscreen (Top-Left Diagonal) */}
+                                        <button
+                                            onClick={() => {
+                                                handleFullScreenToggle();
+                                                setIsFabOpen(false);
+                                            }}
+                                            className="absolute bottom-16 right-16 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+                                            style={{ animationDelay: '50ms' }}
+                                        >
+                                            {isFullScreen ? <Minimize2 className="w-5 h-5 text-orange-400" /> : <Maximize2 className="w-5 h-5 text-orange-400" />}
+                                        </button>
 
-                                <div className="w-px h-8 bg-slate-800 mx-2" />
-                            </>
-                        )}
+                                        {/* Share (Left) */}
+                                        <button
+                                            onClick={async () => {
+                                                setIsFabOpen(false);
+                                                if (!user) {
+                                                    const guestData = {
+                                                        title: currentTreeTitle,
+                                                        nodes: nodes.map(node => ({
+                                                            id: node.id,
+                                                            type: node.type,
+                                                            position: node.position,
+                                                            data: {
+                                                                label: node.data.label,
+                                                                style: node.data.style,
+                                                                contentType: node.data.contentType,
+                                                                contentId: node.data.contentId
+                                                            },
+                                                            contentType: node.data.contentType,
+                                                            contentId: node.data.contentId
+                                                        })),
+                                                        edges: edges.map(e => ({
+                                                            id: e.id,
+                                                            source: e.source,
+                                                            target: e.target,
+                                                            type: e.type,
+                                                            animated: e.animated
+                                                        }))
+                                                    };
+                                                    const encoded = encodeGuestData(guestData);
+                                                    if (encoded) {
+                                                        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                                        setCustomShareUrl(url);
+                                                        setIsShareModalOpen(true);
+                                                    }
+                                                    return;
+                                                }
+                                                if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
+                                                    const titleToUse = currentTreeTitle || '나의 스킬 트리';
+                                                    const saved = await executeSave(titleToUse);
+                                                    if (saved && currentTreeId) {
+                                                        setCustomShareUrl(null);
+                                                        setIsShareModalOpen(true);
+                                                    }
+                                                } else {
+                                                    setCustomShareUrl(null);
+                                                    setIsShareModalOpen(true);
+                                                }
+                                            }}
+                                            className="absolute bottom-1 right-20 w-12 h-12 bg-zinc-900 hover:bg-zinc-800 rounded-full shadow-xl border border-zinc-700 flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+                                            style={{ animationDelay: '100ms' }}
+                                        >
+                                            <Share2 className="w-5 h-5 text-blue-400" />
+                                        </button>
 
-                        {/* Add Text - Moved outside ReadOnly check so guests can try it */}
-                        <button
-                            onClick={handleAddTextNode}
-                            className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition-colors"
-                            title="글자 박스 추가"
-                        >
-                            <Type className="w-4 h-4" />
-                            <span className="hidden sm:inline font-medium">글자</span>
-                        </button>
+                                        {/* Save (Far Top Left) */}
+                                        <button
+                                            onClick={() => {
+                                                handleSave();
+                                                setIsFabOpen(false);
+                                            }}
+                                            disabled={saving}
+                                            className="absolute bottom-28 right-12 w-12 h-12 bg-green-600 hover:bg-green-500 rounded-full shadow-xl flex items-center justify-center transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+                                            style={{ animationDelay: '150ms' }}
+                                        >
+                                            <Save className={`w-5 h-5 text-white ${saving ? 'animate-spin' : ''}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </>
+            )}
 
-
-                        {/* Add Technique */}
-                        <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">콘텐츠 추가</span>
-                        </button>
-
-                        {/* Share */}
-                        <button
-                            onClick={async () => {
-                                // GUEST SHARING SUPPORT
-                                if (!user) {
-                                    // Serialize current state
-                                    const guestData = {
-                                        title: currentTreeTitle,
-                                        nodes: nodes.map(node => ({
-                                            id: node.id,
-                                            type: node.type,
-                                            position: node.position,
-                                            data: {
-                                                label: node.data.label,
-                                                style: node.data.style,
-                                                contentType: node.data.contentType,
-                                                contentId: node.data.contentId
-                                            },
-                                            contentType: node.data.contentType,
-                                            contentId: node.data.contentId
-                                        })),
-                                        edges: edges.map(e => ({
-                                            id: e.id,
-                                            source: e.source,
-                                            target: e.target,
-                                            type: e.type,
-                                            animated: e.animated
-                                        }))
-                                    };
-
-                                    const encoded = encodeGuestData(guestData);
-                                    if (encoded) {
-                                        // Construct URL
-                                        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-                                        setCustomShareUrl(url);
-                                        setIsShareModalOpen(true);
-                                    } else {
-                                        alert('데이터가 너무 커서 공유 링크를 생성할 수 없습니다.');
-                                    }
-                                    return;
-                                }
-
-                                // LOGGED IN USER SHARING
-                                // 공유 전에 저장되지 않은 트리가 있으면 먼저 저장
-                                if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
-                                    // 자동 저장
-                                    const titleToUse = currentTreeTitle || '나의 스킬 트리';
-                                    const saved = await executeSave(titleToUse);
-                                    // 저장 성공 시에만 모달 열기
-                                    if (saved && currentTreeId) {
-                                        setCustomShareUrl(null); // Use default ID-based URL
-                                        setIsShareModalOpen(true);
-                                    }
-                                } else {
-                                    setCustomShareUrl(null); // Use default ID-based URL
-                                    setIsShareModalOpen(true);
-                                }
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
-                        >
-                            <Share2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">공유</span>
-                        </button>
-
-                        {/* Save */}
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all ${saving ? 'bg-yellow-600 cursor-wait' : 'bg-green-600 hover:bg-green-700'
-                                }`}
-                        >
-                            <Save className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
-                            <span className="hidden sm:inline">
-                                {saving ? '저장 중...' : '저장'}
-                            </span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* React Flow Canvas */}
-            <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onConnectStart={onConnectStart}
-                    onConnectEnd={onConnectEnd}
-                    onInit={setRfInstance}
-                    onDragOver={onDragOver}
-                    onDrop={onDrop}
-                    onNodeClick={onNodeClick}
-                    onNodeDrag={onNodeDrag}
-                    onNodeDragStop={onNodeDragStop}
-                    onNodeDoubleClick={onNodeDoubleClick}
-                    onEdgeClick={onEdgeClick}
-                    onPaneClick={handlePaneClick}
-                    nodeTypes={nodeTypes}
-                    defaultEdgeOptions={{
-                        style: { stroke: '#facc15', strokeWidth: 3 },
-                        interactionWidth: 20, // Make edges easier to click
-                        animated: false,
-                    }}
-                    fitView
-                    minZoom={0.1}
-                    maxZoom={1.5}
-                    className="bg-slate-950"
-                    connectionMode={ConnectionMode.Loose}
-                    preventScrolling={true}
-                    zoomOnPinch={true}
-                    panOnScroll={false}
-                    zoomOnScroll={true}
-                    panOnDrag={true}
-                    proOptions={{ hideAttribution: true }}
-                >
-                    <style>{`
+            {/* Content Area: Map or List View */}
+            {viewMode === 'map' ? (
+                /* React Flow Canvas */
+                <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
+                    {isFullScreen && (
+                        <style>{`
+                            nav, header, footer, .sidebar, .tab-bar, .bottom-nav {
+                                display: none !important;
+                            }
+                            body {
+                                overflow: hidden !important;
+                            }
+                        `}</style>
+                    )}
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onConnectStart={onConnectStart}
+                        onConnectEnd={onConnectEnd}
+                        onInit={setRfInstance}
+                        onDragOver={onDragOver}
+                        onDrop={onDrop}
+                        onNodeClick={onNodeClick}
+                        onNodeDrag={onNodeDrag}
+                        onNodeDragStop={onNodeDragStop}
+                        onNodeDoubleClick={onNodeDoubleClick}
+                        onEdgeClick={onEdgeClick}
+                        onPaneClick={handlePaneClick}
+                        nodeTypes={nodeTypes}
+                        defaultEdgeOptions={{
+                            style: { stroke: '#8b5cf6', strokeWidth: 3 },
+                            interactionWidth: 20, // Make edges easier to click
+                            animated: false,
+                        }}
+                        fitView
+                        minZoom={isMobile ? 0.5 : 0.1}
+                        maxZoom={isMobile ? 2.0 : 1.5}
+                        className="bg-slate-950"
+                        connectionMode={ConnectionMode.Loose}
+                        preventScrolling={true}
+                        zoomOnPinch={true}
+                        panOnScroll={false}
+                        zoomOnScroll={true}
+                        panOnDrag={true}
+                        proOptions={{ hideAttribution: true }}
+                    >
+                        <style>{`
                         .react-flow__edge.selected .react-flow__edge-path {
-                            stroke: #3b82f6 !important;
+                            stroke: #8b5cf6 !important;
                             stroke-width: 5 !important;
-                            filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5));
+                            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
                         }
                         .react-flow__edge:hover .react-flow__edge-path {
                             stroke-width: 5 !important;
                         }
+                        .react-flow__edge-path {
+                            stroke: #8b5cf6;
+                            stroke-width: 3;
+                            animation: pulse-edge 2s ease-in-out infinite;
+                        }
+                        @keyframes pulse-edge {
+                            0%, 100% { opacity: 0.6; }
+                            50% { opacity: 1; }
+                        }
                     `}</style>
-                    <Background
-                        variant={BackgroundVariant.Dots}
-                        gap={20}
-                        size={1}
-                        color="#334155"
-                    />
-                    <Controls className="bg-slate-800 border border-slate-700" />
-                    <MiniMap
-                        className="bg-slate-900 border border-slate-700 !w-28 !h-20 sm:!w-48 sm:!h-36 !bottom-4 !right-4"
-                        nodeColor={(node) => {
-                            const mastery = node.data.mastery;
-                            const isCompleted = node.data.isCompleted;
+                        <Background
+                            variant={BackgroundVariant.Dots}
+                            gap={20}
+                            size={1}
+                            color="#334155"
+                        />
+                        <Controls className="bg-slate-800 border border-slate-700" />
+                        <MiniMap
+                            className={`border border-slate-700/50 ${isMobile ? '!w-20 !h-16 !opacity-70' : '!w-32 !h-24'} !bottom-4 !right-4 !bg-slate-900/80 backdrop-blur-sm`}
+                            nodeColor={(node) => {
+                                const mastery = node.data.mastery;
+                                const isCompleted = node.data.isCompleted;
 
-                            // Yellow for Mastered/Completed
-                            if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
-                                return '#facc15';
-                            }
-                            // Blue for In-progress
-                            if (mastery && mastery.masteryLevel >= 2) {
-                                return '#3b82f6';
-                            }
-                            // Gray for not started
-                            return '#475569';
-                        }}
-                        maskColor="rgba(15, 23, 42, 0.6)"
-                    />
+                                // Violet for Mastered/Completed
+                                if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
+                                    return '#8b5cf6';
+                                }
+                                // Light Violet for In-progress
+                                if (mastery && mastery.masteryLevel >= 2) {
+                                    return '#a78bfa';
+                                }
+                                // Gray for not started (locked)
+                                return '#52525b';
+                            }}
+                            maskColor="rgba(15, 23, 42, 0.7)"
+                        />
 
 
 
-                </ReactFlow>
-            </div>
+                    </ReactFlow>
+                </div>
+            ) : (
+                /* List View */
+                <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4">
+                    <div className="max-w-2xl mx-auto space-y-3">
+                        {nodes.length === 0 ? (
+                            <div className="text-center py-12 text-slate-500">
+                                <p className="text-lg font-medium">아직 추가된 콘텐츠가 없습니다</p>
+                                <p className="text-sm mt-2">상단의 '콘텐츠 추가' 버튼을 눌러 시작하세요</p>
+                            </div>
+                        ) : (
+                            nodes.map((node, index) => {
+                                const mastery = node.data.mastery;
+                                const isCompleted = node.data.isCompleted;
+                                const isLocked = !mastery && !isCompleted;
+
+                                return (
+                                    <div
+                                        key={node.id}
+                                        className={`relative p-4 rounded-xl border transition-all cursor-pointer ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                                            ? 'bg-violet-500/10 border-violet-500/30 shadow-lg shadow-violet-500/10'
+                                            : mastery && mastery.masteryLevel >= 2
+                                                ? 'bg-violet-400/5 border-violet-400/20'
+                                                : 'bg-zinc-800/40 border-zinc-700/50 opacity-60'
+                                            }`}
+                                        onClick={() => {
+                                            if (node.data.contentType === 'lesson' && node.data.lesson) {
+                                                navigate(`/lessons/${node.data.lesson.id}`);
+                                            } else if (node.data.contentType === 'drill' && node.data.drill) {
+                                                navigate(`/drills/${node.data.drill.id}`);
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                                                ? 'bg-violet-600 text-white'
+                                                : mastery && mastery.masteryLevel >= 2
+                                                    ? 'bg-violet-500/50 text-violet-200'
+                                                    : 'bg-zinc-700 text-zinc-400'
+                                                }`}>
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-white font-bold text-sm mb-1 truncate">
+                                                    {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
+                                                </h3>
+                                                {node.data.lesson && (
+                                                    <p className="text-xs text-slate-400 truncate">
+                                                        {node.data.lesson.course?.title || '강좌'}
+                                                    </p>
+                                                )}
+                                                {mastery && (
+                                                    <div className="flex items-center gap-1 mt-2">
+                                                        <div className="flex gap-0.5">
+                                                            {[1, 2, 3, 4, 5].map((level) => (
+                                                                <div
+                                                                    key={level}
+                                                                    className={`w-4 h-1.5 rounded-full ${level <= mastery.masteryLevel
+                                                                        ? 'bg-violet-500'
+                                                                        : 'bg-zinc-700'
+                                                                        }`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <span className="text-xs text-slate-500 ml-1">
+                                                            Lv.{mastery.masteryLevel}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {isLocked && (
+                                                <div className="flex-shrink-0 text-zinc-600">
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+
+
+            {/* Guest Experience Overlay - Bottom Discovery Bar */}
+            {!user && String(viewMode) === 'map' && !hideGuestOverlay && (
+                <div className={`fixed ${isMobile ? 'bottom-24' : 'bottom-0'} left-0 right-0 z-40 pointer-events-none px-4 flex justify-center`}>
+                    <div className="h-40 flex items-end pb-4 pointer-events-auto w-full max-w-sm">
+                        <div className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50 p-4 rounded-2xl w-full text-center shadow-2xl">
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setHideGuestOverlay(true)}
+                                className="absolute -top-3 -right-3 w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white shadow-xl"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+
+                            <p className="text-zinc-50 text-xs font-medium mb-3 leading-tight">
+                                500+ 그래플링 기술 탐험 중...<br />
+                                <span className="text-violet-400 font-bold">로그인하고 나만의 로드맵을 저장하세요</span>
+                            </p>
+                            <button
+                                onClick={() => (window.location.href = '/login')}
+                                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
+                            >
+                                무료로 시작하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* --- CUSTOM MODALS --- */}
 
             {/* New Tree Confirmation Modal */}
-            {isNewTreeModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                    <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
-                        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FilePlus className="w-6 h-6 text-blue-500" />
-                        </div>
-                        <h3 className="text-lg font-bold text-white mb-2">새 로드맵 만들기</h3>
-                        <p className="text-slate-400 mb-6 text-sm">
-                            현재 작업 중인 내용이 저장되지 않았을 수 있습니다.<br />
-                            정말 새로 만드시겠습니까?
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <button
-                                onClick={() => setIsNewTreeModalOpen(false)}
-                                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={confirmNewTree}
-                                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
-                            >
-                                새로 만들기
-                            </button>
+            {
+                isNewTreeModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
+                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
+                            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FilePlus className="w-6 h-6 text-blue-500" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white mb-2">새 로드맵 만들기</h3>
+                            <p className="text-slate-400 mb-6 text-sm">
+                                현재 작업 중인 내용이 저장되지 않았을 수 있습니다.<br />
+                                정말 새로 만드시겠습니까?
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => setIsNewTreeModalOpen(false)}
+                                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={confirmNewTree}
+                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
+                                >
+                                    새로 만들기
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Save Title Modal */}
-            {isSaveModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                    <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6">
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Save className="w-5 h-5 text-green-500" />
-                            로드맵 저장
-                        </h3>
-                        <div className="mb-6">
-                            <label className="text-xs text-slate-500 font-bold mb-2 block uppercase">로드맵 이름</label>
-                            <input
-                                type="text"
-                                value={saveTitleInput}
-                                onChange={(e) => setSaveTitleInput(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none font-bold"
-                                placeholder="나만의 로드맵 이름을 입력하세요"
-                                autoFocus
-                            />
-                        </div>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setIsSaveModalOpen(false)}
-                                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={() => executeSave(saveTitleInput || '나의 로드맵')}
-                                className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors font-bold text-sm shadow-lg shadow-green-500/20"
-                            >
-                                저장하기
-                            </button>
+            {
+                isSaveModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
+                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6">
+                            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                <Save className="w-5 h-5 text-green-500" />
+                                로드맵 저장
+                            </h3>
+                            <div className="mb-6">
+                                <label className="text-xs text-slate-500 font-bold mb-2 block uppercase">로드맵 이름</label>
+                                <input
+                                    type="text"
+                                    value={saveTitleInput}
+                                    onChange={(e) => setSaveTitleInput(e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none font-bold"
+                                    placeholder="나만의 로드맵 이름을 입력하세요"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setIsSaveModalOpen(false)}
+                                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={() => executeSave(saveTitleInput || '나의 로드맵')}
+                                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors font-bold text-sm shadow-lg shadow-green-500/20"
+                                >
+                                    저장하기
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Share Modal */}
             <ShareModal
@@ -1536,35 +1845,37 @@ export const TechniqueSkillTree: React.FC = () => {
             />
 
             {/* Generic Alert/Confirm Modal */}
-            {alertConfig && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                    <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
-                        <h3 className="text-lg font-bold text-white mb-2">{alertConfig.title}</h3>
-                        <p className="text-slate-400 mb-6 text-sm whitespace-pre-line">
-                            {alertConfig.message}
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            {alertConfig.cancelText && (
+            {
+                alertConfig && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
+                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
+                            <h3 className="text-lg font-bold text-white mb-2">{alertConfig.title}</h3>
+                            <p className="text-slate-400 mb-6 text-sm whitespace-pre-line">
+                                {alertConfig.message}
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                {alertConfig.cancelText && (
+                                    <button
+                                        onClick={() => setAlertConfig(null)}
+                                        className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
+                                    >
+                                        {alertConfig.cancelText}
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => setAlertConfig(null)}
-                                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
+                                    onClick={() => {
+                                        if (alertConfig.onConfirm) alertConfig.onConfirm();
+                                        setAlertConfig(null);
+                                    }}
+                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
                                 >
-                                    {alertConfig.cancelText}
+                                    {alertConfig.confirmText || '확인'}
                                 </button>
-                            )}
-                            <button
-                                onClick={() => {
-                                    if (alertConfig.onConfirm) alertConfig.onConfirm();
-                                    setAlertConfig(null);
-                                }}
-                                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
-                            >
-                                {alertConfig.confirmText || '확인'}
-                            </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <AddTechniqueModal
                 isOpen={isAddModalOpen}
@@ -1582,54 +1893,56 @@ export const TechniqueSkillTree: React.FC = () => {
             />
 
             {/* Load Tree Modal */}
-            {isLoadModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
-                        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <FolderOpen className="w-5 h-5 text-blue-500" />
-                                로드맵 불러오기
-                            </h3>
-                            <button onClick={() => setIsLoadModalOpen(false)} className="text-slate-400 hover:text-white">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="max-h-[60vh] overflow-y-auto p-2">
-                            {treeList.length === 0 ? (
-                                <div className="text-center py-8 text-slate-500">
-                                    저장된 로드맵이 없습니다.
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {treeList.map(tree => (
-                                        <div
-                                            key={tree.id}
-                                            className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700"
-                                            onClick={() => handleLoadTree(tree.id)}
-                                        >
-                                            <div>
-                                                <div className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">
-                                                    {tree.title || '제목 없음'}
-                                                </div>
-                                                <div className="text-xs text-slate-500">
-                                                    {new Date(tree.updatedAt || tree.createdAt || Date.now()).toLocaleDateString()}
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={(e) => handleDeleteTree(tree.id, e)}
-                                                className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
-                                                title="삭제"
+            {
+                isLoadModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
+                            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <FolderOpen className="w-5 h-5 text-blue-500" />
+                                    로드맵 불러오기
+                                </h3>
+                                <button onClick={() => setIsLoadModalOpen(false)} className="text-slate-400 hover:text-white">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto p-2">
+                                {treeList.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-500">
+                                        저장된 로드맵이 없습니다.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {treeList.map(tree => (
+                                            <div
+                                                key={tree.id}
+                                                className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700"
+                                                onClick={() => handleLoadTree(tree.id)}
                                             >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                                <div>
+                                                    <div className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">
+                                                        {tree.title || '제목 없음'}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">
+                                                        {new Date(tree.updatedAt || tree.createdAt || Date.now()).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => handleDeleteTree(tree.id, e)}
+                                                    className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
+                                                    title="삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };

@@ -4,7 +4,7 @@ import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, to
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX, Zap, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, MoreVertical, Play, Lock, Volume2, VolumeX, Zap, MessageCircle, ListVideo } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { AddToRoutineModal } from '../components/AddToRoutineModal';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -610,90 +610,84 @@ export const DrillDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Vertical Actions Overlay */}
+            {/* Right Side Actions - Unified Container (Top: Mute, Bottom: Like/Save/Routine/Share) */}
             <div className="absolute inset-0 pointer-events-none flex justify-center z-40">
-                <div className="w-full h-full max-w-[56.25vh] relative">
-                    <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 pointer-events-auto">
-                        {/* Like */}
-                        <div className="flex flex-col items-center gap-1">
+                <div className="relative h-full w-full max-w-[56.25vh] flex">
+                    {/* Spacer for video width */}
+                    <div className="flex-1"></div>
+                    
+                    {/* Actions Container - Sticks to right edge of video on mobile, outside on desktop */}
+                    <div className="absolute right-0 md:relative md:right-auto top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto
+                                    md:translate-x-full md:ml-4">
+                        {/* Top Actions: Mute */}
+                        <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
                             <button
-                                onClick={handleLike}
-                                className="text-white hover:text-red-500 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                onClick={toggleMute}
+                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                             >
-                                <Heart
-                                    className={`w-8 h-8 ${liked ? 'fill-red-500 text-red-500' : 'text-white'}`}
-                                    strokeWidth={1.5}
-                                />
+                                {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                             </button>
-                            <span className="text-xs font-bold text-white shadow-black drop-shadow-md">
-                                {(drill?.likes || 0) + (liked ? 1 : 0)}
-                            </span>
                         </div>
 
-                        {/* Save */}
-                        <button
-                            onClick={handleSave}
-                            className="text-white hover:text-yellow-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                            title="나만의 루틴에 저장"
-                        >
-                            <Bookmark
-                                className={`w-8 h-8 ${saved ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`}
-                                strokeWidth={1.5}
-                            />
-                        </button>
+                        {/* Bottom Actions: Like, Routine, Save, Share */}
+                        <div className="flex flex-col gap-3 items-center pr-4 md:pr-0 pb-24 md:pb-0">
+                            {/* Like */}
+                            <div className="flex flex-col items-center gap-0.5">
+                                <button
+                                    onClick={handleLike}
+                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                >
+                                    <Heart className={`w-6 h-6 ${liked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                </button>
+                                <span className="text-[10px] font-medium text-zinc-200">{((drill?.likes || 0) + (liked ? 1 : 0)).toLocaleString()}</span>
+                            </div>
 
-                        {/* Additional Icons: Routine / Mute / Share */}
-                        {/* Routine Link (if exists) */}
-                        {owns && associatedRoutineId && (
+                            {/* Routine Link (if exists) */}
+                            {owns && associatedRoutineId && (
+                                <button
+                                    onClick={() => navigate(`/routines/${associatedRoutineId}`)}
+                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                >
+                                    <ListVideo className="w-6 h-6" />
+                                </button>
+                            )}
+
+                            {/* Add to Routine (if no routine) */}
+                            {owns && !associatedRoutineId && (
+                                <button
+                                    onClick={() => setShowAddToRoutine(true)}
+                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                >
+                                    <MoreVertical className="w-6 h-6" />
+                                </button>
+                            )}
+
+                            {/* Save */}
                             <button
-                                onClick={() => navigate(`/routines/${associatedRoutineId}`)}
-                                className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                onClick={handleSave}
+                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                title="나만의 루틴에 저장"
                             >
-                                <Play className="w-8 h-8" strokeWidth={1.5} />
+                                <Bookmark className={`w-6 h-6 ${saved ? 'fill-zinc-100' : ''}`} />
                             </button>
-                        )}
 
-                        {/* Share */}
-                        <button
-                            onClick={handleShare}
-                            className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                        >
-                            <Share2 className="w-8 h-8" strokeWidth={1.5} />
-                        </button>
-                        {/* If no routine, show 'Add to Routine' maybe? Or omit as requested if none */}
-                        {owns && !associatedRoutineId && (
+                            {/* Share */}
                             <button
-                                onClick={() => setShowAddToRoutine(true)}
-                                className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
+                                onClick={handleShare}
+                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                             >
-                                <MoreVertical className="w-8 h-8" strokeWidth={1.5} />
+                                <Share2 className="w-6 h-6" />
                             </button>
-                        )}
-
-                        {/* Mute */}
-                        <button
-                            onClick={toggleMute}
-                            className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                        >
-                            {muted ? <VolumeX className="w-8 h-8" strokeWidth={1.5} /> : <Volume2 className="w-8 h-8" strokeWidth={1.5} />}
-                        </button>
-
-                        {/* Share */}
-                        <button
-                            onClick={handleShare}
-                            className="text-white hover:text-zinc-300 transition-colors transform hover:scale-110 active:scale-95 drop-shadow-lg"
-                        >
-                            <Share2 className="w-8 h-8" strokeWidth={1.5} />
-                        </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Bottom Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30 pointer-events-none">
+            <div className="fixed left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                     {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
-                    <div className="flex-1 pr-4">
+                    <div className="flex-1 pr-16">
                         <div className="flex flex-row items-center gap-2 mb-2">
                             <span
                                 onClick={navigateToCreator}

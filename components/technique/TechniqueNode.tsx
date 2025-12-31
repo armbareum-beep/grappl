@@ -214,6 +214,14 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                 </div>
             </div>
 
+            {/* Violet Pulse Animation for Advanced Techniques (Guest Attraction) */}
+            {((mastery && mastery.masteryLevel >= 4) || isCompleted) && !isMinimal && (
+                <div className="absolute inset-0 rounded-full animate-violet-pulse z-0">
+                    <div className="absolute inset-0 rounded-full bg-violet-500/20 blur-md"></div>
+                    <div className="absolute inset-0 rounded-full border-2 border-violet-400/40"></div>
+                </div>
+            )}
+
             {/* Mastery level badge */}
             {mastery && !isMinimal && (
                 <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-slate-900 border-2 border-blue-400 flex items-center justify-center shadow-lg z-20">

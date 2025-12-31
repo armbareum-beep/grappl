@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Lesson, Difficulty } from '../types';
+import { Lesson, Difficulty, VideoCategory } from '../types';
 
 // ==================== Lessons ====================
 
@@ -8,11 +8,13 @@ export async function createLesson(lessonData: {
     courseId?: string | null;
     title: string;
     description: string;
+    category?: VideoCategory;
     lessonNumber: number;
     vimeoUrl: string;
     length: string | number;
     difficulty: Difficulty;
     durationMinutes?: number;
+    thumbnailUrl?: string;
 }) {
     const { data, error } = await supabase
         .from('lessons')
@@ -20,11 +22,13 @@ export async function createLesson(lessonData: {
             course_id: lessonData.courseId || null,
             title: lessonData.title,
             description: lessonData.description,
+            category: lessonData.category || null,
             lesson_number: lessonData.lessonNumber,
             vimeo_url: lessonData.vimeoUrl,
             length: String(lessonData.length), // Ensure string if DB expects it, or number. Types says string.
             difficulty: lessonData.difficulty,
             duration_minutes: lessonData.durationMinutes,
+            thumbnail_url: lessonData.thumbnailUrl,
         }])
         .select()
         .single();
@@ -39,11 +43,13 @@ export async function updateLesson(id: string, updates: Partial<Lesson>) {
             course_id: updates.courseId,
             title: updates.title,
             description: updates.description,
+            category: updates.category,
             lesson_number: updates.lessonNumber,
             vimeo_url: updates.vimeoUrl,
             length: updates.length,
             difficulty: updates.difficulty,
             duration_minutes: updates.durationMinutes,
+            thumbnail_url: updates.thumbnailUrl,
         })
         .eq('id', id)
         .select()
