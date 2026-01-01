@@ -13,6 +13,7 @@ export const Arena: React.FC = () => {
     const { user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<ArenaTab>('journal');
+    const [isFullScreen, setIsFullScreen] = useState(false);
 
     useEffect(() => {
         const tabParam = searchParams.get('tab');
@@ -34,6 +35,16 @@ export const Arena: React.FC = () => {
         }
     }, [searchParams, user]);
 
+    // Detect fullscreen changes
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullScreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId as ArenaTab);
         setSearchParams({ tab: tabId });
@@ -47,53 +58,48 @@ export const Arena: React.FC = () => {
 
     return (
         <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
-            {/* Tab Navigation Area - iOS Segmented Capsule Style */}
-            <div className="flex-none bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-900 z-20 sticky top-0">
-                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6">
-                    {/* Unified Capsule Navigation */}
-                    <div className="flex justify-center">
-                        <div className="inline-flex items-center bg-zinc-900/30 backdrop-blur-md rounded-full p-1.5 border border-zinc-800/50 gap-2">
-                            {ARENA_TABS.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.id;
-                                const isLocked = !user && tab.id !== 'skills' && tab.id !== 'routines';
+            {/* Floating Tab Navigation - Capsule Style */}
+            <div className={`fixed ${isFullScreen ? 'top-4' : 'top-24'} left-1/2 -translate-x-1/2 z-50 pointer-events-none`}>
+                <div className="inline-flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800/50 gap-1 pointer-events-auto shadow-2xl">
+                    {ARENA_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        const isLocked = !user && tab.id !== 'skills' && tab.id !== 'routines';
 
-                                return (
-                                    <div key={tab.id} className="relative group">
-                                        <button
-                                            onClick={() => {
-                                                if (isLocked) {
-                                                    // Guest trying to access locked tab - redirect to login
-                                                    window.location.href = '/login';
-                                                } else {
-                                                    handleTabChange(tab.id);
-                                                }
-                                            }}
-                                            className={`
-                                                flex items-center gap-2 px-6 md:px-8 py-2.5 rounded-full text-sm font-bold transition-all duration-300
-                                                ${isActive
-                                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
-                                                    : isLocked
-                                                        ? 'bg-transparent text-zinc-600 hover:text-zinc-400 cursor-pointer'
-                                                        : 'bg-transparent text-zinc-500 hover:text-zinc-300'
-                                                }
-                                            `}
-                                        >
-                                            <Icon className="w-5 h-5" />
-                                            <span className="hidden sm:inline">{tab.label}</span>
-                                        </button>
-                                        {/* Tooltip for locked tabs */}
-                                        {isLocked && (
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-violet-500 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                                                로그인하여 모든 기능 활용하기
-                                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-violet-500"></div>
-                                            </div>
-                                        )}
+                        return (
+                            <div key={tab.id} className="relative group">
+                                <button
+                                    onClick={() => {
+                                        if (isLocked) {
+                                            // Guest trying to access locked tab - redirect to login
+                                            window.location.href = '/login';
+                                        } else {
+                                            handleTabChange(tab.id);
+                                        }
+                                    }}
+                                    className={`
+                                        flex items-center gap-1.5 px-3 md:px-5 py-2 rounded-full text-xs font-bold transition-all duration-300
+                                        ${isActive
+                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
+                                            : isLocked
+                                                ? 'bg-transparent text-zinc-600 hover:text-zinc-400 cursor-pointer'
+                                                : 'bg-transparent text-zinc-500 hover:text-zinc-300'
+                                        }
+                                    `}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    <span className="hidden md:inline">{tab.label}</span>
+                                </button>
+                                {/* Tooltip for locked tabs */}
+                                {isLocked && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-violet-500 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                                        로그인하여 모든 기능 활용하기
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-violet-500"></div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

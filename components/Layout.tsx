@@ -98,7 +98,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+      <nav className={cn(
+        "sticky top-0 z-50 w-full transition-all duration-300",
+        location.pathname === '/pricing'
+          ? "bg-zinc-950"
+          : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
+      )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20 relative">
             {/* Left Section: Desktop Logo OR Mobile Search */}
@@ -136,10 +141,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     key={item.name}
                     to={item.href}
                     className={cn(
-                      "px-2 lg:px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 lg:space-x-2 whitespace-nowrap",
+                      "px-3 lg:px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-1.5 lg:space-x-2 whitespace-nowrap",
                       isActive(item.href)
-                        ? "bg-accent text-accent-foreground" // Active State
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground" // Inactive State
+                        ? "bg-violet-600/20 text-violet-400 shadow-lg shadow-violet-900/20 border border-violet-500/30" // Active State
+                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent" // Inactive State
                     )}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -155,7 +160,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {user && isAdmin && (
                 <>
                   <Link to="/admin/dashboard">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 whitespace-nowrap px-2 lg:px-3 h-9">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-400/50 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl font-bold transition-all duration-300">
                       <Settings className="w-4 h-4 flex-shrink-0" />
                       <span className="hidden lg:inline">관리자</span>
                     </Button>
@@ -164,7 +169,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
               {user && !isCreator && (
                 <Link to="/become-creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3 h-9">
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
                     <Upload className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden lg:inline">인스트럭터 신청</span>
                   </Button>
@@ -172,7 +177,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
               {user && isCreator && (
                 <Link to="/creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-2 lg:px-3 h-9">
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
                     <Upload className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden lg:inline">대시보드</span>
                   </Button>
@@ -183,20 +188,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-2 px-2 lg:px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap h-9 text-sm font-medium"
+                    className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
                   >
                     <User className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden lg:inline">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-popover rounded-md shadow-md border border-border py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground border-b border-border mb-1">
+                    <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="px-3 py-2 text-xs font-bold text-zinc-500 border-b border-zinc-800/50 mb-1 uppercase tracking-wider">
                         내 계정
                       </div>
                       <Link
                         to="/library"
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mx-1"
+                        className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <BookOpen className="mr-2 h-4 w-4" />
@@ -204,19 +209,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                       <Link
                         to="/settings"
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mx-1"
+                        className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <Settings className="mr-2 h-4 w-4" />
                         <span>설정</span>
                       </Link>
-                      <div className="h-px bg-border my-1" />
+                      <div className="h-px bg-zinc-800/50 my-2 mx-2" />
                       <button
                         onClick={() => {
                           signOut();
                           setUserMenuOpen(false);
                         }}
-                        className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-destructive hover:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 mx-1 text-red-500 hover:text-white"
+                        className="relative flex w-full cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-red-500/10 text-red-400 hover:text-red-300 mx-2 font-medium"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>로그아웃</span>
@@ -225,7 +230,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   )}
                 </div>
               ) : (
-                <Link to="/login" className="text-zinc-400 hover:text-zinc-100 text-sm font-medium transition-colors px-4 py-2">
+                <Link to="/login" className="text-zinc-400 hover:text-white text-sm font-bold transition-all duration-300 px-4 py-2 rounded-xl hover:bg-zinc-800/50">
                   로그인
                 </Link>
               )}

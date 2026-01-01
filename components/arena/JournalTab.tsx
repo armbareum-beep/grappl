@@ -237,20 +237,15 @@ export const JournalTab: React.FC = () => {
                     mediaUrl: undefined,
                     youtubeUrl: formData.sparringEntries[0]?.videoUrl ? getYouTubeEmbedUrl(formData.sparringEntries[0].videoUrl) : undefined
                 });
-                success('게시되었습니다.');
-            } else {
-                success('저장되었습니다.');
             }
 
-            // 5. XP Modal
-            if (logXp > 0 || sparringXp > 0) {
-                setQuestCompleteData({
-                    questName: '수련 기록 완료',
-                    xpEarned: logXp + sparringXp,
-                    streak
-                });
-                setShowQuestComplete(true);
-            }
+            // 5. XP Modal (Always show feedback)
+            setQuestCompleteData({
+                questName: formData.isPublic ? '수련 일지 게시' : '수련 기록 완료',
+                xpEarned: logXp + sparringXp,
+                streak: streak || 0
+            });
+            setShowQuestComplete(true);
 
         } catch (err) {
             console.error(err);
@@ -391,19 +386,10 @@ export const JournalTab: React.FC = () => {
                         <Trophy className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        {thisMonthItems.length === 0 ? (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2 flex items-center gap-2">
-                                    <Plus className="w-8 h-8 text-violet-400" />
-                                </div>
-                                <div className="text-xs text-violet-400 font-bold uppercase tracking-wider">첫 수련 시작</div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2">{thisMonthItems.length}</div>
-                                <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">총 수련 횟수</div>
-                            </>
-                        )}
+                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                            {thisMonthItems.length}
+                        </div>
+                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 수련</div>
                     </div>
                 </div>
                 <div
@@ -416,19 +402,10 @@ export const JournalTab: React.FC = () => {
                         <Clock className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        {thisMonthDuration === 0 ? (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2 flex items-center gap-2">
-                                    <Plus className="w-8 h-8 text-violet-400" />
-                                </div>
-                                <div className="text-xs text-violet-400 font-bold uppercase tracking-wider">시간 기록 시작</div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2">{Math.round(thisMonthDuration / 60)}</div>
-                                <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">총 시간 (hr)</div>
-                            </>
-                        )}
+                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                            {Math.round(thisMonthDuration / 60)}
+                        </div>
+                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 시간(hr)</div>
                     </div>
                 </div>
                 <div
@@ -441,19 +418,10 @@ export const JournalTab: React.FC = () => {
                         <Activity className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        {thisMonthRounds === 0 ? (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2 flex items-center gap-2">
-                                    <Plus className="w-8 h-8 text-violet-400" />
-                                </div>
-                                <div className="text-xs text-violet-400 font-bold uppercase tracking-wider">라운드 추가</div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-4xl font-black text-zinc-50 leading-none mb-2">{thisMonthRounds}</div>
-                                <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">총 라운드</div>
-                            </>
-                        )}
+                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                            {thisMonthRounds}
+                        </div>
+                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 라운드</div>
                     </div>
                 </div>
             </div>
@@ -523,21 +491,21 @@ export const JournalTab: React.FC = () => {
                         const isSparring = item.type === 'sparring';
                         const date = parseISO(item.data.date);
                         return (
-                            <div key={`${item.type}-${item.data.id}`} className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden hover:border-slate-700 transition-all shadow-sm">
+                            <div key={`${item.type}-${item.data.id}`} className="bg-zinc-900/80 rounded-2xl border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-all shadow-lg group">
                                 <div className="p-5 flex items-start justify-between">
                                     <div className="flex gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-lg ${isSparring
-                                            ? item.data.result === 'win' ? 'bg-gradient-to-br from-green-500 to-green-600' : item.data.result === 'loss' ? 'bg-gradient-to-br from-slate-600 to-slate-700' : 'bg-gradient-to-br from-blue-500 to-blue-600'
-                                            : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                            ? item.data.result === 'win' ? 'bg-emerald-500' : item.data.result === 'loss' ? 'bg-zinc-700 text-zinc-400' : 'bg-violet-600'
+                                            : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                                             }`}>
                                             {isSparring ? (item.data.result === 'win' ? 'W' : item.data.result === 'loss' ? 'L' : 'D') : format(date, 'd')}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-white text-lg flex items-center gap-2">
+                                            <div className="font-bold text-zinc-50 text-lg flex items-center gap-2">
                                                 {isSparring ? `vs ${item.data.opponentName}` : format(date, 'M월 d일 EEEE', { locale: ko })}
-                                                {isSparring && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">SPARRING</span>}
+                                                {isSparring && <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold uppercase tracking-wider">SPARRING</span>}
                                             </div>
-                                            <div className="text-sm text-slate-400 flex items-center gap-3 mt-0.5">
+                                            <div className="text-sm text-zinc-500 flex items-center gap-3 mt-0.5 font-medium">
                                                 {isSparring ? (
                                                     <>{item.data.rounds}R • {item.data.opponentBelt}벨트</>
                                                 ) : (
@@ -553,13 +521,13 @@ export const JournalTab: React.FC = () => {
                                 {(isSparring || item.data.notes) && (
                                     <div className="px-5 pb-5">
                                         {isSparring && item.data.videoUrl && (
-                                            <div className="mb-4 rounded-xl overflow-hidden bg-black aspect-video border border-slate-800">
+                                            <div className="mb-4 rounded-xl overflow-hidden bg-black aspect-video border border-zinc-800">
                                                 <iframe src={getYouTubeEmbedUrl(item.data.videoUrl)} className="w-full h-full" frameBorder="0" allowFullScreen />
                                             </div>
                                         )}
                                         {item.data.notes && (
-                                            <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
-                                                <p className="text-slate-300 text-sm whitespace-pre-wrap">{item.data.notes}</p>
+                                            <div className="bg-zinc-950/50 rounded-xl p-4 border border-zinc-800/50">
+                                                <p className="text-zinc-400 text-sm whitespace-pre-wrap leading-relaxed">{item.data.notes}</p>
                                             </div>
                                         )}
                                     </div>
@@ -573,12 +541,12 @@ export const JournalTab: React.FC = () => {
             {/* Create Modal - New Post Style */}
             {
                 isCreating && (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <div className="bg-[#1a1a1a] rounded-2xl w-full max-w-lg flex flex-col max-h-[90vh] border border-[#2a2a2a] shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsCreating(false)}>
+                        <div className="bg-zinc-900/90 backdrop-blur-2xl rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                             {/* Header */}
-                            <div className="flex justify-between items-center p-4 border-b border-[#2a2a2a]">
+                            <div className="flex justify-between items-center p-6 border-b border-white/5">
                                 <h2 className="text-lg font-bold text-white">새 게시물</h2>
-                                <button onClick={() => setIsCreating(false)}><X className="w-6 h-6 text-gray-400 hover:text-white" /></button>
+                                <button onClick={() => setIsCreating(false)} className="p-2 rounded-full hover:bg-white/5 transition-colors"><X className="w-5 h-5 text-zinc-400 hover:text-white" /></button>
                             </div>
 
                             {/* Content */}
@@ -597,9 +565,9 @@ export const JournalTab: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, isPublic: !prev.isPublic }))}
-                                            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border w-fit mt-0.5 transition-colors ${formData.isPublic ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 'text-gray-400 bg-gray-800 border-gray-700'}`}
+                                            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border w-fit mt-0.5 transition-colors ${formData.isPublic ? 'text-violet-400 bg-violet-500/10 border-violet-500/20' : 'text-gray-400 bg-gray-800 border-gray-700'}`}
                                         >
-                                            <span className={`w-1.5 h-1.5 rounded-full ${formData.isPublic ? 'bg-blue-400 animate-pulse' : 'bg-gray-500'}`}></span>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${formData.isPublic ? 'bg-violet-400 animate-pulse' : 'bg-gray-500'}`}></span>
                                             {formData.isPublic ? '전체 공개' : '나만 보기'}
                                         </button>
                                     </div>
@@ -618,7 +586,7 @@ export const JournalTab: React.FC = () => {
                                         {formData.techniques.length > 0 && (
                                             <div className="flex flex-wrap gap-2">
                                                 {formData.techniques.map(tech => (
-                                                    <span key={tech} className="px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 text-xs border border-indigo-500/30 flex items-center gap-1">
+                                                    <span key={tech} className="px-2 py-1 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30 flex items-center gap-1">
                                                         #{tech} <button type="button" onClick={() => setFormData({ ...formData, techniques: formData.techniques.filter(t => t !== tech) })}>&times;</button>
                                                     </span>
                                                 ))}
@@ -651,7 +619,7 @@ export const JournalTab: React.FC = () => {
                                                     <button type="button" onClick={() => setIsAddingSparring(false)}><X className="w-3 h-3 text-gray-500" /></button>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 mb-2">
-                                                    <input type="text" placeholder="상대 이름" value={tempSparring.opponentName} onChange={e => setTempSparring({ ...tempSparring, opponentName: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white focus:border-blue-500 outline-none" />
+                                                    <input type="text" placeholder="상대 이름" value={tempSparring.opponentName} onChange={e => setTempSparring({ ...tempSparring, opponentName: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white focus:border-violet-500 outline-none" />
                                                     <select value={tempSparring.opponentBelt} onChange={e => setTempSparring({ ...tempSparring, opponentBelt: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white outline-none">
                                                         <option value="white">White</option>
                                                         <option value="blue">Blue</option>
@@ -671,7 +639,7 @@ export const JournalTab: React.FC = () => {
                                                         <span className="text-xs text-gray-500 whitespace-nowrap">R</span>
                                                     </div>
                                                 </div>
-                                                <button type="button" onClick={handleAddSparringEntry} disabled={!tempSparring.opponentName} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded text-sm font-medium transition-colors">추가완료</button>
+                                                <button type="button" onClick={handleAddSparringEntry} disabled={!tempSparring.opponentName} className="w-full bg-violet-600 hover:bg-violet-500 text-white py-1.5 rounded text-sm font-medium transition-colors">추가완료</button>
                                             </div>
                                         ) : (
                                             null
@@ -680,7 +648,7 @@ export const JournalTab: React.FC = () => {
                                         <div className="flex items-center gap-4 py-2">
                                             {/* Tool Icons */}
                                             <div className="flex items-center gap-1">
-                                                <button type="button" onClick={() => setIsAddingSparring(!isAddingSparring)} className={`p-2 rounded-full hover:bg-gray-800 transition-colors ${isAddingSparring ? 'text-blue-400 bg-blue-500/10' : 'text-gray-400'}`} title="스파링 추가">
+                                                <button type="button" onClick={() => setIsAddingSparring(!isAddingSparring)} className={`p-2 rounded-full hover:bg-gray-800 transition-colors ${isAddingSparring ? 'text-violet-400 bg-violet-500/10' : 'text-gray-400'}`} title="스파링 추가">
                                                     <Swords className="w-5 h-5" />
                                                 </button>
                                                 <div className="h-4 w-[1px] bg-gray-700 mx-1"></div>
@@ -700,7 +668,7 @@ export const JournalTab: React.FC = () => {
                                                 {/* Duration (Quick Input) */}
                                                 <div className="relative group flex items-center">
                                                     <Clock className="w-5 h-5 text-gray-400 ml-2" />
-                                                    <input type="number" value={formData.durationMinutes} onChange={e => setFormData({ ...formData, durationMinutes: Number(e.target.value) })} className="w-12 bg-transparent text-sm text-gray-300 text-center outline-none border-b border-transparent focus:border-blue-500 transition-colors" title="수련 시간(분)" />
+                                                    <input type="number" value={formData.durationMinutes} onChange={e => setFormData({ ...formData, durationMinutes: Number(e.target.value) })} className="w-12 bg-transparent text-sm text-gray-300 text-center outline-none border-b border-transparent focus:border-violet-500 transition-colors" title="수련 시간(분)" />
                                                     <span className="text-xs text-gray-600">분</span>
                                                 </div>
                                             </div>
@@ -711,7 +679,7 @@ export const JournalTab: React.FC = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => setSaveToLog(!saveToLog)}
-                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${saveToLog ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-gray-800 text-gray-500'}`}
+                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${saveToLog ? 'bg-violet-500 text-white shadow-lg shadow-violet-900/20' : 'bg-gray-800 text-gray-500'}`}
                                             >
                                                 <div className={`w-2 h-2 rounded-full ${saveToLog ? 'bg-white' : 'bg-gray-600'}`}></div>
                                                 수련 일지에 기록 {saveToLog && 'ON'}
@@ -722,10 +690,10 @@ export const JournalTab: React.FC = () => {
                             </div>
 
                             {/* Footer Action */}
-                            <div className="p-4 border-t border-[#2a2a2a] bg-[#1a1a1a]">
-                                <Button type="submit" form="postForm" className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-base font-bold rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transform transition-all active:scale-[0.98]">
+                            <div className="p-6 border-t border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                                <Button type="submit" form="postForm" className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white text-base font-bold rounded-2xl shadow-lg shadow-violet-900/20 hover:shadow-violet-500/40 flex items-center justify-center gap-2 transform transition-all active:scale-[0.98]">
                                     {formData.isPublic ? '게시하기' : '저장하기'}
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    <Sparkles className="w-4 h-4 ml-1" />
                                 </Button>
                             </div>
                         </div>

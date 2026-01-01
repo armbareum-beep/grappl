@@ -29,48 +29,55 @@ export const Toast: React.FC<ToastProps> = ({
     const getIcon = () => {
         switch (type) {
             case 'success':
-                return <CheckCircle className="w-5 h-5 text-green-500" />;
+                return <CheckCircle className="w-5 h-5 text-emerald-400" />;
             case 'error':
-                return <AlertCircle className="w-5 h-5 text-red-500" />;
+                return <AlertCircle className="w-5 h-5 text-rose-400" />;
             case 'warning':
-                return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+                return <AlertTriangle className="w-5 h-5 text-amber-400" />;
             case 'info':
             default:
-                return <Info className="w-5 h-5 text-blue-500" />;
+                return <Info className="w-5 h-5 text-violet-400" />;
         }
     };
 
     const getStyles = () => {
         switch (type) {
             case 'success':
-                return 'bg-white border-green-100 shadow-green-100/50';
+                return 'border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]';
             case 'error':
-                return 'bg-white border-red-100 shadow-red-100/50';
+                return 'border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]';
             case 'warning':
-                return 'bg-white border-amber-100 shadow-amber-100/50';
+                return 'border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]';
             case 'info':
             default:
-                return 'bg-white border-blue-100 shadow-blue-100/50';
+                return 'border-violet-500/20 shadow-[0_0_20px_rgba(139,92,246,0.1)]';
         }
     };
 
     return (
         <div className={`
-            flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border
-            transform transition-all duration-300 ease-in-out
-            animate-in slide-in-from-top-2 fade-in
+            flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-xl
+            bg-zinc-900/80 text-white font-medium
+            transform transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+            animate-in slide-in-from-right-10 fade-in
             ${getStyles()}
-            min-w-[300px] max-w-md pointer-events-auto
+            min-w-[320px] max-w-md pointer-events-auto group
         `}>
             <div className="flex-shrink-0">
-                {getIcon()}
+                <div className="p-2 rounded-xl bg-white/5 border border-white/5">
+                    {getIcon()}
+                </div>
             </div>
-            <p className="flex-1 text-sm font-medium text-slate-700">
-                {message}
-            </p>
+
+            <div className="flex-1">
+                <p className="text-sm text-zinc-100 leading-snug">
+                    {message}
+                </p>
+            </div>
+
             <button
                 onClick={() => onDismiss(id)}
-                className="flex-shrink-0 p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
             >
                 <X className="w-4 h-4" />
             </button>

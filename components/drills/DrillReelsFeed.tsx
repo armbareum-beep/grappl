@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
-import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
@@ -171,15 +170,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Top Bar Navigation - Back Button Only */}
-            <div className="absolute left-4 top-6 z-50 pointer-events-auto">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
-                >
-                    <ChevronLeft className="w-6 h-6" />
-                </button>
-            </div>
+            {/* Top Bar Navigation (Removed - Back button moved inside DrillReelItem) */}
 
             {/* Sliding Window Rendering - Expanded for better prefetch */}
             {[-2, -1, 0, 1, 2].map(offset => {

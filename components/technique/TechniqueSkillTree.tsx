@@ -7,15 +7,12 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     addEdge,
-    Connection,
+    SelectionMode,
     NodeTypes,
     BackgroundVariant,
     MiniMap,
     ConnectionMode,
-    ReactFlowInstance,
-    OnConnectStart,
-    OnConnectEnd,
-    SelectionMode
+    ReactFlowInstance
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,7 +33,7 @@ import { AddTechniqueModal } from './AddTechniqueModal';
 import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
-import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle } from 'lucide-react';
+import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle, Edit3 } from 'lucide-react';
 import ShareModal from '../social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -134,7 +131,6 @@ export const TechniqueSkillTree: React.FC = () => {
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
     const [pendingConnection, setPendingConnection] = useState<{ source: string; sourceHandle: string | null; position: { x: number; y: number } } | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
-    const connectionStartRef = useRef<{ nodeId: string; handleId: string | null } | null>(null);
 
     // Helper to update node data (for TextNode)
     const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
@@ -783,43 +779,7 @@ export const TechniqueSkillTree: React.FC = () => {
     // Optimized: Update connections in real-time (throttled by React Flow's internal handling)
     // We removed the throttle here because ReactFlow's onNodeDrag is already reasonably efficient,
     // and for visual smoothness, immediate feedback is better than throttled 'snapping'.
-    const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
-        setEdges(eds => {
-            let hasChanges = false;
-            const newEdges = eds.map(edge => {
-                let otherNodeId: string | undefined;
-                let isSource = false;
 
-                if (edge.source === node.id) {
-                    otherNodeId = edge.target;
-                    isSource = true;
-                } else if (edge.target === node.id) {
-                    otherNodeId = edge.source;
-                    isSource = false;
-                }
-
-                if (!otherNodeId) return edge;
-
-                const otherNode = nodes.find(n => n.id === otherNodeId);
-                if (!otherNode) return edge;
-
-                // Recalculate optimal connection
-                const { sourceHandle, targetHandle } = isSource
-                    ? calculateOptimalConnection(node, otherNode, nodes)
-                    : calculateOptimalConnection(otherNode, node, nodes);
-
-                if (edge.sourceHandle !== sourceHandle || edge.targetHandle !== targetHandle) {
-                    hasChanges = true;
-                    return { ...edge, sourceHandle, targetHandle };
-                }
-
-                return edge;
-            });
-
-            // Only return new array if something actually changed
-            return hasChanges ? newEdges : eds;
-        });
-    }, [nodes, calculateOptimalConnection, setEdges]);
 
 
     // Unified Connection Logic (Find Shortest Path)
@@ -872,10 +832,10 @@ export const TechniqueSkillTree: React.FC = () => {
     }, [selectedNodeId, nodes, setNodes, setEdges, calculateOptimalConnection, mapToGroupHandle]);
 
     // GROUPING HANDLERS
-    const startGroupSelection = useCallback((initialNodeId: string) => {
+    const startGroupSelection = useCallback((initialNodeId: string | null) => {
         setIsGroupSelectionMode(true);
         setGroupingInitialNodeId(initialNodeId);
-        setSelectedForGrouping(new Set([initialNodeId]));
+        setSelectedForGrouping(new Set(initialNodeId ? [initialNodeId] : []));
         setMenu(null);
     }, []);
 
@@ -1229,15 +1189,18 @@ export const TechniqueSkillTree: React.FC = () => {
         const pane = reactFlowWrapper.current?.getBoundingClientRect();
         if (!pane) return;
 
+        const selectedNodes = nodes.filter(n => n.selected);
+
         setMenu({
             id: 'pane',
             top: event.clientY < pane.height - 200 ? event.clientY : undefined,
             left: event.clientX < pane.width - 200 ? event.clientX : undefined,
             right: event.clientX >= pane.width - 200 ? pane.width - event.clientX : undefined,
             bottom: event.clientY >= pane.height - 200 ? pane.height - event.clientY : undefined,
-            type: 'pane'
+            type: 'pane',
+            selectedNodes // Pass selected nodes to pane menu
         });
-    }, []);
+    }, [nodes]);
 
     // Handle node double click (Delete or Edit)
     const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
@@ -1291,50 +1254,7 @@ export const TechniqueSkillTree: React.FC = () => {
         [setMenu]
     );
 
-    const onConnect = useCallback((params: Connection) => {
-        if (!params.source || !params.target) return;
-        if (params.source === params.target) return;
 
-        setEdges((eds) => {
-            // Check if connection already exists (either direction)
-            const exists = eds.some(
-                (e) => (e.source === params.source && e.target === params.target) ||
-                    (e.source === params.target && e.target === params.source)
-            );
-
-            if (exists) {
-                return eds;
-            }
-
-            const sNode = nodes.find(n => n.id === params.source);
-            const tNode = nodes.find(n => n.id === params.target);
-
-            if (!sNode || !tNode) return eds;
-
-            const connection = calculateOptimalConnection(sNode!, tNode!, nodes);
-            let sourceHandle: string | null = connection.sourceHandle;
-            let targetHandle: string | null = connection.targetHandle;
-
-            // Map handles if either is a group
-            sourceHandle = mapToGroupHandle(sNode, params.sourceHandle || sourceHandle);
-            targetHandle = mapToGroupHandle(tNode, params.targetHandle || targetHandle);
-
-            const isGroupConnection = sNode?.type === 'group' || tNode?.type === 'group';
-
-            const newEdge: Edge = {
-                id: `edge-${params.source}-${params.target}-${Date.now()}`,
-                source: params.source,
-                target: params.target,
-                sourceHandle: sourceHandle || undefined,
-                targetHandle: targetHandle || undefined,
-                type: 'default',
-                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
-                className: 'roadmap-edge-dash'
-            };
-
-            return addEdge(newEdge, eds);
-        });
-    }, [setEdges, nodes, calculateOptimalConnection, mapToGroupHandle]);
 
 
 
@@ -1372,24 +1292,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     // Handle node drag stop - DO NOT connect on drag
     // BUT we use onNodeDragStart to catch "Click -> Drag" attempt as a connection intention if source is selected
-    const onNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
-        // Multi-selection modifiers should prevent connection logic
-        if (event.shiftKey || event.ctrlKey || event.metaKey) return;
 
-        // If we have a selected node (source) and the user clicks/drags a DIFFERENT node (target)
-        // We interpret this as "Attempt to Connect", not drag.
-        if (selectedNodeId && selectedNodeId !== node.id && !isGroupSelectionMode) {
-            handleNodeConnection(node);
-            // We can't easily "cancel" the drag in React Flow without controlled position or a hacks,
-            // but connecting immediately satisfies the user's "connect even if I drag" request.
-            // By connecting, the logic will likely reset selectedNodeId, so the connection completes.
-            return;
-        }
-    }, [selectedNodeId, handleNodeConnection, isGroupSelectionMode]);
-
-    const onNodeDragStop = useCallback((_event: React.MouseEvent, _node: Node) => {
-        // Just update position, no connection logic
-    }, []);
 
     // --- ADVANCED INTERACTIONS ---
 
@@ -1525,35 +1428,7 @@ export const TechniqueSkillTree: React.FC = () => {
     }, []);
 
     // Drag to Create Handlers
-    const onConnectStart: OnConnectStart = useCallback((_, { nodeId, handleId }) => {
-        connectionStartRef.current = { nodeId: nodeId || '', handleId };
-    }, []);
 
-    const onConnectEnd: OnConnectEnd = useCallback((event) => {
-        const target = event.target as Element;
-        const isPane = target.classList.contains('react-flow__pane');
-
-        if (isPane && connectionStartRef.current && rfInstance && reactFlowWrapper.current) {
-            const bounds = reactFlowWrapper.current.getBoundingClientRect();
-            const position = rfInstance.project({
-                x: (event as any).clientX - bounds.left,
-                y: (event as any).clientY - bounds.top,
-            });
-
-            // Adjust position to center the new node (approx 100x100)
-            const centeredPosition = {
-                x: position.x - 50,
-                y: position.y - 50
-            };
-
-            setPendingConnection({
-                source: connectionStartRef.current.nodeId,
-                sourceHandle: connectionStartRef.current.handleId,
-                position: centeredPosition
-            });
-            setIsAddModalOpen(true);
-        }
-    }, [rfInstance]);
 
     // Add content from modal
     const handleAddContent = async (
@@ -1755,19 +1630,17 @@ export const TechniqueSkillTree: React.FC = () => {
 
     // Fullscreen Toggle with Browser API Support
     const handleFullScreenToggle = () => {
-        if (!isFullScreen) {
-            // Enter Fullscreen
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            }
-        } else {
-            // Exit Fullscreen
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
+        if (isMobile) {
+            setIsFullScreen(!isFullScreen);
+            return;
         }
-        setIsFullScreen(!isFullScreen);
+
+        if (screenfull.isEnabled) {
+            screenfull.toggle();
+        } else {
+            // Fallback
+            setIsFullScreen(!isFullScreen);
+        }
     };
 
     const handleSave = async () => {
@@ -1902,20 +1775,47 @@ export const TechniqueSkillTree: React.FC = () => {
             ? 'fixed inset-0 !z-[9999] h-[100dvh] w-full top-0 left-0'
             : 'relative h-full'
             }`}>
+
+            {/* View Mode Toggle - Always Visible */}
+            <div className={`fixed ${isFullScreen ? 'top-4' : 'top-24'} left-4 z-[10000] transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-full border border-zinc-800/50 shadow-xl">
+                    <button
+                        onClick={() => setViewMode('map')}
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'map'
+                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                            : 'text-zinc-400 hover:text-white'
+                            }`}
+                    >
+                        맵
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'list'
+                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                            : 'text-zinc-400 hover:text-white'
+                            }`}
+                    >
+                        리스트
+                    </button>
+                </div>
+            </div>
+
+
+
             {/* Floating Adaptive Toolbar */}
             {String(viewMode) === 'map' && (
                 <>
                     {/* Desktop: Floating Vertical Toolbar */}
                     {!isMobile && (
-                        <div className={`fixed top-48 right-8 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                            <div className="flex flex-col gap-3 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 p-3 rounded-2xl shadow-2xl">
+                        <div className={`fixed top-48 right-4 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="flex flex-col gap-2 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 p-2 rounded-2xl shadow-2xl">
                                 {/* Title Input */}
-                                <div className="pb-3 border-b border-zinc-800/50">
+                                <div className="pb-2 border-b border-zinc-800/50">
                                     <input
                                         type="text"
                                         value={currentTreeTitle}
                                         onChange={(e) => setCurrentTreeTitle(e.target.value)}
-                                        className="bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none w-48"
+                                        className="bg-zinc-900/60 border border-zinc-800 rounded-lg px-2 py-1.5 text-white text-xs font-bold focus:ring-2 focus:ring-violet-500 outline-none w-32"
                                         placeholder="로드맵 이름..."
                                     />
                                 </div>
@@ -1925,20 +1825,20 @@ export const TechniqueSkillTree: React.FC = () => {
                                     <>
                                         <button
                                             onClick={handleNewTree}
-                                            className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                             title="새 로드맵"
                                         >
-                                            <FilePlus className="w-5 h-5 flex-shrink-0" />
-                                            <span className="text-sm font-medium">새로 만들기</span>
+                                            <FilePlus className="w-4 h-4 flex-shrink-0" />
+                                            <span className="hidden xl:inline text-xs font-medium">새로 만들기</span>
                                         </button>
 
                                         <button
                                             onClick={loadTreeList}
-                                            className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                            className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                             title="불러오기"
                                         >
-                                            <FolderOpen className="w-5 h-5 flex-shrink-0" />
-                                            <span className="text-sm font-medium">불러오기</span>
+                                            <FolderOpen className="w-4 h-4 flex-shrink-0" />
+                                            <span className="hidden xl:inline text-xs font-medium">불러오기</span>
                                         </button>
 
                                         <div className="h-px bg-zinc-800/50 my-1" />
@@ -1947,20 +1847,20 @@ export const TechniqueSkillTree: React.FC = () => {
 
                                 <button
                                     onClick={handleAddTextNode}
-                                    className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
-                                    title="글자 박스 추가"
+                                    className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    title="텍스트 박스 추가"
                                 >
-                                    <Type className="w-5 h-5 flex-shrink-0" />
-                                    <span className="text-sm font-medium">텍스트</span>
+                                    <Type className="w-4 h-4 flex-shrink-0" />
+                                    <span className="hidden xl:inline text-xs font-medium">텍스트</span>
                                 </button>
 
                                 <button
                                     onClick={() => setIsAddModalOpen(true)}
-                                    className="flex items-center gap-2 px-3 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-white transition-all shadow-lg shadow-violet-500/20"
+                                    className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-white transition-all shadow-lg shadow-violet-500/20"
                                     title="콘텐츠 추가"
                                 >
-                                    <Plus className="w-5 h-5 flex-shrink-0" />
-                                    <span className="text-sm font-medium">콘텐츠 추가</span>
+                                    <Plus className="w-4 h-4 flex-shrink-0" />
+                                    <span className="hidden xl:inline text-xs font-medium">콘텐츠 추가</span>
                                 </button>
 
                                 <div className="h-px bg-zinc-800/50 my-1" />
@@ -2013,36 +1913,44 @@ export const TechniqueSkillTree: React.FC = () => {
                                             setIsShareModalOpen(true);
                                         }
                                     }}
-                                    className="flex items-center gap-2 px-3 py-2.5 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-xl text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
                                     title="공유"
                                 >
-                                    <Share2 className="w-5 h-5 flex-shrink-0" />
-                                    <span className="text-sm font-medium">공유</span>
+                                    <Share2 className="w-4 h-4 flex-shrink-0" />
+                                    <span className="hidden xl:inline text-xs font-medium">공유</span>
                                 </button>
 
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-white transition-all ${saving
+                                    className={`flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 rounded-lg text-white transition-all ${saving
                                         ? 'bg-yellow-600 cursor-wait'
                                         : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-500/20'
                                         }`}
                                     title={saving ? '저장 중...' : '저장'}
                                 >
-                                    <Save className={`w-5 h-5 flex-shrink-0 ${saving ? 'animate-spin' : ''}`} />
-                                    <span className="text-sm font-medium">저장</span>
+                                    <Save className={`w-4 h-4 flex-shrink-0 ${saving ? 'animate-spin' : ''}`} />
+                                    <span className="hidden xl:inline text-xs font-medium">저장</span>
                                 </button>
 
                                 <div className="h-px bg-zinc-800/50 my-1" />
 
                                 <button
-                                    onClick={handleFullScreenToggle}
-                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all border border-zinc-800/50 hover:border-zinc-700 ${isFullScreen ? 'bg-violet-600 text-white' : 'bg-zinc-900/60 text-zinc-400 hover:text-white'
+                                    onClick={() => {
+                                        if (isMobile) {
+                                            setIsFullScreen(!isFullScreen);
+                                        } else if (screenfull.isEnabled) {
+                                            screenfull.toggle();
+                                        } else {
+                                            setIsFullScreen(!isFullScreen);
+                                        }
+                                    }}
+                                    className={`flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 rounded-lg transition-all border border-zinc-800/50 hover:border-zinc-700 ${isFullScreen ? 'bg-violet-600 text-white' : 'bg-zinc-900/60 text-zinc-400 hover:text-white'
                                         }`}
                                     title={isFullScreen ? '전체화면 해제' : '전체화면'}
                                 >
-                                    {isFullScreen ? <Minimize2 className="w-5 h-5 flex-shrink-0" /> : <Maximize2 className="w-5 h-5 flex-shrink-0" />}
-                                    <span className="text-sm font-medium">{isFullScreen ? '축소' : '전체화면'}</span>
+                                    {isFullScreen ? <Minimize2 className="w-4 h-4 flex-shrink-0" /> : <Maximize2 className="w-4 h-4 flex-shrink-0" />}
+                                    <span className="hidden xl:inline text-xs font-medium">{isFullScreen ? '축소' : '전체화면'}</span>
                                 </button>
                             </div>
                         </div>
@@ -2051,45 +1959,11 @@ export const TechniqueSkillTree: React.FC = () => {
                     {/* Mobile: FAB with Arc Menu */}
                     {isMobile && (
                         <>
-                            {/* View Mode Toggle */}
-                            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                                <div className="flex items-center gap-1 bg-zinc-900/80 backdrop-blur-xl p-1 rounded-full border border-zinc-800/50">
-                                    <button
-                                        onClick={() => setViewMode('map')}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'map'
-                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                                            : 'text-zinc-400 hover:text-white'
-                                            }`}
-                                    >
-                                        맵
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'list'
-                                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                                            : 'text-zinc-400 hover:text-white'
-                                            }`}
-                                    >
-                                        리스트
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Mobile Title Input */}
-                            <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                                <input
-                                    type="text"
-                                    value={currentTreeTitle}
-                                    onChange={(e) => setCurrentTreeTitle(e.target.value)}
-                                    className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-full px-4 py-2 text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none w-64 text-center"
-                                    placeholder="로드맵 이름..."
-                                />
-                            </div>
 
                             {/* FAB Main Button */}
                             <button
                                 onClick={() => setIsFabOpen(!isFabOpen)}
-                                className={`fixed bottom-36 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
+                                className={`fixed bottom-24 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
                                     } ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Plus className="w-6 h-6 text-white" />
@@ -2097,7 +1971,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
                             {/* FAB Grid Menu */}
                             {isFabOpen && (
-                                <div className="fixed bottom-52 right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in">
+                                <div className="fixed bottom-40 right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in">
                                     <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl">
                                         <div className="grid grid-cols-2 gap-2">
                                             {/* Row 1 */}
@@ -2125,6 +1999,18 @@ export const TechniqueSkillTree: React.FC = () => {
                                                     <span className="text-[10px] text-zinc-400">불러오기</span>
                                                 </button>
                                             )}
+
+                                            {/* Title Edit Button */}
+                                            <button
+                                                onClick={() => {
+                                                    setIsSaveModalOpen(true);
+                                                    setIsFabOpen(false);
+                                                }}
+                                                className="flex flex-col items-center gap-1 p-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl transition-all"
+                                            >
+                                                <Edit3 className="w-5 h-5 text-amber-400" />
+                                                <span className="text-[10px] text-zinc-400">제목변경</span>
+                                            </button>
 
                                             {/* Row 2 */}
                                             <button
@@ -2229,16 +2115,18 @@ export const TechniqueSkillTree: React.FC = () => {
                                 </div>
                             )}
                         </>
-                    )}
+                    )
+                    }
                 </>
             )}
 
             {/* Content Area: Map or List View */}
-            {viewMode === 'map' ? (
-                /* React Flow Canvas */
-                <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
-                    {isFullScreen && (
-                        <style>{`
+            {
+                viewMode === 'map' ? (
+                    /* React Flow Canvas */
+                    <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
+                        {isFullScreen && (
+                            <style>{`
                             nav, header, footer, .sidebar, .tab-bar, .bottom-nav {
                                 display: none !important;
                             }
@@ -2246,91 +2134,92 @@ export const TechniqueSkillTree: React.FC = () => {
                                 overflow: hidden !important;
                             }
                         `}</style>
-                    )}
-                    {/* Custom Arrow Markers */}
-                    <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-                        <defs>
-                            <marker
-                                id="arrow-end"
-                                viewBox="0 0 10 10"
-                                refX="9"
-                                refY="5"
-                                markerWidth="6"
-                                markerHeight="6"
-                                orient="auto"
-                            >
-                                <path
-                                    d="M 0 0 L 10 5 L 0 10 L 3 5 z"
-                                    fill="#7c3aed"
-                                    stroke="none"
-                                />
-                            </marker>
-                            <marker
-                                id="arrow-start"
-                                viewBox="0 0 10 10"
-                                refX="1"
-                                refY="5"
-                                markerWidth="6"
-                                markerHeight="6"
-                                orient="auto-start-reverse"
-                            >
-                                <path
-                                    d="M 10 0 L 0 5 L 10 10 L 7 5 z"
-                                    fill="#7c3aed"
-                                    stroke="none"
-                                />
-                            </marker>
-                        </defs>
-                    </svg>
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onConnect={onConnect}
-                        onConnectStart={onConnectStart}
-                        onConnectEnd={onConnectEnd}
-                        onInit={setRfInstance}
-                        onDragOver={onDragOver}
-                        onDrop={onDrop}
-                        onNodeClick={onNodeClick}
-                        onNodeDrag={onNodeDrag}
-                        onNodeDragStart={onNodeDragStart}
-                        onNodeDragStop={onNodeDragStop}
-                        onNodeDoubleClick={onNodeDoubleClick}
-                        onNodeContextMenu={onNodeContextMenu}
-                        onPaneContextMenu={onPaneContextMenu}
-                        onEdgeContextMenu={onEdgeContextMenu}
-                        onEdgeClick={onEdgeClick}
-                        onEdgeDoubleClick={onEdgeDoubleClick}
-                        onNodesDelete={(deletedNodes) => {
-                            const deletedIds = deletedNodes.map(n => n.id);
-                            setEdges(eds => eds.filter(e => !deletedIds.includes(e.source) && !deletedIds.includes(e.target)));
-                        }}
-                        onPaneClick={() => { handlePaneClick(); setMenu(null); }}
-                        nodeTypes={nodeTypes}
-                        selectionMode={SelectionMode.Partial}
-                        multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
-                        snapToGrid={true}
-                        snapGrid={[20, 20]}
-                        defaultEdgeOptions={{
-                            type: 'default',
-                            style: { stroke: '#7c3aed', strokeWidth: 4, cursor: 'pointer' },
-                            interactionWidth: 50,
-                        }}
-                        fitView
-                        minZoom={isMobile ? 0.5 : 0.1}
-                        maxZoom={isMobile ? 2.0 : 1.5}
-                        className="bg-slate-950"
-                        connectionMode={ConnectionMode.Loose}
-                        preventScrolling={true}
-                        zoomOnPinch={true}
-                        panOnScroll={false}
-                        zoomOnScroll={true}
-                        panOnDrag={true}
-                        proOptions={{ hideAttribution: true }}
-                    >
-                        <style>{`
+                        )}
+                        {/* Custom Arrow Markers */}
+                        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+                            <defs>
+                                <marker
+                                    id="arrow-end"
+                                    viewBox="0 0 10 10"
+                                    refX="9"
+                                    refY="5"
+                                    markerWidth="6"
+                                    markerHeight="6"
+                                    orient="auto"
+                                >
+                                    <path
+                                        d="M 0 0 L 10 5 L 0 10 L 3 5 z"
+                                        fill="#7c3aed"
+                                        stroke="none"
+                                    />
+                                </marker>
+                                <marker
+                                    id="arrow-start"
+                                    viewBox="0 0 10 10"
+                                    refX="1"
+                                    refY="5"
+                                    markerWidth="6"
+                                    markerHeight="6"
+                                    orient="auto-start-reverse"
+                                >
+                                    <path
+                                        d="M 10 0 L 0 5 L 10 10 L 7 5 z"
+                                        fill="#7c3aed"
+                                        stroke="none"
+                                    />
+                                </marker>
+                            </defs>
+                        </svg>
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={undefined} // Disabled drag-to-connect
+                            onConnectStart={undefined}
+                            onConnectEnd={undefined}
+                            onInit={setRfInstance}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop}
+                            onNodeClick={onNodeClick}
+                            nodesDraggable={false} // Disable node dragging
+                            nodesConnectable={false} // Disable handle dragging
+                            // onNodeDrag, onNodeDragStart, onNodeDragStop removed
+                            onNodeDoubleClick={onNodeDoubleClick}
+                            onNodeContextMenu={onNodeContextMenu}
+                            onPaneContextMenu={onPaneContextMenu}
+                            onEdgeContextMenu={onEdgeContextMenu}
+                            onEdgeClick={onEdgeClick}
+                            onEdgeDoubleClick={onEdgeDoubleClick}
+                            onNodesDelete={(deletedNodes) => {
+                                const deletedIds = deletedNodes.map(n => n.id);
+                                setEdges(eds => eds.filter(e => !deletedIds.includes(e.source) && !deletedIds.includes(e.target)));
+                            }}
+                            onPaneClick={() => { handlePaneClick(); setMenu(null); }}
+                            nodeTypes={nodeTypes}
+                            selectionMode={SelectionMode.Partial}
+                            multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
+                            snapToGrid={true}
+                            snapGrid={[20, 20]}
+                            defaultEdgeOptions={{
+                                type: 'default',
+                                style: { stroke: '#7c3aed', strokeWidth: 4, cursor: 'pointer' },
+                                interactionWidth: 50,
+                            }}
+                            fitView
+                            fitViewOptions={{ padding: 0.2 }}
+                            minZoom={isMobile ? 0.5 : 0.1}
+                            maxZoom={isMobile ? 4.0 : 3.0}
+                            className="bg-slate-950"
+                            connectionMode={ConnectionMode.Loose}
+                            preventScrolling={true}
+                            zoomOnPinch={true}
+                            panOnScroll={false}
+                            zoomOnScroll={true}
+                            panOnDrag={true}
+                            proOptions={{ hideAttribution: true }}
+                        >
+                            <style>{`
                         .react-flow__edge-path {
                             stroke: #7c3aed !important;
                             stroke-width: 3 !important;
@@ -2346,55 +2235,62 @@ export const TechniqueSkillTree: React.FC = () => {
 
 
 
-                        <Background
-                            variant={BackgroundVariant.Dots}
-                            gap={20}
-                            size={1}
-                            color="#334155"
-                        />
-                        <Controls
-                            className="bg-slate-800 border border-slate-700"
-                            style={isMobile ? { bottom: '120px', left: '16px' } : undefined}
-                        />
-                        <MiniMap
-                            className={`border border-slate-700/50 ${isMobile ? '!w-20 !h-16 !opacity-70 !top-24 !right-4 !bottom-auto' : '!w-32 !h-24 !bottom-4 !right-4'} !bg-slate-900/80 backdrop-blur-sm`}
-                            nodeColor={(node) => {
-                                const mastery = node.data.mastery;
-                                const isCompleted = node.data.isCompleted;
+                            <Background
+                                variant={BackgroundVariant.Dots}
+                                gap={20}
+                                size={1}
+                                color="#334155"
+                            />
+                            <Controls
+                                className="bg-slate-800 border border-slate-700"
+                                style={isMobile ? { bottom: '80px', left: '16px' } : undefined}
+                            />
+                            {!isMobile && (
+                                <MiniMap
+                                    className="border border-slate-700/50 !w-32 !h-24 !bottom-4 !right-4 !bg-slate-900/80 backdrop-blur-sm"
+                                    nodeColor={(node) => {
+                                        const mastery = node.data.mastery;
+                                        const isCompleted = node.data.isCompleted;
 
-                                // Violet for Mastered/Completed
-                                if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
-                                    return '#8b5cf6';
-                                }
-                                // Light Violet for In-progress
-                                if (mastery && mastery.masteryLevel >= 2) {
-                                    return '#a78bfa';
-                                }
-                                // Gray for not started (locked)
-                                return '#52525b';
-                            }}
-                            maskColor="rgba(15, 23, 42, 0.7)"
-                        />
+                                        // Violet for Mastered/Completed
+                                        if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
+                                            return '#8b5cf6';
+                                        }
+                                        // Light Violet for In-progress
+                                        if (mastery && mastery.masteryLevel >= 2) {
+                                            return '#a78bfa';
+                                        }
+                                        // Gray for not started (locked)
+                                        return '#52525b';
+                                    }}
+                                    maskColor="rgba(15, 23, 42, 0.7)"
+                                />
+                            )}
 
-                        {/* Multi-Selection & Grouping Toolbar (Integrated) */}
+
+
+
+                        </ReactFlow>
+
+                        {/* Multi-Selection & Grouping Toolbar (Moved Outside ReactFlow) */}
                         <AnimatePresence>
                             {(isGroupSelectionMode || nodes.filter(n => n.selected).length >= 2) && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 30 }}
-                                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-6 py-4 flex items-center gap-6"
+                                    className="fixed bottom-24 left-0 right-0 mx-auto z-[100] bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-4 py-2 flex items-center gap-3 w-fit max-w-[90vw] justify-center"
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-zinc-300 text-sm font-bold">
+                                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                                        <span className="text-zinc-300 text-xs md:text-sm font-bold whitespace-nowrap">
                                             <span className="text-violet-400">
                                                 {isGroupSelectionMode ? selectedForGrouping.size : nodes.filter(n => n.selected).length}
                                             </span>개 선택됨
                                         </span>
-                                        <div className="w-px h-6 bg-zinc-800" />
+                                        <div className="w-px h-4 md:h-6 bg-zinc-800" />
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 md:gap-3">
                                         <button
                                             onClick={() => {
                                                 const selected = isGroupSelectionMode
@@ -2402,7 +2298,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                     : nodes.filter(n => n.selected);
                                                 confirmGroupCreation(selected);
                                             }}
-                                            className="px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-violet-600/40"
+                                            className="px-3 py-1.5 md:px-6 md:py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-lg shadow-violet-600/40 whitespace-nowrap"
                                         >
                                             그룹 생성
                                         </button>
@@ -2411,7 +2307,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                 if (isGroupSelectionMode) cancelGroupSelection();
                                                 else setNodes(nds => nds.map(n => ({ ...n, selected: false })));
                                             }}
-                                            className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl font-bold text-sm transition-all"
+                                            className="px-3 py-1.5 md:px-5 md:py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap"
                                         >
                                             취소
                                         </button>
@@ -2419,105 +2315,103 @@ export const TechniqueSkillTree: React.FC = () => {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                    </div>
+                ) : (
+                    /* List View */
+                    <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4 pt-24">
+                        <div className="max-w-2xl mx-auto space-y-3">
+                            {nodes.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <p className="text-lg font-medium">아직 추가된 콘텐츠가 없습니다</p>
+                                    <p className="text-sm mt-2">상단의 '콘텐츠 추가' 버튼을 눌러 시작하세요</p>
+                                </div>
+                            ) : (
+                                nodes.map((node, index) => {
+                                    const mastery = node.data.mastery;
+                                    const isCompleted = node.data.isCompleted;
+                                    const isLocked = !mastery && !isCompleted;
 
-
-                    </ReactFlow>
-                </div>
-            ) : (
-                /* List View */
-                <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4">
-                    <div className="max-w-2xl mx-auto space-y-3">
-                        {nodes.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <p className="text-lg font-medium">아직 추가된 콘텐츠가 없습니다</p>
-                                <p className="text-sm mt-2">상단의 '콘텐츠 추가' 버튼을 눌러 시작하세요</p>
-                            </div>
-                        ) : (
-                            nodes.map((node, index) => {
-                                const mastery = node.data.mastery;
-                                const isCompleted = node.data.isCompleted;
-                                const isLocked = !mastery && !isCompleted;
-
-                                return (
-                                    <div
-                                        key={node.id}
-                                        className={`relative p-4 rounded-xl border transition-all cursor-pointer ${isCompleted || (mastery && mastery.masteryLevel >= 5)
-                                            ? 'bg-violet-500/10 border-violet-500/30 shadow-lg shadow-violet-500/10'
-                                            : mastery && mastery.masteryLevel >= 2
-                                                ? 'bg-violet-400/5 border-violet-400/20'
-                                                : 'bg-zinc-800/40 border-zinc-700/50 opacity-60'
-                                            }`}
-                                        onClick={() => {
-                                            if (node.data.contentType === 'lesson' && node.data.lesson) {
-                                                navigate(`/lessons/${node.data.lesson.id}`);
-                                            } else if (node.data.contentType === 'drill' && node.data.drill) {
-                                                navigate(`/drills/${node.data.drill.id}`);
-                                            }
-                                        }}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
-                                                ? 'bg-violet-600 text-white'
+                                    return (
+                                        <div
+                                            key={node.id}
+                                            className={`relative p-4 rounded-xl border transition-all cursor-pointer ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                                                ? 'bg-violet-500/10 border-violet-500/30 shadow-lg shadow-violet-500/10'
                                                 : mastery && mastery.masteryLevel >= 2
-                                                    ? 'bg-violet-500/50 text-violet-200'
-                                                    : 'bg-zinc-700 text-zinc-400'
-                                                }`}>
-                                                {index + 1}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="text-white font-bold text-sm mb-1 truncate">
-                                                    {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
-                                                </h3>
-                                                {node.data.lesson && (
-                                                    <p className="text-xs text-slate-400 truncate">
-                                                        {node.data.lesson.course?.title || '강좌'}
-                                                    </p>
-                                                )}
-                                                {mastery && (
-                                                    <div className="flex items-center gap-1 mt-2">
-                                                        <div className="flex gap-0.5">
-                                                            {[1, 2, 3, 4, 5].map((level) => (
-                                                                <div
-                                                                    key={level}
-                                                                    className={`w-4 h-1.5 rounded-full ${level <= mastery.masteryLevel
-                                                                        ? 'bg-violet-500'
-                                                                        : 'bg-zinc-700'
-                                                                        }`}
-                                                                />
-                                                            ))}
+                                                    ? 'bg-violet-400/5 border-violet-400/20'
+                                                    : 'bg-zinc-800/40 border-zinc-700/50 opacity-60'
+                                                }`}
+                                            onClick={() => {
+                                                if (node.data.contentType === 'lesson' && node.data.lesson) {
+                                                    navigate(`/lessons/${node.data.lesson.id}`);
+                                                } else if (node.data.contentType === 'drill' && node.data.drill) {
+                                                    navigate(`/drills/${node.data.drill.id}`);
+                                                }
+                                            }}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                                                    ? 'bg-violet-600 text-white'
+                                                    : mastery && mastery.masteryLevel >= 2
+                                                        ? 'bg-violet-500/50 text-violet-200'
+                                                        : 'bg-zinc-700 text-zinc-400'
+                                                    }`}>
+                                                    {index + 1}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-white font-bold text-sm mb-1 truncate">
+                                                        {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
+                                                    </h3>
+                                                    {node.data.lesson && (
+                                                        <p className="text-xs text-slate-400 truncate">
+                                                            {node.data.lesson.course?.title || '강좌'}
+                                                        </p>
+                                                    )}
+                                                    {mastery && (
+                                                        <div className="flex items-center gap-1 mt-2">
+                                                            <div className="flex gap-0.5">
+                                                                {[1, 2, 3, 4, 5].map((level) => (
+                                                                    <div
+                                                                        key={level}
+                                                                        className={`w-4 h-1.5 rounded-full ${level <= mastery.masteryLevel
+                                                                            ? 'bg-violet-500'
+                                                                            : 'bg-zinc-700'
+                                                                            }`}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                            <span className="text-xs text-slate-500 ml-1">
+                                                                Lv.{mastery.masteryLevel}
+                                                            </span>
                                                         </div>
-                                                        <span className="text-xs text-slate-500 ml-1">
-                                                            Lv.{mastery.masteryLevel}
-                                                        </span>
+                                                    )}
+                                                </div>
+                                                {isLocked && (
+                                                    <div className="flex-shrink-0 text-zinc-600">
+                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                                        </svg>
                                                     </div>
                                                 )}
                                             </div>
-                                            {isLocked && (
-                                                <div className="flex-shrink-0 text-zinc-600">
-                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                                    </svg>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
-                                );
-                            })
-                        )}
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
 
             {/* Guest Experience Overlay - Bottom Discovery Bar */}
-            {!user && String(viewMode) === 'map' && !hideGuestOverlay && (
-                <div className={`fixed ${isMobile ? 'bottom-32' : 'bottom-0'} left-0 right-0 z-40 pointer-events-none px-4 flex justify-center`}>
-                    <div className="h-40 flex items-end pb-4 pointer-events-auto w-full max-w-sm">
-                        <div className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50 p-4 rounded-2xl w-full text-center shadow-2xl">
+            {
+                !user && String(viewMode) === 'map' && !hideGuestOverlay && (
+                    <div className={`fixed ${isMobile ? 'bottom-32' : 'bottom-4'} left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4`}>
+                        <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/50 p-4 rounded-2xl w-full text-center shadow-2xl">
                             {/* Close Button */}
                             <button
                                 onClick={() => setHideGuestOverlay(true)}
-                                className="absolute -top-3 -right-3 w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white shadow-xl"
+                                className="absolute -top-3 -right-3 w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white shadow-xl z-10"
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -2534,8 +2428,8 @@ export const TechniqueSkillTree: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* --- CUSTOM MODALS --- */}
 
@@ -2867,6 +2761,40 @@ export const TechniqueSkillTree: React.FC = () => {
 
                             {menu.type === 'pane' && (
                                 <>
+                                    <button
+                                        onClick={() => {
+                                            const nodesToGroup = menu.selectedNodes || [];
+                                            if (nodesToGroup.length >= 2) {
+                                                setSelectedForGrouping(new Set(nodesToGroup.map((n: any) => n.id)));
+                                                confirmGroupCreation(nodesToGroup);
+                                            } else {
+                                                // If less than 2 selected, enter selection mode
+                                                // If there are any selected nodes, include them in the initial selection
+                                                setIsGroupSelectionMode(true);
+                                                const initialSet = new Set(nodesToGroup.map((n: any) => n.id));
+                                                setSelectedForGrouping(initialSet as Set<string>);
+                                                setGroupingInitialNodeId(null);
+                                            }
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-violet-600/20 text-zinc-300 hover:text-violet-300 transition-all font-bold text-xs group"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600/40">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="14" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+                                                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+                                            </svg>
+                                        </div>
+                                        {menu.selectedNodes && menu.selectedNodes.length >= 2
+                                            ? `${menu.selectedNodes.length}개 기술 묶기`
+                                            : '기술 묶기 (선택 모드)'
+                                        }
+                                    </button>
+
+                                    <div className="h-px bg-zinc-800/50 my-1 mx-2" />
+
                                     <button
                                         onClick={() => {
                                             setIsAddModalOpen(true);

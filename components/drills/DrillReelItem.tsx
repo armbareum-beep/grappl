@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, Grid } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, Grid, ChevronLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface DrillReelItemProps {
     drill: Drill;
@@ -45,6 +45,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
     const [progress, setProgress] = useState(0);
 
+    const navigate = useNavigate();
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -231,8 +232,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             {/* Play/Pause Icon Overlay */}
                             {!isPlaying && isActive && (
                                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 pointer-events-none">
-                                    <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
-                                        <Play className="w-10 h-10 text-black ml-1" />
+                                    <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center">
+                                        <Play className="w-8 h-8 text-black ml-1" />
                                     </div>
                                 </div>
                             )}
@@ -241,34 +242,45 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     </div>
                 </div>
 
-                {/* Video Type Toggles (Top Left) - Only show if active */}
-                {isActive && (
-                    <div className="absolute left-4 top-20 z-40 flex pointer-events-auto">
-                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full border border-white/10">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                className={`p-2 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <Zap className="w-6 h-6" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                                className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
-                            </button>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Right Side Actions - Unified Container for both Mobile & Desktop */}
                 {/* Mobile: Inside video (absolute right), Desktop: Outside video (relative to video container) */}
                 {isActive && (
                     <div className="absolute inset-0 z-40 pointer-events-none flex justify-center">
                         <div className="relative h-full w-full max-w-[56.25vh] flex">
+                            {/* Back button Group - Sticks to left edge of video on web */}
+                            <div className="absolute left-0 md:relative md:left-auto top-0 bottom-0 flex flex-col items-center py-6 pointer-events-auto
+                                            md:-translate-x-full md:mr-4">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); navigate(-1); }}
+                                    className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95 mb-4"
+                                >
+                                    <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                                </button>
+
+                                {/* View Toggles (Moved here) */}
+                                <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
+                                        className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        title="Main Video"
+                                    >
+                                        <Zap className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
+                                        className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        title="Description Video"
+                                    >
+                                        <MessageCircle className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Spacer for video width */}
                             <div className="flex-1"></div>
-                            
+
                             {/* Actions Container - Sticks to right edge of video on mobile, outside on desktop */}
                             <div className="absolute right-0 md:relative md:right-auto top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto
                                             md:translate-x-full md:ml-4">
@@ -276,15 +288,15 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
-                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl"
                                     >
-                                        {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                                        {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onChangeView(); }}
-                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl"
                                     >
-                                        <Grid className="w-6 h-6" />
+                                        <Grid className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                 </div>
 
@@ -294,35 +306,35 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                     <div className="flex flex-col items-center gap-0.5">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onLike(); }}
-                                            className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                         >
-                                            <Heart className={`w-6 h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                            <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                         </button>
-                                        <span className="text-[10px] font-medium text-zinc-200">{likeCount.toLocaleString()}</span>
+                                        <span className="text-[10px] md:text-sm font-bold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
                                     </div>
 
                                     {/* Routine View */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
-                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                     >
-                                        <ListVideo className="w-6 h-6" />
+                                        <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
 
                                     {/* Save */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onSave(); }}
-                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                     >
-                                        <Bookmark className={`w-6 h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
+                                        <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
                                     </button>
 
                                     {/* Share */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onShare(); }}
-                                        className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                     >
-                                        <Share2 className="w-6 h-6" />
+                                        <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                 </div>
                             </div>
@@ -330,8 +342,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     </div>
                 )}
 
-                {/* Content & Info - Bottom */}
-                <div className="fixed left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
+                {/* Content & Info - Bottom (Attached to Video) */}
+                <div className="absolute left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
                     <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                         {/* Info - Always inside video */}
                         <div className="flex-1 pr-16">

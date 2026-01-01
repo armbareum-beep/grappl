@@ -71,11 +71,11 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
 
     if (isEditing && onEdit && user) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-slate-900">수련 일지 수정</h2>
-                        <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-white">수련 일지 수정</h2>
+                        <button onClick={() => setIsEditing(false)} className="text-zinc-400 hover:text-white transition-colors">
                             <X className="w-6 h-6" />
                         </button>
                     </div>
@@ -94,27 +94,33 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col md:flex-row">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col md:flex-row shadow-2xl overflow-hidden ring-1 ring-white/5">
                 {/* Left Side: Log Details */}
-                <div className="flex-1 p-6 border-b md:border-b-0 md:border-r border-slate-200">
-                    <div className="flex justify-between items-start mb-4">
+                <div className="flex-1 p-8 border-b md:border-b-0 md:border-r border-white/5">
+                    <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 mb-1">수련 일지</h2>
-                            <div className="flex items-center gap-2 text-slate-500 text-sm">
-                                <Calendar className="w-4 h-4" />
-                                <span>{log.date}</span>
+                            <h2 className="text-2xl font-black text-white mb-2 tracking-tight">수련 일지</h2>
+                            <div className="flex flex-wrap items-center gap-3 text-zinc-400 text-sm">
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-4 h-4 text-violet-400" />
+                                    <span>{log.date}</span>
+                                </div>
                                 {log.location && (
                                     <>
-                                        <span className="mx-1">•</span>
-                                        <span>{log.location}</span>
+                                        <span className="text-zinc-700">•</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span>{log.location}</span>
+                                        </div>
                                     </>
                                 )}
                                 {log.user?.name && (
                                     <>
-                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                        <User className="w-4 h-4" />
-                                        <span>{log.user.name}</span>
+                                        <span className="text-zinc-700">•</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <User className="w-4 h-4 text-zinc-500" />
+                                            <span className="font-medium text-zinc-300">{log.user.name}</span>
+                                        </div>
                                     </>
                                 )}
                             </div>
@@ -123,20 +129,20 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                             {onEdit && user?.id === log.userId && (
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                    className="p-2.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500 hover:text-white rounded-full transition-all duration-200"
                                     title="수정하기"
                                 >
                                     <Edit2 className="w-5 h-5" />
                                 </button>
                             )}
-                            <button onClick={onClose} className="md:hidden text-slate-400 hover:text-slate-600">
+                            <button onClick={onClose} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
                     </div>
 
                     {embedUrl && (
-                        <div className="aspect-video w-full bg-black rounded-lg mb-6 overflow-hidden">
+                        <div className="aspect-video w-full bg-zinc-950 rounded-2xl mb-8 overflow-hidden border border-white/5 shadow-inner">
                             <iframe
                                 src={embedUrl}
                                 className="w-full h-full"
@@ -146,24 +152,24 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                         </div>
                     )}
 
-                    <div className="flex flex-wrap gap-4 mb-6">
-                        <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                    <div className="flex flex-wrap gap-3 mb-8">
+                        <div className="flex items-center gap-2 bg-violet-500/10 text-violet-400 px-4 py-2 rounded-xl text-sm font-bold border border-violet-500/20">
                             <Clock className="w-4 h-4" />
                             <span>{log.durationMinutes}분 수련</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                        <div className="flex items-center gap-2 bg-purple-500/10 text-purple-400 px-4 py-2 rounded-xl text-sm font-bold border border-purple-500/20">
                             <Activity className="w-4 h-4" />
                             <span>스파링 {log.sparringRounds}라운드</span>
                         </div>
                     </div>
 
                     {log.techniques && log.techniques.length > 0 && (
-                        <div className="mb-6">
-                            <h4 className="text-sm font-semibold text-slate-900 mb-2">배운 기술</h4>
+                        <div className="mb-8">
+                            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">배운 기술</h4>
                             <div className="flex flex-wrap gap-2">
                                 {log.techniques.map((tech, index) => (
-                                    <span key={index} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-md">
-                                        {tech}
+                                    <span key={index} className="px-3 py-1.5 bg-zinc-800/50 text-zinc-300 text-sm font-medium rounded-lg border border-white/5">
+                                        #{tech}
                                     </span>
                                 ))}
                             </div>
@@ -171,13 +177,13 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                     )}
 
                     {log.notes && (
-                        <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 whitespace-pre-wrap">
+                        <div className="bg-zinc-800/30 p-5 rounded-2xl text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed border border-white/5">
                             {log.notes}
                         </div>
                     )}
 
                     {log.user && (
-                        <div className="mt-6 pt-6 border-t border-slate-100">
+                        <div className="mt-8 pt-8 border-t border-white/5">
                             <UserCourseProfile
                                 userId={log.userId}
                                 userName={log.user.name}
@@ -188,42 +194,41 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                 </div>
 
                 {/* Right Side: Feedback */}
-                <div className="w-full md:w-96 flex flex-col h-[500px] md:h-auto">
-                    <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4" />
+                <div className="w-full md:w-96 flex flex-col h-[500px] md:h-auto bg-zinc-950/30">
+                    <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                        <h3 className="font-bold text-white flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-violet-400" />
                             피드백
                         </h3>
-                        <button onClick={onClose} className="hidden md:block text-slate-400 hover:text-slate-600">
-                            <X className="w-6 h-6" />
-                        </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
                         {loadingFeedback ? (
-                            <div className="text-center py-4 text-slate-500">로딩 중...</div>
+                            <div className="text-center py-4 text-zinc-500 text-sm animate-pulse">로딩 중...</div>
                         ) : feedback.length === 0 ? (
-                            <div className="text-center py-8 text-slate-500 text-sm">
-                                아직 피드백이 없습니다.<br />첫 번째 피드백을 남겨보세요!
+                            <div className="text-center py-12 text-zinc-500 text-sm">
+                                <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                                <p>아직 피드백이 없습니다.</p>
+                                <p className="text-xs mt-1">첫 번째 피드백을 남겨보세요!</p>
                             </div>
                         ) : (
                             feedback.map((item) => (
-                                <div key={item.id} className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
-                                    <div className="flex items-center justify-between mb-1">
+                                <div key={item.id} className="bg-zinc-800/50 p-4 rounded-2xl border border-white/5 shadow-sm group">
+                                    <div className="flex items-center justify-between mb-2">
                                         <button
                                             onClick={() => setSelectedFeedbackUserId(selectedFeedbackUserId === item.userId ? null : item.userId)}
-                                            className="font-semibold text-xs text-slate-900 hover:text-blue-600 transition-colors"
+                                            className="font-bold text-xs text-zinc-300 hover:text-violet-400 transition-colors"
                                         >
                                             {item.userName}
                                         </button>
-                                        <span className="text-xs text-slate-400">
+                                        <span className="text-[10px] text-zinc-500 font-medium">
                                             {new Date(item.createdAt).toLocaleDateString()}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-slate-700">{item.content}</p>
+                                    <p className="text-sm text-zinc-400 leading-relaxed">{item.content}</p>
 
                                     {selectedFeedbackUserId === item.userId && (
-                                        <div className="mt-3 pt-3 border-t border-slate-100">
+                                        <div className="mt-4 pt-4 border-t border-white/5 animate-in fade-in slide-in-from-top-2">
                                             <UserCourseProfile
                                                 userId={item.userId}
                                                 userName={item.userName}
@@ -235,17 +240,21 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                         )}
                     </div>
 
-                    <div className="p-4 border-t border-slate-200 bg-white">
+                    <div className="p-6 border-t border-white/5 bg-zinc-900/50 backdrop-blur-md">
                         <form onSubmit={handleSubmitFeedback} className="flex gap-2">
                             <input
                                 type="text"
                                 value={newFeedback}
                                 onChange={(e) => setNewFeedback(e.target.value)}
-                                placeholder="피드백을 남겨주세요..."
-                                className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="피드백 남기기..."
+                                className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
                             />
-                            <Button type="submit" size="sm" disabled={submitting || !newFeedback.trim()}>
-                                <Send className="w-4 h-4" />
+                            <Button type="submit" size="sm" disabled={submitting || !newFeedback.trim()} className="bg-violet-600 hover:bg-violet-500 text-white rounded-xl aspect-square p-0 flex items-center justify-center">
+                                {submitting ? (
+                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Send className="w-4 h-4" />
+                                )}
                             </Button>
                         </form>
                     </div>

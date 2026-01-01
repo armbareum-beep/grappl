@@ -7,7 +7,7 @@ interface ModalProps {
     title: string;
     children: React.ReactNode;
     icon?: React.ElementType;
-    iconColor?: 'indigo' | 'emerald' | 'rose' | 'amber' | 'blue';
+    iconColor?: 'indigo' | 'emerald' | 'rose' | 'amber' | 'blue' | 'violet';
     footer?: React.ReactNode;
     maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
@@ -30,6 +30,7 @@ export const Modal: React.FC<ModalProps> = ({
         rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-400' },
         amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400' },
         blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400' },
+        violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/20', text: 'text-violet-400' },
     };
 
     const colors = colorClasses[iconColor];
@@ -50,7 +51,7 @@ export const Modal: React.FC<ModalProps> = ({
                 onClick={onClose}
             ></div>
 
-            <div className={`bg-slate-900 border border-slate-700 rounded-2xl w-full ${maxWidthClasses[maxWidth]} p-6 relative z-10 animate-in zoom-in-95 duration-200 shadow-2xl shadow-black/50`}>
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl w-full ${maxWidthClasses[maxWidth]} p-6 relative z-10 animate-in zoom-in-95 duration-200 shadow-2xl shadow-black/50`}>
                 {/* Header with Icon */}
                 <div className="flex flex-col items-center justify-center mb-4">
                     {Icon && (

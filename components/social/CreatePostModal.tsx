@@ -171,15 +171,10 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     }
                 };
 
-                const { completed, xpEarned } = await updateQuestProgress(user.id, 'write_log');
+                const { xpEarned } = await updateQuestProgress(user.id, 'write_log');
 
-                if (completed || xpEarned > 0) {
-                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 0 });
-                    setShowQuestComplete(true);
-                } else {
-                    setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 0 });
-                    setShowQuestComplete(true);
-                }
+                setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 0 });
+                setShowQuestComplete(true);
 
                 onPostCreated(enrichedLog);
             }
@@ -199,7 +194,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative w-full max-w-lg bg-[#0F1117] rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 ring-1 ring-white/5">
+            <div className="relative w-full max-w-lg bg-zinc-900/90 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 ring-1 ring-white/5">
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
@@ -257,7 +252,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     {/* YouTube Link Input */}
                     {showYoutubeInput && (
                         <div className="mb-4 animate-in fade-in slide-in-from-top-2">
-                            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-3 focus-within:border-blue-500/50 focus-within:bg-slate-900 transition-all">
+                            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-3 focus-within:border-violet-500/50 focus-within:bg-slate-900 transition-all">
                                 <LinkIcon className="w-5 h-5 text-red-500" />
                                 <input
                                     type="text"
@@ -313,11 +308,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     {selectedTechniques.length > 0 && (
                         <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2">
                             {selectedTechniques.map(tech => (
-                                <span key={tech} className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium flex items-center gap-1.5 group">
+                                <span key={tech} className="px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-sm font-medium flex items-center gap-1.5 group">
                                     #{tech}
                                     <button
                                         onClick={() => setSelectedTechniques(prev => prev.filter(t => t !== tech))}
-                                        className="text-blue-400/50 group-hover:text-blue-400 transition-colors"
+                                        className="text-violet-400/50 group-hover:text-violet-400 transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                     </button>
@@ -333,7 +328,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                         <div className="flex gap-2">
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="p-2.5 rounded-full text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all group relative"
+                                className="p-2.5 rounded-full text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 transition-all group relative"
                                 title="사진/영상 추가"
                             >
                                 <ImageIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -366,7 +361,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                         <button
                             onClick={() => setAddToJournal(!addToJournal)}
                             className={`px-4 py-2 rounded-full text-xs font-bold transition-all border flex items-center gap-2 ${addToJournal
-                                ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                                ? 'bg-violet-500 border-violet-400 text-white shadow-[0_0_12px_rgba(124,58,237,0.3)]'
                                 : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-400'
                                 }`}
                         >
@@ -379,7 +374,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     <button
                         onClick={handleSubmit}
                         disabled={!content.trim() && mediaFiles.length === 0 || isSubmitting}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold shadow-lg shadow-violet-500/20 hover:shadow-violet-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
                     >
                         {isSubmitting ? (
                             <>
@@ -389,7 +384,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                         ) : (
                             <>
                                 게시하기
-                                <Sparkles className="w-4 h-4 ml-1 text-blue-200" />
+                                <Sparkles className="w-4 h-4 ml-1 text-violet-200" />
                             </>
                         )}
                     </button>

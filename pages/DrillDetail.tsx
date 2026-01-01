@@ -474,35 +474,32 @@ export const DrillDetail: React.FC = () => {
                 />
             </div>
 
-            {/* Top Bar & Toggles Container */}
-            <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
-                <div className="max-w-[56.25vh] mx-auto relative h-full">
-                    {/* Header Controls (Back Button) */}
-                    <div className="absolute top-0 left-0 flex items-start pointer-events-auto">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-all"
-                        >
-                            <ArrowLeft className="w-6 h-6" />
-                        </button>
-                    </div>
+            {/* Top-Left Group: Back Button & Toggles */}
+            <div className="absolute top-0 left-0 z-[100] p-6 pointer-events-none">
+                <div className="flex flex-col gap-4 items-start pointer-events-auto">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2.5 md:p-3.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl active:scale-95"
+                    >
+                        <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
 
-                    {/* Toggle Switch */}
-                    <div className="absolute top-14 left-0 flex pointer-events-auto">
-                        <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm p-1 rounded-full pointer-events-auto border border-white/10">
-                            <button
-                                onClick={() => setCurrentVideoType('action')}
-                                className={`p-2 rounded-full transition-all ${currentVideoType === 'action' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <Zap className="w-6 h-6" fill={currentVideoType === 'action' ? "currentColor" : "none"} />
-                            </button>
-                            <button
-                                onClick={() => setCurrentVideoType('description')}
-                                className={`p-2 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <MessageCircle className="w-6 h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
-                            </button>
-                        </div>
+                    {/* View Toggles (Vertical) */}
+                    <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
+                        <button
+                            onClick={() => setCurrentVideoType('action')}
+                            className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'action' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                            title="Action Video"
+                        >
+                            <Zap className="w-5 h-5 md:w-6 md:h-6" fill={currentVideoType === 'action' ? "currentColor" : "none"} />
+                        </button>
+                        <button
+                            onClick={() => setCurrentVideoType('description')}
+                            className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                            title="Description Video"
+                        >
+                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={currentVideoType === 'description' ? "currentColor" : "none"} />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -623,9 +620,9 @@ export const DrillDetail: React.FC = () => {
                         <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
                             <button
                                 onClick={toggleMute}
-                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
+                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                             >
-                                {muted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                                {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                             </button>
                         </div>
 
@@ -635,9 +632,9 @@ export const DrillDetail: React.FC = () => {
                             <div className="flex flex-col items-center gap-0.5">
                                 <button
                                     onClick={handleLike}
-                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <Heart className={`w-6 h-6 ${liked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                    <Heart className={`w-5 h-5 md:w-7 md:h-7 ${liked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                 </button>
                                 <span className="text-[10px] font-medium text-zinc-200">{((drill?.likes || 0) + (liked ? 1 : 0)).toLocaleString()}</span>
                             </div>
@@ -646,9 +643,9 @@ export const DrillDetail: React.FC = () => {
                             {owns && associatedRoutineId && (
                                 <button
                                     onClick={() => navigate(`/routines/${associatedRoutineId}`)}
-                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <ListVideo className="w-6 h-6" />
+                                    <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
                                 </button>
                             )}
 
@@ -656,27 +653,27 @@ export const DrillDetail: React.FC = () => {
                             {owns && !associatedRoutineId && (
                                 <button
                                     onClick={() => setShowAddToRoutine(true)}
-                                    className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <MoreVertical className="w-6 h-6" />
+                                    <MoreVertical className="w-5 h-5 md:w-6 md:h-6" />
                                 </button>
                             )}
 
                             {/* Save */}
                             <button
                                 onClick={handleSave}
-                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 title="나만의 루틴에 저장"
                             >
-                                <Bookmark className={`w-6 h-6 ${saved ? 'fill-zinc-100' : ''}`} />
+                                <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${saved ? 'fill-zinc-100' : ''}`} />
                             </button>
 
                             {/* Share */}
                             <button
                                 onClick={handleShare}
-                                className="p-2 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                             >
-                                <Share2 className="w-6 h-6" />
+                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
                     </div>

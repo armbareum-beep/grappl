@@ -309,23 +309,23 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
     };
 
     return (
-        <div className="relative group overflow-hidden rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-slate-900/80 p-6 shadow-lg shadow-indigo-500/10 cursor-default transition-all hover:border-indigo-400/50 hover:shadow-indigo-500/20">
+        <div className="relative group overflow-hidden rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-900/40 via-purple-900/40 to-slate-900/80 p-6 shadow-lg shadow-violet-500/10 cursor-default transition-all hover:border-violet-400/50 hover:shadow-violet-500/20">
             {/* Background Effects from Home */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-indigo-400/30 transition-colors"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-violet-400/30 transition-colors"></div>
 
             {!showResult ? (
                 <div className="relative z-10">
                     <div className="flex items-start justify-between mb-6">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-110 transition-transform duration-300">
                                 <Bot className="w-7 h-7 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-white text-base group-hover:text-indigo-200 transition-colors">AI 코치 분석</h3>
-                                <p className="text-xs text-indigo-200/70">Gemini Pro가 플레이를 분석합니다</p>
+                                <h3 className="font-bold text-white text-base group-hover:text-violet-200 transition-colors">AI 코치 분석</h3>
+                                <p className="text-xs text-violet-200/70">Gemini Pro가 플레이를 분석합니다</p>
                             </div>
                         </div>
-                        <div className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[10px] font-bold text-indigo-300 animate-pulse">
+                        <div className="px-3 py-1 rounded-full bg-violet-500/20 border border-violet-400/30 text-[10px] font-bold text-violet-300 animate-pulse">
                             LIVE
                         </div>
                     </div>
@@ -352,19 +352,19 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                     </div>
 
                     <button
-                        className="w-full py-3 rounded-lg bg-white text-indigo-900 font-bold text-sm hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px]"
+                        className="w-full py-3 rounded-lg bg-white text-violet-900 font-bold text-sm hover:bg-violet-50 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:translate-y-[-2px]"
                         onClick={analyzeLogs}
                         disabled={isAnalyzing}
                     >
                         {isAnalyzing ? (
                             <>
-                                <Brain className="w-4 h-4 text-indigo-600 animate-spin" />
-                                <span className="text-indigo-600">분석중...</span>
+                                <Brain className="w-4 h-4 text-violet-600 animate-spin" />
+                                <span className="text-violet-600">분석중...</span>
                             </>
                         ) : (
                             <>
-                                <Sparkles className="w-4 h-4 text-indigo-600" />
-                                <span className="text-indigo-600">지금 분석 받아보기</span>
+                                <Sparkles className="w-4 h-4 text-violet-600" />
+                                <span className="text-violet-600">지금 분석 받아보기</span>
                             </>
                         )}
                     </button>
@@ -380,18 +380,18 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                         </div>
                         <button
                             onClick={() => setShowResult(false)}
-                            className="text-indigo-100 hover:text-white text-sm underline decoration-indigo-300/50"
+                            className="text-violet-100 hover:text-white text-sm underline decoration-violet-300/50"
                         >
                             닫기
                         </button>
                     </div>
                     {/* Background Effects */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-600/20 transition-all duration-500 pointer-events-none"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-violet-600/20 transition-all duration-500 pointer-events-none"></div>
 
                     <div className="relative z-10">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
                                     <Bot className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
@@ -412,7 +412,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all
                                 ${isLocked
                                             ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                            : 'bg-white text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 shadow-md hover:shadow-lg'
+                                            : 'bg-white text-slate-900 hover:bg-violet-50 hover:text-violet-600 shadow-md hover:shadow-lg'
                                         }`}
                                 >
                                     <Sparkles className="w-4 h-4" />
@@ -425,8 +425,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                             <div className="py-8 text-center space-y-4 animate-in fade-in zoom-in duration-300">
                                 <div className="relative w-16 h-16 mx-auto">
                                     <div className="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
-                                    <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
-                                    <Brain className="absolute inset-0 m-auto w-6 h-6 text-indigo-400 animate-pulse" />
+                                    <div className="absolute inset-0 border-4 border-violet-500 rounded-full border-t-transparent animate-spin"></div>
+                                    <Brain className="absolute inset-0 m-auto w-6 h-6 text-violet-400 animate-pulse" />
                                 </div>
                                 <p className="text-sm font-medium text-slate-300 animate-pulse">
                                     최근 수련 데이터를 분석하고 있습니다...
@@ -442,9 +442,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                         <Terminal className="w-3 h-3" />
                                         <span>ANALYSIS_LOG_OUTPUT</span>
                                     </div>
-                                    <p className="text-indigo-400 leading-relaxed min-h-[40px]">
+                                    <p className="text-violet-400 leading-relaxed min-h-[40px]">
                                         {displayedText}
-                                        <span className="inline-block w-1.5 h-3 bg-indigo-500 ml-1 animate-pulse" />
+                                        <span className="inline-block w-1.5 h-3 bg-violet-500 ml-1 animate-pulse" />
                                     </p>
                                 </div>
 
@@ -453,7 +453,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                     {results.map((result, idx) => (
                                         <div
                                             key={idx}
-                                            className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-all animate-in slide-in-from-bottom-2 duration-500"
+                                            className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-violet-500/30 transition-all animate-in slide-in-from-bottom-2 duration-500"
                                             style={{ animationDelay: `${idx * 150}ms` }}
                                         >
                                             <div className="flex items-start gap-3 mb-3">
@@ -486,7 +486,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                             {/* Action Item Recommendation */}
                                             {result.recommendedCourse && (
                                                 <div className="mt-3 pl-10">
-                                                    <div className="bg-slate-900 rounded-lg p-2 flex items-center gap-3 border border-slate-800 hover:border-indigo-500/50 transition-colors group/card cursor-pointer">
+                                                    <div className="bg-slate-900 rounded-lg p-2 flex items-center gap-3 border border-slate-800 hover:border-violet-500/50 transition-colors group/card cursor-pointer">
                                                         <div
                                                             className="w-10 h-10 rounded bg-slate-800 bg-cover bg-center flex items-center justify-center flex-shrink-0 group-hover/card:scale-105 transition-transform"
                                                             style={{ backgroundImage: result.recommendedCourse.thumbnail && result.recommendedCourse.thumbnail.startsWith('http') ? `url(${result.recommendedCourse.thumbnail})` : undefined }}
@@ -494,13 +494,13 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                                             {(!result.recommendedCourse.thumbnail || !result.recommendedCourse.thumbnail.startsWith('http')) && <PlayCircle className="w-5 h-5 text-white/80" />}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="text-[10px] text-indigo-400 font-bold mb-0.5">추천 강의</div>
+                                                            <div className="text-[10px] text-violet-400 font-bold mb-0.5">추천 강의</div>
                                                             <div className="text-xs text-white font-bold truncate">{result.recommendedCourse.title}</div>
                                                             <div className="flex items-center justify-between mt-2">
                                                                 <span className="text-slate-400 text-xs">{result.recommendedCourse.instructor}</span>
                                                                 <Link
                                                                     to={`/courses/${result.recommendedCourse.id}`}
-                                                                    className="flex items-center gap-1 text-indigo-400 text-xs font-bold hover:underline"
+                                                                    className="flex items-center gap-1 text-violet-400 text-xs font-bold hover:underline"
                                                                 >
                                                                     보러가기 <ChevronRight className="w-3 h-3" />
                                                                 </Link>
@@ -570,11 +570,11 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                 onClose={handleCloseModal}
                 title="분석 완료"
                 icon={Bot}
-                iconColor="indigo"
+                iconColor="violet"
                 footer={
                     <button
                         onClick={handleCloseModal}
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+                        className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-500/20"
                     >
                         결과 확인하기
                     </button>
@@ -583,7 +583,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                 <p>
                     이미 오늘 AI 분석을 완료했습니다.<br />
                     비용 절감을 위해 분석은 하루 1회만 제공됩니다.<br />
-                    <span className="text-indigo-400 font-bold mt-2 block">이전 분석 결과를 다시 보여드릴게요!</span>
+                    <span className="text-violet-400 font-bold mt-2 block">이전 분석 결과를 다시 보여드릴게요!</span>
                 </p>
             </Modal>
 
@@ -593,7 +593,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                 onClose={() => setShowLoginModal(false)}
                 title="로그인 필요"
                 icon={Lock}
-                iconColor="indigo"
+                iconColor="violet"
                 footer={
                     <>
                         <button
@@ -604,7 +604,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                         </button>
                         <button
                             onClick={() => navigate('/login')}
-                            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+                            className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-500/20"
                         >
                             로그인하기
                         </button>

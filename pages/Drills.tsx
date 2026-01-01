@@ -131,30 +131,14 @@ export const Drills: React.FC = () => {
     return (
         <div className="min-h-screen bg-zinc-950 md:pl-28 pt-8 pb-20 px-6 md:px-10">
             <div className="max-w-[1600px] mx-auto">
-                {/* Header Section (Category then Search/Reels) */}
+                {/* Header & Filter System */}
                 <div className="flex flex-col gap-8 mb-12">
-                    {/* Row 1: Category Row */}
-                    <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
-                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mr-3 whitespace-nowrap">Position</span>
-                        {categories.map(cat => (
-                            <button
-                                key={cat}
-                                onClick={() => setSelectedCategory(cat)}
-                                className={`px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap border ${selectedCategory === cat
-                                    ? 'bg-violet-600 border-violet-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]'
-                                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
-                                    }`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
 
-                    {/* Row 2: Search & Reels View (Right Aligned) */}
-                    <div className="flex items-center justify-between gap-6">
+                    {/* Search & Reels Toggle */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
                         <div className="flex items-center gap-3 w-full max-w-sm sm:max-w-md">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                            <div className="relative flex-1 group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 transition-colors group-focus-within:text-violet-500" />
                                 <input
                                     type="text"
                                     placeholder="드릴 검색..."
@@ -167,7 +151,7 @@ export const Drills: React.FC = () => {
                                             return prev;
                                         });
                                     }}
-                                    className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-zinc-600 text-sm font-medium"
+                                    className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-11 pr-4 py-3 rounded-2xl focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm placeholder:text-zinc-600 text-sm font-medium"
                                 />
                             </div>
                             {searchTerm && (
@@ -182,11 +166,46 @@ export const Drills: React.FC = () => {
 
                         <button
                             onClick={() => handleViewChange('reels')}
-                            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:text-violet-400 hover:border-violet-500/50 transition-all shadow-xl group whitespace-nowrap"
+                            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-2xl hover:text-violet-400 hover:border-violet-500/50 transition-all shadow-xl group whitespace-nowrap"
                         >
-                            <PlaySquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <PlaySquare className="w-4 h-4 transition-transform group-hover:scale-110" />
                             <span className="text-xs font-bold tracking-tight">릴스 뷰</span>
                         </button>
+                    </div>
+
+                    {/* Filter Rows */}
+                    <div className="space-y-4">
+                        {/* Row 1: Primary Filter (Position/Category) */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex overflow-x-auto gap-2 no-scrollbar py-1">
+                                {categories.map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setSelectedCategory(cat)}
+                                        className={`h-10 px-6 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap border flex items-center justify-center ${selectedCategory === cat
+                                                ? 'bg-violet-600 border-violet-500 text-white shadow-violet-500/20'
+                                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                                            }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {(selectedCategory !== 'All' || searchTerm) && (
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        setSelectedCategory('All');
+                                        setSearchParams({});
+                                    }}
+                                    className="h-10 px-4 text-xs text-zinc-500 hover:text-zinc-200 transition-colors duration-200"
+                                >
+                                    필터 초기화
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

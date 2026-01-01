@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Course } from '../types';
 import { getCourses } from '../lib/api';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { cn } from '../lib/utils';
@@ -13,6 +13,7 @@ export const Browse: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [selectedUniform, setSelectedUniform] = useState<string>('All');
+  const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | null>(null);
 
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side Control', 'Mount', 'Back Control', 'Gi', 'No-Gi'];
 
@@ -60,100 +61,148 @@ export const Browse: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row pt-8 pb-20 px-6 md:px-10">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:pl-28 pt-8 pb-20 px-6 md:px-10">
 
-      {/* Sidebar Filters (Desktop: Fixed / Mobile: Horizontal Scroll or Stack) */}
-      <aside className="w-full md:w-[260px] md:h-[calc(100vh-6rem)] md:sticky md:top-24 bg-zinc-950/50 backdrop-blur-sm p-6 border-b md:border-b-0 md:border-r border-zinc-900 overflow-y-auto shrink-0 z-30 custom-scrollbar">
-        <div className="space-y-10">
 
-          {/* Position Group */}
-          <div>
-            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Position</h3>
-            <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible gap-2 pb-2 md:pb-0 no-scrollbar">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn(
-                    "px-5 py-2.5 rounded-full text-xs transition-all text-left whitespace-nowrap border mb-1",
-                    selectedCategory === cat
-                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
-                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
-                  )}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Uniform Group */}
-          <div>
-            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Uniform</h3>
-            <div className="flex flex-row md:flex-col gap-2">
-              {uniforms.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedUniform(type)}
-                  className={cn(
-                    "px-5 py-2.5 rounded-full text-xs transition-all text-left border mb-1",
-                    selectedUniform === type
-                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
-                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
-                  )}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Difficulty Group */}
-          <div>
-            <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 px-2">Difficulty</h3>
-            <div className="flex flex-row md:flex-col gap-2">
-              {difficulties.map(diff => (
-                <button
-                  key={diff}
-                  onClick={() => setSelectedDifficulty(diff)}
-                  className={cn(
-                    "px-5 py-2.5 rounded-full text-xs transition-all text-left border mb-1",
-                    selectedDifficulty === diff
-                      ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] font-bold"
-                      : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
-                  )}
-                >
-                  {diff}
-                </button>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:pt-4 md:px-12 md:pb-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:pt-0 md:px-12 md:pb-8 overflow-y-auto">
         <div className="max-w-[1600px] mx-auto">
 
-          {/* Header Section (Category then Search/Reels) */}
-          <div className="flex flex-col gap-6 mb-12">
-            <div className="flex justify-between items-center w-full">
+          {/* Header & Filter System */}
+          <div className="flex flex-col gap-8 mb-12">
+
+            {/* Search & Stats */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
               <div className="relative w-full max-w-md group">
                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none transition-colors group-focus-within:text-violet-500">
                   <Search className="h-4 w-4 text-zinc-500" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Search classes..."
+                  placeholder="클래스 검색..."
                   className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <div className="text-zinc-500 text-sm font-medium hidden md:block">
-                Showing <span className="text-zinc-200 font-bold">{filteredCourses.length}</span> classes
+              <div className="text-zinc-500 text-sm font-medium">
+                총 <span className="text-zinc-200 font-bold">{filteredCourses.length}</span>개의 클래스
+              </div>
+            </div>
+
+            {/* Filter Rows */}
+            <div className="space-y-4">
+              {/* Row 1: Primary Filter (Position) */}
+              <div className="flex items-center gap-3">
+                <div className="flex overflow-x-auto gap-2 no-scrollbar py-1">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={cn(
+                        "h-10 px-5 rounded-full text-xs transition-all duration-200 whitespace-nowrap border flex items-center justify-center",
+                        selectedCategory === cat
+                          ? "bg-violet-600 border-violet-500 text-white shadow-violet-500/20 font-bold"
+                          : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 2: Secondary Filters (Dropdowns) */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Uniform Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'uniform' ? null : 'uniform')}
+                    className={cn(
+                      "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
+                      selectedUniform !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                    )}
+                  >
+                    <span className="whitespace-nowrap">Uniform: {selectedUniform}</span>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'uniform' && "rotate-180")} />
+                  </button>
+
+                  {openDropdown === 'uniform' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                      <div className="absolute top-12 left-0 w-40 bg-zinc-900/80 backdrop-blur-xl border border-zinc-700 rounded-2xl p-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        {uniforms.map(type => (
+                          <button
+                            key={type}
+                            onClick={() => {
+                              setSelectedUniform(type);
+                              setOpenDropdown(null);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-xl text-xs transition-colors duration-200",
+                              selectedUniform === type ? "bg-violet-600 text-white" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            )}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Difficulty Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'difficulty' ? null : 'difficulty')}
+                    className={cn(
+                      "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
+                      selectedDifficulty !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                    )}
+                  >
+                    <span className="whitespace-nowrap">Difficulty: {selectedDifficulty}</span>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'difficulty' && "rotate-180")} />
+                  </button>
+
+                  {openDropdown === 'difficulty' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                      <div className="absolute top-12 left-0 w-40 bg-zinc-900/80 backdrop-blur-xl border border-zinc-700 rounded-2xl p-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        {difficulties.map(diff => (
+                          <button
+                            key={diff}
+                            onClick={() => {
+                              setSelectedDifficulty(diff);
+                              setOpenDropdown(null);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-xl text-xs transition-colors duration-200",
+                              selectedDifficulty === diff ? "bg-violet-600 text-white" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            )}
+                          >
+                            {diff}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {(selectedCategory !== 'All' || selectedDifficulty !== 'All' || selectedUniform !== 'All' || searchTerm !== '') && (
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('All');
+                      setSelectedDifficulty('All');
+                      setSelectedUniform('All');
+                      setSearchTerm('');
+                    }}
+                    className="h-10 px-4 text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
+                  >
+                    필터 초기화
+                  </button>
+                )}
               </div>
             </div>
 

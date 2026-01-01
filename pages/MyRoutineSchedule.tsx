@@ -49,9 +49,9 @@ const MyRoutineSchedule: React.FC = () => {
                         onClick={() => navigate(-1)}
                         className="p-2 hover:bg-zinc-900 rounded-full transition-colors"
                     >
-                        <ArrowLeft className="w-6 h-6" />
+                        <ArrowLeft className="w-5 h-5 md:w-7 md:h-7" />
                     </button>
-                    <h1 className="text-xl font-bold">내 훈련 스케줄</h1>
+                    <h1 className="text-xl md:text-2xl font-bold">내 훈련 스케줄</h1>
                 </div>
             </header>
 
@@ -96,9 +96,9 @@ const MyRoutineSchedule: React.FC = () => {
                                                         const playlist = dayRoutines.map(r => r.id).join(',');
                                                         navigate(`/my-routines/${dayRoutines[0].id}?playlist=${playlist}`);
                                                     }}
-                                                    className="bg-violet-600 hover:bg-violet-500 text-white font-bold h-9 px-4 rounded-full flex items-center gap-2 shadow-lg shadow-violet-900/20"
+                                                    className="bg-violet-600 hover:bg-violet-500 text-white font-bold h-9 md:h-11 px-4 md:px-6 rounded-full flex items-center gap-2 shadow-lg shadow-violet-900/20"
                                                 >
-                                                    <Play className="w-4 h-4 fill-current" />
+                                                    <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                                                     통합 재생
                                                 </Button>
                                             )}
@@ -130,13 +130,13 @@ const MyRoutineSchedule: React.FC = () => {
                                                         <h3 className="font-bold text-zinc-100 truncate mb-1">
                                                             {routine.title}
                                                         </h3>
-                                                        <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                                        <div className="flex items-center gap-3 text-xs md:text-sm text-zinc-500">
                                                             <span className="flex items-center gap-1">
-                                                                <Clock className="w-3 h-3" />
+                                                                <Clock className="w-3 h-3 md:w-4 md:h-4" />
                                                                 {routine.totalDurationMinutes}분
                                                             </span>
                                                             <span className="flex items-center gap-1">
-                                                                <Zap className="w-3 h-3 text-violet-500" />
+                                                                <Zap className="w-3 h-3 md:w-4 md:h-4 text-violet-500" />
                                                                 {routine.drillCount}개 드릴
                                                             </span>
                                                         </div>
@@ -144,9 +144,9 @@ const MyRoutineSchedule: React.FC = () => {
 
                                                     <button
                                                         onClick={() => navigate(`/my-routines/${routine.id}`)}
-                                                        className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center hover:bg-violet-500 hover:scale-105 transition-all shadow-lg shadow-violet-900/20"
+                                                        className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-violet-600 flex items-center justify-center hover:bg-violet-500 hover:scale-105 transition-all shadow-lg shadow-violet-900/20"
                                                     >
-                                                        <Play className="w-5 h-5 fill-current" />
+                                                        <Play className="w-5 h-5 md:w-6 md:h-6 fill-current" />
                                                     </button>
                                                 </div>
                                             </div>
