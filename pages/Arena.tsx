@@ -35,14 +35,23 @@ export const Arena: React.FC = () => {
         }
     }, [searchParams, user]);
 
-    // Detect fullscreen changes
+    // Detect fullscreen changes (both browser and internal simulated)
     useEffect(() => {
         const handleFullscreenChange = () => {
             setIsFullScreen(!!document.fullscreenElement);
         };
 
+        const handleInternalFullscreen = (e: any) => {
+            setIsFullScreen(e.detail);
+        };
+
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        window.addEventListener('app-fullscreen-toggle', handleInternalFullscreen);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            window.removeEventListener('app-fullscreen-toggle', handleInternalFullscreen);
+        };
     }, []);
 
     const handleTabChange = (tabId: string) => {
@@ -59,7 +68,7 @@ export const Arena: React.FC = () => {
     return (
         <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
             {/* Floating Tab Navigation - Capsule Style */}
-            <div className={`fixed ${isFullScreen ? 'top-4' : 'top-24'} left-1/2 -translate-x-1/2 z-50 pointer-events-none`}>
+            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} left-1/2 -translate-x-1/2 z-[10001] transition-all duration-300 pointer-events-none`}>
                 <div className="inline-flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800/50 gap-1 pointer-events-auto shadow-2xl">
                     {ARENA_TABS.map((tab) => {
                         const Icon = tab.icon;
@@ -114,7 +123,7 @@ export const Arena: React.FC = () => {
                 ) : (
                     // Others: Scrollable content with blur effect for guests (except routines)
                     <div className={`h-full overflow-y-auto overflow-x-hidden relative z-10 ${(!user && activeTab !== 'routines') ? 'blur-sm pointer-events-none' : ''}`}>
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-16 pb-24 md:pb-6">
                             {activeTab === 'routines' && <TrainingRoutinesTab />}
                             {activeTab === 'sparring' && (
                                 <SparringReviewTab

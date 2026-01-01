@@ -387,8 +387,8 @@ export const CourseDetail: React.FC = () => {
                                     {course?.category}
                                 </span>
                                 <span className={cn("px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs font-bold tracking-wide uppercase shadow-sm",
-                                    course?.difficulty === 'Advanced' ? 'text-red-400' :
-                                        course?.difficulty === 'Intermediate' ? 'text-amber-400' : 'text-emerald-400'
+                                    course?.difficulty === 'Advanced' ? 'text-zinc-400 border-zinc-700' :
+                                        course?.difficulty === 'Intermediate' ? 'text-violet-400' : 'text-zinc-200'
                                 )}>
                                     {course?.difficulty}
                                 </span>
@@ -508,7 +508,7 @@ export const CourseDetail: React.FC = () => {
                                 <div className="space-y-3">
                                     {ownsCourse ? (
                                         <Button className="w-full h-14 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-base hover:bg-zinc-800 cursor-default" disabled>
-                                            <CheckCircle className="w-5 h-5 mr-2 text-emerald-500" />
+                                            <CheckCircle className="w-5 h-5 mr-2 text-violet-500" />
                                             {isFree ? '라이브러리에 있음' : '구매 완료'}
                                         </Button>
                                     ) : (
@@ -594,7 +594,7 @@ export const CourseDetail: React.FC = () => {
 
                                                 <div className="shrink-0 pt-0.5">
                                                     {completedLessons.has(lesson.id) ? (
-                                                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                                        <CheckCircle className="w-5 h-5 text-violet-500" />
                                                     ) : !canWatchLesson(lesson) ? (
                                                         <Lock className="w-5 h-5 text-zinc-600" />
                                                     ) : (
@@ -615,7 +615,7 @@ export const CourseDetail: React.FC = () => {
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs text-zinc-500">{lesson.length}</span>
                                                         {(lesson.lessonNumber === 1 && !isFree) && (
-                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">
                                                                 Free Preview
                                                             </span>
                                                         )}

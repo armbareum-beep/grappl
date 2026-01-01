@@ -635,6 +635,49 @@ export async function incrementVideoViews(videoId: string): Promise<void> {
     }
 }
 
+// Record Sparring View History
+export async function recordSparringView(userId: string, videoId: string) {
+    // 1. Increment global view count
+    await incrementVideoViews(videoId);
+
+    // 2. Track user history
+    const { error } = await supabase
+        .from('user_sparring_views')
+        .upsert({
+            user_id: userId,
+            video_id: videoId,
+            last_watched_at: new Date().toISOString(),
+        }, {
+            onConflict: 'user_id, video_id'
+        });
+
+    if (error) {
+        // Ignore if table doesn't exist yet (for dev)
+        if (error.code !== '42P01') {
+            console.error('Error recording sparring view:', error);
+        }
+    }
+}
+
+// Record Routine View History
+export async function recordRoutineView(userId: string, routineId: string) {
+    const { error } = await supabase
+        .from('user_routine_views')
+        .upsert({
+            user_id: userId,
+            routine_id: routineId,
+            last_watched_at: new Date().toISOString(),
+        }, {
+            onConflict: 'user_id, routine_id'
+        });
+
+    if (error) {
+        if (error.code !== '42P01') {
+            console.error('Error recording routine view:', error);
+        }
+    }
+}
+
 // Sparring Interactions
 export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
     // Check if already followed
@@ -959,6 +1002,11 @@ export async function markLessonComplete(userId: string, lessonId: string, compl
             onConflict: 'user_id,lesson_id'
         });
 
+    if (!error && completed) {
+        // Update 'watch_lesson' quest progress
+        await updateQuestProgress(userId, 'watch_lesson');
+    }
+
     return { data, error };
 }
 
@@ -1027,43 +1075,87 @@ export async function updateLastWatched(userId: string, lessonId: string) {
     return { error };
 }
 
+// Enhanced Recent Activity (Lessons + Routines + Sparring)
 export async function getRecentActivity(userId: string) {
-    const { data, error } = await supabase
-        .from('lesson_progress')
-        .select(`
-            *,
-            lesson:lessons (
-                id,
-                title,
-                lesson_number,
-                course:courses (
-                    title,
-                    thumbnail_url,
-                    category
+    const [lessonRes, routineLogRes, savedSparringRes] = await Promise.all([
+        // 1. Lessons Progress
+        supabase
+            .from('lesson_progress')
+            .select(`
+                *,
+                lesson:lessons (
+                    id, title, lesson_number,
+                    course:courses ( title, thumbnail_url, category )
                 )
-            )
-        `)
-        .eq('user_id', userId)
-        .order('last_watched_at', { ascending: false })
-        .limit(3);
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5),
 
-    if (error) {
-        // If table doesn't exist or other error, return empty
-        if (error.code === 'PGRST116' || error.code === '42P01') return [];
-        console.error('Error fetching recent activity:', error);
-        return [];
-    }
+        // 2. Viewed Routines
+        supabase
+            .from('user_routine_views')
+            .select(`
+                last_watched_at,
+                routine:drill_routines (
+                    id, title, thumbnail_url, difficulty
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5),
 
-    return data.map((item: any) => ({
+        // 3. Sparring View History
+        supabase
+            .from('user_sparring_views')
+            .select(`
+                last_watched_at,
+                sparring_videos (
+                    id, title, thumbnail_url, video_url
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5)
+    ]);
+
+    const lessons = (lessonRes.data || []).map((item: any) => ({
         id: item.lesson?.id,
         type: 'lesson',
         title: item.lesson?.title,
         courseTitle: item.lesson?.course?.title,
         progress: item.completed ? 100 : 50,
         thumbnail: item.lesson?.course?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at).toLocaleDateString(),
+        lastWatched: new Date(item.last_watched_at).toISOString(),
         lessonNumber: item.lesson?.lesson_number
     }));
+
+    const routines = (routineLogRes.data || []).map((item: any) => ({
+        id: item.routine?.id,
+        type: 'routine',
+        title: item.routine?.title || 'Drill Routine',
+        courseTitle: item.routine?.difficulty || 'Training',
+        progress: 0, // Viewing doesn't imply completion
+        thumbnail: item.routine?.thumbnail_url || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
+        lastWatched: new Date(item.last_watched_at).toISOString(),
+    }));
+
+    const sparring = (savedSparringRes.data || []).map((item: any) => ({
+        id: item.sparring_videos?.id,
+        type: 'sparring',
+        title: item.sparring_videos?.title,
+        courseTitle: 'Sparring Analysis',
+        progress: 0, // Saved but maybe not watched
+        thumbnail: item.sparring_videos?.thumbnail_url,
+        lastWatched: new Date(item.created_at).toISOString(),
+    }));
+
+    // Merge and Sort
+    const allActivity = [...lessons, ...routines, ...sparring]
+        .sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime())
+        .slice(0, 4);
+
+    return allActivity;
 }
 
 // Creator Dashboard API
@@ -3671,7 +3763,7 @@ export async function getDailyQuests(userId: string): Promise<DailyQuest[]> {
         const questTemplates = [
             { type: 'write_log', target: 1, reward: 20 },
             { type: 'give_feedback', target: 1, reward: 15 },
-            { type: 'sparring_review', target: 1, reward: 30 },
+            { type: 'watch_lesson', target: 1, reward: 30 },
             { type: 'complete_routine', target: 1, reward: 50 }
         ];
 
@@ -4373,6 +4465,44 @@ export async function getDailyRoutine() {
     const selectedRoutine = data[index];
 
     return { data: transformDrillRoutine(selectedRoutine), error: null };
+}
+
+/**
+ * Fetches a course to be featured as "Free for Today" based on the current date.
+ */
+export async function getDailyFreeCourse() {
+    try {
+        const { data, error } = await supabase
+            .from('courses')
+            .select(`
+                *,
+                creator:creators(name, profile_image),
+                lessons:lessons(count)
+            `)
+            .eq('published', true)
+            .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) return { data: null, error: null };
+
+        // Deterministic selection based on date
+        const today = new Date();
+        const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        const index = dateSeed % data.length;
+        const course = data[index];
+
+        return {
+            data: {
+                ...transformCourse(course),
+                lessonCount: course.lessons?.[0]?.count || 0,
+                creatorProfileImage: course.creator?.profile_image || null,
+            } as Course,
+            error: null
+        };
+    } catch (error) {
+        console.error('Error fetching daily free course:', error);
+        return { data: null, error };
+    }
 }
 
 // Alias for backward compatibility
@@ -6171,4 +6301,6 @@ export async function getTrainingLogComments(logId: string) {
 export async function addTrainingLogComment(logId: string, userId: string, content: string) {
     return createComment(logId, userId, content);
 }
+
+
 

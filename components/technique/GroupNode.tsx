@@ -6,6 +6,7 @@ const GroupNode = ({ id, data, selected }: NodeProps) => {
     // expanded is strictly controlled by parent via data or defaults to true
     const isExpanded = data.expanded !== false;
     const inputRef = useRef<HTMLInputElement>(null);
+    const isSkillTreeMode = data.mode === 'skill-tree';
 
     const handleLabelChange = useCallback((evt: React.ChangeEvent<HTMLInputElement>) => {
         data.onLabelChange?.(id, evt.target.value);
@@ -24,10 +25,18 @@ const GroupNode = ({ id, data, selected }: NodeProps) => {
                 group
                 ${selected ? '' : 'cursor-pointer'}
                 ${isExpanded
-                    ? 'rounded-[60px] bg-zinc-950/20 backdrop-blur-3xl border border-violet-500/40 shadow-[inset_0_0_20px_rgba(139,92,246,0.1)]' // Zone Mode
-                    : 'rounded-full bg-violet-700 border-2 border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.4)] cursor-pointer hover:scale-105 active:scale-95' // Capsule Mode (Bold Purple)
+                    ? isSkillTreeMode
+                        ? 'rounded-[60px] bg-zinc-900/20 backdrop-blur-3xl border border-white/60 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' // Skill Tree Zone Mode - White
+                        : 'rounded-[60px] bg-zinc-950/20 backdrop-blur-3xl border border-violet-500/40 shadow-[inset_0_0_20px_rgba(139,92,246,0.1)]' // Roadmap Zone Mode - Purple
+                    : isSkillTreeMode
+                        ? 'rounded-full bg-white/90 border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.4)] cursor-pointer hover:scale-105 active:scale-95' // Skill Tree Capsule - White
+                        : 'rounded-full bg-violet-700 border-2 border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.4)] cursor-pointer hover:scale-105 active:scale-95' // Roadmap Capsule - Purple
                 }
-                ${selected ? 'ring-[3px] ring-white ring-offset-4 ring-offset-zinc-950 shadow-[0_0_30px_rgba(255,255,255,0.2)]' : ''}
+                ${selected
+                    ? isSkillTreeMode
+                        ? 'ring-[3px] ring-violet-500 ring-offset-4 ring-offset-zinc-950 shadow-[0_0_30px_rgba(139,92,246,0.6)]'
+                        : 'ring-[3px] ring-white ring-offset-4 ring-offset-zinc-950 shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                    : ''}
             `}
             style={{ zIndex: -10 }}
             onClick={!isExpanded ? handleToggle : undefined}
@@ -53,7 +62,10 @@ const GroupNode = ({ id, data, selected }: NodeProps) => {
                     <div
                         className={`
                             nodrag absolute -top-4 left-14 px-4 py-2
-                            ${selected ? 'bg-violet-600 border-white' : 'bg-violet-950/90 border-violet-500/30'}
+                            ${isSkillTreeMode
+                                ? selected ? 'bg-violet-600 border-white' : 'bg-zinc-900/90 border-white/50'
+                                : selected ? 'bg-violet-600 border-white' : 'bg-violet-950/90 border-violet-500/30'
+                            }
                             backdrop-blur-xl rounded-full border shadow-lg shadow-black/50
                             flex items-center gap-3 z-[100] pointer-events-auto transition-colors
                             group/header
@@ -97,43 +109,46 @@ const GroupNode = ({ id, data, selected }: NodeProps) => {
             {/* --- Capsule Mode Content --- */}
             {!isExpanded && (
                 <div className="flex items-center gap-3 w-full h-full px-5 pointer-events-none">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-white shadow-inner">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shadow-inner ${isSkillTreeMode ? 'bg-zinc-800/50 text-zinc-900' : 'bg-white/20 text-white'
+                        }`}>
                         <Layers size={16} />
                     </div>
-                    <span className="font-bold text-white text-sm truncate flex-1">
+                    <span className={`font-bold text-sm truncate flex-1 ${isSkillTreeMode ? 'text-zinc-900' : 'text-white'
+                        }`}>
                         {data.label || '새 그룹'}
                     </span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white] animate-pulse" />
+                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isSkillTreeMode ? 'bg-zinc-900 shadow-[0_0_8px_rgba(0,0,0,0.5)]' : 'bg-white shadow-[0_0_8px_white]'
+                        }`} />
                 </div>
             )}
 
             {/* --- Connection Handles: Strictly on the absolute border --- */}
             <Handle type="target" position={Position.Top} id="top"
-                className="!w-[60%] !h-1 !top-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-[60%] !h-1 !top-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ left: '20%', transform: 'none' }} />
             <Handle type="source" position={Position.Top} id="top"
-                className="!w-[60%] !h-1 !top-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-[60%] !h-1 !top-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ left: '20%', transform: 'none' }} />
 
             <Handle type="target" position={Position.Bottom} id="bottom"
-                className="!w-[60%] !h-1 !bottom-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-[60%] !h-1 !bottom-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ left: '20%', transform: 'none' }} />
             <Handle type="source" position={Position.Bottom} id="bottom"
-                className="!w-[60%] !h-1 !bottom-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-[60%] !h-1 !bottom-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ left: '20%', transform: 'none' }} />
 
             <Handle type="target" position={Position.Left} id="left"
-                className="!w-1 !h-[50%] !left-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-1 !h-[50%] !left-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ top: '25%', transform: 'none' }} />
             <Handle type="source" position={Position.Left} id="left"
-                className="!w-1 !h-[50%] !left-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-1 !h-[50%] !left-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ top: '25%', transform: 'none' }} />
 
             <Handle type="target" position={Position.Right} id="right"
-                className="!w-1 !h-[50%] !right-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-1 !h-[50%] !right-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ top: '25%', transform: 'none' }} />
             <Handle type="source" position={Position.Right} id="right"
-                className="!w-1 !h-[50%] !right-0 !bg-transparent !border-0 !rounded-none z-50 cursor-crosshair"
+                className="!w-1 !h-[50%] !right-0 !bg-transparent !border-0 !rounded-none z-50 !pointer-events-none"
                 style={{ top: '25%', transform: 'none' }} />
         </div>
     );

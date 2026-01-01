@@ -15,6 +15,8 @@ interface ContentNodeProps {
         isCompleted?: boolean;
         isGroupingSelected?: boolean;
         isGroupingInitial?: boolean;
+        mode?: 'skill-tree' | 'roadmap';
+        isPreview?: boolean;
     };
     selected?: boolean;
     isConnectable?: boolean;
@@ -23,7 +25,7 @@ interface ContentNodeProps {
 export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, isConnectable }) => {
     const { zoom } = useViewport();
     const updateNodeInternals = useUpdateNodeInternals();
-    const { mastery, lesson, drill, isCompleted, technique, isGroupingSelected, isGroupingInitial } = data;
+    const { mastery, lesson, drill, isCompleted, technique, isGroupingSelected, isGroupingInitial, mode, isPreview } = data;
     const title = lesson?.title || drill?.title || technique?.name || 'Unknown';
 
     useEffect(() => {
@@ -39,8 +41,15 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
             textClass: 'text-zinc-100'
         };
 
-        const isMastered = (mastery && mastery.masteryLevel >= 5) || isCompleted;
-        const isInProgress = mastery && mastery.masteryLevel >= 2;
+        let isMastered = (mastery && mastery.masteryLevel >= 5) || isCompleted;
+        let isInProgress = mastery && mastery.masteryLevel >= 2;
+
+        // Apply Preview Overrides
+        if (isPreview) {
+            const isEven = parseInt(id.replace(/\D/g, '') || '0') % 2 === 0;
+            isMastered = isEven;
+            isInProgress = !isEven;
+        }
 
         // 1. Determine Base Appearance based on Mastery
         if (isMastered) {
@@ -48,7 +57,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                 bgClass: 'bg-violet-600/20',
                 borderClass: 'border-violet-500',
                 ringClass: 'ring-violet-400',
-                pulseClass: 'animate-violet-pulse',
+                pulseClass: mode === 'roadmap' ? 'roadmap-node-glow' : 'animate-violet-pulse',
                 textClass: 'text-violet-100'
             };
         } else if (isInProgress) {
@@ -56,7 +65,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                 bgClass: 'bg-zinc-900/90',
                 borderClass: 'border-zinc-700',
                 ringClass: 'ring-white/10',
-                pulseClass: '',
+                pulseClass: mode === 'roadmap' ? 'roadmap-node-flow' : '',
                 textClass: 'text-zinc-100'
             };
         }
@@ -70,6 +79,17 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                 : 'ring-2 ring-white';
             if (isGroupingInitial) style.pulseClass = 'animate-pulse';
             // Note: We intentionally DO NOT change bgClass here to avoid the "white inside" look
+        }
+
+        // 3. Mode Overrides (Skill Tree Mode)
+        if (mode === 'skill-tree') {
+            style = {
+                bgClass: 'bg-zinc-900',
+                borderClass: 'border-white',
+                ringClass: 'ring-transparent',
+                pulseClass: '',
+                textClass: 'text-white'
+            };
         }
 
         return style;
@@ -89,17 +109,17 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
             {/* Connection Handles */}
             {/* Connection Handles: Full Perimeter */}
             {/* Connection Handles: Narrow perimeter to allow internal dragging */}
-            <Handle type="target" position={Position.Left} id="target-l" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[90]" style={{ left: '-10px', top: '10%', transform: 'none' }} />
-            <Handle type="source" position={Position.Left} id="source-l" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[100]" style={{ left: '-10px', top: '10%', transform: 'none' }} />
+            <Handle type="target" position={Position.Left} id="target-l" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '-10px', top: '10%', transform: 'none' }} />
+            <Handle type="source" position={Position.Left} id="source-l" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '-10px', top: '10%', transform: 'none' }} />
 
-            <Handle type="target" position={Position.Right} id="target-r" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[90]" style={{ right: '-10px', top: '10%', transform: 'none' }} />
-            <Handle type="source" position={Position.Right} id="source-r" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[100]" style={{ right: '-10px', top: '10%', transform: 'none' }} />
+            <Handle type="target" position={Position.Right} id="target-r" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[90] !pointer-events-none" style={{ right: '-10px', top: '10%', transform: 'none' }} />
+            <Handle type="source" position={Position.Right} id="source-r" isConnectable={isConnectable} className="!w-[10px] !h-[80%] !bg-transparent !border-none z-[100] !pointer-events-none" style={{ right: '-10px', top: '10%', transform: 'none' }} />
 
-            <Handle type="target" position={Position.Top} id="target-t" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[90]" style={{ left: '10%', top: '-10px', transform: 'none' }} />
-            <Handle type="source" position={Position.Top} id="source-t" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[100]" style={{ left: '10%', top: '-10px', transform: 'none' }} />
+            <Handle type="target" position={Position.Top} id="target-t" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '10%', top: '-10px', transform: 'none' }} />
+            <Handle type="source" position={Position.Top} id="source-t" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '10%', top: '-10px', transform: 'none' }} />
 
-            <Handle type="target" position={Position.Bottom} id="target-b" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[90]" style={{ left: '10%', bottom: '-10px', transform: 'none' }} />
-            <Handle type="source" position={Position.Bottom} id="source-b" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[100]" style={{ left: '10%', bottom: '-10px', transform: 'none' }} />
+            <Handle type="target" position={Position.Bottom} id="target-b" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '10%', bottom: '-10px', transform: 'none' }} />
+            <Handle type="source" position={Position.Bottom} id="source-b" isConnectable={isConnectable} className="!w-[80%] !h-[10px] !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '10%', bottom: '-10px', transform: 'none' }} />
 
             {/* PILL BODY */}
             <motion.div
@@ -110,7 +130,9 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                     border ${style.borderClass}
                     flex items-center justify-center px-6
                     ${selected
-                        ? 'ring-[3px] ring-white shadow-[0_0_30px_rgba(255,255,255,0.6)] z-20 scale-105'
+                        ? mode === 'skill-tree'
+                            ? 'ring-[3px] ring-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.6)] z-20 scale-105'
+                            : 'ring-[3px] ring-white shadow-[0_0_30px_rgba(255,255,255,0.6)] z-20 scale-105'
                         : isGroupingSelected
                             ? `shadow-[0_0_30px_rgba(255,255,255,0.6)] ${style.ringClass} z-20`
                             : `shadow-xl ${style.ringClass}`

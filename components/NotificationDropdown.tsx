@@ -57,10 +57,10 @@ export const NotificationDropdown: React.FC = () => {
 
     const getTypeColor = (type: string) => {
         switch (type) {
-            case 'success': return 'text-green-600 bg-green-50';
-            case 'warning': return 'text-yellow-600 bg-yellow-50';
-            case 'error': return 'text-red-600 bg-red-50';
-            default: return 'text-blue-600 bg-blue-50';
+            case 'success': return 'text-violet-600 bg-violet-50';
+            case 'warning': return 'text-amber-600 bg-amber-50';
+            case 'error': return 'text-rose-600 bg-rose-50';
+            default: return 'text-indigo-600 bg-indigo-50';
         }
     };
 
@@ -95,7 +95,7 @@ export const NotificationDropdown: React.FC = () => {
                             {unreadCount > 0 && (
                                 <button
                                     onClick={handleMarkAllAsRead}
-                                    className="text-sm text-blue-600 hover:text-blue-700"
+                                    className="text-sm text-violet-600 hover:text-violet-700 font-bold"
                                 >
                                     모두 읽음
                                 </button>
@@ -115,7 +115,7 @@ export const NotificationDropdown: React.FC = () => {
                                     {notifications.map((notification) => (
                                         <div
                                             key={notification.id}
-                                            className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''
+                                            className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-violet-50/50' : ''
                                                 }`}
                                             onClick={() => {
                                                 if (!notification.isRead) {
@@ -154,7 +154,7 @@ const NotificationContent: React.FC<{ notification: AppNotification; getTypeColo
             <div className="flex items-start justify-between gap-2">
                 <p className="font-medium text-sm text-slate-900">{notification.title}</p>
                 {!notification.isRead && (
-                    <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1" />
+                    <div className="w-2 h-2 bg-violet-600 rounded-full flex-shrink-0 mt-1" />
                 )}
             </div>
             <p className="text-sm text-slate-600 mt-1">{notification.message}</p>

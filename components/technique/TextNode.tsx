@@ -8,7 +8,7 @@ interface TextNodeData {
     onDelete?: () => void;
 }
 
-export const TextNode: React.FC<NodeProps<TextNodeData>> = ({ id, data, selected, isConnectable }) => {
+export const TextNode: React.FC<NodeProps<TextNodeData>> = ({ data, selected, isConnectable }) => {
     const { zoom } = useViewport();
     const [isEditing, setIsEditing] = useState(false);
     const [text, setText] = useState(data.label || 'Text');
@@ -50,22 +50,22 @@ export const TextNode: React.FC<NodeProps<TextNodeData>> = ({ id, data, selected
             className={`
                 relative h-12 flex items-center justify-center
                 min-w-[140px] max-w-[280px]
-                ${zoom < 0.7 ? 'cursor-crosshair' : 'cursor-pointer'}
+                cursor-pointer
             `}
         >
             {/* Horizontal Handles */}
-            <Handle type="target" position={Position.Left} id="target-l" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[90]" style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-            <Handle type="source" position={Position.Left} id="source-l" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[100]" style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Left} id="target-l" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="source" position={Position.Left} id="source-l" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '0%', top: '50%', transform: 'translate(-50%, -50%)' }} />
 
-            <Handle type="target" position={Position.Right} id="target-r" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[90]" style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-            <Handle type="source" position={Position.Right} id="source-r" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[100]" style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Right} id="target-r" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="source" position={Position.Right} id="source-r" isConnectable={isConnectable} className="!w-4 !h-4 !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '100%', top: '50%', transform: 'translate(-50%, -50%)' }} />
 
             {/* Vertical Handles (12 and 6 o'clock) */}
-            <Handle type="target" position={Position.Top} id="target-t" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[90]" style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
-            <Handle type="source" position={Position.Top} id="source-t" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[100]" style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Top} id="target-t" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="source" position={Position.Top} id="source-t" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '50%', top: '0%', transform: 'translate(-50%, -50%)' }} />
 
-            <Handle type="target" position={Position.Bottom} id="target-b" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[90]" style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
-            <Handle type="source" position={Position.Bottom} id="source-b" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[100]" style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="target" position={Position.Bottom} id="target-b" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[90] !pointer-events-none" style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
+            <Handle type="source" position={Position.Bottom} id="source-b" isConnectable={isConnectable} className="!w-2 !h-2 !bg-transparent !border-none z-[100] !pointer-events-none" style={{ left: '50%', top: '100%', transform: 'translate(-50%, -50%)' }} />
 
             {/* PILL BODY */}
             <motion.div

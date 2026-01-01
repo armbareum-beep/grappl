@@ -250,11 +250,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     <div className="absolute inset-0 z-40 pointer-events-none flex justify-center">
                         <div className="relative h-full w-full max-w-[56.25vh] flex">
                             {/* Back button Group - Sticks to left edge of video on web */}
-                            <div className="absolute left-0 md:relative md:left-auto top-0 bottom-0 flex flex-col items-center py-6 pointer-events-auto
+                            <div className="absolute left-0 md:relative md:left-auto top-0 bottom-0 flex flex-col items-center py-6 pl-4 md:pl-0 pointer-events-auto
                                             md:-translate-x-full md:mr-4">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); navigate(-1); }}
-                                    className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95 mb-4"
+                                    className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95 mb-4"
                                 >
                                     <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                 </button>
@@ -263,14 +263,14 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                        className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                         title="Main Video"
                                     >
                                         <Zap className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setCurrentVideoType('description'); }}
-                                        className={`p-2 md:p-3 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                         title="Description Video"
                                     >
                                         <MessageCircle className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'description' ? "currentColor" : "none"} />

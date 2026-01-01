@@ -11,7 +11,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill }) => {
     return (
         <Link
             to={`/routines/${drill.id}`}
-            className="group block relative overflow-hidden rounded-lg bg-slate-900 hover:ring-2 hover:ring-blue-500 transition-all duration-200"
+            className="group block relative overflow-hidden rounded-lg bg-slate-900 hover:ring-2 hover:ring-violet-500 transition-all duration-200"
             style={{ aspectRatio: '9/16' }}
         >
             {/* Thumbnail */}
@@ -50,7 +50,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill }) => {
 
                 {/* Category & Difficulty */}
                 <div className="flex items-center gap-2 mt-2 text-xs">
-                    <span className="bg-blue-600/80 px-2 py-0.5 rounded">{drill.category}</span>
+                    <span className="bg-violet-600/80 px-2 py-0.5 rounded text-white font-bold">{drill.category}</span>
                     <span className="bg-slate-700/80 px-2 py-0.5 rounded">
                         {drill.difficulty === 'Beginner' ? '초급' : drill.difficulty === 'Intermediate' ? '중급' : '상급'}
                     </span>

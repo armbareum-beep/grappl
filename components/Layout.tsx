@@ -67,7 +67,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* FLOATING SIDEBAR ICONS - Visible only on MD+ AND specific pages */}
       {/* ========================================================================================= */}
       {isSidebarPage && (
-        <div className="hidden md:flex flex-col fixed left-4 top-1/2 -translate-y-1/2 z-[100]">
+        <div className="sidebar hidden md:flex flex-col fixed left-4 top-1/2 -translate-y-1/2 z-[100]">
           <div className="flex flex-col gap-3 p-2 bg-zinc-950/50 backdrop-blur-xl border border-zinc-900 rounded-full shadow-2xl">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -438,7 +438,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) */}
-      <div className="md:hidden fixed bottom-4 left-4 right-4 z-[100] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
+      <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[100] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
         <div className="grid grid-cols-5 h-full items-center relative">
           {[
             { name: '클래스', href: '/browse', icon: BookOpen },

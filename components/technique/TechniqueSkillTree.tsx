@@ -7,12 +7,13 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     addEdge,
-    SelectionMode,
+    Connection,
     NodeTypes,
     BackgroundVariant,
     MiniMap,
     ConnectionMode,
-    ReactFlowInstance
+    ReactFlowInstance,
+    SelectionMode
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,15 +34,141 @@ import { AddTechniqueModal } from './AddTechniqueModal';
 import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
-import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle, Edit3 } from 'lucide-react';
+import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle, Edit3, Map as MapIcon, List as ListIcon, Network, Signpost } from 'lucide-react';
 import ShareModal from '../social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import screenfull from 'screenfull';
+import {
+    DndContext,
+    closestCenter,
+    useDraggable,
+    useDroppable,
+    useSensor,
+    useSensors,
+    PointerSensor,
+    DragEndEvent
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 const nodeTypes: NodeTypes = {
     content: TechniqueNode as any,
     technique: TechniqueNode as any,
     text: TextNode as any,
     group: GroupNode as any
+};
+
+const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> = ({ node, index, navigate }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: node.id,
+    });
+
+    const style = transform ? {
+        transform: CSS.Translate.toString(transform),
+        zIndex: 100,
+        transition: 'none' // Fixed: Disable transition during drag for smoothness
+    } : undefined;
+
+    const mastery = node.data.mastery;
+    const isCompleted = node.data.isCompleted;
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...listeners}
+            {...attributes}
+            className={`relative p-3 rounded-xl border cursor-pointer ${isDragging ? 'opacity-50' : 'transition-all'} ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                ? 'bg-violet-500/10 border-violet-500/30'
+                : mastery && mastery.masteryLevel >= 2
+                    ? 'bg-violet-400/5 border-violet-400/20'
+                    : 'bg-zinc-800/40 border-zinc-700/50'
+                }`}
+            onClick={() => {
+                if (node.data.contentType === 'lesson' && node.data.lesson) {
+                    navigate(`/lessons/${node.data.lesson.id}`);
+                } else if (node.data.contentType === 'drill' && node.data.drill) {
+                    navigate(`/drills/${node.data.drill.id}`);
+                }
+            }}
+        >
+            <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-zinc-700 text-zinc-400'
+                    }`}>
+                    {index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-bold text-[12px] truncate">
+                        {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
+                    </h3>
+                    {mastery && (
+                        <div className="flex items-center gap-1 mt-1">
+                            <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map((level) => (
+                                    <div
+                                        key={level}
+                                        className={`w-3 h-1 rounded-full ${level <= mastery.masteryLevel
+                                            ? 'bg-violet-500'
+                                            : 'bg-zinc-700'
+                                            }`}
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-[9px] text-zinc-500 ml-1 font-bold">
+                                Lv.{mastery.masteryLevel}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DroppableMenu: React.FC<{
+    group: any;
+    children: React.ReactNode;
+    onLabelChange: (id: string, label: string) => void;
+    onDelete: (id: string) => void;
+}> = ({ group, children, onLabelChange, onDelete }) => {
+    const { isOver, setNodeRef } = useDroppable({
+        id: group.id,
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`p-4 rounded-2xl border transition-all mb-4 ${isOver ? 'bg-violet-600/20 border-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.3)]' : 'bg-slate-900/40 border-slate-800/50 backdrop-blur-sm'
+                }`}
+        >
+            <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 flex-1">
+                    <FolderOpen className="w-4 h-4 text-violet-400 shrink-0" />
+                    <input
+                        className="bg-transparent text-white font-bold text-sm tracking-tight border-none focus:ring-1 focus:ring-violet-500/50 rounded px-1 w-full outline-none transition-all placeholder:text-zinc-600"
+                        value={group.data.label || ''}
+                        onChange={(e) => onLabelChange(group.id, e.target.value)}
+                        placeholder="메뉴 이름 입력"
+                    />
+                </div>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onDelete(group.id);
+                    }}
+                    className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                    title="메뉴 삭제"
+                >
+                    <Trash2 className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+                {children}
+            </div>
+        </div>
+    );
 };
 
 export const TechniqueSkillTree: React.FC = () => {
@@ -97,6 +224,80 @@ export const TechniqueSkillTree: React.FC = () => {
     const [groupingInitialNodeId, setGroupingInitialNodeId] = useState<string | null>(null);
     const [selectedForGrouping, setSelectedForGrouping] = useState<Set<string>>(new Set());
 
+    // Visualization Mode
+    const [mode, setMode] = useState<'skill-tree' | 'roadmap'>('roadmap');
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+    // Update Nodes and Edges when Mode Changes
+    useEffect(() => {
+        if (loading) return;
+
+        setNodes((nds) => {
+            // Simple check to prevent infinite loops if mode and preview match
+            if (nds.length > 0 && nds[0].data.mode === mode && nds[0].data.isPreview === isPreviewMode) return nds;
+            return nds.map(n => ({ ...n, data: { ...n.data, mode, isPreview: isPreviewMode } }));
+        });
+
+        setEdges((eds) => {
+            // Need current nodes map to determine status
+            // We use the functional update's closure but we need access to latest 'nodes'.
+            // Since we depend on [mode, loading, nodes.length], 'nodes' in outer scope should be reasonably fresh.
+            // But to be safe, we might iterate 'nodes' from the state directly if possible, but here we use closure 'nodes'.
+            const nodeStatus = new Map<string, string>();
+            nodes.forEach(n => {
+                const { mastery, isCompleted } = n.data;
+                // If preview mode is ON, we mock everything as mastered OR in-progress
+                if (isPreviewMode) {
+                    // Alternate between mastered and in-progress for variety in preview
+                    const isEven = parseInt(n.id.replace(/\D/g, '') || '0') % 2 === 0;
+                    nodeStatus.set(n.id, isEven ? 'mastered' : 'in-progress');
+                } else {
+                    if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
+                        nodeStatus.set(n.id, 'mastered');
+                    } else if (mastery && mastery.masteryLevel >= 2) {
+                        nodeStatus.set(n.id, 'in-progress');
+                    } else {
+                        nodeStatus.set(n.id, 'locked');
+                    }
+                }
+            });
+
+            return eds.map((e) => {
+                const isRoadmap = mode === 'roadmap';
+                if (!isRoadmap) {
+                    return {
+                        ...e,
+                        animated: false,
+                        style: { stroke: '#ffffff', strokeWidth: 2 },
+                        className: 'skill-tree-edge', // Added class
+                        data: { ...e.data, mode: 'skill-tree' }
+                    };
+                }
+
+                // Roadmap Logic
+                const status = nodeStatus.get(e.target);
+                let className = '';
+                let stroke = '#52525b'; // Default Locked (Zinc-600)
+
+                if (status === 'mastered') {
+                    className = 'roadmap-edge-glow';
+                    stroke = '#8b5cf6';
+                } else if (status === 'in-progress') {
+                    className = 'roadmap-edge-flow';
+                    stroke = '#a78bfa';
+                }
+
+                return {
+                    ...e,
+                    animated: false, // We use CSS animation for custom control
+                    style: { stroke, strokeWidth: status === 'mastered' ? 4 : 3 },
+                    className: `roadmap-edge ${className}`, // Added roadmap-edge base class
+                    data: { ...e.data, mode: 'roadmap' }
+                };
+            });
+        });
+    }, [mode, loading, nodes.length, isPreviewMode]); // Re-run when mode or preview changes
+
     // Detect mobile viewport
     useEffect(() => {
         const checkMobile = () => {
@@ -106,6 +307,22 @@ export const TechniqueSkillTree: React.FC = () => {
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
+
+    // Sync Fullscreen State
+    useEffect(() => {
+        if (screenfull && screenfull.isEnabled) {
+            const handleChange = () => {
+                setIsFullScreen(screenfull.isFullscreen);
+            };
+            screenfull.on('change', handleChange);
+            return () => screenfull.off('change', handleChange);
+        }
+    }, []);
+
+    // Dispatch fullscreen state to parent/window
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('app-fullscreen-toggle', { detail: isFullScreen }));
+    }, [isFullScreen]);
 
     // Encode/Decode Helpers
     const encodeGuestData = (data: any) => {
@@ -435,8 +652,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                         };
                                     }
                                     const contentId = node.contentId || '';
-                                    const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                                    const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                                    const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                    const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
                                     return {
                                         id: node.id,
                                         type: 'content',
@@ -503,8 +720,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                             };
                                         }
                                         const contentId = node.contentId || '';
-                                        const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                                        const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                                        const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                        const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
                                         return {
                                             id: node.id,
                                             type: 'content',
@@ -563,7 +780,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     setLoading(true);
                     Promise.all([
                         getLessons(300).then(res => res),
-                        getDrills(undefined, 100).then(res => res.data || [])
+                        getDrills(undefined, 100).then(res => (res as any).data || res || [])
                     ]).then(([lessons, drills]) => {
                         setAllLessons(lessons);
                         setAllDrills(drills);
@@ -587,8 +804,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                 };
                             }
                             const contentId = node.contentId || '';
-                            const lesson = node.contentType === 'lesson' ? lessons.find(l => l.id === contentId) : undefined;
-                            const drill = node.contentType === 'drill' ? drills.find(d => d.id === contentId) : undefined;
+                            const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                            const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
                             return {
                                 id: node.id,
                                 type: 'content',
@@ -686,6 +903,10 @@ export const TechniqueSkillTree: React.FC = () => {
         setIsNewTreeModalOpen(false);
     };
 
+    const onLabelChange = useCallback((id: string, label: string) => {
+        setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n));
+    }, [setNodes]);
+
     const handleAddTextNode = () => {
         const nodeId = `text-${Date.now()}`;
         const newNode: Node = {
@@ -703,6 +924,7 @@ export const TechniqueSkillTree: React.FC = () => {
         };
         setNodes((nds) => [...nds, newNode]);
     };
+
 
     // Helper: Calculate world position of a handle
     const getHandlePosition = useCallback((node: Node, handleId: string, allNodes: Node[]) => {
@@ -779,16 +1001,57 @@ export const TechniqueSkillTree: React.FC = () => {
     // Optimized: Update connections in real-time (throttled by React Flow's internal handling)
     // We removed the throttle here because ReactFlow's onNodeDrag is already reasonably efficient,
     // and for visual smoothness, immediate feedback is better than throttled 'snapping'.
+    const onNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
+        setEdges(eds => {
+            let hasChanges = false;
+            const newEdges = eds.map(edge => {
+                let otherNodeId: string | undefined;
+                let isSource = false;
 
+                if (edge.source === node.id) {
+                    otherNodeId = edge.target;
+                    isSource = true;
+                } else if (edge.target === node.id) {
+                    otherNodeId = edge.source;
+                    isSource = false;
+                }
+
+                if (!otherNodeId) return edge;
+
+                const otherNode = nodes.find(n => n.id === otherNodeId);
+                if (!otherNode) return edge;
+
+                // Recalculate optimal connection
+                const { sourceHandle, targetHandle } = isSource
+                    ? calculateOptimalConnection(node, otherNode, nodes)
+                    : calculateOptimalConnection(otherNode, node, nodes);
+
+                if (edge.sourceHandle !== sourceHandle || edge.targetHandle !== targetHandle) {
+                    hasChanges = true;
+                    return { ...edge, sourceHandle, targetHandle };
+                }
+
+                return edge;
+            });
+
+            // Only return new array if something actually changed
+            return hasChanges ? newEdges : eds;
+        });
+    }, [nodes, calculateOptimalConnection, setEdges]);
 
 
     // Unified Connection Logic (Find Shortest Path)
-    const handleNodeConnection = useCallback((targetNode: Node) => {
-        if (!selectedNodeId) return;
-        if (selectedNodeId === targetNode.id) return;
+    const handleNodeConnection = useCallback((targetNode: Node, sourceIdOverride?: string) => {
+        const sourceId = sourceIdOverride || selectedNodeId;
+        if (!sourceId || sourceId === targetNode.id) return;
 
-        const sourceNode = nodes.find(n => n.id === selectedNodeId);
+        const sourceNode = nodes.find(n => n.id === sourceId);
         if (!sourceNode) return;
+
+        // Prevent connecting node to its own parent group or vice versa
+        if (sourceNode.parentNode === targetNode.id || targetNode.parentNode === sourceId) {
+            return;
+        }
 
         const connection = calculateOptimalConnection(sourceNode, targetNode, nodes);
         let sourceHandle: string | null = connection.sourceHandle;
@@ -801,8 +1064,8 @@ export const TechniqueSkillTree: React.FC = () => {
         setEdges(eds => {
             // Check if connection already exists (either direction)
             const exists = eds.some(
-                e => (e.source === selectedNodeId && e.target === targetNode.id) ||
-                    (e.source === targetNode.id && e.target === selectedNodeId)
+                e => (e.source === sourceId && e.target === targetNode.id) ||
+                    (e.source === targetNode.id && e.target === sourceId)
             );
 
             if (exists) {
@@ -813,8 +1076,8 @@ export const TechniqueSkillTree: React.FC = () => {
             const isGroupConnection = sourceNode.type === 'group' || targetNode.type === 'group';
 
             const newEdge: Edge = {
-                id: `edge-${selectedNodeId}-${targetNode.id}-${Date.now()}`,
-                source: selectedNodeId,
+                id: `edge-${sourceId}-${targetNode.id}-${Date.now()}`,
+                source: sourceId,
                 target: targetNode.id,
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
@@ -826,8 +1089,12 @@ export const TechniqueSkillTree: React.FC = () => {
             return addEdge(newEdge, eds);
         });
 
-        setSelectedNodeId(null);
-        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        // Update state to enable chaining: the target becomes the new source
+        setSelectedNodeId(targetNode.id);
+        setNodes((nds) => nds.map((n) => ({
+            ...n,
+            selected: n.id === targetNode.id
+        })));
 
     }, [selectedNodeId, nodes, setNodes, setEdges, calculateOptimalConnection, mapToGroupHandle]);
 
@@ -969,21 +1236,72 @@ export const TechniqueSkillTree: React.FC = () => {
     // Ensure all group nodes have the latest collapse/label handlers
     useEffect(() => {
         setNodes(nds => nds.map(node => {
-            if (node.type === 'group' && node.data.onToggleCollapse !== toggleGroupCollapse) {
+            if (node.type === 'group' && (node.data.onToggleCollapse !== toggleGroupCollapse || node.data.onLabelChange !== onLabelChange)) {
                 return {
                     ...node,
                     data: {
                         ...node.data,
                         onToggleCollapse: toggleGroupCollapse,
-                        onLabelChange: (id: string, label: string) => {
-                            setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, label } } : n));
-                        }
+                        onLabelChange: onLabelChange
                     }
                 };
             }
             return node;
         }));
-    }, [toggleGroupCollapse, setNodes]);
+    }, [toggleGroupCollapse, onLabelChange, setNodes]);
+
+    // DND Kit Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        })
+    );
+
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over) return;
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeId === overId) return;
+
+        // If over a group, set as parent
+        const overNode = nodes.find(n => n.id === overId);
+        if (overNode && overNode.type === 'group') {
+            setNodes(nds => nds.map(n => {
+                if (n.id === activeId) {
+                    return {
+                        ...n,
+                        parentNode: overId,
+                        extent: 'parent' as const,
+                        position: { x: 50, y: 50 }, // Default relative position
+                        zIndex: 10
+                    };
+                }
+                return n;
+            }));
+        }
+    }, [nodes, setNodes]);
+
+    const handleAddMenu = useCallback(() => {
+        const groupNodeId = `group-${Date.now()}`;
+        const newGroup: Node = {
+            id: groupNodeId,
+            type: 'group',
+            position: { x: 100, y: 100 },
+            style: { width: 400, height: 300, zIndex: -10 },
+            data: {
+                label: '새 메뉴',
+                expanded: true,
+                onLabelChange: onLabelChange,
+                onToggleCollapse: toggleGroupCollapse
+            }
+        };
+        setNodes((nds: Node[]) => [...nds, newGroup]);
+    }, [setNodes, onLabelChange, toggleGroupCollapse]);
 
     const confirmGroupCreation = useCallback((providedNodes?: Node[]) => {
         const nodesToGroup = providedNodes || nodes.filter(n => selectedForGrouping.has(n.id));
@@ -1006,18 +1324,33 @@ export const TechniqueSkillTree: React.FC = () => {
             const targetGroup = existingGroups[0];
             const targetGroupId = targetGroup.id;
 
+            // Helper for absolute position
+            const getAbs = (n: Node) => {
+                let x = n.position.x;
+                let y = n.position.y;
+                let c = n;
+                while (c.parentNode) {
+                    const p = nodes.find(pn => pn.id === c.parentNode);
+                    if (!p) break;
+                    x += p.position.x;
+                    y += p.position.y;
+                    c = p;
+                }
+                return { x, y };
+            };
+
+            const groupAbs = getAbs(targetGroup);
+
             setNodes(nds => nds.map(node => {
                 if (otherNodes.some(o => o.id === node.id)) {
-                    // Calculate relative position to target group
-                    // Note: Absolute position of node - Absolute position of group
-                    // children are relative to parent.
+                    const nodeAbs = getAbs(node);
                     return {
                         ...node,
                         parentNode: targetGroupId,
                         extent: 'parent' as const,
                         position: {
-                            x: node.position.x - targetGroup.position.x,
-                            y: node.position.y - targetGroup.position.y
+                            x: nodeAbs.x - groupAbs.x,
+                            y: nodeAbs.y - groupAbs.y
                         },
                         selected: false,
                         zIndex: 10
@@ -1204,6 +1537,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     // Handle node double click (Delete or Edit)
     const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+        event.stopPropagation();
         // Text nodes handle double click internally for editing, so we skip here
         if (node.type === 'text') return;
 
@@ -1220,14 +1554,24 @@ export const TechniqueSkillTree: React.FC = () => {
         const d = node.data;
 
         if (isContent) {
-            if (d?.lesson?.id) navigate(`/lessons/${d.lesson.id}`);
-            else if (d?.drill?.id) navigate(`/drills/${d.drill.id}`);
-            else if (d?.contentId || node.id) {
-                const targetId = d?.contentId || node.id;
-                navigate(`/technique/${targetId}`);
+            // Find video URL from lesson or drill - Updated to match Context Menu logic (Step 109)
+            // Need to check vimeoUrl and technique properties as well
+            const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
+                d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
+                d?.technique?.videoUrl || d?.technique?.vimeoUrl;
+
+            const title = d?.label || d?.lesson?.title || d?.drill?.title || '미리보기';
+
+            // Only open video modal if video exists
+            if (videoUrl) {
+                setVideoModal({
+                    isOpen: true,
+                    url: videoUrl,
+                    title: title
+                });
             }
         }
-    }, [navigate, focusNodeOrGroup, toggleGroupCollapse]);
+    }, [navigate, focusNodeOrGroup, toggleGroupCollapse, setVideoModal]);
 
     // Handle canvas click (deselect)
     const handlePaneClick = useCallback(() => {
@@ -1254,13 +1598,57 @@ export const TechniqueSkillTree: React.FC = () => {
         [setMenu]
     );
 
+    const onConnect = useCallback((params: Connection) => {
+        if (!params.source || !params.target) return;
+        if (params.source === params.target) return;
 
+        setEdges((eds) => {
+            // Check if connection already exists (either direction)
+            const exists = eds.some(
+                (e) => (e.source === params.source && e.target === params.target) ||
+                    (e.source === params.target && e.target === params.source)
+            );
+
+            if (exists) {
+                return eds;
+            }
+
+            const sNode = nodes.find(n => n.id === params.source);
+            const tNode = nodes.find(n => n.id === params.target);
+
+            if (!sNode || !tNode) return eds;
+
+            const connection = calculateOptimalConnection(sNode!, tNode!, nodes);
+            let sourceHandle: string | null = connection.sourceHandle;
+            let targetHandle: string | null = connection.targetHandle;
+
+            // Map handles if either is a group
+            sourceHandle = mapToGroupHandle(sNode, params.sourceHandle || sourceHandle);
+            targetHandle = mapToGroupHandle(tNode, params.targetHandle || targetHandle);
+
+            const isGroupConnection = sNode?.type === 'group' || tNode?.type === 'group';
+
+            const newEdge: Edge = {
+                id: `edge-${params.source}-${params.target}-${Date.now()}`,
+                source: params.source!,
+                target: params.target!,
+                sourceHandle: sourceHandle || undefined,
+                targetHandle: targetHandle || undefined,
+                type: 'default',
+                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
+                className: 'roadmap-edge-dash'
+            };
+
+            return addEdge(newEdge, eds);
+        });
+    }, [setEdges, nodes, calculateOptimalConnection, mapToGroupHandle]);
 
 
 
 
     // Handle node click (Selection & Connection & Grouping)
     const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+        event.stopPropagation(); // Prevent Pane Click
         const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
 
         // If in group selection mode, toggle node for grouping
@@ -1271,28 +1659,64 @@ export const TechniqueSkillTree: React.FC = () => {
 
         // --- Single selection / Connection Logic ---
         if (!isMultiSelect) {
-            if (!selectedNodeId) {
-                // No node selected: select this node
+            // Find effective source
+            // IMPORTANT: prioritized explicit selectedNodeId, but fallback to any single selected node
+            let sourceId = selectedNodeId;
+            if (!sourceId) {
+                const selectedNodes = nodes.filter(n => n.selected);
+                if (selectedNodes.length === 1) {
+                    sourceId = selectedNodes[0].id;
+                }
+            }
+
+            if (!sourceId) {
+                // First click: select
                 setSelectedNodeId(node.id);
-                // We don't necessarily need to map all nodes here, 
-                // React Flow handles 'selected' state internally if we pass nodes change
+                // Ensure immediate visual feedback
+                setNodes((nds) => nds.map((n) => ({
+                    ...n,
+                    selected: n.id === node.id
+                })));
                 return;
             }
 
-            if (selectedNodeId === node.id) {
-                // Clicked same node: deselect
-                setSelectedNodeId(null);
+            if (sourceId === node.id) {
+                // Clicked same node: STAY SELECTED (ignore to avoid accidental de-select) 
+                // Or you can keep it as a toggle if you prefer. 
+                // Given the "short click turns off" complaint, let's make it stay selected.
                 return;
             }
 
-            // Different node -> Connect
-            handleNodeConnection(node);
+            // Connection attempt
+            handleNodeConnection(node, sourceId);
         }
-    }, [selectedNodeId, handleNodeConnection, isGroupSelectionMode, toggleNodeForGrouping]);
+    }, [selectedNodeId, nodes, handleNodeConnection, isGroupSelectionMode, toggleNodeForGrouping, setNodes]);
 
     // Handle node drag stop - DO NOT connect on drag
     // BUT we use onNodeDragStart to catch "Click -> Drag" attempt as a connection intention if source is selected
+    const onNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
+        // Multi-selection modifiers should prevent connection logic
+        if (event.shiftKey || event.ctrlKey || event.metaKey) return;
 
+        // Interpret drag start on a different node as a connection attempt if something is highlighted
+        let sourceId = selectedNodeId;
+        if (!sourceId) {
+            const selectedNodes = nodes.filter(n => n.selected);
+            if (selectedNodes.length === 1) {
+                sourceId = selectedNodes[0].id;
+            }
+        }
+
+        if (sourceId && sourceId !== node.id && !isGroupSelectionMode) {
+            handleNodeConnection(node, sourceId);
+            // By connecting, handleNodeConnection sets the current node as the new selected source.
+            return;
+        }
+    }, [selectedNodeId, nodes, handleNodeConnection, isGroupSelectionMode]);
+
+    const onNodeDragStop = useCallback((_event: React.MouseEvent, _node: Node) => {
+        // Just update position, no connection logic
+    }, []);
 
     // --- ADVANCED INTERACTIONS ---
 
@@ -1414,21 +1838,18 @@ export const TechniqueSkillTree: React.FC = () => {
         }));
     }, [selectedForGrouping, groupingInitialNodeId, setNodes]);
 
-
-
     // Handle edge click/double-click (consistent with node deletion)
     const onEdgeDoubleClick = useCallback((event: React.MouseEvent, edge: Edge) => {
         event.stopPropagation();
-        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+        setEdges((eds: Edge[]) => eds.filter((e) => e.id !== edge.id));
     }, [setEdges]);
 
     // Handle edge selection or context deletion
-    const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    const onEdgeClick = useCallback(() => {
         // Just select on click
     }, []);
 
-    // Drag to Create Handlers
-
+    // Drag to Create Handlers (Note: Removed onConnectStart/End as they were unused)
 
     // Add content from modal
     const handleAddContent = async (
@@ -1503,10 +1924,9 @@ export const TechniqueSkillTree: React.FC = () => {
                 let optimalTarget = 'target-t';
 
                 // Calculate optimal handles if source node is found
+                // We can pass the raw object or the newNodes entry
+                const newNodeGeometry = newNodes[newNodes.length - 1];
                 if (sourceNode) {
-                    // Create a temporary object for the new node to calculate geometry
-                    // We can pass the raw object or the newNodes entry
-                    const newNodeGeometry = newNodes[newNodes.length - 1];
                     const { sourceHandle, targetHandle } = calculateOptimalConnection(sourceNode, newNodeGeometry, nodes);
                     optimalSource = sourceHandle;
                     optimalTarget = targetHandle;
@@ -1533,35 +1953,41 @@ export const TechniqueSkillTree: React.FC = () => {
         setPendingConnection(null);
     };
 
+    // --- DRAG AND DROP HANDLING ---
     const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
+        event.dataTransfer.dropEffect = 'move';
     }, []);
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
 
-            // Check if it's our app data
-            const dataStr = event.dataTransfer.getData('application/grapplay-node');
-            if (!dataStr || !rfInstance) {
+            const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+            if (!reactFlowBounds) return;
+
+            const type = event.dataTransfer.getData('application/reactflow');
+            const dataStr = event.dataTransfer.getData('application/reactflow-data');
+
+            // check if the dropped element is valid
+            if (typeof type === 'undefined' || !type) {
                 return;
             }
 
-            try {
-                const item = JSON.parse(dataStr);
+            const position = rfInstance?.project({
+                x: event.clientX - reactFlowBounds.left,
+                y: event.clientY - reactFlowBounds.top,
+            });
 
-                const position = rfInstance.project({
-                    x: event.clientX,
-                    y: event.clientY,
-                });
+            if (!position) return;
 
-                handleAddContent([item], position);
-                // Can keep modal open or close. User might want to drag multiple.
-                // But usually drop implies intent to finish action for that item.
-                // Let's NOT close modal to allow multiple drags.
-            } catch (e) {
-                console.error('Failed to parse dropped data', e);
+            if (dataStr) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    handleAddContent([data], position);
+                } catch (e) {
+                    console.error('Error parsing dropped data:', e);
+                }
             }
         },
         [rfInstance, handleAddContent]
@@ -1632,13 +2058,9 @@ export const TechniqueSkillTree: React.FC = () => {
     const handleFullScreenToggle = () => {
         if (isMobile) {
             setIsFullScreen(!isFullScreen);
-            return;
-        }
-
-        if (screenfull.isEnabled) {
+        } else if (screenfull && screenfull.isEnabled) {
             screenfull.toggle();
         } else {
-            // Fallback
             setIsFullScreen(!isFullScreen);
         }
     };
@@ -1698,41 +2120,10 @@ export const TechniqueSkillTree: React.FC = () => {
         e.stopPropagation();
         if (confirm('정말 이 로드맵을 삭제하시겠습니까? 복구할 수 없습니다.')) {
             await deleteUserSkillTree(treeId);
-            setTreeList(prev => prev.filter(t => t.id !== treeId));
+            setTreeList((prev: UserSkillTree[]) => prev.filter(t => t.id !== treeId));
             if (currentTreeId === treeId) {
                 // If deleted current tree, reset to new
                 handleNewTree();
-            }
-        }
-    };
-
-    const handleDeleteSelected = () => {
-        const selectedNodes = nodes.filter(node => node.selected);
-        const selectedEdges = edges.filter(edge => edge.selected);
-
-        if (selectedNodes.length === 0 && selectedEdges.length === 0) {
-            alert('삭제할 항목(노드 또는 연결선)을 선택하세요.');
-            return;
-        }
-
-        let confirmMessage = '';
-        if (selectedNodes.length > 0 && selectedEdges.length > 0) {
-            confirmMessage = `${selectedNodes.length}개의 노드와 ${selectedEdges.length}개의 연결선을 삭제하시겠습니까?`;
-        } else if (selectedNodes.length > 0) {
-            confirmMessage = `${selectedNodes.length}개의 노드를 삭제하시겠습니까?`;
-        } else {
-            confirmMessage = `${selectedEdges.length}개의 연결선을 삭제하시겠습니까?`;
-        }
-
-        if (confirm(confirmMessage)) {
-            if (selectedNodes.length > 0) {
-                const selectedIds = selectedNodes.map(n => n.id);
-                setNodes(nds => nds.filter(n => !selectedIds.includes(n.id)));
-                setEdges(eds => eds.filter(e => !selectedIds.includes(e.source) && !selectedIds.includes(e.target)));
-            }
-            if (selectedEdges.length > 0) {
-                const selectedEdgeIds = selectedEdges.map(e => e.id);
-                setEdges(eds => eds.filter(e => !selectedEdgeIds.includes(e.id)));
             }
         }
     };
@@ -1777,27 +2168,74 @@ export const TechniqueSkillTree: React.FC = () => {
             }`}>
 
             {/* View Mode Toggle - Always Visible */}
-            <div className={`fixed ${isFullScreen ? 'top-4' : 'top-24'} left-4 z-[10000] transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-full border border-zinc-800/50 shadow-xl">
+            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} left-4 z-[10000] flex flex-col items-start transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <div className={`flex items-center w-fit bg-zinc-900 rounded-full border border-zinc-800/50 shadow-xl ${isMobile ? 'p-0.5 gap-0.5' : 'p-1 gap-1'}`}>
                     <button
                         onClick={() => setViewMode('map')}
-                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'map'
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${String(viewMode) === 'map'
                             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
                             : 'text-zinc-400 hover:text-white'
-                            }`}
+                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
+                        title="맵 뷰"
                     >
-                        맵
+                        {isMobile ? <MapIcon className="w-4 h-4" /> : '맵'}
                     </button>
                     <button
                         onClick={() => setViewMode('list')}
-                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${String(viewMode) === 'list'
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${String(viewMode) === 'list'
                             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
                             : 'text-zinc-400 hover:text-white'
-                            }`}
+                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
+                        title="리스트 뷰"
                     >
-                        리스트
+                        {isMobile ? <ListIcon className="w-4 h-4" /> : '리스트'}
                     </button>
                 </div>
+            </div>
+
+            {/* Skill Tree / Roadmap Toggle - Top Right Floating */}
+            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} right-4 z-[10000] flex flex-col items-end transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <div className={`flex items-center w-fit bg-zinc-900 rounded-full border border-zinc-800/50 shadow-xl ${isMobile ? 'p-0.5 gap-0.5' : 'p-1 gap-1'}`}>
+                    <button
+                        onClick={() => setMode('skill-tree')}
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${mode === 'skill-tree'
+                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                            : 'text-zinc-400 hover:text-white'
+                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
+                        title="스킬 트리 모드"
+                    >
+                        {isMobile ? <Network className="w-4 h-4" /> : '스킬 트리'}
+                    </button>
+                    <button
+                        onClick={() => setMode('roadmap')}
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${mode === 'roadmap'
+                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                            : 'text-zinc-400 hover:text-white'
+                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
+                        title="로드맵 모드"
+                    >
+                        {isMobile ? <Signpost className="w-4 h-4" /> : '로드맵'}
+                    </button>
+                </div>
+
+                {/* Preview Toggle - only shows in Roadmap Mode */}
+                <AnimatePresence>
+                    {mode === 'roadmap' && (
+                        <motion.button
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            onClick={() => setIsPreviewMode(!isPreviewMode)}
+                            className={`mt-2 w-fit flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[10px] font-bold ${isPreviewMode
+                                ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-lg shadow-violet-500/20'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            <div className={`w-2 h-2 rounded-full ${isPreviewMode ? 'bg-violet-400 animate-pulse' : 'bg-zinc-600'}`} />
+                            {isPreviewMode ? '미리보기 끄기' : '애니메이션 미리보기'}
+                        </motion.button>
+                    )}
+                </AnimatePresence>
             </div>
 
 
@@ -1920,6 +2358,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                     <span className="hidden xl:inline text-xs font-medium">공유</span>
                                 </button>
 
+
+
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
@@ -1939,7 +2379,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                     onClick={() => {
                                         if (isMobile) {
                                             setIsFullScreen(!isFullScreen);
-                                        } else if (screenfull.isEnabled) {
+                                        } else if (screenfull && screenfull.isEnabled) {
                                             screenfull.toggle();
                                         } else {
                                             setIsFullScreen(!isFullScreen);
@@ -2175,16 +2615,14 @@ export const TechniqueSkillTree: React.FC = () => {
                             edges={edges}
                             onNodesChange={onNodesChange}
                             onEdgesChange={onEdgesChange}
-                            onConnect={undefined} // Disabled drag-to-connect
-                            onConnectStart={undefined}
-                            onConnectEnd={undefined}
+                            onConnect={onConnect}
                             onInit={setRfInstance}
                             onDragOver={onDragOver}
                             onDrop={onDrop}
                             onNodeClick={onNodeClick}
-                            nodesDraggable={false} // Disable node dragging
-                            nodesConnectable={false} // Disable handle dragging
-                            // onNodeDrag, onNodeDragStart, onNodeDragStop removed
+                            onNodeDrag={onNodeDrag}
+                            onNodeDragStart={onNodeDragStart}
+                            onNodeDragStop={onNodeDragStop}
                             onNodeDoubleClick={onNodeDoubleClick}
                             onNodeContextMenu={onNodeContextMenu}
                             onPaneContextMenu={onPaneContextMenu}
@@ -2220,18 +2658,55 @@ export const TechniqueSkillTree: React.FC = () => {
                             proOptions={{ hideAttribution: true }}
                         >
                             <style>{`
-                        .react-flow__edge-path {
-                            stroke: #7c3aed !important;
-                            stroke-width: 3 !important;
-                            stroke-dasharray: 15 15;
-                            animation: flow 50s linear infinite;
-                        }
+                             /* Scoped Roadmap Styles */
+                             .roadmap-edge-flow .react-flow__edge-path {
+                                stroke: #a78bfa !important;
+                                stroke-width: 3 !important;
+                                stroke-dasharray: 10 10;
+                                animation: flow 1s linear infinite;
+                            }
 
-                        @keyframes flow {
-                            from { stroke-dashoffset: 500; }
-                            to { stroke-dashoffset: 0; }
-                        }
-                    `}</style>
+                            .roadmap-edge-glow .react-flow__edge-path {
+                                stroke: #8b5cf6 !important;
+                                stroke-width: 4 !important;
+                                filter: drop-shadow(0 0 4px #8b5cf6);
+                                stroke-dasharray: none;
+                                animation: none;
+                            }
+
+                             .react-flow__edge-path {
+                                transition: all 0.5s ease;
+                            }
+
+                            /* Allow default styles for others */
+
+                            /* Remove crosshair and thread-pulling completely */
+                            .react-flow__handle {
+                                pointer-events: none !important;
+                                cursor: default !important;
+                            }
+
+                            .react-flow__pane {
+                                cursor: grab !important;
+                            }
+
+                            .react-flow__pane:active {
+                                cursor: grabbing !important;
+                            }
+
+                            .react-flow__node, .react-flow__node * {
+                                cursor: pointer !important;
+                            }
+
+                            .react-flow__connection-path {
+                                display: none !important;
+                            }
+
+                            @keyframes flow {
+                                from { stroke-dashoffset: 100; } /* Adjusted for smoother short dash */
+                                to { stroke-dashoffset: 0; }
+                            }
+                        `}</style>
 
 
 
@@ -2317,88 +2792,68 @@ export const TechniqueSkillTree: React.FC = () => {
                         </AnimatePresence>
                     </div>
                 ) : (
-                    /* List View */
-                    <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4 pt-24">
-                        <div className="max-w-2xl mx-auto space-y-3">
-                            {nodes.length === 0 ? (
-                                <div className="text-center py-12 text-slate-500">
-                                    <p className="text-lg font-medium">아직 추가된 콘텐츠가 없습니다</p>
-                                    <p className="text-sm mt-2">상단의 '콘텐츠 추가' 버튼을 눌러 시작하세요</p>
-                                </div>
-                            ) : (
-                                nodes.map((node, index) => {
-                                    const mastery = node.data.mastery;
-                                    const isCompleted = node.data.isCompleted;
-                                    const isLocked = !mastery && !isCompleted;
-
-                                    return (
-                                        <div
-                                            key={node.id}
-                                            className={`relative p-4 rounded-xl border transition-all cursor-pointer ${isCompleted || (mastery && mastery.masteryLevel >= 5)
-                                                ? 'bg-violet-500/10 border-violet-500/30 shadow-lg shadow-violet-500/10'
-                                                : mastery && mastery.masteryLevel >= 2
-                                                    ? 'bg-violet-400/5 border-violet-400/20'
-                                                    : 'bg-zinc-800/40 border-zinc-700/50 opacity-60'
-                                                }`}
-                                            onClick={() => {
-                                                if (node.data.contentType === 'lesson' && node.data.lesson) {
-                                                    navigate(`/lessons/${node.data.lesson.id}`);
-                                                } else if (node.data.contentType === 'drill' && node.data.drill) {
-                                                    navigate(`/drills/${node.data.drill.id}`);
-                                                }
-                                            }}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
-                                                    ? 'bg-violet-600 text-white'
-                                                    : mastery && mastery.masteryLevel >= 2
-                                                        ? 'bg-violet-500/50 text-violet-200'
-                                                        : 'bg-zinc-700 text-zinc-400'
-                                                    }`}>
-                                                    {index + 1}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="text-white font-bold text-sm mb-1 truncate">
-                                                        {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
-                                                    </h3>
-                                                    {node.data.lesson && (
-                                                        <p className="text-xs text-slate-400 truncate">
-                                                            {node.data.lesson.course?.title || '강좌'}
-                                                        </p>
-                                                    )}
-                                                    {mastery && (
-                                                        <div className="flex items-center gap-1 mt-2">
-                                                            <div className="flex gap-0.5">
-                                                                {[1, 2, 3, 4, 5].map((level) => (
-                                                                    <div
-                                                                        key={level}
-                                                                        className={`w-4 h-1.5 rounded-full ${level <= mastery.masteryLevel
-                                                                            ? 'bg-violet-500'
-                                                                            : 'bg-zinc-700'
-                                                                            }`}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                            <span className="text-xs text-slate-500 ml-1">
-                                                                Lv.{mastery.masteryLevel}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {isLocked && (
-                                                    <div className="flex-shrink-0 text-zinc-600">
-                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                                        </svg>
+                    /* List View with Drag and Drop Support */
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4 pt-24">
+                            <div className="max-w-2xl mx-auto space-y-3 pb-32">
+                                {nodes.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-500">
+                                        <p className="text-lg font-medium">아직 추가된 콘텐츠가 없습니다</p>
+                                        <p className="text-sm mt-2">상단의 '콘텐츠 추가' 버튼을 눌러 시작하세요</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* 1. Groups (Menus) */}
+                                        {nodes.filter(n => n.type === 'group').map((group) => (
+                                            <DroppableMenu
+                                                key={group.id}
+                                                group={group}
+                                                onLabelChange={onLabelChange}
+                                                onDelete={deleteGroupAndContent}
+                                            >
+                                                {nodes.filter(n => n.parentNode === group.id).length === 0 ? (
+                                                    <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 text-[10px] font-bold">
+                                                        여기로 기술을 드래그해서 넣으세요
                                                     </div>
+                                                ) : (
+                                                    nodes.filter(n => n.parentNode === group.id).map((node, nodeIdx) => (
+                                                        <DraggableTechnique
+                                                            key={node.id}
+                                                            node={node}
+                                                            index={nodeIdx}
+                                                            navigate={navigate}
+                                                        />
+                                                    ))
                                                 )}
-                                            </div>
+                                            </DroppableMenu>
+                                        ))}
+
+                                        {/* 2. Standalone Techniques (No Parent) */}
+                                        <div className="space-y-2 mt-8">
+                                            {nodes.filter(n => (n.type === 'content' || n.type === 'technique' || n.type === 'text') && !n.parentNode).length > 0 && (
+                                                <div className="flex items-center gap-2 mb-4 px-1">
+                                                    <div className="w-1 h-4 bg-violet-600 rounded-full" />
+                                                    <h3 className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">기타 기술</h3>
+                                                </div>
+                                            )}
+                                            {nodes.filter(n => (n.type === 'content' || n.type === 'technique' || n.type === 'text') && !n.parentNode).map((node, nodeIdx) => (
+                                                <DraggableTechnique
+                                                    key={node.id}
+                                                    node={node}
+                                                    index={nodeIdx}
+                                                    navigate={navigate}
+                                                />
+                                            ))}
                                         </div>
-                                    );
-                                })
-                            )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </DndContext>
                 )
             }
 
@@ -2980,6 +3435,55 @@ export const TechniqueSkillTree: React.FC = () => {
                     </div>
                 )
             }
+            {/* FAB for List Mode */}
+            {viewMode === 'list' && (
+                <div className="fixed bottom-8 right-8 z-[120] flex flex-col items-end gap-3">
+                    <AnimatePresence>
+                        {isFabOpen && (
+                            <div className="flex flex-col items-end gap-3 mb-2">
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    onClick={() => {
+                                        setIsAddModalOpen(true);
+                                        setIsFabOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                >
+                                    <span className="text-[12px] font-bold">콘텐츠 추가하기</span>
+                                    <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-all">
+                                        <FilePlus className="w-4 h-4" />
+                                    </div>
+                                </motion.button>
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    transition={{ delay: 0.05 }}
+                                    onClick={() => {
+                                        handleAddMenu();
+                                        setIsFabOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                >
+                                    <span className="text-[12px] font-bold">메뉴 추가하기</span>
+                                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <Plus className="w-4 h-4" />
+                                    </div>
+                                </motion.button>
+                            </div>
+                        )}
+                    </AnimatePresence>
+                    <button
+                        onClick={() => setIsFabOpen(!isFabOpen)}
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ${isFabOpen ? 'bg-zinc-800 rotate-45' : 'bg-violet-600 hover:bg-violet-500 hover:scale-105 active:scale-95'
+                            }`}
+                    >
+                        <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
+                    </button>
+                </div>
+            )}
         </div >
     );
 };

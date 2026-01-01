@@ -83,6 +83,20 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
         };
     }, [isGuest]);
 
+    // Scroll to today or selected day on mount
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (scrollContainerRef.current) {
+                const targetDay = selectedDay || todayKorean;
+                const targetElement = scrollContainerRef.current.querySelector(`[data-day="${targetDay}"]`);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, []); // Only run on mount to satisfy "Initial screen" requirement
+
     const saveSchedule = (newSchedule: WeeklySchedule) => {
         setSchedule(newSchedule);
         if (isGuest) return;
@@ -229,6 +243,8 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                     return (
                         <div
                             key={day}
+                            data-day={day}
+                            data-today={isToday}
                             className={`
                                 flex-shrink-0 w-[80%] md:w-[45%] lg:w-[30%] snap-center
                                 bg-zinc-900/40 border rounded-2xl flex flex-col overflow-hidden

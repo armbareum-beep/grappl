@@ -11,6 +11,7 @@ import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
+import { AIScanningSection } from '../components/landing/AIScanningSection';
 
 export const LandingPage: React.FC = () => {
     // Force redeploy check
@@ -133,7 +134,7 @@ export const LandingPage: React.FC = () => {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500"></div>
             </div>
         );
     }
@@ -178,8 +179,7 @@ export const LandingPage: React.FC = () => {
 
             {/* 1. Hero Section */}
             <section className="relative min-h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950 to-zinc-950 px-4 overflow-hidden pt-40">
-                {/* Bottom Fade to make it seamless */}
-                <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none"></div>
+                {/* Bottom Fade removed for seamless transition */}
 
                 {/* 2. Top Badge (Verified Black Belt Only) */}
                 <div className="z-10 mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
@@ -211,6 +211,9 @@ export const LandingPage: React.FC = () => {
                     </button>
                 </div>
             </section>
+
+            {/* AI Scanning Section */}
+            <AIScanningSection />
 
             {/* Daily Free Pass Section */}
             <DailyFreeDrillSection />
@@ -483,52 +486,60 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </section>
 
-                {/* 8. Final CTA Section */}
-                <section className="py-32 md:py-60 relative z-10">
-                    <div className="max-w-7xl mx-auto px-4 text-center">
-                        <h2 className="text-4xl md:text-6xl font-black mb-10 tracking-tighter leading-tight text-white">
-                            지금 바로 <br className="md:hidden" />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
-                                시작하세요
-                            </span>
-                        </h2>
-
-                        <p className="text-xl md:text-3xl text-zinc-400 mb-20 max-w-4xl mx-auto leading-relaxed font-medium">
-                            무료 영상으로 시작하세요. <br className="hidden md:block" />
-                            세계적인 블랙벨트들과 함께하는 당신의 주짓수 여정
-                        </p>
-
-                        <div className="flex flex-col items-center gap-16">
-                            <Button
-                                size="lg"
-                                className="text-2xl px-20 py-10 rounded-full shadow-[0_0_50px_rgba(124,58,237,0.5)] hover:shadow-[0_0_80px_rgba(124,58,237,0.7)] hover:scale-105 transition-all duration-500 bg-violet-600 hover:bg-violet-500 text-white border border-violet-400/20 font-black"
-                                onClick={() => navigate('/courses')}
-                            >
-                                <Play className="w-8 h-8 mr-4 fill-white" />
-                                무료 영상으로 시작
-                            </Button>
-
-                            <div className="flex flex-wrap justify-center items-center gap-4 md:gap-8 text-sm md:text-base text-zinc-500 font-bold uppercase tracking-widest">
-                                <span className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></div>
-                                    무료 영상 제공
-                                </span>
-                                <span className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></div>
-                                    카드 등록 불필요
-                                </span>
-                                <span className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></div>
-                                    언제든 취소 가능
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 {/* Final bottom fade for Footer transition */}
                 <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
             </div >
+
+            {/* 8. Final High-Impact CTA Section */}
+            <section className="relative py-32 md:py-48 bg-black flex flex-col items-center justify-center overflow-hidden">
+                {/* Visual Environment: Deep Violet-to-Rose radial gradient */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(124,58,237,0.3)_0%,rgba(244,63,94,0.15)_50%,transparent_70%)] blur-[100px] pointer-events-none"></div>
+
+                <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center gap-y-12 text-center">
+                    {/* Copywriting */}
+                    <div className="space-y-6">
+                        <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
+                            성실함이 성장을 보장하던<br className="md:hidden" /> 시대는 끝났습니다.
+                        </h2>
+                        <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed">
+                            똑같은 시간 수련하고도 나만 뒤처지는 기분, 단순히 재능 탓일까요?<br className="hidden md:block" />
+                            전략 없는 땀방울은 가장 느린 성장의 지름길입니다.
+                        </p>
+                    </div>
+
+                    {/* Action Component (Primary CTA) */}
+                    <div className="flex flex-col items-center gap-6">
+                        <button
+                            className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
+                            onClick={() => navigate('/courses')}
+                        >
+                            <span className="relative z-10">지금 바로 훈련 시작</span>
+                            <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
+                        </button>
+                        <p className="text-zinc-600 text-sm font-medium">
+                            카드 등록 없이 10초 만에 시작 가능
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Footer Integration */}
+            <footer className="w-full border-t border-zinc-900 pt-10 pb-20 bg-zinc-950/50 text-center relative z-10">
+                <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-2">
+                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-zinc-600 text-[10px]">
+                        <span>(주)그래플레이</span>
+                        <span className="hidden md:inline">|</span>
+                        <span>대표: 홍길동</span>
+                        <span className="hidden md:inline">|</span>
+                        <span>주소: 서울특별시 강남구 테헤란로 123</span>
+                        <span className="hidden md:inline">|</span>
+                        <span>사업자등록번호: 123-45-67890</span>
+                    </div>
+                    <p className="text-zinc-600 text-[10px] mt-2">
+                        Copyright © {new Date().getFullYear()} Grapplay. All rights reserved.
+                    </p>
+                </div>
+            </footer>
 
             <style>{`
                 @keyframes gradient {
@@ -538,6 +549,18 @@ export const LandingPage: React.FC = () => {
                 .animate-gradient {
                     background-size: 200% 200%;
                     animation: gradient 3s ease infinite;
+                }
+                @keyframes shimmer {
+                    0% { left: -100%; }
+                    100% { left: 200%; }
+                }
+                .animate-shimmer {
+                    animation: shimmer 3s infinite;
+                    position: absolute;
+                    top: 0;
+                    width: 50%;
+                    height: 100%;
+                    content: '';
                 }
             `}</style>
         </div >

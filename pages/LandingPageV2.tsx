@@ -286,7 +286,7 @@ export const LandingPageV2: React.FC = () => {
 
             {/* 5. Drill Video Showcase */}
             <section className="py-24 bg-zinc-950 relative overflow-hidden border-b border-zinc-800">
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[100px] pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/5 rounded-full blur-[100px] pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-4 relative z-10">
                     <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
@@ -398,12 +398,12 @@ export const LandingPageV2: React.FC = () => {
                         </div>
 
                         {/* Card 3: 테크닉로드맵 */}
-                        <div className="group relative bg-zinc-900/30 rounded-3xl p-8 border border-zinc-800 hover:border-emerald-500/40 hover:bg-zinc-900/50 transition-all duration-500 hover:-translate-y-1">
-                            <div className="absolute top-4 right-6 text-[80px] font-black text-white/[0.02] group-hover:text-emerald-500/[0.05] transition-colors leading-none select-none -z-10">
+                        <div className="group relative bg-zinc-900/30 rounded-3xl p-8 border border-zinc-800 hover:border-violet-500/40 hover:bg-zinc-900/50 transition-all duration-500 hover:-translate-y-1">
+                            <div className="absolute top-4 right-6 text-[80px] font-black text-white/[0.02] group-hover:text-violet-500/[0.05] transition-colors leading-none select-none -z-10">
                                 03
                             </div>
 
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 text-emerald-500 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-black transition-all duration-300 shadow-[0_0_20px_-5px_rgba(16,185,129,0.2)]">
+                            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6 text-violet-500 group-hover:scale-110 group-hover:bg-violet-500 group-hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(124,58,237,0.2)]">
                                 <Map className="w-6 h-6" />
                             </div>
 
@@ -419,7 +419,7 @@ export const LandingPageV2: React.FC = () => {
                                     '마스터리 레벨 추적'
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-3 text-sm text-zinc-500 group-hover:text-zinc-300 transition-colors">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40 group-hover:bg-emerald-400"></div>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500/40 group-hover:bg-violet-400"></div>
                                         {item}
                                     </li>
                                 ))}
@@ -505,15 +505,15 @@ export const LandingPageV2: React.FC = () => {
 
                     <div className="mt-16 flex flex-wrap justify-center gap-6 text-sm text-zinc-500">
                         <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <div className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(124,58,237,0.5)]"></div>
                             <span>무료 영상 제공</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <div className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(124,58,237,0.5)]"></div>
                             <span>카드 등록 불필요</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <div className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(124,58,237,0.5)]"></div>
                             <span>언제든 취소 가능</span>
                         </div>
                     </div>

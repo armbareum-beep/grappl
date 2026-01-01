@@ -332,20 +332,20 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
 
                     <div className="space-y-2 mb-6">
                         <div className="flex items-center gap-2 text-xs text-slate-300">
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <div className="w-3.5 h-3.5 rounded-full bg-violet-500/20 flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                             </div>
                             <span>서브미션 기회 포착</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-300">
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <div className="w-3.5 h-3.5 rounded-full bg-violet-500/20 flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                             </div>
                             <span>포지션 점유율 분석</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-300">
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <div className="w-3.5 h-3.5 rounded-full bg-violet-500/20 flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                             </div>
                             <span>개선점 및 드릴 추천</span>
                         </div>
@@ -457,9 +457,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                             style={{ animationDelay: `${idx * 150}ms` }}
                                         >
                                             <div className="flex items-start gap-3 mb-3">
-                                                <div className={`p-2 rounded-lg ${result.type === 'strength' ? 'bg-emerald-500/10 text-emerald-400' :
-                                                    result.type === 'weakness' ? 'bg-red-500/10 text-red-400' :
-                                                        'bg-blue-500/10 text-blue-400'
+                                                <div className={`p-2 rounded-lg ${result.type === 'strength' ? 'bg-violet-500/10 text-violet-400' :
+                                                    result.type === 'weakness' ? 'bg-zinc-500/10 text-zinc-500' :
+                                                        'bg-zinc-100/10 text-zinc-100'
                                                     }`}>
                                                     {result.type === 'strength' ? <TrendingUpIcon /> :
                                                         result.type === 'weakness' ? <AlertTriangle className="w-5 h-5" /> :
@@ -467,9 +467,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <h4 className={`font-bold text-sm ${result.type === 'strength' ? 'text-emerald-400' :
-                                                            result.type === 'weakness' ? 'text-red-400' :
-                                                                'text-blue-400'
+                                                        <h4 className={`font-bold text-sm ${result.type === 'strength' ? 'text-violet-400' :
+                                                            result.type === 'weakness' ? 'text-zinc-500' :
+                                                                'text-zinc-100'
                                                             }`}>
                                                             {result.message}
                                                         </h4>
@@ -520,7 +520,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                                             {(!result.recommendedRoutine.thumbnail || !result.recommendedRoutine.thumbnail.startsWith('http')) && <Dumbbell className="w-5 h-5 text-white/80" />}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="text-[10px] text-emerald-400 font-bold mb-0.5">추천 루틴</div>
+                                                            <div className="text-[10px] text-violet-400 font-bold mb-0.5">추천 루틴</div>
                                                             <div className="text-xs text-white font-bold truncate">{result.recommendedRoutine.title}</div>
                                                             <div className="flex items-center justify-between mt-2">
                                                                 <span className="text-slate-400 text-xs flex items-center gap-1">
@@ -528,7 +528,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
                                                                 </span>
                                                                 <Link
                                                                     to={`/routines/${result.recommendedRoutine.id}`}
-                                                                    className="flex items-center gap-1 text-emerald-400 text-xs font-bold hover:underline"
+                                                                    className="flex items-center gap-1 text-violet-400 text-xs font-bold hover:underline"
                                                                 >
                                                                     루틴 시작하기 <ChevronRight className="w-3 h-3" />
                                                                 </Link>

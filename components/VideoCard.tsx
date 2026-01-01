@@ -24,24 +24,24 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           />
           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div className="bg-white/90 p-3 rounded-full">
-              <Play className="w-6 h-6 text-blue-600 fill-current" />
+              <Play className="w-6 h-6 text-violet-600 fill-current" />
             </div>
           </div>
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
             {video.length}
           </div>
-          <span className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded text-white ${video.difficulty === 'Advanced' ? 'bg-red-500' :
-              video.difficulty === 'Intermediate' ? 'bg-yellow-500' : 'bg-green-500'
+          <span className={`absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded text-white uppercase tracking-wider ${video.difficulty === 'Advanced' ? 'bg-zinc-800 border border-zinc-700' :
+            video.difficulty === 'Intermediate' ? 'bg-violet-600/80' : 'bg-violet-400/80'
             }`}>
             {video.difficulty === 'Beginner' ? '초급' : video.difficulty === 'Intermediate' ? '중급' : '상급'}
           </span>
         </div>
 
         <div className="p-4 flex flex-col flex-grow">
-          <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wider">
+          <div className="text-[10px] text-violet-400 font-bold mb-1 uppercase tracking-widest">
             {video.category}
           </div>
-          <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+          <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2 group-hover:text-violet-600 transition-colors">
             {video.title}
           </h3>
 

@@ -43,7 +43,13 @@ export const DrillRoutineDetail: React.FC = () => {
             if (routineData) {
                 setRoutine(routineData);
                 // Increment views
-                // await incrementDrillRoutineViews(id);
+                incrementDrillRoutineViews(id);
+                // Record View History
+                if (user) {
+                    import('../lib/api').then(({ recordRoutineView }) => {
+                        recordRoutineView(user.id, id).catch(console.error);
+                    });
+                }
             }
         } catch (error: any) {
             console.error('Error fetching routine:', error);

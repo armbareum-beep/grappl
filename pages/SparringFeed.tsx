@@ -166,6 +166,17 @@ const VideoItem: React.FC<{
         }
     }, [isActive, isPlayerReady]);
 
+    // Record View History
+    useEffect(() => {
+        if (isActive && user && video.id) {
+            // Use a small timeout or check to avoid duplicate recordings if necessary, 
+            // but for now, simple activation is enough.
+            import('../lib/api').then(({ recordSparringView }) => {
+                recordSparringView(user.id, video.id).catch(console.error);
+            });
+        }
+    }, [isActive, user, video.id]);
+
     const toggleMute = async () => {
         const newMuteState = !muted;
         setMuted(newMuteState);
@@ -233,7 +244,7 @@ const VideoItem: React.FC<{
 
     return (
         <>
-            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-center justify-center overflow-hidden">
+            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-24">
                 <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />

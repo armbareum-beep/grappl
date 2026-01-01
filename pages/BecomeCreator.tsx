@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Button } from '../components/Button';
-import { Upload, DollarSign, TrendingUp, Users, Award, Video, BarChart3, Sparkles } from 'lucide-react';
+import { DollarSign, TrendingUp, Award, Video, BarChart3, Sparkles } from 'lucide-react';
 
 export const BecomeCreator: React.FC = () => {
-    const { user, becomeCreator } = useAuth();
+    const { becomeCreator } = useAuth();
     const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const [name, setName] = useState('');
@@ -32,18 +31,21 @@ export const BecomeCreator: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 pt-20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="min-h-screen bg-zinc-950 relative overflow-hidden pt-20">
+            {/* Background Effects */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-violet-600/20 blur-[120px] rounded-full pointer-events-none" />
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
                 {/* Hero Section */}
                 <div className="text-center mb-16">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full mb-6">
-                        <Sparkles className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm font-medium text-blue-400">크리에이터 프로그램</span>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500/10 border border-violet-500/20 rounded-full mb-6 backdrop-blur-sm">
+                        <Sparkles className="w-4 h-4 text-violet-400" />
+                        <span className="text-sm font-medium text-violet-300">크리에이터 프로그램</span>
                     </div>
-                    <h1 className="text-5xl font-bold text-white mb-4">
-                        당신의 기술을 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">수익</span>으로
+                    <h1 className="text-5xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight">
+                        당신의 기술을 <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">수익</span>으로
                     </h1>
-                    <p className="text-xl text-slate-400 max-w-2xl mx-auto">
+                    <p className="text-xl text-zinc-400 max-w-2xl mx-auto font-light leading-relaxed">
                         전 세계 주짓수 수련자들과 당신의 노하우를 공유하고,<br />
                         지속 가능한 수익을 창출하세요.
                     </p>
@@ -51,71 +53,73 @@ export const BecomeCreator: React.FC = () => {
 
                 {/* Benefits Grid */}
                 <div className="grid md:grid-cols-4 gap-6 mb-16">
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                        <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
-                            <DollarSign className="w-6 h-6 text-blue-400" />
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] hover:border-violet-500/30 transition-all duration-300 group">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-white/5">
+                            <DollarSign className="w-6 h-6 text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]" />
                         </div>
-                        <h3 className="text-white font-bold mb-2">높은 수익 분배</h3>
-                        <p className="text-slate-400 text-sm">판매 수익의 80%를 크리에이터에게 지급</p>
+                        <h3 className="text-zinc-100 font-bold mb-2 text-lg">높은 수익 분배</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed">판매 수익의 80%를 크리에이터에게 지급</p>
                     </div>
 
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-purple-500/50 transition-colors">
-                        <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
-                            <TrendingUp className="w-6 h-6 text-purple-400" />
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] hover:border-violet-500/30 transition-all duration-300 group">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-white/5">
+                            <TrendingUp className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,0.5)]" />
                         </div>
-                        <h3 className="text-white font-bold mb-2">구독 수익 배분</h3>
-                        <p className="text-slate-400 text-sm">시청 시간 기반 공정한 수익 분배</p>
+                        <h3 className="text-zinc-100 font-bold mb-2 text-lg">구독 수익 배분</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed">시청 시간 기반 공정한 수익 분배</p>
                     </div>
 
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-green-500/50 transition-colors">
-                        <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
-                            <BarChart3 className="w-6 h-6 text-green-400" />
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] hover:border-violet-500/30 transition-all duration-300 group">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-white/5">
+                            <BarChart3 className="w-6 h-6 text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]" />
                         </div>
-                        <h3 className="text-white font-bold mb-2">전문 분석 도구</h3>
-                        <p className="text-slate-400 text-sm">실시간 수익 및 성과 대시보드</p>
+                        <h3 className="text-zinc-100 font-bold mb-2 text-lg">전문 분석 도구</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed">실시간 수익 및 성과 대시보드</p>
                     </div>
 
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-yellow-500/50 transition-colors">
-                        <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center mb-4">
-                            <Video className="w-6 h-6 text-yellow-400" />
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] hover:border-violet-500/30 transition-all duration-300 group">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-white/5">
+                            <Video className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,0.5)]" />
                         </div>
-                        <h3 className="text-white font-bold mb-2">무제한 업로드</h3>
-                        <p className="text-slate-400 text-sm">강좌, 드릴, 루틴 제한 없이 업로드</p>
+                        <h3 className="text-zinc-100 font-bold mb-2 text-lg">무제한 업로드</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed">강좌, 드릴, 루틴 제한 없이 업로드</p>
                     </div>
                 </div>
 
                 {/* Main Content */}
                 <div className="grid md:grid-cols-2 gap-8">
                     {/* Application Form */}
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8">
-                        <h2 className="text-2xl font-bold text-white mb-2">지금 시작하세요</h2>
-                        <p className="text-slate-400 mb-6">간단한 정보 입력으로 크리에이터 신청이 완료됩니다.</p>
+                    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 blur-[80px] rounded-full pointer-events-none" />
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <h2 className="text-2xl font-bold text-zinc-50 mb-2 relative z-10">지금 시작하세요</h2>
+                        <p className="text-zinc-400 mb-8 relative z-10">간단한 정보 입력으로 크리에이터 신청이 완료됩니다.</p>
+
+                        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    크리에이터 이름 <span className="text-red-400">*</span>
+                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    크리에이터 이름 <span className="text-violet-500">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
                                     placeholder="예: 김기철"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    자기소개 <span className="text-red-400">*</span>
+                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    자기소개 <span className="text-violet-500">*</span>
                                 </label>
                                 <textarea
                                     value={bio}
                                     onChange={(e) => setBio(e.target.value)}
                                     required
                                     rows={5}
-                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 resize-none transition-all"
                                     placeholder="경력, 전문 분야, 수상 경력 등을 자유롭게 작성해주세요."
                                 />
                             </div>
@@ -123,7 +127,7 @@ export const BecomeCreator: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all"
+                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed text-white font-black tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/20 hover:shadow-violet-900/40"
                             >
                                 {loading ? '신청 중...' : '크리에이터 신청하기'}
                             </button>
@@ -133,69 +137,69 @@ export const BecomeCreator: React.FC = () => {
                     {/* Info Sections */}
                     <div className="space-y-6">
                         {/* Benefits */}
-                        <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-8">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Award className="w-6 h-6 text-blue-400" />
-                                <h3 className="text-xl font-bold text-white">크리에이터 혜택</h3>
+                        <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <Award className="w-6 h-6 text-violet-400" />
+                                <h3 className="text-xl font-bold text-zinc-50">크리에이터 혜택</h3>
                             </div>
-                            <ul className="space-y-3 text-slate-300">
-                                <li className="flex items-start gap-3">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2"></div>
-                                    <span><strong className="text-white">직접 판매 수익의 80%</strong> 지급 (시장 최고 수준)</span>
+                            <ul className="space-y-4 text-zinc-400">
+                                <li className="flex items-start gap-3 group">
+                                    <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mt-2 group-hover:bg-fuchsia-500 transition-colors"></div>
+                                    <span><strong className="text-zinc-200">직접 판매 수익의 80%</strong> 지급 (시장 최고 수준)</span>
                                 </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2"></div>
-                                    <span><strong className="text-white">구독 수익 배분</strong> (시청 시간 기반)</span>
+                                <li className="flex items-start gap-3 group">
+                                    <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mt-2 group-hover:bg-fuchsia-500 transition-colors"></div>
+                                    <span><strong className="text-zinc-200">구독 수익 배분</strong> (시청 시간 기반)</span>
                                 </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2"></div>
-                                    <span><strong className="text-white">전용 대시보드</strong> 및 분석 도구</span>
+                                <li className="flex items-start gap-3 group">
+                                    <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mt-2 group-hover:bg-fuchsia-500 transition-colors"></div>
+                                    <span><strong className="text-zinc-200">전용 대시보드</strong> 및 분석 도구</span>
                                 </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2"></div>
-                                    <span><strong className="text-white">무제한 강좌 업로드</strong></span>
+                                <li className="flex items-start gap-3 group">
+                                    <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mt-2 group-hover:bg-fuchsia-500 transition-colors"></div>
+                                    <span><strong className="text-zinc-200">무제한 강좌 업로드</strong></span>
                                 </li>
                             </ul>
                         </div>
 
                         {/* Process */}
-                        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8">
-                            <h3 className="text-xl font-bold text-white mb-4">승인 절차</h3>
-                            <div className="space-y-4">
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center font-bold text-sm">
+                        <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-8">
+                            <h3 className="text-xl font-bold text-zinc-50 mb-6">승인 절차</h3>
+                            <div className="space-y-6">
+                                <div className="flex gap-4 group">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-zinc-800 text-violet-400 rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-violet-500/10 group-hover:bg-violet-500/20 group-hover:text-violet-300 transition-all">
                                         1
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-semibold mb-1">신청서 제출</h4>
-                                        <p className="text-sm text-slate-400">기본 정보 입력 및 제출</p>
+                                        <h4 className="text-zinc-200 font-semibold mb-1 group-hover:text-violet-300 transition-colors">신청서 제출</h4>
+                                        <p className="text-sm text-zinc-500">기본 정보 입력 및 제출</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 text-purple-400 rounded-full flex items-center justify-center font-bold text-sm">
+                                <div className="flex gap-4 group">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-zinc-800 text-violet-400 rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-violet-500/10 group-hover:bg-violet-500/20 group-hover:text-violet-300 transition-all">
                                         2
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-semibold mb-1">관리자 검토</h4>
-                                        <p className="text-sm text-slate-400">1-2일 소요 (영업일 기준)</p>
+                                        <h4 className="text-zinc-200 font-semibold mb-1 group-hover:text-violet-300 transition-colors">관리자 검토</h4>
+                                        <p className="text-sm text-zinc-500">1-2일 소요 (영업일 기준)</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center font-bold text-sm">
+                                <div className="flex gap-4 group">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-zinc-800 text-violet-400 rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-violet-500/10 group-hover:bg-violet-500/20 group-hover:text-violet-300 transition-all">
                                         3
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-semibold mb-1">승인 완료</h4>
-                                        <p className="text-sm text-slate-400">이메일 알림 및 대시보드 접근</p>
+                                        <h4 className="text-zinc-200 font-semibold mb-1 group-hover:text-violet-300 transition-colors">승인 완료</h4>
+                                        <p className="text-sm text-zinc-500">이메일 알림 및 대시보드 접근</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-yellow-500/20 text-yellow-400 rounded-full flex items-center justify-center font-bold text-sm">
+                                <div className="flex gap-4 group">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-zinc-800 text-violet-400 rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-violet-500/10 group-hover:bg-violet-500/20 group-hover:text-violet-300 transition-all">
                                         4
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-semibold mb-1">활동 시작</h4>
-                                        <p className="text-sm text-slate-400">강좌 업로드 및 수익 창출</p>
+                                        <h4 className="text-zinc-200 font-semibold mb-1 group-hover:text-violet-300 transition-colors">활동 시작</h4>
+                                        <p className="text-sm text-zinc-500">강좌 업로드 및 수익 창출</p>
                                     </div>
                                 </div>
                             </div>
