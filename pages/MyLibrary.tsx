@@ -4,7 +4,7 @@ import { getUserCourses, getCourseProgress, getUserRoutines, getSavedSparringVid
 import { Course, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play } from 'lucide-react';
+import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play, Repeat, MessageCircle, Heart, Share2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ErrorScreen } from '../components/ErrorScreen';
 
@@ -16,7 +16,7 @@ interface CourseWithProgress extends Course {
 
 export const MyLibrary: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'routines' | 'sparring' | 'feed'>('courses');
 
   // Courses State
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
@@ -131,24 +131,30 @@ export const MyLibrary: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
-        <div className="flex border-b border-slate-800 mb-8">
+        <div className="flex border-b border-zinc-800 mb-8 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('courses')}
-            className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'courses' ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'courses' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             클래스 ({courses.length})
           </button>
           <button
             onClick={() => setActiveTab('routines')}
-            className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'routines' ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'routines' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             루틴 ({purchasedRoutines.length})
           </button>
           <button
             onClick={() => setActiveTab('sparring')}
-            className={`px-6 py-3 font-bold text-lg border-b-2 transition-colors ${activeTab === 'sparring' ? 'border-green-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'sparring' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             스파링 ({savedSparring.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('feed')}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'feed' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            피드 (24)
           </button>
         </div>
 
@@ -275,7 +281,7 @@ export const MyLibrary: React.FC = () => {
                       <Link to={`/sparring?id=${video.id}`}>
                         <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
                       </Link>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+                      <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
                         <span>{video.creator?.name || 'Unknown User'}</span>
                         <span>•</span>
                         <span>{video.views?.toLocaleString()} 조회</span>
@@ -287,6 +293,8 @@ export const MyLibrary: React.FC = () => {
             )}
           </div>
         )}
+
+        {activeTab === 'feed' && <CommunityFeedTab />}
       </div>
     </div>
   );
@@ -332,6 +340,151 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
               {routine.drillCount || 0}개
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommunityFeedTab() {
+  // Mock data for reposts
+  const reposts = [
+    {
+      id: '1',
+      originalAuthor: 'Professor Lee',
+      belt: 'Black',
+      technique: 'Triangle Choke',
+      content: '기초가 가장 중요합니다. 삼각형을 만들 때 골반의 각도를 조절하는 것이 핵심이에요.',
+      image: 'https://images.unsplash.com/photo-1552072805-2a9039d00e57?auto=format&fit=crop&q=80&w=800',
+      likes: 124,
+      comments: 12,
+      reposts: 24,
+      date: '2시간 전'
+    },
+    {
+      id: '2',
+      originalAuthor: 'Coach Kim',
+      belt: 'Brown',
+      technique: 'De La Riva Guard',
+      content: 'DLR 가드에서 상대방의 균형을 무너뜨리는 3가지 포인트!',
+      likes: 89,
+      comments: 5,
+      reposts: 12,
+      date: '5시간 전'
+    },
+    {
+      id: '3',
+      originalAuthor: 'John Doe',
+      belt: 'Purple',
+      technique: 'Scissor Sweep',
+      content: '오늘 수업 시간에 배운 시저 스윕 복습 영상입니다.',
+      image: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=800',
+      likes: 56,
+      comments: 3,
+      reposts: 8,
+      date: '8시간 전'
+    },
+    {
+      id: '4',
+      originalAuthor: 'Sarah Park',
+      belt: 'Blue',
+      technique: 'Kneebar',
+      content: '니바 타이밍 잡는 법 연습 중...',
+      likes: 142,
+      comments: 18,
+      reposts: 31,
+      date: '어제'
+    },
+    {
+      id: '5',
+      originalAuthor: 'Master Choi',
+      belt: 'Black',
+      technique: 'Back Take',
+      content: '백 포지션에서 끝낼 수 있는 가장 확실한 방법.',
+      image: 'https://images.unsplash.com/photo-1511875852503-d23299763784?auto=format&fit=crop&q=80&w=800',
+      likes: 210,
+      comments: 25,
+      reposts: 45,
+      date: '2일 전'
+    },
+    {
+      id: '6',
+      originalAuthor: 'Mike Ross',
+      belt: 'Blue',
+      technique: 'Armbar',
+      content: '암바 탈출 방지 팁 공유합니다.',
+      likes: 72,
+      comments: 4,
+      reposts: 15,
+      date: '3일 전'
+    }
+  ];
+
+  return (
+    <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+      {reposts.map((post) => (
+        <RepostCard key={post.id} post={post} />
+      ))}
+    </div>
+  );
+}
+
+function RepostCard({ post }: { post: any }) {
+  return (
+    <div className="break-inside-avoid bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-2xl p-4 transition-all duration-300 hover:border-violet-500/50 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] group cursor-pointer">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4 text-[11px] font-bold text-zinc-500">
+        <Repeat className="w-3.5 h-3.5 text-violet-500" />
+        <span>You Reposted</span>
+      </div>
+
+      {/* Author Info */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
+          {post.originalAuthor[0]}
+        </div>
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm font-bold text-zinc-100">{post.originalAuthor}</span>
+            <span className={`px-1.5 py-[2px] rounded-[4px] text-[9px] font-black uppercase border leading-none ${post.belt === 'Black' ? 'border-zinc-700 bg-zinc-950 text-zinc-400' :
+              post.belt === 'Brown' ? 'border-amber-900/30 bg-amber-950/30 text-amber-500' :
+                post.belt === 'Purple' ? 'border-purple-900/30 bg-purple-950/30 text-purple-400' :
+                  post.belt === 'Blue' ? 'border-blue-900/30 bg-blue-950/30 text-blue-400' :
+                    'border-zinc-800 bg-zinc-900 text-zinc-500'
+              }`}>
+              {post.belt}
+            </span>
+          </div>
+          <p className="text-[11px] text-violet-400 font-bold">#{post.technique}</p>
+        </div>
+        <span className="ml-auto text-[10px] text-zinc-600 font-medium">{post.date}</span>
+      </div>
+
+      {/* Content */}
+      <p className="text-sm text-zinc-300 leading-relaxed mb-4 line-clamp-3">
+        {post.content}
+      </p>
+
+      {/* Image if exists */}
+      {post.image && (
+        <div className="relative aspect-video rounded-xl overflow-hidden mb-4 border border-zinc-800">
+          <img src={post.image} alt="content" className="w-full h-full object-cover" />
+        </div>
+      )}
+
+      {/* Interactions */}
+      <div className="flex items-center gap-4 pt-3 border-t border-zinc-800/50">
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <Heart className="w-4 h-4" />
+          <span className="text-xs">{post.likes}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <MessageCircle className="w-4 h-4" />
+          <span className="text-xs">{post.comments}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <Share2 className="w-4 h-4" />
+          <span className="text-xs">{post.reposts}</span>
         </div>
       </div>
     </div>

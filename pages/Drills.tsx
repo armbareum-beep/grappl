@@ -84,7 +84,8 @@ export const Drills: React.FC = () => {
                     fetchCreatorsByIds(creatorIds).then(creatorsMap => {
                         setDrills(prevDrills => prevDrills.map(d => ({
                             ...d,
-                            creatorName: creatorsMap[d.creatorId] || d.creatorName || 'Unknown'
+                            creatorName: creatorsMap[d.creatorId]?.name || d.creatorName || 'Unknown',
+                            creatorProfileImage: creatorsMap[d.creatorId]?.profileImage || (d as any).creatorProfileImage
                         })));
                     }).catch(e => console.warn('Failed to fetch creators', e));
                 }
@@ -183,8 +184,8 @@ export const Drills: React.FC = () => {
                                         key={cat}
                                         onClick={() => setSelectedCategory(cat)}
                                         className={`h-10 px-6 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap border flex items-center justify-center ${selectedCategory === cat
-                                                ? 'bg-violet-600 border-violet-500 text-white shadow-violet-500/20'
-                                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                                            ? 'bg-violet-600 border-violet-500 text-white shadow-violet-500/20'
+                                            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                                             }`}
                                     >
                                         {cat}

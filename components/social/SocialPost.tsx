@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,6 +30,7 @@ const getYouTubeEmbedUrl = (url: string): string => {
 
 export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { success, error: toastError } = useToast();
     const [isExpanded, setIsExpanded] = useState(false);
@@ -39,10 +40,21 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const [likeCount, setLikeCount] = useState(post.likes || 0);
     const [showComments, setShowComments] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
-    const [commentText, setCommentText] = useState('');
+    const [commentText, setCommentText] = useState(() => {
+        const saved = localStorage.getItem(`pending_comment_${post.id}`);
+        return saved || '';
+    });
     const [comments, setComments] = useState<any[]>([]);
     const [loadingComments, setLoadingComments] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    // Initial check for restored comment to open section
+    React.useEffect(() => {
+        const saved = localStorage.getItem(`pending_comment_${post.id}`);
+        if (saved) {
+            setShowComments(true);
+        }
+    }, [post.id]);
 
     // Close menu when clicking outside
     React.useEffect(() => {
@@ -86,7 +98,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
     const handleLike = async () => {
         if (!user) {
-            toastError('로그인이 필요합니다.');
+            const currentPath = location.pathname + location.search + location.hash;
+            navigate('/login', { state: { from: currentPath } });
             return;
         }
 
@@ -169,8 +182,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const loadComments = async () => {
         try {
             setLoadingComments(true);
-            const { getPostComments } = await import('../../lib/api');
-            const { data } = await getPostComments(post.id);
+            const { getTrainingLogComments } = await import('../../lib/api');
+            const { data } = await getTrainingLogComments(post.id);
             if (data) {
                 setComments(data);
             }
@@ -184,7 +197,11 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
     const handleAddComment = async () => {
         if (!user) {
-            toastError('로그인이 필요합니다.');
+            if (commentText.trim()) {
+                localStorage.setItem(`pending_comment_${post.id}`, commentText);
+            }
+            const currentPath = location.pathname + location.search + location.hash;
+            navigate('/login', { state: { from: currentPath } });
             return;
         }
 
@@ -209,6 +226,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     }
                 }]);
                 setCommentText('');
+                localStorage.removeItem(`pending_comment_${post.id}`);
                 success('댓글이 작성되었습니다!');
 
                 // Update quest progress

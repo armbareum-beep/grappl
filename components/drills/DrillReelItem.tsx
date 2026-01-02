@@ -343,7 +343,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 )}
 
                 {/* Content & Info - Bottom (Attached to Video) */}
-                <div className="absolute left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
+                <div className="absolute left-0 right-0 w-full bottom-28 px-6 z-40 pointer-events-none">
                     <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                         {/* Info - Always inside video */}
                         <div className="flex-1 pr-16">

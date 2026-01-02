@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Link2, Smartphone, Facebook, Twitter, Instagram } from 'lucide-react';
+import { X, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 // Custom icons for specific platforms if Lucide doesn't have them
 const KakaoIcon = () => (
@@ -42,16 +43,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
 
         switch (platform) {
             case 'kakao':
-                // For a proper Kakao integration, we need the SDK.
-                // As a fallback for simple web sharing without API keys, we often just copy link or use intent if available.
-                // But generally Kakao requires Kakao JS SDK.
-                // Here we'll show an alert or just copy link if SDK isn't ready, but let's try a web intent if possible or just rely on copy.
-                // Since this is a "dark mode" cool app, we might want to just guide them to copy link for Kakao if we can't deep link.
-                // Actually, let's just alert for now or try to use a generic share if mobile.
-
-                // If mobile, try sharing via navigator.share (system) as a "Kakao" proxy often works there
-                // But user specifically asked for custom modal.
-                // Best fallback is simply copying link for Kakao if we don't have the SDK set up.
                 handleCopy();
                 alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
                 return;
@@ -69,7 +60,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                 break;
 
             case 'instagram':
-                // Instagram doesn't have a direct web share URL for posts.
                 handleCopy();
                 alert('링크가 복사되었습니다. 인스타그램에 붙여넣기 해주세요!');
                 return;
@@ -84,45 +74,51 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-300">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-sm bg-[#121212] border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-white">공유하기</h3>
+            <div className="relative w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl p-6 overflow-hidden ring-1 ring-white/10">
+                {/* Ambient Glow */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/20 rounded-full blur-[50px] pointer-events-none"></div>
+
+                <div className="relative pb-6 border-b border-zinc-800 mb-6 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-white tracking-tight">공유하기</h3>
                     <button
                         onClick={onClose}
-                        className="p-1 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        className="p-2 -mr-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Preview */}
-                <div className="bg-white/5 rounded-xl overflow-hidden mb-6 border border-white/5 flex gap-3">
+                <div className="bg-zinc-900/50 rounded-2xl overflow-hidden mb-6 border border-zinc-800/50 flex gap-4 p-2 relative group">
                     {imageUrl && (
-                        <div className="w-20 h-20 flex-shrink-0">
-                            <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-800">
+                            <img src={imageUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                         </div>
                     )}
-                    <div className="p-4 flex-1">
-                        <p className="text-white font-medium text-sm line-clamp-2 mb-1">{title}</p>
-                        <p className="text-white/40 text-[10px] truncate">{shareUrl}</p>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+                        <p className="text-zinc-200 font-bold text-sm line-clamp-1 mb-1">{title}</p>
+                        <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
+                            <Link2 className="w-3 h-3" />
+                            <p className="truncate">{shareUrl}</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-2">
                     <ShareButton
-                        icon={<Link2 className="w-6 h-6" />}
+                        icon={<Link2 className="w-5 h-5" />}
                         label={copied ? "복사됨!" : "링크 복사"}
                         onClick={handleCopy}
-                        color="bg-white/10 hover:bg-white/20 text-white"
+                        color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
                         active={copied}
                     />
 
@@ -134,31 +130,31 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                     />
 
                     <ShareButton
-                        icon={<Instagram className="w-6 h-6" />}
+                        icon={<Instagram className="w-5 h-5" />}
                         label="Instagram"
                         onClick={() => handleShare('instagram')}
-                        color="bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] text-white hover:opacity-90"
+                        color="bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] text-white"
                     />
 
                     <ShareButton
-                        icon={<Facebook className="w-6 h-6" />}
+                        icon={<Facebook className="w-5 h-5" />}
                         label="Facebook"
                         onClick={() => handleShare('facebook')}
                         color="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                     />
 
                     <ShareButton
-                        icon={<Twitter className="w-5 h-5" />}
+                        icon={<Twitter className="w-4 h-4" />}
                         label="X"
                         onClick={() => handleShare('twitter')}
-                        color="bg-black border border-white/20 hover:bg-white/5 text-white"
+                        color="bg-black border border-zinc-700 hover:bg-zinc-900 text-white"
                     />
 
                     <ShareButton
                         icon={<ThreadsIcon />}
                         label="Threads"
                         onClick={() => handleShare('threads')}
-                        color="bg-black border border-white/20 hover:bg-white/5 text-white"
+                        color="bg-black border border-zinc-700 hover:bg-zinc-900 text-white"
                     />
                 </div>
             </div>
@@ -175,12 +171,19 @@ const ShareButton: React.FC<{
 }> = ({ icon, label, onClick, color, active }) => (
     <button
         onClick={onClick}
-        className="flex flex-col items-center gap-2 group"
+        className="flex flex-col items-center gap-3 group"
     >
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform group-active:scale-95 ${color} ${active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black' : ''}`}>
+        <div className={cn(
+            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform group-active:scale-95 shadow-lg",
+            color,
+            active ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950 scale-95' : 'hover:scale-105'
+        )}>
             {icon}
         </div>
-        <span className="text-[11px] text-white/60 font-medium group-hover:text-white/80 transition-colors">
+        <span className={cn(
+            "text-[11px] font-medium transition-colors text-center",
+            active ? "text-violet-400" : "text-zinc-500 group-hover:text-zinc-300"
+        )}>
             {label}
         </span>
     </button>

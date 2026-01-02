@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Play, ChevronRight, Trophy,
-  Clock, Video, Bot, Zap,
+  Clock, Video, Zap,
 } from 'lucide-react';
 import { getUserProgress } from '../lib/api';
 import { getBeltInfo, getXPProgress } from '../lib/belt-system';
@@ -14,16 +14,15 @@ import {
   searchContent, getDailyQuests
 } from '../lib/api';
 import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest } from '../types';
-import { analyzeUserDashboard } from '../lib/gemini';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
-import { AIInsightModal } from '../components/AIInsightModal';
 import { MasteryRoadmapWidget } from '../components/home/MasteryRoadmapWidget';
 import { WeeklyFeaturedSection } from '../components/home/WeeklyFeaturedSection';
 import { QuickJournalWidget } from '../components/home/QuickJournalWidget';
 import { RecentActivitySection } from '../components/home/RecentActivitySection';
 import { ArenaStatsModal } from '../components/home/ArenaStatsModal';
+import { AICoachWidget } from '../components/AICoachWidget';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -49,8 +48,7 @@ export const Home: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
 
   // Modal states
-  const [selectedInsight, setSelectedInsight] = useState<any | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [selectedInsight, setSelectedInsight] = useState<any | null>(null); // Unused
 
   // Stats Modal State
   const [statsModalOpen, setStatsModalOpen] = useState(false);
@@ -84,132 +82,6 @@ export const Home: React.FC = () => {
       } catch (e) { console.error(e); }
     }
   }, []);
-
-  const handleStartAnalysis = async () => {
-    if (isAnalyzing || !user) return;
-
-    setIsAnalyzing(true);
-    toastInfo('전술 엔진 가동 중... 정밀 분석 및 콘텐츠 매칭을 시작합니다.');
-
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        toastError('분석 엔진 키(API KEY)가 설정되지 않았습니다.');
-        setIsAnalyzing(false);
-        return;
-      }
-
-      // 1. Fetch Context Data
-      const [logsRes, allCourses, allSparring] = await Promise.all([
-        getTrainingLogs(user.id),
-        getCourses(30),
-        getPublicSparringVideos(10)
-      ]);
-
-      const { data: routinesData } = await getDailyRoutine();
-      const routinesPool = [routinesData].filter(Boolean) as DrillRoutine[];
-
-      const logs = logsRes?.data || [];
-
-      // 2. Prepare User Profile
-      const currentBeltInfo = progress ? getBeltInfo(progress.beltLevel) : { name: 'White Belt' };
-      const userProfile = {
-        name: userName || 'Grappler',
-        belt: currentBeltInfo.name,
-        level: progress?.beltLevel || 1,
-        // Hypothetical fields - in a real app these would come from DB
-        playStyle: 'All-rounder',
-        age: 'Unknown'
-      };
-
-      // 3. AI Analysis
-      const analysis = await analyzeUserDashboard(logs, recentActivity, routinesPool, userProfile, apiKey);
-
-      let finalInsights = [];
-
-      if (!analysis || !analysis.insights) {
-        // Fallback
-        finalInsights = [
-          { type: 'strength', message: '새로운 여정의 시작', detail: '꾸준한 기록이 실력 향상의 지름길입니다.', recommendations: { course: allCourses[0], routines: routinesPool, sparring: [allSparring[0]] } },
-          { type: 'weakness', message: '데이터 수집 중', detail: '스파링 일지를 작성하면 정밀 코칭이 활성화됩니다.', recommendations: { course: allCourses[1] || allCourses[0], routines: routinesPool, sparring: [allSparring[1] || allSparring[0]] } },
-          { type: 'suggestion', message: '기본기부터 탄탄하게', detail: '회원님께 꼭 맞는 기술 라이브러리를 채워나가는 중입니다.', recommendations: { course: allCourses[2] || allCourses[0], routines: routinesPool, sparring: [allSparring[2] || allSparring[0]] } }
-        ];
-      } else {
-        // 4. Fetch Targeted Recommendations for EACH Insight
-        finalInsights = await Promise.all(analysis.insights.map(async (insight: any) => {
-          const query = insight.recommendationQuery;
-
-          // Search or Filter for this specific insight
-          // We use the keywords provided by AI to find best matches
-          // If search fails, we fallback to pool
-          let course = null;
-          let routines: any[] = [];
-          let sparring: any[] = [];
-
-          if (query) {
-            // We can use searchContent for more dynamic results
-            const searchResults = await searchContent(`${query.courseKeyword} ${query.routineKeyword}`);
-
-            // Prioritize Course
-            course = searchResults.courses.find((c: any) =>
-              c.title.toLowerCase().includes(query.courseKeyword.toLowerCase()) ||
-              c.description?.toLowerCase().includes(query.courseKeyword.toLowerCase())
-            ) || searchResults.courses[0];
-
-            // Prioritize Routines
-            routines = searchResults.routines.filter((r: any) =>
-              r.title.toLowerCase().includes(query.routineKeyword.toLowerCase())
-            ).slice(0, 2);
-            if (routines.length === 0) routines = searchResults.routines.slice(0, 2);
-
-            // Prioritize Sparring
-            sparring = searchResults.sparring.filter((s: any) =>
-              s.title.toLowerCase().includes(query.sparringKeyword.toLowerCase())
-            ).slice(0, 2);
-            if (sparring.length === 0) sparring = searchResults.sparring.slice(0, 2);
-          }
-
-          // Fallbacks if search yield nothing specific
-          if (!course) course = allCourses[Math.floor(Math.random() * allCourses.length)];
-          if (routines.length === 0) routines = routinesPool;
-          if (sparring.length === 0) sparring = allSparring.slice(0, 2);
-
-          return {
-            ...insight,
-            recommendations: {
-              course,
-              routines,
-              sparring
-            }
-          };
-        }));
-      }
-
-      setAiCoachResults(finalInsights);
-      localStorage.setItem('gemini_recommendations', JSON.stringify(finalInsights));
-
-      // Update Global Featured (Use the "Suggestion" or first insight's data)
-      const featuredData = finalInsights[0]?.recommendations;
-      if (featuredData) {
-        setRecCourse(featuredData.course);
-        setRecRoutines(featuredData.routines);
-        setRecSparring(featuredData.sparring[0]);
-
-        localStorage.setItem('ai_dashboard_recommendations', JSON.stringify({
-          course: featuredData.course,
-          routines: featuredData.routines,
-          sparring: featuredData.sparring[0]
-        }));
-      }
-
-      toastSuccess('전술 분석 완료! 맞춤형 코칭이 업데이트되었습니다.');
-    } catch (e) {
-      console.error('Analysis Error:', e);
-      toastError('시스템 과부하로 분석에 실패했습니다. 잠시 후 재시도하세요.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
 
   useEffect(() => {
@@ -531,145 +403,8 @@ export const Home: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: AI Coach Insight (Enhanced) */}
-          <div className="lg:col-span-5 relative overflow-hidden bg-gradient-to-br from-zinc-900/60 to-zinc-950/60 backdrop-blur-xl border border-violet-500/20 p-6 md:p-8 rounded-[32px] group flex flex-col h-full shadow-[0_0_50px_-20px_rgba(124,58,237,0.15)]">
-            {/* Ambient Background Effects */}
-            <div className="absolute -top-32 -right-32 w-96 h-96 bg-violet-600/20 blur-[120px] rounded-full pointer-events-none animate-pulse-slow" />
-            <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-violet-900/10 to-transparent pointer-events-none" />
-
-            <div className="relative z-10 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-6 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center backdrop-blur-sm shadow-[0_0_15px_rgba(124,58,237,0.3)]">
-                    <Bot className="w-5 h-5 text-violet-300" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white tracking-tight">AI Coach Insight</h3>
-                    <p className="text-violet-300/60 text-xs font-medium tracking-wide">Strategic Analysis</p>
-                  </div>
-                </div>
-                {aiCoachResults.length > 0 && (
-                  <div className="px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/20 text-[10px] font-bold text-violet-300 uppercase tracking-wider">
-                    Analysis Ready
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 flex flex-col justify-center min-h-0">
-                {aiCoachResults.length > 0 ? (
-                  <div className="space-y-3">
-                    {aiCoachResults.slice(0, 3).map((result, idx) => {
-                      const getRecommendationsForType = () => {
-                        const sparringList = recSparring ? [recSparring] : [];
-                        // Logic remains the same...
-                        if (result.type === 'strength') {
-                          return {
-                            course: recCourse,
-                            routines: recRoutines.filter(r =>
-                              r.difficulty?.toLowerCase().includes('advanced') ||
-                              r.difficulty?.toLowerCase().includes('intermediate')
-                            ).slice(0, 2),
-                            sparring: sparringList
-                          };
-                        } else if (result.type === 'weakness') {
-                          return {
-                            course: recCourse,
-                            routines: recRoutines.filter(r =>
-                              r.difficulty?.toLowerCase().includes('beginner') ||
-                              r.difficulty?.toLowerCase().includes('fundamental')
-                            ).slice(0, 2),
-                            sparring: sparringList
-                          };
-                        }
-                        return {
-                          course: recCourse,
-                          routines: recRoutines.slice(0, 2),
-                          sparring: sparringList
-                        };
-                      };
-
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            setSelectedInsight({
-                              ...result,
-                              recommendations: getRecommendationsForType()
-                            });
-                            setIsModalOpen(true);
-                          }}
-                          className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-violet-500/30 hover:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.3)] transition-all duration-300 hover:scale-[1.02] cursor-pointer group/item relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/0 via-violet-500/5 to-violet-500/0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-500" />
-
-                          <div className="flex items-center gap-2 relative z-10">
-                            <span className={`w-1.5 h-1.5 rounded-full ${result.type === 'strength' ? 'bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.6)]' :
-                              result.type === 'weakness' ? 'bg-zinc-500 shadow-[0_0_8px_rgba(113,113,122,0.6)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'
-                              }`} />
-                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${result.type === 'strength' ? 'text-violet-300' :
-                              result.type === 'weakness' ? 'text-zinc-400' : 'text-zinc-200'
-                              } uppercase tracking-wider bg-black/20`}>
-                              {result.type === 'strength' ? 'STRENGTH' : result.type === 'weakness' ? 'WEAKNESS' : 'SUGGESTION'}
-                            </span>
-                          </div>
-
-                          <p className="text-sm text-zinc-100 font-bold leading-snug relative z-10 pr-4">
-                            {result.message}
-                            <ChevronRight className="w-4 h-4 text-zinc-600 absolute right-0 top-0.5 opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all" />
-                          </p>
-                          <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-1 group-hover/item:text-zinc-300 transition-colors relative z-10">
-                            {result.detail}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-6 text-center relative z-10">
-                    <div className="grid grid-cols-2 gap-3 mb-6 w-full max-w-[240px] opacity-40">
-                      {[
-                        { icon: Trophy, label: 'Win Rate' },
-                        { icon: Zap, label: 'Efficiency' },
-                        { icon: Video, label: 'Technique' },
-                        { icon: Bot, label: 'Strategy' },
-                      ].map((item, i) => (
-                        <div key={i} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/5 border border-white/5">
-                          <item.icon className="w-4 h-4 text-white" />
-                          <span className="text-[9px] text-zinc-400 uppercase tracking-wider">{item.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-zinc-300 text-sm font-bold mb-1">데이터 분석 대기 중</p>
-                    <p className="text-zinc-500 text-xs max-w-[200px] leading-relaxed">
-                      스파링 및 수련 데이터를 분석하여<br />맞춤형 성장 전략을 제안합니다.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={handleStartAnalysis}
-                disabled={isAnalyzing}
-                className="w-full mt-6 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-[0_8px_20px_-6px_rgba(124,58,237,0.4)] hover:shadow-[0_12px_24px_-8px_rgba(124,58,237,0.5)] hover:scale-[1.02] active:scale-[0.98] group/btn flex-shrink-0 relative overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 translate-x-[-200%] group-hover/btn:translate-x-[200%] transition-transform duration-700 ease-in-out" />
-
-                {isAnalyzing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span className="animate-pulse">Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-white/20 p-1 rounded-full">
-                      <Zap className={`w-3.5 h-3.5 ${aiCoachResults.length > 0 ? 'text-white fill-white' : 'text-white fill-white'}`} />
-                    </div>
-                    {aiCoachResults.length > 0 ? 'AI 전술 재분석' : 'AI 전략 분석 시작하기'}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+          {/* Right: AI Coach Insight (New Widget) */}
+          <AICoachWidget />
         </div>
       </section>
 
@@ -685,17 +420,6 @@ export const Home: React.FC = () => {
 
       {/* 4. Bottom Section: Recent Activity List */}
       <RecentActivitySection activities={recentActivity} />
-
-      <AIInsightModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        insight={selectedInsight || { type: 'suggestion', message: '', detail: '' }}
-        recommendations={selectedInsight?.recommendations || {
-          course: recCourse,
-          routines: recRoutines,
-          sparring: recSparring ? [recSparring] : []
-        }}
-      />
 
       <ArenaStatsModal
         isOpen={statsModalOpen}

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Play, Star, Zap, BookOpen, Map, Search, Menu, X } from 'lucide-react';
+import { Star, Zap, BookOpen, Map, Search } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { ClassShowcase } from '../components/ClassShowcase';
 import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
+import { DrillReelsSection } from '../components/DrillReelsSection';
+import { CommunityFeedSection } from '../components/CommunityFeedSection';
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
@@ -26,8 +28,8 @@ export const LandingPage: React.FC = () => {
     }, [user, loading, navigate]);
 
     const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         const handleScroll = () => {
@@ -204,7 +206,7 @@ export const LandingPage: React.FC = () => {
                 {/* 5. CTA Button */}
                 <div className="z-10 mt-12 flex flex-col sm:flex-row gap-4">
                     <button
-                        className="px-8 py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full shadow-[0_0_25px_rgba(124,58,237,0.4)] transition-all transform hover:-translate-y-1"
+                        className="px-8 py-4 bg-zinc-100 hover:bg-white text-black font-bold rounded-full shadow-[0_0_25px_rgba(255,255,255,0.2)] transition-all transform hover:-translate-y-1"
                         onClick={() => navigate('/courses')}
                     >
                         독점 강의 지금 보기
@@ -252,13 +254,15 @@ export const LandingPage: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder="인스트럭터 검색..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-200 text-base rounded-full pl-12 pr-6 py-4 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-zinc-700 backdrop-blur-sm shadow-xl"
                             />
                         </div>
                     </div>
 
                     {/* Infinite Scroll Carousel */}
-                    <InstructorCarousel />
+                    <InstructorCarousel searchQuery={searchQuery} />
 
                     <div className="mt-20 text-center">
                         <button
@@ -273,9 +277,13 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* 3. Sparring Showcase Section */}
+            <ClassShowcase />
+
+            <DrillReelsSection />
+
             <RandomSparringShowcase />
 
-            <ClassShowcase />
+            <CommunityFeedSection />
 
             {/* 5. Daily Free Pass Section was here - removed */}
 
@@ -511,7 +519,7 @@ export const LandingPage: React.FC = () => {
                     <div className="flex flex-col items-center gap-6">
                         <button
                             className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
-                            onClick={() => navigate('/courses')}
+                            onClick={() => navigate('/checkout')}
                         >
                             <span className="relative z-10">지금 바로 훈련 시작</span>
                             <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
@@ -523,23 +531,7 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* Footer Integration */}
-            <footer className="w-full border-t border-zinc-900 pt-10 pb-20 bg-zinc-950/50 text-center relative z-10">
-                <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-2">
-                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-zinc-600 text-[10px]">
-                        <span>(주)그래플레이</span>
-                        <span className="hidden md:inline">|</span>
-                        <span>대표: 홍길동</span>
-                        <span className="hidden md:inline">|</span>
-                        <span>주소: 서울특별시 강남구 테헤란로 123</span>
-                        <span className="hidden md:inline">|</span>
-                        <span>사업자등록번호: 123-45-67890</span>
-                    </div>
-                    <p className="text-zinc-600 text-[10px] mt-2">
-                        Copyright © {new Date().getFullYear()} Grapplay. All rights reserved.
-                    </p>
-                </div>
-            </footer>
+
 
             <style>{`
                 @keyframes gradient {

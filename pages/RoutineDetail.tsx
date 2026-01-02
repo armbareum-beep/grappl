@@ -12,8 +12,9 @@ import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
 
 // Internal component for Vimeo tracking
-const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentDrillId: string; videoType: string }> = ({ vimeoId, onProgress, currentDrillId, videoType }) => {
+const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentDrillId: string; videoType: string; muted: boolean }> = ({ vimeoId, onProgress, currentDrillId, videoType, muted }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const playerRef = useRef<Player | null>(null);
 
     useEffect(() => {
         if (!iframeRef.current) return;
@@ -21,10 +22,14 @@ const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentD
         let player: Player;
         try {
             player = new Player(iframeRef.current);
+            playerRef.current = player;
 
             player.on('timeupdate', () => {
                 onProgress();
             });
+
+            // Sync initial state
+            player.setMuted(muted);
         } catch (e) {
             console.error('Vimeo init error:', e);
         }
@@ -34,7 +39,14 @@ const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentD
                 player.off('timeupdate');
             }
         };
-    }, [vimeoId, currentDrillId, videoType, onProgress]);
+    }, [vimeoId, currentDrillId, videoType, onProgress]); // Re-init on video change
+
+    // Sync muted state changes
+    useEffect(() => {
+        if (playerRef.current) {
+            playerRef.current.setMuted(muted);
+        }
+    }, [muted]);
 
     return (
         <iframe
@@ -94,6 +106,37 @@ export const RoutineDetail: React.FC = () => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [showMobileList, setShowMobileList] = useState(false);
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
+
+    // Swipe State
+    const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
+    const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null);
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    };
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        const distanceX = touchStart.x - touchEnd.x;
+        const distanceY = touchStart.y - touchEnd.y;
+        const minSwipeDistance = 50;
+        const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY);
+
+        if (isHorizontal && Math.abs(distanceX) > minSwipeDistance) {
+            // Horizontal: Change Description/Video
+            setVideoType(prev => prev === 'main' ? 'description' : 'main');
+        } else if (!isHorizontal && Math.abs(distanceY) > minSwipeDistance) {
+            // Vertical: Up -> Next Drill, Down -> Previous (or nothing)
+            if (distanceY > 0) { // Swipe Up
+                handleDrillComplete();
+            }
+        }
+    };
 
     const navigateToCreator = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -460,8 +503,8 @@ export const RoutineDetail: React.FC = () => {
                         {/* Mobile Player Content */}
                         <div className="relative w-full h-full bg-black flex flex-col">
                             {/* Video Layer */}
-                            <div className="absolute inset-0 z-0">
-                                {isVimeo ? <div className="w-full h-full scale-[1.35]"><VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill.id} videoType={videoType} /></div> : <video key={`${currentDrill.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onClick={() => setIsPlaying(!isPlaying)} />}
+                            <div className="absolute inset-0 z-0" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                                {isVimeo ? <div className="w-full h-full scale-[1.35]"><VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill.id} videoType={videoType} muted={muted} /></div> : <video key={`${currentDrill.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onClick={() => setIsPlaying(!isPlaying)} />}
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90" />
                                 {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><PlayCircle className="w-20 h-20 text-white/80" /></div>}
                             </div>
@@ -516,7 +559,7 @@ export const RoutineDetail: React.FC = () => {
 
                             {/* Mobile List Overlay */}
                             {showMobileList && (
-                                <div className="absolute inset-0 z-[60] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
+                                <div className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
                                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {routine?.drills?.map((d: any, idx) => (
@@ -606,7 +649,7 @@ export const RoutineDetail: React.FC = () => {
                             <div className="relative h-full flex">
                                 {/* Video */}
                                 <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
-                                    {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
+                                    {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} muted={muted} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
                                     {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
 
                                     {/* Back Button & Video Type Toggle - Inside Video */}
@@ -754,7 +797,7 @@ export const RoutineDetail: React.FC = () => {
                         handleNextRoutine();
                     } else {
                         setShowQuestComplete(false);
-                        setShowShareModal(true);
+                        setViewMode('landing');
                     }
                 }}
                 questName={routine.title}

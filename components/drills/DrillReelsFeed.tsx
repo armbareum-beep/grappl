@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills } from '../../lib/api';
+import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, getUserFollowedCreators, toggleCreatorFollow } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
 
 // Lazy load Modal to avoid circular dependency or bundle issues if needed
@@ -32,12 +32,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
         const fetchUserInteractions = async () => {
             if (!user) return;
             try {
-                const [likedDrills, savedDrills] = await Promise.all([
+                const [likedDrills, savedDrills, followedCreators] = await Promise.all([
                     getUserLikedDrills(user.id),
-                    getUserSavedDrills(user.id)
+                    getUserSavedDrills(user.id),
+                    getUserFollowedCreators(user.id)
                 ]);
                 setLiked(new Set(likedDrills.map(d => d.id)));
                 setSaved(new Set(savedDrills.map(d => d.id)));
+                setFollowing(new Set(followedCreators));
             } catch (error) {
                 console.error('Error fetching interactions:', error);
             }
@@ -134,13 +136,20 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
 
     const handleFollow = async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
-        // TODO: Implement actual follow API
+
         const isFollowed = following.has(drill.creatorId);
         const newFollowing = new Set(following);
         if (isFollowed) newFollowing.delete(drill.creatorId);
         else newFollowing.add(drill.creatorId);
         setFollowing(newFollowing);
-        // await toggleFollow(user.id, drill.creatorId);
+
+        try {
+            await toggleCreatorFollow(user.id, drill.creatorId);
+        } catch (error) {
+            console.error('Error toggling follow:', error);
+            // Rollback on error
+            setFollowing(following);
+        }
     };
 
     // Touch handling for Vertical Swipe (Feed Navigation)

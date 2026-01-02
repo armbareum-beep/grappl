@@ -173,10 +173,10 @@ export const DailyFreeDrillSection: React.FC = () => {
                     {course ? (
                         <div
                             onClick={() => navigate(`/courses/${course.id}`)}
-                            className="group flex flex-row bg-zinc-900/30 border border-zinc-800/50 rounded-[32px] overflow-hidden h-[240px] cursor-pointer transition-all duration-500 hover:border-violet-500/50 hover:bg-zinc-900/60 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)] relative"
+                            className="group flex flex-col md:flex-row bg-zinc-900/30 border border-zinc-800/50 rounded-[32px] overflow-hidden md:h-[240px] cursor-pointer transition-all duration-500 hover:border-violet-500/50 hover:bg-zinc-900/60 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)] relative"
                         >
-                            {/* Left: Media Section (16:9 Aspect - Width 320px) */}
-                            <div className="w-[320px] h-full relative overflow-hidden shrink-0">
+                            {/* Left: Media Section (16:9 Aspect - Width 320px on desktop, full width on mobile) */}
+                            <div className="w-full md:w-[320px] h-[180px] md:h-full relative overflow-hidden shrink-0">
                                 <img
                                     src={course.thumbnail_url}
                                     alt={course.title}
@@ -188,7 +188,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                             </div>
 
                             {/* Right: Content Section */}
-                            <div className="flex-1 p-5 lg:p-6 flex flex-col justify-between relative pl-6">
+                            <div className="flex-1 p-5 lg:p-6 flex flex-col justify-between relative md:pl-6">
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="w-1 h-1 rounded-full bg-violet-500" />
@@ -247,10 +247,10 @@ export const DailyFreeDrillSection: React.FC = () => {
                     {routine ? (
                         <div
                             onClick={() => navigate(`/routines/${routine.id}`)}
-                            className="group flex flex-row bg-zinc-900/30 border border-zinc-800/50 rounded-[32px] overflow-hidden h-[240px] cursor-pointer transition-all duration-500 hover:border-violet-500/50 hover:bg-zinc-900/60 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)] relative"
+                            className="group flex flex-col md:flex-row bg-zinc-900/30 border border-zinc-800/50 rounded-[32px] overflow-hidden md:h-[240px] cursor-pointer transition-all duration-500 hover:border-violet-500/50 hover:bg-zinc-900/60 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)] relative"
                         >
-                            {/* Left: Media Section (9:16 Aspect - Fixed Width 135px) */}
-                            <div className="w-[135px] h-full relative overflow-hidden shrink-0">
+                            {/* Left: Media Section (9:16 Aspect - Fixed Width 135px on desktop, full width on mobile) */}
+                            <div className="w-full md:w-[135px] h-[180px] md:h-full relative overflow-hidden shrink-0">
                                 <img
                                     src={routine.thumbnail_url}
                                     alt={routine.title}
@@ -262,7 +262,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                             </div>
 
                             {/* Right: Content Section */}
-                            <div className="flex-1 p-5 lg:p-6 flex flex-col justify-between relative pl-6">
+                            <div className="flex-1 p-5 lg:p-6 flex flex-col justify-between relative md:pl-6">
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="w-1 h-1 rounded-full bg-violet-500" />

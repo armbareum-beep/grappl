@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Users, BookOpen, Dumbbell, ChevronLeft, ChevronRight, Shield, CheckCircle } from 'lucide-react';
@@ -15,7 +15,11 @@ interface Creator {
     sparring_count: number;
 }
 
-export const InstructorCarousel: React.FC = () => {
+interface InstructorCarouselProps {
+    searchQuery?: string;
+}
+
+export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '' }) => {
     const [creators, setCreators] = useState<Creator[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -72,15 +76,27 @@ export const InstructorCarousel: React.FC = () => {
         }
     };
 
+    const filteredCreators = useMemo(() => {
+        if (!searchQuery) return creators;
+        const query = searchQuery.toLowerCase();
+        return creators.filter(creator =>
+            creator.name.toLowerCase().includes(query) ||
+            (creator.bio && creator.bio.toLowerCase().includes(query))
+        );
+    }, [creators, searchQuery]);
+
     if (loading) return <div className="text-center text-slate-500 py-12">로딩 중...</div>;
+
+    // If no results specifically from search, show distinct message or just "none found"
     if (creators.length === 0) return <div className="text-center text-slate-500 py-12">등록된 인스트럭터가 없습니다</div>;
+    if (filteredCreators.length === 0) return <div className="text-center text-slate-500 py-12">검색 결과가 없습니다</div>;
 
     return (
         <div className="relative group/carousel max-w-7xl mx-auto px-4 md:px-0">
             {/* Carousel Viewport */}
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex -ml-4">
-                    {creators.map((creator) => (
+                    {filteredCreators.map((creator) => (
                         <div key={creator.id} className="flex-[0_0_85%] md:flex-[0_0_300px] min-w-0 pl-4">
                             <div
                                 onClick={() => window.location.href = `/creator/${creator.id}`}

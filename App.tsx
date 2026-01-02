@@ -46,6 +46,7 @@ import { DrillDetail } from './pages/DrillDetail';
 import { RoutineDetail } from './pages/RoutineDetail';
 import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
 import { Arena } from './pages/Arena';
+import { AICoach } from './pages/AICoach';
 import { TechniqueRoadmapDashboard } from './components/technique/TechniqueRoadmapDashboard';
 import { TechniqueDetailPage } from './pages/TechniqueDetail';
 import { LessonDetail } from './pages/LessonDetail';
@@ -90,6 +91,56 @@ const RootRedirect: React.FC = () => {
 
 import { useParams } from 'react-router-dom';
 import { VersionChecker } from './components/VersionChecker';
+import { useLocation } from 'react-router-dom';
+
+// Scroll Restoration Component
+const ScrollToTop: React.FC = () => {
+  const { pathname } = useLocation();
+  const [scrollPositions, setScrollPositions] = React.useState<Record<string, number>>({});
+  const prevPathnameRef = React.useRef<string>(pathname);
+
+  React.useEffect(() => {
+    const handlePopState = () => {
+      // 뒤로가기/앞으로가기 감지
+      const savedPosition = scrollPositions[pathname];
+      if (savedPosition !== undefined) {
+        setTimeout(() => {
+          window.scrollTo(0, savedPosition);
+        }, 0);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [pathname, scrollPositions]);
+
+  React.useEffect(() => {
+    // 현재 스크롤 위치 저장
+    const saveScrollPosition = () => {
+      setScrollPositions(prev => ({
+        ...prev,
+        [prevPathnameRef.current]: window.scrollY
+      }));
+    };
+
+    // 경로가 변경될 때
+    if (prevPathnameRef.current !== pathname) {
+      saveScrollPosition();
+
+      // 뒤로가기가 아닌 일반 네비게이션인 경우 맨 위로 스크롤
+      const isBackNavigation = window.history.state?.idx !== undefined &&
+        window.history.state.idx < (window.history.length - 1);
+
+      if (!isBackNavigation) {
+        window.scrollTo(0, 0);
+      }
+
+      prevPathnameRef.current = pathname;
+    }
+  }, [pathname]);
+
+  return null;
+};
 
 const CourseRedirect: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -104,6 +155,7 @@ const App: React.FC = () => {
         <BackgroundUploadProvider>
           <GlobalUploadProgress />
           <Router>
+            <ScrollToTop />
             <Layout>
 
               <Routes>
@@ -142,6 +194,7 @@ const App: React.FC = () => {
                 <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                 <Route path="/arena" element={<Arena />} />
+                <Route path="/ai-coach" element={<AICoach />} />
                 <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
 
                 <Route path="/sparring" element={<SparringFeed />} />

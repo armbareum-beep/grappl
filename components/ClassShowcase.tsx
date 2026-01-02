@@ -145,8 +145,8 @@ export const ClassShowcase: React.FC = () => {
 
                                 {/* Top Right "FREE" Badge */}
                                 <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
-                                    <div className="px-2.5 py-1 md:px-3 md:py-1.5 bg-violet-600 rounded-full shadow-lg border border-violet-500/50">
-                                        <span className="text-[10px] md:text-xs font-bold text-white tracking-wider">FREE</span>
+                                    <div className="px-2.5 py-1 md:px-3 md:py-1.5 bg-zinc-950/90 backdrop-blur border border-violet-500/30 rounded-full shadow-lg">
+                                        <span className="text-[10px] md:text-xs font-bold text-violet-400 tracking-wider">FREE PREVIEW</span>
                                     </div>
                                 </div>
 
@@ -200,7 +200,7 @@ export const ClassShowcase: React.FC = () => {
                 <div className="flex justify-center">
                     <Button
                         variant="ghost"
-                        className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-transparent hover:border-zinc-800 hover:bg-zinc-900 transition-all font-medium"
+                        className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
                         onClick={() => navigate('/browse')}
                     >
                         모든 클래스 둘러보기

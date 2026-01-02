@@ -715,6 +715,20 @@ export async function checkCreatorFollowStatus(userId: string, creatorId: string
     return !!data;
 }
 
+export async function getUserFollowedCreators(userId: string): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('creator_follows')
+        .select('creator_id')
+        .eq('follower_id', userId);
+
+    if (error) {
+        console.error('Error fetching followed creators:', error);
+        return [];
+    }
+
+    return (data || []).map((d: any) => d.creator_id);
+}
+
 export async function toggleSparringLike(userId: string, videoId: string): Promise<{ liked: boolean }> {
     // Check if already liked
     const { data } = await supabase
@@ -6295,12 +6309,56 @@ export async function checkTrainingLogLiked(userId: string, logId: string) {
 }
 
 export async function getTrainingLogComments(logId: string) {
-    return getPostComments(logId);
+    const { data, error } = await supabase
+        .from('training_log_comments')
+        .select(`
+            id,
+            content,
+            created_at,
+            user_id,
+            users:user_id (
+                id,
+                email,
+                user_metadata
+            )
+        `)
+        .eq('log_id', logId)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching training log comments:', error);
+        return { data: null, error };
+    }
+
+    // Transform to match expected format
+    const transformedData = data?.map(comment => ({
+        id: comment.id,
+        content: comment.content,
+        created_at: comment.created_at,
+        user: {
+            name: (comment.users as any)?.user_metadata?.name || (comment.users as any)?.email?.split('@')[0] || 'User',
+            avatar_url: (comment.users as any)?.user_metadata?.avatar_url
+        }
+    }));
+
+    return { data: transformedData, error: null };
 }
 
 export async function addTrainingLogComment(logId: string, userId: string, content: string) {
-    return createComment(logId, userId, content);
+    const { data, error } = await supabase
+        .from('training_log_comments')
+        .insert({
+            log_id: logId,
+            user_id: userId,
+            content: content
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating training log comment:', error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
 }
-
-
-

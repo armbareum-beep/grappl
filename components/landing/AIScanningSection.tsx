@@ -88,7 +88,7 @@ export const AIScanningSection = () => {
                         transition={{ duration: 0.6, delay: 0.3 }}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/ai-coach')}
                         className="group relative px-8 py-5 bg-violet-600 rounded-full font-bold text-white text-lg shadow-[0_0_40px_-10px_rgba(124,58,237,0.5)] overflow-hidden"
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500 w-[200%]" />

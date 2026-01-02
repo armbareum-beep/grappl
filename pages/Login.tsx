@@ -18,7 +18,9 @@ export const Login: React.FC = () => {
     const location = useLocation();
 
     const fromState = (location.state as any)?.from;
-    const from = fromState ? `${fromState.pathname}${fromState.search || ''}` : '/';
+    const from = fromState?.pathname
+        ? `${fromState.pathname}${fromState.search || ''}`
+        : (typeof fromState === 'string' ? fromState : '/');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
