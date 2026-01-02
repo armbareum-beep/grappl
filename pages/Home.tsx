@@ -10,7 +10,8 @@ import { getBeltInfo, getXPProgress } from '../lib/belt-system';
 import {
   getCourses,
   getRecentActivity, getDailyRoutine, getDailyFreeCourse,
-  getTrainingLogs, getPublicSparringVideos, getDailyQuests
+  getTrainingLogs, getPublicSparringVideos,
+  searchContent, getDailyQuests
 } from '../lib/api';
 import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest } from '../types';
 import { analyzeUserDashboard } from '../lib/gemini';
@@ -88,7 +89,7 @@ export const Home: React.FC = () => {
     if (isAnalyzing || !user) return;
 
     setIsAnalyzing(true);
-    toastInfo('전술 엔진 가동 중... 당신의 수련 데이터를 분석합니다.');
+    toastInfo('전술 엔진 가동 중... 정밀 분석 및 콘텐츠 매칭을 시작합니다.');
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -98,6 +99,7 @@ export const Home: React.FC = () => {
         return;
       }
 
+      // 1. Fetch Context Data
       const [logsRes, allCourses, allSparring] = await Promise.all([
         getTrainingLogs(user.id),
         getCourses(30),
@@ -108,56 +110,99 @@ export const Home: React.FC = () => {
       const routinesPool = [routinesData].filter(Boolean) as DrillRoutine[];
 
       const logs = logsRes?.data || [];
-      const analysis = await analyzeUserDashboard(logs, recentActivity, routinesPool, apiKey);
 
-      let finalAnalysis = analysis;
-      if (!finalAnalysis || !finalAnalysis.insights || !finalAnalysis.recommendedFocus) {
-        finalAnalysis = {
-          insights: [
-            { type: 'strength', message: '새로운 여정의 시작', detail: '그래플리에 오신 것을 환영합니다! 꾸준한 기록이 실력 향상의 지름길입니다.' },
-            { type: 'weakness', message: '데이터 분석 대기 중', detail: '스파링 일지를 작성하면 정밀 코칭이 활성화됩니다.' },
-            { type: 'suggestion', message: '기본기부터 탄탄하게', detail: '회원님께 꼭 맞는 기술 라이브러리를 준비 중입니다.' }
-          ],
-          recommendedFocus: {
-            courseCategory: 'Guard',
-            routineFocus: 'Fundamentals',
-            sparringFocus: 'Escapes'
+      // 2. Prepare User Profile
+      const currentBeltInfo = progress ? getBeltInfo(progress.beltLevel) : { name: 'White Belt' };
+      const userProfile = {
+        name: userName || 'Grappler',
+        belt: currentBeltInfo.name,
+        level: progress?.beltLevel || 1,
+        // Hypothetical fields - in a real app these would come from DB
+        playStyle: 'All-rounder',
+        age: 'Unknown'
+      };
+
+      // 3. AI Analysis
+      const analysis = await analyzeUserDashboard(logs, recentActivity, routinesPool, userProfile, apiKey);
+
+      let finalInsights = [];
+
+      if (!analysis || !analysis.insights) {
+        // Fallback
+        finalInsights = [
+          { type: 'strength', message: '새로운 여정의 시작', detail: '꾸준한 기록이 실력 향상의 지름길입니다.', recommendations: { course: allCourses[0], routines: routinesPool, sparring: [allSparring[0]] } },
+          { type: 'weakness', message: '데이터 수집 중', detail: '스파링 일지를 작성하면 정밀 코칭이 활성화됩니다.', recommendations: { course: allCourses[1] || allCourses[0], routines: routinesPool, sparring: [allSparring[1] || allSparring[0]] } },
+          { type: 'suggestion', message: '기본기부터 탄탄하게', detail: '회원님께 꼭 맞는 기술 라이브러리를 채워나가는 중입니다.', recommendations: { course: allCourses[2] || allCourses[0], routines: routinesPool, sparring: [allSparring[2] || allSparring[0]] } }
+        ];
+      } else {
+        // 4. Fetch Targeted Recommendations for EACH Insight
+        finalInsights = await Promise.all(analysis.insights.map(async (insight: any) => {
+          const query = insight.recommendationQuery;
+
+          // Search or Filter for this specific insight
+          // We use the keywords provided by AI to find best matches
+          // If search fails, we fallback to pool
+          let course = null;
+          let routines: any[] = [];
+          let sparring: any[] = [];
+
+          if (query) {
+            // We can use searchContent for more dynamic results
+            const searchResults = await searchContent(`${query.courseKeyword} ${query.routineKeyword}`);
+
+            // Prioritize Course
+            course = searchResults.courses.find((c: any) =>
+              c.title.toLowerCase().includes(query.courseKeyword.toLowerCase()) ||
+              c.description?.toLowerCase().includes(query.courseKeyword.toLowerCase())
+            ) || searchResults.courses[0];
+
+            // Prioritize Routines
+            routines = searchResults.routines.filter((r: any) =>
+              r.title.toLowerCase().includes(query.routineKeyword.toLowerCase())
+            ).slice(0, 2);
+            if (routines.length === 0) routines = searchResults.routines.slice(0, 2);
+
+            // Prioritize Sparring
+            sparring = searchResults.sparring.filter((s: any) =>
+              s.title.toLowerCase().includes(query.sparringKeyword.toLowerCase())
+            ).slice(0, 2);
+            if (sparring.length === 0) sparring = searchResults.sparring.slice(0, 2);
           }
-        };
+
+          // Fallbacks if search yield nothing specific
+          if (!course) course = allCourses[Math.floor(Math.random() * allCourses.length)];
+          if (routines.length === 0) routines = routinesPool;
+          if (sparring.length === 0) sparring = allSparring.slice(0, 2);
+
+          return {
+            ...insight,
+            recommendations: {
+              course,
+              routines,
+              sparring
+            }
+          };
+        }));
       }
 
-      setAiCoachResults(finalAnalysis.insights);
-      localStorage.setItem('gemini_recommendations', JSON.stringify(finalAnalysis.insights));
+      setAiCoachResults(finalInsights);
+      localStorage.setItem('gemini_recommendations', JSON.stringify(finalInsights));
 
-      const { courseCategory, routineFocus } = finalAnalysis.recommendedFocus;
+      // Update Global Featured (Use the "Suggestion" or first insight's data)
+      const featuredData = finalInsights[0]?.recommendations;
+      if (featuredData) {
+        setRecCourse(featuredData.course);
+        setRecRoutines(featuredData.routines);
+        setRecSparring(featuredData.sparring[0]);
 
-      const currentCategory = courseCategory?.toLowerCase();
-      const filteredCourse = (allCourses || []).find(c =>
-        c.category?.toLowerCase() === currentCategory
-      ) || allCourses[0];
-
-      let filteredRoutines = routinesPool.filter(r =>
-        r.title.toLowerCase().includes(routineFocus?.toLowerCase() || '') ||
-        r.category?.toLowerCase() === currentCategory
-      ).slice(0, 2);
-
-      if (filteredRoutines.length < 1) {
-        filteredRoutines = routinesPool.slice(0, 2);
+        localStorage.setItem('ai_dashboard_recommendations', JSON.stringify({
+          course: featuredData.course,
+          routines: featuredData.routines,
+          sparring: featuredData.sparring[0]
+        }));
       }
 
-      const filteredSparring = (allSparring || [])[0] || null;
-
-      setRecCourse(filteredCourse || null);
-      setRecRoutines(filteredRoutines);
-      setRecSparring(filteredSparring);
-
-      localStorage.setItem('ai_dashboard_recommendations', JSON.stringify({
-        course: filteredCourse || null,
-        routines: filteredRoutines,
-        sparring: filteredSparring
-      }));
-
-      toastSuccess('전술 분석 완료! 최적의 수련 경로가 업데이트되었습니다.');
+      toastSuccess('전술 분석 완료! 맞춤형 코칭이 업데이트되었습니다.');
     } catch (e) {
       console.error('Analysis Error:', e);
       toastError('시스템 과부하로 분석에 실패했습니다. 잠시 후 재시도하세요.');

@@ -5,7 +5,7 @@ export interface GeminiAnalysisResult {
     type: 'strength' | 'weakness' | 'suggestion';
     message: string;
     detail: string;
-    recommendationCategory: string; // 'escape', 'submission', 'guard', 'pass', 'cardio'
+    recommendationCategory?: string; // Optional legacy field
 }
 
 export interface GeminiDashboardResult {
@@ -13,25 +13,41 @@ export interface GeminiDashboardResult {
         type: 'strength' | 'weakness' | 'suggestion';
         message: string;
         detail: string;
+        recommendationQuery: {
+            courseKeyword: string;
+            routineKeyword: string;
+            sparringKeyword: string;
+        };
     }[];
-    recommendedFocus: {
-        courseCategory: string; // e.g., 'Guard', 'Passing'
-        routineFocus: string; // e.g., 'Leg Locks', 'Guard Retention'
-        sparringFocus: string; // e.g., 'Escapes', 'Defense'
-    };
 }
 
 export const analyzeUserDashboard = async (
     logs: TrainingLog[],
     watchedLessons: any[],
     routines: any[],
+    userProfile: {
+        name: string;
+        belt: string;
+        level: number;
+        age?: string;
+        gender?: string;
+        weightClass?: string;
+        playStyle?: string;
+    },
     apiKey: string
 ): Promise<GeminiDashboardResult | null> => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
-    You are an expert BJJ (Brazilian Jiu-Jitsu) head coach. Analyze the user's progress based on:
+    You are an expert BJJ (Brazilian Jiu-Jitsu) head coach. Analyze the user's progress and provide personalized coaching.
     
+    User Profile:
+    - Name: ${userProfile.name}
+    - Belt: ${userProfile.belt} (Level ${userProfile.level})
+    - Age/Info: ${userProfile.age || 'Unknown'}, ${userProfile.gender || ''}, ${userProfile.weightClass || ''}
+    - Play Style: ${userProfile.playStyle || 'All-rounder'}
+    
+    Activity Data:
     1. Sparring Logs (${logs.length} entries):
     ${logs.length > 0 ? logs.map(l => `- ${l.date}: ${l.notes} (${l.techniques?.join(', ')})`).join('\n') : "No sparring logs yet."}
     
@@ -41,30 +57,27 @@ export const analyzeUserDashboard = async (
     3. Training Routines Completed (${routines.length} entries):
     ${routines.length > 0 ? routines.map(r => `- ${r.title}`).join('\n') : "No routines completed yet."}
 
-    IMPORTANT: If there is little to no data, provide "BJJ Starter" or "First Step" insights. 
-    Focus on encouraging the user and recommending fundamental technical pillars (like escapes, posture, and simple guards).
+    IMPORTANT: 
+    - Provide 3 distinct tactical insights: 1 Strength, 1 Weakness, 1 Suggestion.
+    - For EACH insight, provide SPECIFIC keywords to search for recommended content (Course, Routine, Sparring) that matches that specific insight.
+    - Example: If weakness is "Guard Retention", courseKeyword might be "Guard Retention", routineKeyword "Hip Escape", sparringKeyword "Lightweight Guard".
+    - Avoid generic keywords like "BJJ" or "Jiu-Jitsu". Be specific to the insight.
 
-    Provide 3 key tactical insights:
-    - 1 Strength (what they are doing well, or an encouraging comment for a starter)
-    - 1 Weakness (what they are struggling with, or a typical beginner hurdle)
-    - 1 Suggestion (what they should focus on next)
-
-    Also, suggest 3 technical categories for recommendations:
-    - courseCategory: A BJJ category (Standing, Guard, Passing, Side, Mount, Back, Submission, Gi, No-Gi)
-    - routineFocus: A specific technical theme for a drill routine (e.g., 'Guard Retention', 'Hip Escapes').
-    - sparringFocus: A theme for watching sparring videos.
-
-    Return the result strictly as a valid JSON object.
+    Return the result strictly as a valid JSON object with the following structure:
     {
       "insights": [
-        { "type": "strength", "message": "Punchy Title (Korean)", "detail": "1-2 sentence explanation (Korean)" },
-        ...
-      ],
-      "recommendedFocus": {
-        "courseCategory": "...",
-        "routineFocus": "...",
-        "sparringFocus": "..."
-      }
+        { 
+          "type": "strength", 
+          "message": "Punchy Title (Korean)", 
+          "detail": "1-2 sentence explanation (Korean)",
+          "recommendationQuery": {
+            "courseKeyword": "...",
+            "routineKeyword": "...",
+            "sparringKeyword": "..."
+          }
+        },
+        ... (total 3 items)
+      ]
     }
     
     Respond only with JSON.
