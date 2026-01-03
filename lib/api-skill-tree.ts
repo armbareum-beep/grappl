@@ -5,7 +5,7 @@ import { SkillTreeNode, SkillTreeEdge, UserSkillTree } from '../types';
 // Transform Functions
 // ============================================================================
 
-function transformUserSkillTree(data: any): UserSkillTree {
+export function transformUserSkillTree(data: any): UserSkillTree {
     const treeData = data.tree_data || { nodes: [], edges: [] };
 
     return {
@@ -14,8 +14,15 @@ function transformUserSkillTree(data: any): UserSkillTree {
         title: data.title,
         nodes: treeData.nodes || [],
         edges: treeData.edges || [],
+        isPublic: data.is_public,
+        isFeatured: data.is_featured,
+        views: data.views || 0,
+        creatorName: data.users?.name,
+        creatorAvatar: data.users?.avatar_url,
         createdAt: data.created_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        thumbnailUrl: data.thumbnail_url,
+        tags: data.tags || []
     };
 }
 
@@ -24,9 +31,83 @@ function transformUserSkillTree(data: any): UserSkillTree {
 // ============================================================================
 
 /**
- * Get user's skill tree
- * Creates empty tree if doesn't exist
+ * List all public skill trees with creator info
  */
+export async function listPublicSkillTrees(limit = 20) {
+    const { data, error } = await supabase
+        .from('user_skill_trees')
+        .select('*, users(name, avatar_url)')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching public skill trees:', error);
+        return { data: [], error };
+    }
+
+    return { data: data.map(transformUserSkillTree), error: null };
+}
+
+/**
+ * List featured skill trees
+ */
+export async function listFeaturedSkillTrees() {
+    const { data, error } = await supabase
+        .from('user_skill_trees')
+        .select('*, users(name, avatar_url)')
+        .eq('is_featured', true)
+        .order('updated_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching featured skill trees:', error);
+        return { data: [], error };
+    }
+
+    return { data: data.map(transformUserSkillTree), error: null };
+}
+
+/**
+ * Get a single featured chain for the current week
+ * Rotating selection based on ISO week number
+ */
+export async function getWeeklyFeaturedChain() {
+    // 1. Get all featured chains
+    const { data: featured, error } = await listFeaturedSkillTrees();
+
+    // Fallback to public if no featured
+    let candidates = featured || [];
+    if (!candidates.length || error) {
+        const { data: publicTrees } = await listPublicSkillTrees(50);
+        candidates = publicTrees || [];
+    }
+
+    if (candidates.length === 0) {
+        return { data: null, error: error || new Error('No chains available') };
+    }
+
+    // 2. Calculate ISO Week Number
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = (now.getTime() - start.getTime()) + ((start.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000);
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+    const weekNumber = Math.ceil(dayOfYear / 7);
+
+    // 3. Select consistent index for the week
+    const index = weekNumber % candidates.length;
+
+    return { data: candidates[index], error: null };
+}
+
+/**
+ * Increment view count for a skill tree
+ */
+export async function incrementSkillTreeViews(treeId: string) {
+    const { error } = await supabase.rpc('increment_skill_tree_views', { tree_id: treeId });
+    if (error) console.error('Error incrementing views:', error);
+}
+
 /**
  * List all skill trees for a user
  */
@@ -85,14 +166,12 @@ export async function getLatestUserSkillTree(userId: string) {
     return { data: transformUserSkillTree(data), error: null };
 }
 
-/**
- * Create a new skill tree
- */
 export async function createNewSkillTree(
     userId: string,
     title: string,
     nodes: SkillTreeNode[] = [],
-    edges: SkillTreeEdge[] = []
+    edges: SkillTreeEdge[] = [],
+    isPublic: boolean = false
 ) {
     const treeData = { nodes, edges };
 
@@ -101,7 +180,8 @@ export async function createNewSkillTree(
         .insert({
             user_id: userId,
             title: title,
-            tree_data: treeData
+            tree_data: treeData,
+            is_public: isPublic
         })
         .select()
         .single();
@@ -114,24 +194,28 @@ export async function createNewSkillTree(
     return { data: transformUserSkillTree(data), error: null };
 }
 
-/**
- * Update existing skill tree
- */
 export async function updateUserSkillTree(
     treeId: string,
     title: string,
     nodes: SkillTreeNode[],
-    edges: SkillTreeEdge[]
+    edges: SkillTreeEdge[],
+    isPublic?: boolean
 ) {
     const treeData = { nodes, edges };
 
+    const updateData: any = {
+        title: title,
+        tree_data: treeData,
+        updated_at: new Date().toISOString()
+    };
+
+    if (typeof isPublic === 'boolean') {
+        updateData.is_public = isPublic;
+    }
+
     const { data, error } = await supabase
         .from('user_skill_trees')
-        .update({
-            title: title,
-            tree_data: treeData,
-            updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', treeId)
         .select()
         .single();
@@ -171,4 +255,56 @@ export async function saveUserSkillTree(
     }
 }
 
+/**
+ * Copy a public chain to user's library
+ * This tracks usage and awards XP to the creator
+ */
+export async function copyChainToMyLibrary(userId: string, chainId: string) {
+    try {
+        // Get the original chain
+        const { data: originalChain, error: fetchError } = await supabase
+            .from('user_skill_trees')
+            .select('*')
+            .eq('id', chainId)
+            .single();
+
+        if (fetchError || !originalChain) {
+            return { data: null, error: fetchError || new Error('Chain not found') };
+        }
+
+        // Create a copy for the user
+        const { data: newChain, error: createError } = await supabase
+            .from('user_skill_trees')
+            .insert({
+                user_id: userId,
+                title: `${originalChain.title} (Copy)`,
+                tree_data: originalChain.tree_data,
+                is_public: false // User's copy is private by default
+            })
+            .select()
+            .single();
+
+        if (createError) {
+            return { data: null, error: createError };
+        }
+
+        // Track the usage (this will trigger XP award via database trigger)
+        const { error: usageError } = await supabase
+            .from('chain_usage')
+            .insert({
+                chain_id: chainId,
+                user_id: userId
+            });
+
+        // Don't fail if usage tracking fails (e.g., duplicate)
+        if (usageError) {
+            console.warn('Usage tracking failed:', usageError);
+        }
+
+        return { data: transformUserSkillTree(newChain), error: null };
+    } catch (error: any) {
+        console.error('Error copying chain:', error);
+        return { data: null, error };
+    }
+}
 

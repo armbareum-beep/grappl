@@ -11,9 +11,11 @@ import {
   getCourses,
   getRecentActivity, getDailyRoutine, getDailyFreeCourse,
   getTrainingLogs, getPublicSparringVideos,
-  searchContent, getDailyQuests
+  searchContent, getDailyQuests,
+  getLessonById, getCourseById, getDrillRoutineById
 } from '../lib/api';
-import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest } from '../types';
+import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, UserSkillTree } from '../types';
+import { getWeeklyFeaturedChain } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -107,26 +109,37 @@ export const Home: React.FC = () => {
         const recent = await getRecentActivity(user.id);
         setRecentActivity(recent);
 
-        const [routineRes, courseRes, sparringRes, questsRes] = await Promise.all([
+        // Fetch Weekly Chain + Standard Daily Items
+        const [routineRes, courseRes, sparringRes, questsRes, weeklyChainRes] = await Promise.all([
           getDailyRoutine(),
           getDailyFreeCourse(),
           getPublicSparringVideos(1),
-          getDailyQuests(user.id)
+          getDailyQuests(user.id),
+          getWeeklyFeaturedChain()
         ]);
+
         setDailyRoutine(routineRes.data);
         setFreeCourse(courseRes.data);
         setQuests(questsRes || []);
 
-        // Fallback for Weekly Featured (if no AI analysis yet)
-        if (!recCourse && courseRes.data) {
-          setRecCourse(courseRes.data);
+        // --- Weekly Chain Logic ---
+        const weeklyChain = weeklyChainRes.data;
+        let chainCourse = null;
+        let chainRoutines: DrillRoutine[] = [];
+        let chainSparring = null;
+
+        if (weeklyChain?.title) {
+          // Search for content matching the chain's theme
+          const searchResults = await searchContent(weeklyChain.title);
+          if (searchResults.courses.length > 0) chainCourse = searchResults.courses[0];
+          if (searchResults.routines.length > 0) chainRoutines = searchResults.routines;
+          if (searchResults.sparring.length > 0) chainSparring = searchResults.sparring[0];
         }
-        if (recRoutines.length === 0 && routineRes.data) {
-          setRecRoutines([routineRes.data]);
-        }
-        if (!recSparring && sparringRes && sparringRes.length > 0) {
-          setRecSparring(sparringRes[0]);
-        }
+
+        // Set Recommendations (Chain matches > Daily Fallbacks)
+        setRecCourse(chainCourse || courseRes.data);
+        setRecRoutines(chainRoutines.length > 0 ? chainRoutines : (routineRes.data ? [routineRes.data] : []));
+        setRecSparring(chainSparring || (sparringRes && sparringRes.length > 0 ? sparringRes[0] : null));
 
       } catch (error) {
         console.error('Error fetching home data:', error);
@@ -218,7 +231,7 @@ export const Home: React.FC = () => {
                           <div className="space-y-4 flex-1 max-w-2xl">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20">
-                                DAILY ROUTINE
+                                데일리 루틴
                               </span>
                               <span className="text-zinc-400 text-xs font-medium flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {routine.totalDurationMinutes || 15} min
@@ -228,11 +241,14 @@ export const Home: React.FC = () => {
                               {routine.title}
                             </h2>
                             <div className="flex items-center gap-4 text-sm text-zinc-400">
-                              <span>{routine.drillCount || 5} Drills</span>
-                              <span className="flex items-center gap-1 text-violet-300">
-                                <Zap className="w-4 h-4 fill-current" /> +{(routine.drillCount || 5) * 20} XP
+                              <span>{routine.drillCount || 5}개의 드릴</span>
+                              <span className="flex items-center gap-1 text-violet-300 font-bold">
+                                <Zap className="w-4 h-4 fill-current text-yellow-500" /> +50 XP
                               </span>
                             </div>
+                            <p className="text-sm text-zinc-400 flex items-center gap-2 font-medium">
+                              <span className="text-zinc-300 text-base">{routine.creatorName}</span>
+                            </p>
                           </div>
 
                           <div className="flex-shrink-0 mt-6 md:mt-0 w-full md:w-auto">
@@ -270,7 +286,7 @@ export const Home: React.FC = () => {
                           <div className="space-y-4 flex-1 max-w-2xl">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="px-3 py-1 bg-violet-600 text-white text-xs font-black rounded-full uppercase tracking-widest shadow-lg shadow-violet-900/20">
-                                DAILY CLASS
+                                데일리 클래스
                               </span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1">
                                 <Video className="w-3 h-3" /> 영상 강의
@@ -279,8 +295,15 @@ export const Home: React.FC = () => {
                             <h2 className="text-white text-3xl md:text-5xl font-black tracking-tighter leading-[1.1] group-hover:text-violet-300 transition-colors">
                               {course.title}
                             </h2>
+                            <div className="flex items-center gap-4 text-sm text-zinc-400">
+                              <span className="flex items-center gap-1">
+                                <Video className="w-4 h-4" /> {course.lessonCount || 0}개의 레슨
+                              </span>
+                              <span className="flex items-center gap-1 text-violet-300 font-bold">
+                                <Zap className="w-4 h-4 fill-current text-yellow-500" /> +30 XP
+                              </span>
+                            </div>
                             <p className="text-sm text-zinc-400 flex items-center gap-2 font-medium">
-                              <span className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-xs text-white font-bold uppercase">{course.creatorName?.[0]}</span>
                               <span className="text-zinc-300 text-base">{course.creatorName}</span>
                             </p>
                           </div>

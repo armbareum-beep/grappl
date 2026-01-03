@@ -151,7 +151,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                 <div className="text-center mb-16">
                     <div className="inline-block mb-4">
                         <div className="bg-zinc-800/40 px-6 py-2 rounded-full inline-flex items-center gap-3 backdrop-blur-sm border border-zinc-800">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                            <Clock className="w-4 h-4 text-violet-500" />
                             <span className="text-zinc-400 font-mono text-sm tracking-wider">
                                 Next Refresh in: <span className="text-zinc-200">{timeLeft}</span>
                             </span>

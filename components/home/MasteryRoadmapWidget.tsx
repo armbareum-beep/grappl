@@ -4,7 +4,7 @@ import { Network, ArrowRight, Play, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLatestUserSkillTree } from '../../lib/api-skill-tree';
 import { getUserTechniqueMastery, getTechniqueById } from '../../lib/api-technique-mastery';
-import { getLessonById } from '../../lib/api';
+import { getLessonById, getDrillById } from '../../lib/api';
 import { UserTechniqueMastery } from '../../types';
 
 // Helper to fetch title if missing
@@ -16,6 +16,12 @@ async function fetchContentTitle(contentId: string, type: 'technique' | 'lesson'
         } else if (type === 'lesson') {
             const l = await getLessonById(contentId);
             return l?.title || 'Unknown Lesson';
+        } else if (type === 'drill') {
+            const d = await getDrillById(contentId);
+            // getDrillById returns the object directly or with .data depending on version, 
+            // but our outline showed it returns transformDrill(enrichedDrill) which is the object.
+            // Let's handle both just in case.
+            return (d as any)?.title || (d as any)?.data?.title || 'Unknown Drill';
         }
         return 'Unknown Content';
     } catch (e) {
@@ -50,10 +56,10 @@ export const MasteryRoadmapWidget: React.FC = () => {
 
                 setTreeId(tree.id);
 
-                // 2. Extract Technique/Content Nodes
-                // We prioritize 'content' nodes that are 'technique' or 'lesson'
+                // 2. Extract Lesson/Drill Nodes
+                // Priority: 'lesson' and 'drill'
                 const contentNodes = tree.nodes.filter((n: any) =>
-                    (n.type === 'content' || n.contentType === 'technique') && n.contentId
+                    (n.contentType === 'lesson' || n.contentType === 'drill') && n.contentId
                 );
 
                 if (contentNodes.length === 0) {
@@ -61,17 +67,11 @@ export const MasteryRoadmapWidget: React.FC = () => {
                     return;
                 }
 
-                // 3. Get Mastery Data for all these nodes (We fetch all for now to filter)
-                // Optimization: In a real app, we might want to batch fetch by IDs, 
-                // but getUserTechniqueMastery fetches all user masteries, which is fine for separate local filtering.
+                // 3. Get Mastery Data (Still useful for lessons/drills if they are linked to techniques)
                 const { data: allMasteries } = await getUserTechniqueMastery(user.id);
                 const masteryMap = new Map((allMasteries || []).map((m: any) => [m.techniqueId, m]));
 
                 // 4. Find the "Next Step"
-                // Logic: First node that is NOT fully mastered (Lv 6)
-                // Or simply the first one in the list (Assuming topological sort or just visual order)
-                // For simplicity: We pick the first one that has mastery < 6.
-
                 let targetNode = null;
                 let targetMastery = undefined;
 
@@ -81,24 +81,21 @@ export const MasteryRoadmapWidget: React.FC = () => {
 
                     const mastery = masteryMap.get(contentId);
 
-                    // If label is missing, try to get it from mastery or fetch it
-                    if (!label || label === 'Unknown Technique' || label === 'New Node') {
-                        if (mastery && mastery.technique) {
-                            label = mastery.technique.name;
-                        } else {
-                            label = await fetchContentTitle(contentId, node.contentType || 'technique');
-                        }
+                    // If label is missing, try to fetch it
+                    if (!label || label === 'Unknown Technique' || label === 'New Node' || label === 'Unknown') {
+                        label = await fetchContentTitle(contentId, node.contentType || 'lesson');
                     }
 
-                    // If no mastery record, it means Level 1 (Tried/New)
+                    // For lessons/drills, we might not have a mastery Level 6 record.
+                    // If no mastery record, it's the next step.
                     if (!mastery) {
-                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Technique' };
+                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Content' };
                         break;
                     }
 
-                    // If not max level, this is the one
+                    // If it has mastery (level < 6), this is the one
                     if (mastery.masteryLevel < 6) {
-                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Technique' };
+                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Content' };
                         targetMastery = mastery;
                         break;
                     }

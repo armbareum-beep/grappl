@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { getCourses } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
-import { ChevronRight, Play, RefreshCw } from 'lucide-react';
+import { ChevronRight, Play, RefreshCw, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Player from '@vimeo/player';
 
@@ -84,7 +84,7 @@ export const ClassShowcase: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 relative z-10">
                 <div className="text-center mb-16">
                     <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                        <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                        <Video className="w-3.5 h-3.5 text-violet-500 mr-2" />
                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
                             FREE PREVIEW
                         </span>

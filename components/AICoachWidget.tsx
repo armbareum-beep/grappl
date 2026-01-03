@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Radar,
@@ -8,18 +8,26 @@ import {
     PolarRadiusAxis,
     ResponsiveContainer,
 } from 'recharts';
-import { Brain, ChevronRight, Zap, Target } from 'lucide-react';
+import { Brain, ChevronRight, Zap, Target, Lock, Sparkles } from 'lucide-react';
 
 export const AICoachWidget: React.FC = () => {
     const navigate = useNavigate();
+    const [hasAnalysis, setHasAnalysis] = useState(false);
+
+    useEffect(() => {
+        const lastAnalysis = localStorage.getItem('ai_coach_last_analysis');
+        if (lastAnalysis) {
+            setHasAnalysis(true);
+        }
+    }, []);
 
     // Mock data for the mini radar chart
     const radarData = [
-        { subject: 'STR', A: 80, fullMark: 100 },
-        { subject: 'AGI', A: 65, fullMark: 100 },
-        { subject: 'TEC', A: 90, fullMark: 100 },
-        { subject: 'DEF', A: 70, fullMark: 100 },
-        { subject: 'MIND', A: 85, fullMark: 100 },
+        { subject: '힘', A: 80, fullMark: 100 },
+        { subject: '민첩', A: 65, fullMark: 100 },
+        { subject: '기술', A: 90, fullMark: 100 },
+        { subject: '방어', A: 70, fullMark: 100 },
+        { subject: '심리', A: 85, fullMark: 100 },
     ];
 
     return (
@@ -31,7 +39,27 @@ export const AICoachWidget: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-violet-900/10 via-zinc-900 to-zinc-950 z-0" />
             <div className="absolute -top-20 -right-20 w-80 h-80 bg-violet-600/20 blur-[100px] rounded-full group-hover:bg-violet-600/30 transition-all duration-700" />
 
-            <div className="relative z-10 flex flex-col h-full p-6 md:p-8">
+            {/* Unanalyzed Overlay */}
+            {!hasAnalysis && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/40 backdrop-blur-md p-8 text-center border border-white/5 rounded-[32px]">
+                    <div className="mb-4 relative">
+                        <div className="absolute inset-0 bg-violet-500/20 blur-xl rounded-full"></div>
+                        <div className="relative w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center border-2 border-white/10 shadow-2xl">
+                            <Brain className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <h4 className="text-xl font-black text-white mb-2 tracking-tight">AI Coach 분석 전입니다</h4>
+                    <p className="text-zinc-400 text-sm mb-6 leading-relaxed max-w-[200px] mx-auto">
+                        맞춤 기술 분석과 능력치 그래프를 확인하려면 분석을 시작하세요.
+                    </p>
+                    <div className="px-6 py-3 bg-white text-zinc-950 font-bold rounded-xl text-sm flex items-center gap-2 group-hover:scale-105 transition-transform">
+                        <Sparkles className="w-4 h-4" />
+                        AI 분석 시작하기
+                    </div>
+                </div>
+            )}
+
+            <div className={`relative z-10 flex flex-col h-full p-6 md:p-8 ${!hasAnalysis ? 'filter blur-[4px] grayscale-[0.5] opacity-30 select-none' : ''}`}>
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-3">
@@ -39,8 +67,8 @@ export const AICoachWidget: React.FC = () => {
                             <Brain className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-0.5">AI Coach Intelligence</div>
-                            <h3 className="text-lg font-black text-white leading-none">Combat Profile</h3>
+                            <div className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-0.5">AI Coach 분석</div>
+                            <h3 className="text-lg font-black text-white leading-none">전투 프로필</h3>
                         </div>
                     </div>
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-colors duration-300">
@@ -53,10 +81,9 @@ export const AICoachWidget: React.FC = () => {
                     {/* Left: Text Info */}
                     <div className="flex-1 space-y-4 text-center md:text-left">
                         <div>
-                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">Your Style</p>
+                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">내 주짓수 스타일</p>
                             <h4 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-tight">
-                                The Tactical<br />
-                                <span className="text-violet-400">Smasher</span>
+                                Tactical <span className="text-violet-400">Smasher</span>
                             </h4>
                         </div>
 
@@ -71,7 +98,7 @@ export const AICoachWidget: React.FC = () => {
                             <div className="flex items-center justify-between md:justify-start gap-4 px-3 py-2 bg-zinc-950/50 rounded-lg border border-white/5">
                                 <div className="flex items-center gap-2">
                                     <Zap className="w-3.5 h-3.5 text-zinc-400" />
-                                    <span className="text-xs text-zinc-300 font-medium">Sub Rate</span>
+                                    <span className="text-xs text-zinc-300 font-medium">Submission Rate</span>
                                 </div>
                                 <span className="text-sm font-bold text-white">45%</span>
                             </div>
@@ -83,10 +110,10 @@ export const AICoachWidget: React.FC = () => {
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                                 <PolarGrid stroke="#3f3f46" strokeOpacity={0.5} />
-                                <PolarAngleAxis dataKey="subject" tick={false} />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                 <Radar
-                                    name="My Power"
+                                    name="나의 능력치"
                                     dataKey="A"
                                     stroke="#8b5cf6"
                                     strokeWidth={2}
@@ -102,13 +129,8 @@ export const AICoachWidget: React.FC = () => {
 
                 {/* Footer Text */}
                 <p className="mt-6 text-xs text-zinc-500 text-center md:text-left leading-relaxed">
-                    <strong className="text-violet-400">Analysis:</strong> You excel at pressure passing but struggle with guard retention under stress.
+                    <strong className="text-violet-400">분석 요약:</strong> 압박 패스 능력이 매우 탁월하지만, 가드 상황에서의 유연한 대처능력이 보완된다면 더 완벽한 그래플러가 될 것입니다.
                 </p>
-
-                {/* CTA Button (Mobile only mostly, or subtle) */}
-                {/* <button className="w-full mt-4 py-3 bg-white text-black font-bold rounded-xl text-sm hover:bg-zinc-200 transition-colors md:hidden">
-           View Full Report
-        </button> */}
             </div>
         </div>
     );

@@ -4,11 +4,12 @@ import Player from '@vimeo/player';
 interface VideoPlayerProps {
     vimeoId: string;
     title: string;
+    startTime?: number;
     onEnded?: () => void;
     onProgress?: (seconds: number) => void;
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnded, onProgress }) => {
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, startTime, onEnded, onProgress }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
 
@@ -56,6 +57,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, title, onEnde
 
             player = new Player(containerRef.current, options);
             playerRef.current = player;
+
+            // Set initial time if provided
+            if (startTime && startTime > 0) {
+                player.setCurrentTime(startTime).catch(err => {
+                    console.warn('Failed to set initial time:', err);
+                });
+            }
 
             // Add event listeners
             player.on('ended', () => {

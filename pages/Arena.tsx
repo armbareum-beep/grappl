@@ -20,16 +20,15 @@ export const Arena: React.FC = () => {
         const skillTreeId = searchParams.get('id');
         const skillTreeData = searchParams.get('data'); // For encoded guest data
 
-        // If specific skill tree params exist, force skills tab
+        // If specific skill tree params exist, force skills tab (Viewer)
         if (skillTreeId || skillTreeData) {
             setActiveTab('skills');
-            return;
         }
 
         if (tabParam && ['routines', 'sparring', 'skills', 'journal'].includes(tabParam)) {
             setActiveTab(tabParam as ArenaTab);
         } else if (!tabParam) {
-            // Guest users: default to 'skills' (Roadmap) to showcase content
+            // Guest users: default to 'skills' to showcase community content (or guest roadmap)
             // Logged-in users: default to 'journal'
             setActiveTab(user ? 'journal' : 'skills');
         }
@@ -54,13 +53,13 @@ export const Arena: React.FC = () => {
         };
     }, []);
 
-    const handleTabChange = (tabId: string) => {
-        setActiveTab(tabId as ArenaTab);
+    const handleTabChange = (tabId: ArenaTab) => {
+        setActiveTab(tabId);
         setSearchParams({ tab: tabId });
     };
 
     const ARENA_TABS = [
-        { id: 'journal', label: '수련일지', icon: BookOpen, color: 'violet', desc: '성장 기록' },
+        { id: 'journal', label: '수련일지', icon: BookOpen, color: 'indigo', desc: '오늘의 기록' },
         { id: 'routines', label: '훈련 루틴', icon: Dumbbell, color: 'emerald', desc: '매일 10분 드릴' },
         { id: 'skills', label: '테크닉 로드맵', icon: Target, color: 'purple', desc: '기술 체계화' },
     ];
@@ -68,7 +67,7 @@ export const Arena: React.FC = () => {
     return (
         <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
             {/* Floating Tab Navigation - Capsule Style */}
-            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} left-1/2 -translate-x-1/2 z-[10001] transition-all duration-300 pointer-events-none`}>
+            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none`}>
                 <div className="inline-flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800/50 gap-1 pointer-events-auto shadow-2xl">
                     {ARENA_TABS.map((tab) => {
                         const Icon = tab.icon;
@@ -80,10 +79,9 @@ export const Arena: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         if (isLocked) {
-                                            // Guest trying to access locked tab - redirect to login
                                             window.location.href = '/login';
                                         } else {
-                                            handleTabChange(tab.id);
+                                            handleTabChange(tab.id as ArenaTab);
                                         }
                                     }}
                                     className={`
@@ -99,7 +97,6 @@ export const Arena: React.FC = () => {
                                     <Icon className="w-4 h-4" />
                                     <span className="hidden md:inline">{tab.label}</span>
                                 </button>
-                                {/* Tooltip for locked tabs */}
                                 {isLocked && (
                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-violet-500 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
                                         로그인하여 모든 기능 활용하기
@@ -116,21 +113,15 @@ export const Arena: React.FC = () => {
             <div className="flex-1 overflow-hidden relative bg-zinc-950">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-violet-900/10 blur-[100px] pointer-events-none rounded-full" />
                 {activeTab === 'skills' ? (
-                    // Skills: No scroll, full height (TechniqueRoadmapDashboard handles full screen fixed positioning)
-                    <div className="w-full h-full relative z-10">
+                    <div className="w-full h-full relative">
                         <TechniqueRoadmapDashboard />
                     </div>
                 ) : (
-                    // Others: Scrollable content with blur effect for guests (except routines)
                     <div className={`h-full overflow-y-auto overflow-x-hidden relative z-10 ${(!user && activeTab !== 'routines') ? 'blur-sm pointer-events-none' : ''}`}>
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-16 pb-24 md:pb-6">
-                            {activeTab === 'routines' && <TrainingRoutinesTab />}
-                            {activeTab === 'sparring' && (
-                                <SparringReviewTab
-                                    autoRunAI={searchParams.get('action') === 'analyze'}
-                                />
-                            )}
                             {activeTab === 'journal' && <JournalTab />}
+                            {activeTab === 'routines' && <TrainingRoutinesTab />}
+                            {activeTab === 'sparring' && <SparringReviewTab />}
                         </div>
                     </div>
                 )}

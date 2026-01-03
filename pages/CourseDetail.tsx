@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -33,13 +33,16 @@ export const CourseDetail: React.FC = () => {
     const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
     const [activeTab, setActiveTab] = useState<'lessons' | 'drills' | 'sparring'>('lessons');
     const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
     const [isFollowed, setIsFollowed] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [showShareToFeedModal, setShowShareToFeedModal] = useState(false);
+    const [initialStartTime, setInitialStartTime] = useState<number>(0);
 
 
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);
+    const lastSavedTimeRef = React.useRef<number>(0);
 
     useEffect(() => {
         async function fetchData() {
@@ -49,6 +52,10 @@ export const CourseDetail: React.FC = () => {
             }
 
             try {
+                const searchParams = new URLSearchParams(location.search);
+                const queryLessonId = searchParams.get('lessonId');
+                const queryTime = searchParams.get('t');
+
                 const [courseData, lessonsData] = await Promise.all([
                     getCourseById(id),
                     getLessonsByCourse(id),
@@ -78,7 +85,18 @@ export const CourseDetail: React.FC = () => {
                 }
 
                 if (lessonsData.length > 0) {
-                    setSelectedLesson(lessonsData[0]);
+                    // Decide which lesson to select
+                    let lessonToSelect = lessonsData[0];
+                    if (queryLessonId) {
+                        const found = lessonsData.find(l => l.id === queryLessonId);
+                        if (found) {
+                            lessonToSelect = found;
+                            if (queryTime) {
+                                setInitialStartTime(parseFloat(queryTime));
+                            }
+                        }
+                    }
+                    setSelectedLesson(lessonToSelect);
                 }
 
                 if (courseData) {
@@ -92,9 +110,13 @@ export const CourseDetail: React.FC = () => {
                         // Fetch lesson progress
                         const completed = new Set<string>();
                         for (const lesson of lessonsData) {
-                            const progress = await getLessonProgress(user.id, lesson.id);
-                            if (progress?.completed) {
+                            const prog = await getLessonProgress(user.id, lesson.id);
+                            if (prog?.completed) {
                                 completed.add(lesson.id);
+                            }
+                            // If we didn't have a query time but have saved progress, use it
+                            if (!queryTime && lesson.id === (queryLessonId || lessonsData[0].id) && prog?.watched_seconds) {
+                                setInitialStartTime(prog.watched_seconds);
                             }
                         }
                         setCompletedLessons(completed);
@@ -110,6 +132,10 @@ export const CourseDetail: React.FC = () => {
                         }
                     }
 
+                    // Get like count
+                    const count = await getCourseLikeCount(id);
+                    setLikeCount(count);
+
                     // Increment views
                     incrementCourseViews(id);
                 }
@@ -122,7 +148,7 @@ export const CourseDetail: React.FC = () => {
         }
 
         fetchData();
-    }, [id, user]);
+    }, [id, user, location.search]);
 
     const handlePurchase = async () => {
         if (!user) {
@@ -167,11 +193,20 @@ export const CourseDetail: React.FC = () => {
     };
 
     const handleLessonSelect = async (lesson: Lesson) => {
+        if (selectedLesson?.id === lesson.id) return;
+
         setSelectedLesson(lesson);
+        setInitialStartTime(0); // Reset for new lesson
 
         // Update last watched time
         if (user && canWatchLesson(lesson)) {
             await updateLastWatched(user.id, lesson.id);
+
+            // Try to get existing progress for this lesson
+            const prog = await getLessonProgress(user.id, lesson.id);
+            if (prog?.watched_seconds) {
+                setInitialStartTime(prog.watched_seconds);
+            }
         }
     };
 
@@ -241,7 +276,7 @@ export const CourseDetail: React.FC = () => {
     const totalHours = Math.floor(totalDuration / 3600);
     const totalMins = Math.floor((totalDuration % 3600) / 60);
 
-    const handleProgress = async () => {
+    const handleProgress = async (seconds: number) => {
         if (!user || !selectedLesson) return;
 
         const now = Date.now();
@@ -257,21 +292,26 @@ export const CourseDetail: React.FC = () => {
             accumulatedTimeRef.current += elapsed;
         }
 
+        // 1. Record platform watch time (every 10 seconds of active viewing)
         if (accumulatedTimeRef.current >= 10) {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
 
-            // Record watch time if user is a subscriber AND does NOT own the course
-            // (If they own it, it shouldn't count towards subscription revenue pool)
             if (user.isSubscriber && !ownsCourse) {
                 recordWatchTime(user.id, timeToSend, undefined, selectedLesson.id);
             }
+        }
+
+        // 2. Save playback position (every 5 seconds of video time)
+        if (Math.abs(seconds - lastSavedTimeRef.current) >= 5) {
+            lastSavedTimeRef.current = seconds;
+            updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));
         }
     };
 
     const handleLike = async () => {
         if (!user) {
-            toastError('좋아요를 누르려면 로그인이 필요합니다.');
+            navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
             return;
         }
         if (!id) return;
@@ -279,16 +319,18 @@ export const CourseDetail: React.FC = () => {
         // Optimistic UI
         const newStatus = !isLiked;
         setIsLiked(newStatus);
+        setLikeCount(prev => newStatus ? prev + 1 : prev - 1);
 
         const { liked, error } = await toggleCourseLike(user.id, id);
         if (error) {
             console.error('Like failed:', error);
             setIsLiked(!newStatus); // Revert
+            setLikeCount(prev => newStatus ? prev - 1 : prev + 1);
         } else {
             setIsLiked(liked);
-            if (liked) {
-                success('좋아요!');
-            }
+            // Fetch actual count to ensure accuracy
+            const count = await getCourseLikeCount(id);
+            setLikeCount(count);
         }
     };
 
@@ -328,6 +370,7 @@ export const CourseDetail: React.FC = () => {
                     <VideoPlayer
                         vimeoId={selectedLesson.videoUrl || selectedLesson.vimeoUrl || ''}
                         title={selectedLesson.title}
+                        startTime={initialStartTime}
                         onEnded={handleVideoEnded}
                         onProgress={handleProgress}
                     />
@@ -410,27 +453,40 @@ export const CourseDetail: React.FC = () => {
             </div>
 
             {/* Actions Row */}
-            <div className="flex items-center gap-4 border-b border-zinc-800/50 pb-8 mb-8">
-                <div className="flex gap-2">
-                    <button
-                        onClick={handleLike}
-                        className={cn("flex items-center gap-2 px-5 py-2.5 rounded-full border transition-all text-sm font-bold active:scale-95",
-                            isLiked
-                                ? "bg-red-500/10 border-red-500/30 text-red-500"
-                                : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:border-zinc-700 hover:text-white"
-                        )}
-                    >
-                        <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
-                        {isLiked ? 'Liked' : 'Like'}
-                    </button>
-                    <button
-                        onClick={handleShare}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm font-bold hover:bg-zinc-800 hover:border-zinc-700 hover:text-white transition-all active:scale-95"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        Share
-                    </button>
-                </div>
+            <div className="flex items-center gap-3 border-b border-zinc-800/50 pb-8 mb-8">
+                <button
+                    onClick={handleLike}
+                    className={cn(
+                        "group relative flex items-center justify-center w-12 h-12 rounded-2xl backdrop-blur-xl border transition-all duration-300 overflow-hidden",
+                        isLiked
+                            ? "bg-gradient-to-br from-rose-500/20 via-pink-500/10 to-violet-500/20 border-rose-500/40 text-rose-400 shadow-lg shadow-rose-500/20"
+                            : "bg-zinc-900/60 border-zinc-800/60 text-zinc-400 hover:bg-zinc-800/80 hover:border-zinc-700 hover:text-white hover:shadow-lg hover:shadow-violet-500/10"
+                    )}
+                >
+                    {/* Animated gradient background on hover */}
+                    {!isLiked && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 via-violet-600/5 to-violet-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    )}
+
+                    <Heart className={cn("w-5 h-5 relative z-10 transition-transform duration-300",
+                        isLiked && "fill-current",
+                        "group-hover:scale-110"
+                    )} />
+                </button>
+
+                {likeCount > 0 && (
+                    <span className="text-sm font-medium text-zinc-400">{likeCount.toLocaleString()}</span>
+                )}
+
+                <button
+                    onClick={handleShare}
+                    className="group relative flex items-center justify-center w-12 h-12 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/60 text-zinc-400 hover:bg-zinc-800/80 hover:border-zinc-700 hover:text-white transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-violet-500/10"
+                >
+                    {/* Animated gradient background on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 via-violet-600/5 to-violet-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    <Share2 className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+                </button>
             </div>
         </div>
     );

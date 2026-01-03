@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, X, Loader, Zap } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Loader, Repeat } from 'lucide-react';
 
 export interface ShareToFeedModalProps {
     isOpen: boolean;
@@ -10,31 +11,12 @@ export interface ShareToFeedModalProps {
     metadata?: Record<string, any>;
 }
 
-const ACTIVITY_ICONS = {
-    routine: <span className="text-violet-400 drop-shadow-[0_0_8px_rgba(167,139,250,0.5)]">💪</span>,
-    sparring: '🥋',
-    level_up: '🎉',
-    title_earned: '👑',
-    technique: '🎯',
-    general: '📝'
-};
-
-const ACTIVITY_LABELS = {
-    routine: '훈련 루틴 완료',
-    sparring: '스파링 복기',
-    level_up: '레벨 업',
-    title_earned: '칭호 획득',
-    technique: '기술 마스터',
-    general: '일반 소식'
-};
-
 const MAX_CHARACTERS = 500;
 
 export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
     isOpen,
     onClose,
     onShare,
-    activityType,
     defaultContent,
     metadata
 }) => {
@@ -69,7 +51,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
             onClose();
         } catch (err) {
             console.error('Error sharing to feed:', err);
-            setError('공유 중 오류가 발생했습니다. 다시 시도해주세요.');
+            setError('리포스트 중 오류가 발생했습니다. 다시 시도해주세요.');
         } finally {
             setIsSharing(false);
         }
@@ -92,11 +74,12 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
     const characterCount = comment.length;
     const isOverLimit = characterCount > MAX_CHARACTERS;
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
+                onClick={onClose}
             />
 
             {/* Modal */}
@@ -105,13 +88,10 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                 <div className="flex items-center justify-between p-6 border-b border-zinc-800/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center border border-violet-500/20">
-                            <Share2 className="w-5 h-5 text-violet-400" />
+                            <Repeat className="w-5 h-5 text-violet-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-zinc-100 tracking-tight">피드에 공유</h2>
-                            <p className="text-xs text-zinc-500">
-                                {ACTIVITY_ICONS[activityType]} {ACTIVITY_LABELS[activityType]}
-                            </p>
+                            <h2 className="text-lg font-bold text-zinc-100 tracking-tight">리포스트</h2>
                         </div>
                     </div>
                     <button
@@ -124,7 +104,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-4">
                     {/* Input Area Group */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 transition-all focus-within:border-violet-500/30 focus-within:bg-zinc-900/80">
                         <div className="flex gap-4">
@@ -134,46 +114,19 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="오늘의 성과를 공유해보세요..."
-                                    rows={4}
+                                    placeholder="리포스트와 함께 남길 생각을 적어보세요..."
+                                    rows={3}
                                     className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed"
                                     disabled={isSharing}
+                                    autoFocus
                                 />
-
-                                {/* Routine Preview (Mini-Card) inside input area if it's a routine */}
-                                {activityType === 'routine' && (
-                                    <div className="mt-3 flex items-center gap-3 p-2 bg-zinc-950/50 border border-zinc-800 rounded-xl group/preview">
-                                        <div className="w-24 aspect-video bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden relative">
-                                            {metadata?.thumbnailUrl ? (
-                                                <img src={metadata.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <Zap className="w-4 h-4 text-zinc-700" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[11px] font-bold text-zinc-300 truncate">
-                                                {metadata?.routineTitle || '훈련 루틴'}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                {metadata?.xpEarned && (
-                                                    <span className="text-[10px] text-violet-400 font-bold">+{metadata.xpEarned} XP</span>
-                                                )}
-                                                {metadata?.durationMinutes && (
-                                                    <span className="text-[10px] text-zinc-500">{metadata.durationMinutes}분</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
                         {/* Footer info inside Input Area */}
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800/50">
+                        <div className="flex items-center justify-between mt-2 pt-3 border-t border-zinc-800/50">
                             <p className="text-zinc-600 italic text-[11px]">
-                                Tip: Cmd/Ctrl + Enter로 빠르게 공유
+                                Tip: Cmd/Ctrl + Enter로 리포스트
                             </p>
                             <p className={`text-[10px] font-mono ${isOverLimit ? 'text-red-400' : 'text-zinc-600'}`}>
                                 {characterCount} / {MAX_CHARACTERS}
@@ -181,34 +134,50 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                         </div>
                     </div>
 
+                    {/* Original Post Preview */}
+                    {metadata && (
+                        <div className="bg-zinc-900/30 border border-zinc-800 rounded-[20px] p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-5 h-5 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
+                                        {metadata.userAvatar ? (
+                                            <img src={metadata.userAvatar} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-500 text-[8px] font-bold">
+                                                {metadata.userName?.[0]}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-bold text-zinc-300">{metadata.userName}</span>
+                                </div>
+                                <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">
+                                    {metadata.notes || '기술 영상 공유'}
+                                </p>
+                            </div>
+
+                            {(metadata.mediaUrl || (metadata.images && metadata.images.length > 0)) && (
+                                <div className="w-20 h-20 rounded-xl bg-zinc-800 overflow-hidden border border-zinc-700 flex-shrink-0">
+                                    <img
+                                        src={metadata.images?.[0] || metadata.mediaUrl}
+                                        className="w-full h-full object-cover"
+                                        alt="Preview"
+                                        onError={(e) => {
+                                            // Handle video thumbnails if possible, or show icon
+                                            e.currentTarget.style.display = 'none';
+                                            e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                                            const icon = document.createElement('div');
+                                            icon.innerHTML = '🎬';
+                                            e.currentTarget.parentElement?.appendChild(icon);
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {/* Error Message */}
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                             <p className="text-sm text-red-400">{error}</p>
-                        </div>
-                    )}
-
-                    {/* Preview Badge for other activities (Optional) */}
-                    {metadata && activityType !== 'routine' && (
-                        <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-4">
-                            <p className="text-[10px] uppercase tracking-wider text-zinc-600 mb-2 font-bold">미리보기</p>
-                            <div className="flex items-center gap-2 text-sm text-zinc-300">
-                                {metadata?.xpEarned !== undefined && (
-                                    <span className="px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded text-[10px] font-bold border border-violet-500/20">
-                                        +{metadata.xpEarned} XP
-                                    </span>
-                                )}
-                                {metadata?.durationMinutes !== undefined && (
-                                    <span className="text-xs text-zinc-500">
-                                        {metadata.durationMinutes}분
-                                    </span>
-                                )}
-                                {metadata?.routineTitle && typeof metadata.routineTitle === 'string' && (
-                                    <span className="text-xs text-zinc-400 truncate font-medium">
-                                        {metadata.routineTitle}
-                                    </span>
-                                )}
-                            </div>
                         </div>
                     )}
                 </div>
@@ -231,12 +200,12 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                             {isSharing ? (
                                 <>
                                     <Loader className="w-4 h-4 animate-spin" />
-                                    <span>공유 중...</span>
+                                    <span>리포스트 중...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Share2 className="w-4 h-4" />
-                                    <span>공유하기</span>
+                                    <Repeat className="w-4 h-4" />
+                                    <span>리포스트</span>
                                 </>
                             )}
                         </div>
@@ -262,4 +231,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
             `}</style>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
+

@@ -18,9 +18,22 @@ export const Login: React.FC = () => {
     const location = useLocation();
 
     const fromState = (location.state as any)?.from;
-    const from = fromState?.pathname
-        ? `${fromState.pathname}${fromState.search || ''}`
-        : (typeof fromState === 'string' ? fromState : '/');
+
+    // 리다이렉트할 경로 결정
+    // 1. from state에 pathname이 있으면 해당 경로 사용
+    // 2. from이 문자열이면 그대로 사용
+    // 3. 둘 다 없으면 /home으로 이동
+    const getRedirectPath = () => {
+        if (fromState?.pathname) {
+            // 로그인 페이지나 루트에서 온 경우가 아니라면 원래 페이지로
+            if (fromState.pathname !== '/login' && fromState.pathname !== '/') {
+                return `${fromState.pathname}${fromState.search || ''}${fromState.hash || ''}`;
+            }
+        } else if (typeof fromState === 'string' && fromState !== '/login' && fromState !== '/') {
+            return fromState;
+        }
+        return '/home';
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,7 +57,8 @@ export const Login: React.FC = () => {
             if (error) {
                 setError(error.message);
             } else {
-                navigate(from, { replace: true });
+                const redirectPath = getRedirectPath();
+                navigate(redirectPath, { replace: true });
             }
         } catch (err: any) {
             console.error('Login error:', err);
@@ -59,6 +73,16 @@ export const Login: React.FC = () => {
         setSocialLoading(provider);
 
         try {
+            // OAuth 로그인 전에 리다이렉트 경로 저장
+            const redirectPath = getRedirectPath();
+            if (redirectPath !== '/home') {
+                try {
+                    localStorage.setItem('oauth_redirect_path', redirectPath);
+                } catch (e) {
+                    console.warn('Failed to save redirect path:', e);
+                }
+            }
+
             const result = await signInWithGoogle();
 
             if (result.error) {

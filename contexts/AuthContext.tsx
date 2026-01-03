@@ -198,6 +198,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signInWithGoogle = async () => {
+        // 현재 페이지 정보를 저장 (OAuth 리다이렉트 후 복원용)
+        try {
+            const currentPath = window.location.pathname + window.location.search + window.location.hash;
+            if (currentPath !== '/login' && currentPath !== '/') {
+                localStorage.setItem('oauth_redirect_path', currentPath);
+            }
+        } catch (e) {
+            console.warn('Failed to save redirect path:', e);
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -205,12 +215,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     access_type: 'offline',
                     prompt: 'consent',
                 },
+                redirectTo: `${window.location.origin}/`
             }
         });
         return { error };
     };
 
     const signInWithNaver = async () => {
+        // 현재 페이지 정보를 저장 (OAuth 리다이렉트 후 복원용)
+        try {
+            const currentPath = window.location.pathname + window.location.search + window.location.hash;
+            if (currentPath !== '/login' && currentPath !== '/') {
+                localStorage.setItem('oauth_redirect_path', currentPath);
+            }
+        } catch (e) {
+            console.warn('Failed to save redirect path:', e);
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'naver' as any,
             options: {
@@ -221,6 +242,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signInWithKakao = async () => {
+        // 현재 페이지 정보를 저장 (OAuth 리다이렉트 후 복원용)
+        try {
+            const currentPath = window.location.pathname + window.location.search + window.location.hash;
+            if (currentPath !== '/login' && currentPath !== '/') {
+                localStorage.setItem('oauth_redirect_path', currentPath);
+            }
+        } catch (e) {
+            console.warn('Failed to save redirect path:', e);
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'kakao' as any,
             options: {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Brain, Zap } from 'lucide-react';
+import { Sparkles, Brain, Zap, Cpu } from 'lucide-react';
 
 export const AIScanningSection = () => {
     const navigate = useNavigate();
@@ -52,7 +52,7 @@ export const AIScanningSection = () => {
                         transition={{ duration: 0.6 }}
                         className="inline-flex items-center px-3 py-1 mb-8 rounded-full border border-violet-500/30 bg-violet-500/10 backdrop-blur-md"
                     >
-                        <span className="w-2 h-2 rounded-full bg-violet-400 mr-2 animate-pulse" />
+                        <Cpu className="w-3.5 h-3.5 text-violet-400 mr-2" />
                         <span className="text-xs font-bold tracking-widest text-violet-300 uppercase">
                             AI-Powered BJJ Coach
                         </span>

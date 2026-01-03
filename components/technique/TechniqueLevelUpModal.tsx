@@ -41,7 +41,7 @@ export const TechniqueLevelUpModal: React.FC<TechniqueLevelUpModalProps> = ({
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${show ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/0'
+            className={`fixed inset-0 z-[1000] flex items-center justify-center p-4 transition-all duration-300 ${show ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/0'
                 }`}
             onClick={handleClose}
         >

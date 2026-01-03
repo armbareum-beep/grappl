@@ -414,9 +414,9 @@ export const RoutineDetail: React.FC = () => {
     };
 
     return (
-        <div className="md:relative bg-zinc-950 min-h-screen relative overflow-hidden">
+        <div className="lg:relative bg-zinc-950 min-h-screen relative overflow-hidden">
             {/* MOBILE VIEW */}
-            <div className="md:hidden w-full min-h-screen flex flex-col bg-zinc-950 pb-24">
+            <div className="lg:hidden w-full min-h-screen flex flex-col bg-zinc-950 pb-24">
                 {viewMode === 'landing' ? (
                     <>
                         {/* Mobile Landing Header */}
@@ -473,26 +473,26 @@ export const RoutineDetail: React.FC = () => {
                 ) : (
                     <div className="w-full h-full fixed inset-0 z-50 bg-black overflow-hidden">
                         {/* Top-Left Group: Back Button & Toggles */}
-                        <div className="absolute top-6 left-4 z-[100] pointer-events-none">
-                            <div className="flex flex-col gap-4 items-start pointer-events-auto">
+                        <div className="absolute top-6 left-4 z-[250] pointer-events-none">
+                            <div className="flex flex-col gap-3 items-start pointer-events-auto">
                                 <button
                                     onClick={() => setViewMode('landing')}
-                                    className="p-2.5 md:p-3.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60 shadow-xl"
+                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                                 >
-                                    <ChevronLeft className="w-5 h-5 md:w-7 md:h-7" />
+                                    <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                 </button>
 
                                 {/* Video Type Toggle (Vertical) */}
                                 <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
                                     <button
                                         onClick={() => setVideoType('main')}
-                                        className={`p-2 md:p-3 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        className={`p-2 md:p-2.5 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                     >
                                         <Zap className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
                                     </button>
                                     <button
                                         onClick={() => setVideoType('description')}
-                                        className={`p-2 md:p-3 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        className={`p-2 md:p-2.5 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                     >
                                         <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
                                     </button>
@@ -578,7 +578,7 @@ export const RoutineDetail: React.FC = () => {
             </div>
 
             {/* DESKTOP VIEW */}
-            <div className={`hidden md:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
+            <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
                         <button onClick={() => navigate(-1)} className="fixed top-24 left-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>

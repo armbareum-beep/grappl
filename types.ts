@@ -617,11 +617,26 @@ export interface SkillTreeEdge {
 export interface UserSkillTree {
   id: string;
   userId: string;
-  title?: string;
-  nodes: SkillTreeNode[];
-  edges: SkillTreeEdge[];
-  createdAt: string;
-  updatedAt: string;
+  title: string;
+  nodes: SkillTreeNode[] | any; // Supports both types for safety
+  edges: SkillTreeEdge[] | any;
+  isPublic: boolean;
+  isFeatured?: boolean;
+  views?: number;
+  view_count?: number; // Added for compatibility with DB view
+  creatorName?: string;
+  creatorAvatar?: string;
+  createdAt?: string; // Support both naming conventions if needed
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  thumbnailUrl?: string; // Frontend use
+  thumbnail_url?: string; // DB use
+  description?: string;
+  tags?: string[];
+  difficulty?: string;
+  likeCount?: number;
+  like_count?: number;
 }
 
 // ==================== Admin & Reporting ====================

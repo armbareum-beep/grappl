@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
-import { Star, Zap, BookOpen, Map, Search } from 'lucide-react';
+import { Star, Zap, BookOpen, Map, Search, Award, Trophy, Quote, Sparkles } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
@@ -10,6 +10,8 @@ import { ClassShowcase } from '../components/ClassShowcase';
 import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
 import { DrillReelsSection } from '../components/DrillReelsSection';
 import { CommunityFeedSection } from '../components/CommunityFeedSection';
+import { TechniqueChainPreviewSection } from '../components/landing/TechniqueChainPreviewSection';
+
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
@@ -185,7 +187,7 @@ export const LandingPage: React.FC = () => {
 
                 {/* 2. Top Badge (Verified Black Belt Only) */}
                 <div className="z-10 mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
-                    <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                    <Sparkles className="w-3.5 h-3.5 text-violet-500 mr-2" />
                     <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
                         Verified Black Belt Only
                     </span>
@@ -233,7 +235,7 @@ export const LandingPage: React.FC = () => {
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
                         <div className="text-left">
                             <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                                <div className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                                <Award className="w-3.5 h-3.5 text-violet-500 mr-2" />
                                 <span className="text-violet-400 text-[10px] font-bold uppercase tracking-[0.2em]">World Class Instructors</span>
                             </div>
                             <h2 className="text-3xl md:text-6xl font-black mb-6 leading-tight text-white">
@@ -284,6 +286,9 @@ export const LandingPage: React.FC = () => {
             <RandomSparringShowcase />
 
             <CommunityFeedSection />
+            <TechniqueChainPreviewSection />
+
+
 
             {/* 5. Daily Free Pass Section was here - removed */}
 
@@ -300,7 +305,7 @@ export const LandingPage: React.FC = () => {
                     {/* Section Header */}
                     <div className="text-center mb-16 md:mb-24">
                         <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                            <Trophy className="w-3.5 h-3.5 text-violet-500 mr-2" />
                             <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
                                 ARENA SYSTEM
                             </span>
@@ -456,7 +461,7 @@ export const LandingPage: React.FC = () => {
                     <div className="max-w-7xl mx-auto px-4">
                         <div className="text-center mb-16 md:mb-24">
                             <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                                <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                                <Quote className="w-3.5 h-3.5 text-violet-500 mr-2" />
                                 <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
                                     COMMUNITY REVIEWS
                                 </span>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ChevronRight, VolumeX } from 'lucide-react';
+import { Play, ChevronRight, VolumeX, Activity } from 'lucide-react';
 import { getPublicSparringVideos } from '../lib/api';
 import { SparringVideo } from '../types';
 
@@ -54,7 +54,7 @@ export function RandomSparringShowcase() {
                     {/* Text Section (Left) */}
                     <div className="flex-1 text-center lg:text-left">
                         <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-8">
-                            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                            <Activity className="w-3.5 h-3.5 text-violet-500 mr-2" />
                             <span className="text-violet-400 text-[10px] font-bold tracking-[0.2em] uppercase">
                                 Real-Time Application
                             </span>

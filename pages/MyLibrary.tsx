@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getUserCourses, getCourseProgress, getUserRoutines, getSavedSparringVideos } from '../lib/api';
+import { getUserCourses, getCourseProgress, getUserRoutines, getSavedSparringVideos, getUserReposts } from '../lib/api';
 import { Course, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play, Repeat, MessageCircle, Heart, Share2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface CourseWithProgress extends Course {
   progress?: number;
@@ -29,6 +31,10 @@ export const MyLibrary: React.FC = () => {
   // Sparring State
   const [savedSparring, setSavedSparring] = useState<SparringVideo[]>([]);
   const [sparringLoading, setSparringLoading] = useState(true);
+
+  // Reposts State
+  const [reposts, setReposts] = useState<any[]>([]);
+  const [repostsLoading, setRepostsLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +94,20 @@ export const MyLibrary: React.FC = () => {
         console.error('Error fetching saved sparring:', err);
       } finally {
         setSparringLoading(false);
+      }
+
+      // Fetch Reposts
+      try {
+        const { data: repostsData, error: repostsError } = await getUserReposts(user.id);
+        if (repostsError) {
+          console.error('Error fetching reposts:', repostsError);
+        } else {
+          setReposts(repostsData || []);
+        }
+      } catch (err) {
+        console.error('Error fetching reposts:', err);
+      } finally {
+        setRepostsLoading(false);
       }
     }
 
@@ -154,7 +174,7 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('feed')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'feed' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            피드 (24)
+            피드 ({reposts.length})
           </button>
         </div>
 
@@ -294,7 +314,7 @@ export const MyLibrary: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'feed' && <CommunityFeedTab />}
+        {activeTab === 'feed' && <CommunityFeedTab reposts={reposts} loading={repostsLoading} />}
       </div>
     </div>
   );
@@ -346,90 +366,58 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
   );
 }
 
-function CommunityFeedTab() {
-  // Mock data for reposts
-  const reposts = [
-    {
-      id: '1',
-      originalAuthor: 'Professor Lee',
-      belt: 'Black',
-      technique: 'Triangle Choke',
-      content: '기초가 가장 중요합니다. 삼각형을 만들 때 골반의 각도를 조절하는 것이 핵심이에요.',
-      image: 'https://images.unsplash.com/photo-1552072805-2a9039d00e57?auto=format&fit=crop&q=80&w=800',
-      likes: 124,
-      comments: 12,
-      reposts: 24,
-      date: '2시간 전'
-    },
-    {
-      id: '2',
-      originalAuthor: 'Coach Kim',
-      belt: 'Brown',
-      technique: 'De La Riva Guard',
-      content: 'DLR 가드에서 상대방의 균형을 무너뜨리는 3가지 포인트!',
-      likes: 89,
-      comments: 5,
-      reposts: 12,
-      date: '5시간 전'
-    },
-    {
-      id: '3',
-      originalAuthor: 'John Doe',
-      belt: 'Purple',
-      technique: 'Scissor Sweep',
-      content: '오늘 수업 시간에 배운 시저 스윕 복습 영상입니다.',
-      image: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=800',
-      likes: 56,
-      comments: 3,
-      reposts: 8,
-      date: '8시간 전'
-    },
-    {
-      id: '4',
-      originalAuthor: 'Sarah Park',
-      belt: 'Blue',
-      technique: 'Kneebar',
-      content: '니바 타이밍 잡는 법 연습 중...',
-      likes: 142,
-      comments: 18,
-      reposts: 31,
-      date: '어제'
-    },
-    {
-      id: '5',
-      originalAuthor: 'Master Choi',
-      belt: 'Black',
-      technique: 'Back Take',
-      content: '백 포지션에서 끝낼 수 있는 가장 확실한 방법.',
-      image: 'https://images.unsplash.com/photo-1511875852503-d23299763784?auto=format&fit=crop&q=80&w=800',
-      likes: 210,
-      comments: 25,
-      reposts: 45,
-      date: '2일 전'
-    },
-    {
-      id: '6',
-      originalAuthor: 'Mike Ross',
-      belt: 'Blue',
-      technique: 'Armbar',
-      content: '암바 탈출 방지 팁 공유합니다.',
-      likes: 72,
-      comments: 4,
-      reposts: 15,
-      date: '3일 전'
-    }
-  ];
+function CommunityFeedTab({ reposts, loading }: { reposts: any[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p className="text-slate-400">리포스트 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (reposts.length === 0) {
+    return (
+      <div className="bg-slate-900 rounded-xl p-8 border border-slate-800 text-center">
+        <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-800">
+          <Repeat className="w-10 h-10 text-zinc-700" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">리포스트한 게시물이 없습니다</h3>
+        <p className="text-slate-400 mb-6">커뮤니티 피드에서 마음에 드는 게시물을 리포스트해보세요!</p>
+        <Link to="/community">
+          <Button variant="primary">
+            커뮤니티 피드 보기
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
       {reposts.map((post) => (
-        <RepostCard key={post.id} post={post} />
+        <RepostCard key={post.repostId || post.id} post={post} />
       ))}
     </div>
   );
 }
 
 function RepostCard({ post }: { post: any }) {
+  const getBeltColor = (belt?: string) => {
+    if (!belt) return 'border-zinc-800 bg-zinc-900 text-zinc-500';
+    const lowerBelt = belt.toLowerCase();
+    if (lowerBelt.includes('black')) return 'border-zinc-700 bg-zinc-950 text-zinc-400';
+    if (lowerBelt.includes('brown')) return 'border-amber-900/30 bg-amber-950/30 text-amber-500';
+    if (lowerBelt.includes('purple')) return 'border-purple-900/30 bg-purple-950/30 text-purple-400';
+    if (lowerBelt.includes('blue')) return 'border-blue-900/30 bg-blue-950/30 text-blue-400';
+    return 'border-zinc-800 bg-zinc-900 text-zinc-500';
+  };
+
+  // Get images from metadata
+  const images = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
+    ? post.metadata.images
+    : (post.media_url && !post.media_url.includes('youtube') && !post.media_url.includes('youtu.be') ? [post.media_url] : []);
+
   return (
     <div className="break-inside-avoid bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-2xl p-4 transition-all duration-300 hover:border-violet-500/50 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] group cursor-pointer">
       {/* Header */}
@@ -441,34 +429,43 @@ function RepostCard({ post }: { post: any }) {
       {/* Author Info */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
-          {post.originalAuthor[0]}
+          {post.userAvatar ? (
+            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
+          ) : (
+            post.userName?.[0] || 'U'
+          )}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-bold text-zinc-100">{post.originalAuthor}</span>
-            <span className={`px-1.5 py-[2px] rounded-[4px] text-[9px] font-black uppercase border leading-none ${post.belt === 'Black' ? 'border-zinc-700 bg-zinc-950 text-zinc-400' :
-              post.belt === 'Brown' ? 'border-amber-900/30 bg-amber-950/30 text-amber-500' :
-                post.belt === 'Purple' ? 'border-purple-900/30 bg-purple-950/30 text-purple-400' :
-                  post.belt === 'Blue' ? 'border-blue-900/30 bg-blue-950/30 text-blue-400' :
-                    'border-zinc-800 bg-zinc-900 text-zinc-500'
-              }`}>
-              {post.belt}
-            </span>
+            <span className="text-sm font-bold text-zinc-100 truncate">{post.userName || 'Anonymous'}</span>
+            {post.user?.isInstructor ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                Instructor
+              </span>
+            ) : post.userBelt && (
+              <span className={`px-1.5 py-[2px] rounded-[4px] text-[9px] font-black uppercase border leading-none ${getBeltColor(post.userBelt)}`}>
+                {post.userBelt}
+              </span>
+            )}
           </div>
-          <p className="text-[11px] text-violet-400 font-bold">#{post.technique}</p>
+          {post.techniques && post.techniques.length > 0 && (
+            <p className="text-[11px] text-violet-400 font-bold">#{post.techniques[0]}</p>
+          )}
         </div>
-        <span className="ml-auto text-[10px] text-zinc-600 font-medium">{post.date}</span>
+        <span className="ml-auto text-[10px] text-zinc-600 font-medium">
+          {post.repostedAt ? formatDistanceToNow(new Date(post.repostedAt), { addSuffix: true, locale: ko }) : ''}
+        </span>
       </div>
 
       {/* Content */}
       <p className="text-sm text-zinc-300 leading-relaxed mb-4 line-clamp-3">
-        {post.content}
+        {post.notes}
       </p>
 
       {/* Image if exists */}
-      {post.image && (
+      {images.length > 0 && (
         <div className="relative aspect-video rounded-xl overflow-hidden mb-4 border border-zinc-800">
-          <img src={post.image} alt="content" className="w-full h-full object-cover" />
+          <img src={images[0]} alt="content" className="w-full h-full object-cover" />
         </div>
       )}
 
@@ -476,15 +473,15 @@ function RepostCard({ post }: { post: any }) {
       <div className="flex items-center gap-4 pt-3 border-t border-zinc-800/50">
         <div className="flex items-center gap-1.5 text-zinc-500">
           <Heart className="w-4 h-4" />
-          <span className="text-xs">{post.likes}</span>
+          <span className="text-xs">{post.likes || 0}</span>
         </div>
         <div className="flex items-center gap-1.5 text-zinc-500">
           <MessageCircle className="w-4 h-4" />
-          <span className="text-xs">{post.comments}</span>
+          <span className="text-xs">{post.comments || 0}</span>
         </div>
         <div className="flex items-center gap-1.5 text-zinc-500">
           <Share2 className="w-4 h-4" />
-          <span className="text-xs">{post.reposts}</span>
+          <span className="text-xs">공유됨</span>
         </div>
       </div>
     </div>

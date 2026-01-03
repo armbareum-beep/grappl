@@ -16,7 +16,9 @@ import ReactFlow, {
     SelectionMode
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { toPng } from 'html-to-image';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
     getLatestUserSkillTree,
@@ -24,7 +26,8 @@ import {
     createNewSkillTree,
     updateUserSkillTree,
     deleteUserSkillTree,
-    getUserSkillTree
+    getUserSkillTree,
+    transformUserSkillTree
 } from '../../lib/api-skill-tree';
 import { getLessons, getDrills, getUserSkills } from '../../lib/api';
 import { getUserTechniqueMastery } from '../../lib/api-technique-mastery';
@@ -34,7 +37,14 @@ import { AddTechniqueModal } from './AddTechniqueModal';
 import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
-import { Plus, Save, Trash2, FolderOpen, FilePlus, X, Share2, Type, Maximize2, Minimize2, Video, PlayCircle, Edit3, Map as MapIcon, List as ListIcon, Network, Signpost } from 'lucide-react';
+import {
+    MoreVertical, Plus, Trash2, Edit2, Play, Pause, RotateCcw,
+    Maximize2, Minimize2, ZoomIn, ZoomOut, Save, Share2, FolderOpen,
+    Menu, X, ChevronRight, Lock, Globe, Move, Grid, List as ListIcon, FilePlus, Video, AlertCircle, UploadCloud, Type,
+    Map as MapIcon, Network, Signpost, Edit3, PlayCircle
+} from 'lucide-react';
+
+import { SaveModal, LoadModal, ConfirmModal, SaveData } from './SkillTreeModals';
 import ShareModal from '../social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import screenfull from 'screenfull';
@@ -190,6 +200,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [thumbnailPreview, setThumbnailPreview] = useState<string | undefined>(undefined);
 
     // Multi-save states
     const [currentTreeId, setCurrentTreeId] = useState<string | null>(null);
@@ -202,9 +213,18 @@ export const TechniqueSkillTree: React.FC = () => {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [saveTitleInput, setSaveTitleInput] = useState('');
-    const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; onConfirm?: () => void; confirmText?: string; cancelText?: string } | null>(null);
+    const [alertConfig, setAlertConfig] = useState<{
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+        confirmText?: string;
+        cancelText?: string;
+        confirmColor?: string;
+        icon?: React.ReactNode;
+    } | null>(null);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [customShareUrl, setCustomShareUrl] = useState<string | null>(null);
+    const [isPublic, setIsPublic] = useState(false);
 
     // Video Modal State
     const [videoModal, setVideoModal] = useState<{ isOpen: boolean; url: string | null; title: string }>({ isOpen: false, url: null, title: '' });
@@ -349,6 +369,27 @@ export const TechniqueSkillTree: React.FC = () => {
     const [pendingConnection, setPendingConnection] = useState<{ source: string; sourceHandle: string | null; position: { x: number; y: number } } | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+    // Capture Thumbnail
+    const handleCaptureThumbnail = useCallback(async () => {
+        if (!reactFlowWrapper.current) return;
+        try {
+            const dataUrl = await toPng(reactFlowWrapper.current, {
+                cacheBust: true,
+                filter: (node) => !node.classList?.contains('react-flow__controls') && !node.classList?.contains('react-flow__minimap'),
+                backgroundColor: '#09090b', // zinc-950
+                width: reactFlowWrapper.current.offsetWidth,
+                height: reactFlowWrapper.current.offsetHeight,
+                style: {
+                    width: `${reactFlowWrapper.current.offsetWidth}px`,
+                    height: `${reactFlowWrapper.current.offsetHeight}px`,
+                }
+            });
+            setThumbnailPreview(dataUrl);
+        } catch (err) {
+            console.error('Snapshot failed', err);
+        }
+    }, [reactFlowWrapper]);
+
     // Helper to update node data (for TextNode)
     const handleNodeDataChange = useCallback((nodeId: string, newData: any) => {
         setNodes((nds) => nds.map((node) => {
@@ -464,6 +505,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
                             setCurrentTreeId(null); // 게스트 데이터는 아직 저장되지 않음
                             setIsReadOnly(false);
+                            setIsPublic(parsed.isPublic || false);
                             setLoading(false);
                             // 게스트 데이터는 유지 (사용자가 저장할 때까지)
                             // 저장 후에는 localStorage에서 제거됨
@@ -556,6 +598,8 @@ export const TechniqueSkillTree: React.FC = () => {
                         setCurrentTreeTitle(tree.title || '공유된 스킬 트리');
                     }
                 }
+
+                setIsPublic(tree.isPublic || false);
 
                 const flowNodes: Node[] = (tree.nodes || []).map((node: any) => {
                     const type = node.type === 'text' ? 'text' : 'content';
@@ -1993,9 +2037,12 @@ export const TechniqueSkillTree: React.FC = () => {
         [rfInstance, handleAddContent]
     );
 
-    // Save tree
     // Save tree logic
-    const executeSave = async (titleToUse: string): Promise<boolean> => {
+    const executeSave = async (saveData: SaveData | string): Promise<boolean> => {
+        const data: SaveData = typeof saveData === 'string'
+            ? { title: saveData, isPublic: isPublic }
+            : saveData;
+
         setSaving(true);
         try {
             const skillTreeNodes: SkillTreeNode[] = nodes
@@ -2018,35 +2065,128 @@ export const TechniqueSkillTree: React.FC = () => {
                 targetHandle: edge.targetHandle || undefined
             }));
 
-            let result;
-            if (currentTreeId) {
-                // Update existing
-                // If title changed, update it too
-                result = await updateUserSkillTree(currentTreeId, titleToUse, skillTreeNodes, skillTreeEdges);
-            } else {
-                // Create new
-                result = await createNewSkillTree(user!.id, titleToUse, skillTreeNodes, skillTreeEdges);
-                if (result.data) {
-                    setCurrentTreeId(result.data.id);
+            // Thumbnail Upload
+            let uploadedThumbnailUrl = data.thumbnailUrl;
+            if (data.isPublic && thumbnailPreview && !uploadedThumbnailUrl && supabase) {
+                try {
+                    const blob = await (await fetch(thumbnailPreview)).blob();
+                    const fileName = `${user?.id}_${Date.now()}.png`;
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('skill-tree-thumbnails')
+                        .upload(fileName, blob);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('skill-tree-thumbnails')
+                        .getPublicUrl(fileName);
+
+                    uploadedThumbnailUrl = publicUrlData.publicUrl;
+                } catch (thumbErr) {
+                    console.error('Thumbnail upload failed:', thumbErr);
                 }
             }
 
-            if (result.error) throw result.error;
+            let result;
+            if (currentTreeId) {
+                // For existing trees, update everything in one call
+                const updatePayload: any = {
+                    title: data.title,
+                    tree_data: { nodes: skillTreeNodes, edges: skillTreeEdges },
+                    is_public: data.isPublic,
+                    updated_at: new Date().toISOString()
+                };
 
-            setCurrentTreeTitle(titleToUse);
-            setIsSaveModalOpen(false);
+                if (data.isPublic) {
+                    updatePayload.description = data.description;
+                    updatePayload.tags = data.tags;
+                    updatePayload.difficulty = data.difficulty;
+                    updatePayload.thumbnail_url = uploadedThumbnailUrl;
+                }
 
-            // 저장 성공 시 게스트 데이터 제거 (서버에 저장되었으므로)
+                const { data: updatedData, error } = await supabase
+                    .from('user_skill_trees')
+                    .update(updatePayload)
+                    .eq('id', currentTreeId)
+                    .select()
+                    .single();
+
+                result = { data: updatedData ? transformUserSkillTree(updatedData) : null, error };
+            } else {
+                // For new trees, create with all metadata at once
+                const insertPayload: any = {
+                    user_id: user!.id,
+                    title: data.title,
+                    tree_data: { nodes: skillTreeNodes, edges: skillTreeEdges },
+                    is_public: data.isPublic
+                };
+
+                if (data.isPublic) {
+                    insertPayload.description = data.description;
+                    insertPayload.tags = data.tags;
+                    insertPayload.difficulty = data.difficulty;
+                    insertPayload.thumbnail_url = uploadedThumbnailUrl;
+                }
+
+                const { data: newData, error } = await supabase
+                    .from('user_skill_trees')
+                    .insert(insertPayload)
+                    .select()
+                    .single();
+
+                result = { data: newData ? transformUserSkillTree(newData) : null, error };
+                if (result.data) {
+                    setCurrentTreeId(result.data.id);
+                    console.log('New chain created:', {
+                        id: result.data.id,
+                        title: result.data.title,
+                        isPublic: result.data.isPublic,
+                        tags: result.data.tags
+                    });
+                }
+            }
+
+            if (result.error) {
+                console.error('Save error:', result.error);
+                throw result.error;
+            }
+
+            console.log('Save successful! Final data:', {
+                id: result.data?.id,
+                title: data.title,
+                isPublic: data.isPublic,
+                tags: data.tags,
+                difficulty: data.difficulty
+            });
+            console.log('=== SAVE DEBUG END ===');
+
+            setCurrentTreeTitle(data.title);
+            setIsPublic(data.isPublic);
+
+            if (!data.isPublic && typeof saveData === 'string') {
+                setIsSaveModalOpen(false);
+            } else if (!data.isPublic) {
+                setIsSaveModalOpen(false);
+            }
+            // If Wizard (public upload), SaveModal handles the success screen, so don't close here if it's public upload flow
+
             localStorage.removeItem('guest_skill_tree');
-
-            // Optional: Success toast could go here
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving skill tree:', error);
+
+            let message = '저장 중 오류가 발생했습니다. 다시 시도해주세요.';
+
+            if (error.code === '42703' || error.message?.includes('column "is_public" does not exist')) {
+                message = '데이터베이스 스키마 업데이트가 필요합니다.\n`migrate_skill_tree_v2.sql`을 실행해주세요.';
+            }
+
             setAlertConfig({
                 title: '저장 실패',
-                message: '저장 중 오류가 발생했습니다. 다시 시도해주세요.',
-                confirmText: '확인'
+                message: message,
+                confirmText: '확인',
+                confirmColor: 'bg-red-600 shadow-red-900/40',
+                icon: <AlertCircle className="w-8 h-8 text-red-500" />
             });
             return false;
         } finally {
@@ -2068,30 +2208,16 @@ export const TechniqueSkillTree: React.FC = () => {
     const handleSave = async () => {
         if (!user) {
             // 게스트도 로컬 스토리지에 명시적 저장 허용
-            const guestData = {
+            // If we have a title, save with it.
+            localStorage.setItem('guest_skill_tree', JSON.stringify({
                 title: currentTreeTitle,
                 nodes: nodes.map(node => ({
-                    id: node.id,
-                    type: node.type,
-                    position: node.position,
-                    data: {
-                        label: node.data.label,
-                        style: node.data.style,
-                        contentType: node.data.contentType,
-                        contentId: node.data.contentId
-                    },
-                    contentType: node.data.contentType,
-                    contentId: node.data.contentId
+                    id: node.id, type: node.type, position: node.position, data: node.data, contentType: node.data.contentType, contentId: node.data.contentId
                 })),
-                edges: edges.map(e => ({
-                    id: e.id,
-                    source: e.source,
-                    target: e.target,
-                    type: e.type,
-                    animated: e.animated
+                edges: edges.map(edge => ({
+                    id: edge.id, source: edge.source, target: edge.target, type: edge.type, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle
                 }))
-            };
-            localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
+            }));
 
             setAlertConfig({
                 title: '임시 저장 완료',
@@ -2104,16 +2230,9 @@ export const TechniqueSkillTree: React.FC = () => {
         }
 
 
-        // Check title
-        if (!currentTreeTitle || currentTreeTitle.trim() === '새 스킬 트리' || currentTreeTitle.trim() === '나의 첫 스킬 트리') {
-            setSaveTitleInput(currentTreeTitle);
-            setIsSaveModalOpen(true);
-        } else {
-            // Check if we are creating NEW but have a title (e.g. typed in input box)
-            // or updating existing.
-            // Just proceed with current title
-            executeSave(currentTreeTitle);
-        }
+        // Always open SaveModal to allow publishing/metadata management
+        setSaveTitleInput(currentTreeTitle);
+        setIsSaveModalOpen(true);
     };
 
     const handleDeleteTree = async (treeId: string, e: React.MouseEvent) => {
@@ -2249,6 +2368,15 @@ export const TechniqueSkillTree: React.FC = () => {
                             <div className="flex flex-col gap-2 bg-zinc-950/40 backdrop-blur-xl border border-zinc-800/50 p-2 rounded-2xl shadow-2xl">
                                 {/* Title Input */}
                                 <div className="pb-2 border-b border-zinc-800/50">
+                                    <div className="flex items-center justify-between mb-1.5 px-0.5">
+                                        <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Roadmap Status</span>
+                                        {isPublic && (
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                                <span className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">Public</span>
+                                            </div>
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
                                         value={currentTreeTitle}
@@ -2364,13 +2492,13 @@ export const TechniqueSkillTree: React.FC = () => {
                                     onClick={handleSave}
                                     disabled={saving}
                                     className={`flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 rounded-lg text-white transition-all ${saving
-                                        ? 'bg-yellow-600 cursor-wait'
-                                        : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-500/20'
+                                        ? 'bg-zinc-800 text-zinc-500 cursor-wait'
+                                        : 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20 active:scale-95'
                                         }`}
-                                    title={saving ? '저장 중...' : '저장'}
+                                    title={saving ? '저장 중...' : '계보 저장'}
                                 >
                                     <Save className={`w-4 h-4 flex-shrink-0 ${saving ? 'animate-spin' : ''}`} />
-                                    <span className="hidden xl:inline text-xs font-medium">저장</span>
+                                    <span className="hidden xl:inline text-[10px] font-black uppercase tracking-tighter">Save Roadmap</span>
                                 </button>
 
                                 <div className="h-px bg-zinc-800/50 my-1" />
@@ -2403,7 +2531,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             {/* FAB Main Button */}
                             <button
                                 onClick={() => setIsFabOpen(!isFabOpen)}
-                                className={`fixed bottom-24 right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
+                                className={`fixed ${viewMode === 'list' ? 'bottom-36' : 'bottom-24'} right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
                                     } ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Plus className="w-6 h-6 text-white" />
@@ -2411,7 +2539,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
                             {/* FAB Grid Menu */}
                             {isFabOpen && (
-                                <div className="fixed bottom-40 right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in">
+                                <div className={`fixed ${viewMode === 'list' ? 'bottom-52' : 'bottom-40'} right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in`}>
                                     <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl">
                                         <div className="grid grid-cols-2 gap-2">
                                             {/* Row 1 */}
@@ -2871,9 +2999,10 @@ export const TechniqueSkillTree: React.FC = () => {
                                 <X className="w-4 h-4" />
                             </button>
 
-                            <p className="text-zinc-50 text-xs font-medium mb-3 leading-tight">
-                                500+ 그래플링 기술 탐험 중...<br />
-                                <span className="text-violet-400 font-bold">로그인하고 나만의 로드맵을 저장하세요</span>
+                            <h3 className="text-2xl font-black text-white mb-2">공유 완료!</h3>
+                            <p className="text-zinc-400 text-sm mb-6">
+                                체인 라이브러리에 당신의 체인이 등록되었습니다.<br />
+                                커뮤니티가 당신의 시그니처 무브를 배울 수 있습니다!
                             </p>
                             <button
                                 onClick={() => (window.location.href = '/login')}
@@ -2886,191 +3015,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 )
             }
 
-            {/* --- CUSTOM MODALS --- */}
-
-            {/* New Tree Confirmation Modal */}
-            {
-                isNewTreeModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
-                            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FilePlus className="w-6 h-6 text-blue-500" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2">새 로드맵 만들기</h3>
-                            <p className="text-slate-400 mb-6 text-sm">
-                                현재 작업 중인 내용이 저장되지 않았을 수 있습니다.<br />
-                                정말 새로 만드시겠습니까?
-                            </p>
-                            <div className="flex gap-3 justify-center">
-                                <button
-                                    onClick={() => setIsNewTreeModalOpen(false)}
-                                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={confirmNewTree}
-                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
-                                >
-                                    새로 만들기
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Save Title Modal */}
-            {
-                isSaveModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6">
-                            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                                <Save className="w-5 h-5 text-green-500" />
-                                로드맵 저장
-                            </h3>
-                            <div className="mb-6">
-                                <label className="text-xs text-slate-500 font-bold mb-2 block uppercase">로드맵 이름</label>
-                                <input
-                                    type="text"
-                                    value={saveTitleInput}
-                                    onChange={(e) => setSaveTitleInput(e.target.value)}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none font-bold"
-                                    placeholder="나만의 로드맵 이름을 입력하세요"
-                                    autoFocus
-                                />
-                            </div>
-                            <div className="flex gap-3 justify-end">
-                                <button
-                                    onClick={() => setIsSaveModalOpen(false)}
-                                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={() => executeSave(saveTitleInput || '나의 로드맵')}
-                                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors font-bold text-sm shadow-lg shadow-green-500/20"
-                                >
-                                    저장하기
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Share Modal */}
-            <ShareModal
-                isOpen={isShareModalOpen}
-                onClose={() => setIsShareModalOpen(false)}
-                title={currentTreeTitle || '나의 스킬 트리'}
-                text={`${user?.user_metadata?.full_name || '게스트'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
-                url={customShareUrl || (currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined)}
-            />
-
-            {/* Generic Alert/Confirm Modal */}
-            {
-                alertConfig && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
-                        <div className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 shadow-2xl overflow-hidden p-6 text-center">
-                            <h3 className="text-lg font-bold text-white mb-2">{alertConfig.title}</h3>
-                            <p className="text-slate-400 mb-6 text-sm whitespace-pre-line">
-                                {alertConfig.message}
-                            </p>
-                            <div className="flex gap-3 justify-center">
-                                {alertConfig.cancelText && (
-                                    <button
-                                        onClick={() => setAlertConfig(null)}
-                                        className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-colors font-bold text-sm"
-                                    >
-                                        {alertConfig.cancelText}
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => {
-                                        if (alertConfig.onConfirm) alertConfig.onConfirm();
-                                        setAlertConfig(null);
-                                    }}
-                                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-bold text-sm shadow-lg shadow-blue-500/20"
-                                >
-                                    {alertConfig.confirmText || '확인'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            <AddTechniqueModal
-                isOpen={isAddModalOpen}
-                onClose={() => {
-                    setIsAddModalOpen(false);
-                    setPendingConnection(null); // Clear pending if cancelled
-                }}
-                lessons={allLessons}
-                drills={allDrills}
-                addedItems={nodes.map(n => ({
-                    id: n.data.contentId || '',
-                    type: n.data.contentType || 'technique'
-                }))}
-                onAddContent={(items) => {
-                    const targetGroupId = (window as any)._targetGroupId;
-                    handleAddContent(items, undefined, targetGroupId);
-                    (window as any)._targetGroupId = null; // Reset
-                }}
-            />
-
-            {/* Load Tree Modal */}
-            {
-                isLoadModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
-                            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <FolderOpen className="w-5 h-5 text-blue-500" />
-                                    로드맵 불러오기
-                                </h3>
-                                <button onClick={() => setIsLoadModalOpen(false)} className="text-slate-400 hover:text-white">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <div className="max-h-[60vh] overflow-y-auto p-2">
-                                {treeList.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-500">
-                                        저장된 로드맵이 없습니다.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {treeList.map(tree => (
-                                            <div
-                                                key={tree.id}
-                                                className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700"
-                                                onClick={() => handleLoadTree(tree.id)}
-                                            >
-                                                <div>
-                                                    <div className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">
-                                                        {tree.title || '제목 없음'}
-                                                    </div>
-                                                    <div className="text-xs text-slate-500">
-                                                        {new Date(tree.updatedAt || tree.createdAt || Date.now()).toLocaleDateString()}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => handleDeleteTree(tree.id, e)}
-                                                    className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
-                                                    title="삭제"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Modal components are defined below at the end of the return */}
 
             {/* CONTEXT MENU */}
             <AnimatePresence>
@@ -3370,6 +3315,78 @@ export const TechniqueSkillTree: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* --- MODALS --- */}
+            <SaveModal
+                isOpen={isSaveModalOpen}
+                onClose={() => { setIsSaveModalOpen(false); setThumbnailPreview(undefined); }}
+                title="스킬 트리 저장"
+                initialTitle={saveTitleInput}
+                initialIsPublic={isPublic}
+                onSave={async (data) => { await executeSave(data); }}
+                isSaving={saving}
+                thumbnailPreview={thumbnailPreview}
+                onCaptureThumbnail={handleCaptureThumbnail}
+            />
+
+            <LoadModal
+                isOpen={isLoadModalOpen}
+                onClose={() => setIsLoadModalOpen(false)}
+                trees={treeList}
+                onLoad={handleLoadTree}
+                onDelete={handleDeleteTree}
+            />
+
+            {/* Generic Alert/Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!alertConfig}
+                onClose={() => setAlertConfig(null)}
+                title={alertConfig?.title || ''}
+                message={alertConfig?.message || ''}
+                onConfirm={alertConfig?.onConfirm || (() => setAlertConfig(null))}
+                confirmText={alertConfig?.confirmText}
+                confirmColor={alertConfig?.confirmColor}
+                icon={alertConfig?.icon}
+            />
+
+            {/* New Tree Confirmation */}
+            <ConfirmModal
+                isOpen={isNewTreeModalOpen}
+                onClose={() => setIsNewTreeModalOpen(false)}
+                title="새 로드맵 시작"
+                message={'현재 작업 중인 내용은 저장하지 않으면 사라집니다.\n정말 새로 시작하시겠습니까?'}
+                onConfirm={confirmNewTree}
+                confirmText="새로 만들기"
+                confirmColor="bg-violet-600"
+                icon={<FilePlus className="w-8 h-8 text-violet-500" />}
+            />
+
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                title={currentTreeTitle || '나의 스킬 트리'}
+                text={`${user?.user_metadata?.full_name || '게스트'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
+                url={customShareUrl || (currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined)}
+            />
+
+            <AddTechniqueModal
+                isOpen={isAddModalOpen}
+                onClose={() => {
+                    setIsAddModalOpen(false);
+                    setPendingConnection(null);
+                }}
+                lessons={allLessons}
+                drills={allDrills}
+                addedItems={nodes.map(n => ({
+                    id: n.data.contentId || '',
+                    type: n.data.contentType || 'technique'
+                }))}
+                onAddContent={(items) => {
+                    const targetGroupId = (window as any)._targetGroupId;
+                    handleAddContent(items, undefined, targetGroupId);
+                    (window as any)._targetGroupId = null;
+                }}
+            />
+
             {/* Video Preview Modal */}
             {
                 videoModal.isOpen && (
@@ -3435,9 +3452,9 @@ export const TechniqueSkillTree: React.FC = () => {
                     </div>
                 )
             }
-            {/* FAB for List Mode */}
+            {/* FAB for List Mode Only */}
             {viewMode === 'list' && (
-                <div className="fixed bottom-8 right-8 z-[120] flex flex-col items-end gap-3">
+                <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 bottom-24`}>
                     <AnimatePresence>
                         {isFabOpen && (
                             <div className="flex flex-col items-end gap-3 mb-2">
@@ -3484,6 +3501,6 @@ export const TechniqueSkillTree: React.FC = () => {
                     </button>
                 </div>
             )}
-        </div >
+        </div>
     );
 };

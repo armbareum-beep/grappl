@@ -78,6 +78,24 @@ const RootRedirect: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // OAuth 로그인 후 리다이렉트 처리
+  React.useEffect(() => {
+    if (user && !loading) {
+      try {
+        const savedPath = localStorage.getItem('oauth_redirect_path');
+        if (savedPath && savedPath !== '/login' && savedPath !== '/') {
+          localStorage.removeItem('oauth_redirect_path');
+          // 약간의 지연을 두어 인증 상태가 완전히 설정된 후 리다이렉트
+          setTimeout(() => {
+            window.location.href = savedPath;
+          }, 100);
+        }
+      } catch (e) {
+        console.warn('Failed to restore redirect path:', e);
+      }
+    }
+  }, [user, loading]);
+
   if (loading && !forceLoad) {
     return <LoadingScreen message="로그인 정보 확인 중..." />;
   }
@@ -95,49 +113,81 @@ import { useLocation } from 'react-router-dom';
 
 // Scroll Restoration Component
 const ScrollToTop: React.FC = () => {
-  const { pathname } = useLocation();
-  const [scrollPositions, setScrollPositions] = React.useState<Record<string, number>>({});
-  const prevPathnameRef = React.useRef<string>(pathname);
+  const { pathname, search } = useLocation();
+  const prevPathnameRef = React.useRef<string>(pathname + search);
+  const isNavigatingRef = React.useRef(false);
 
   React.useEffect(() => {
-    const handlePopState = () => {
-      // 뒤로가기/앞으로가기 감지
-      const savedPosition = scrollPositions[pathname];
-      if (savedPosition !== undefined) {
-        setTimeout(() => {
-          window.scrollTo(0, savedPosition);
-        }, 0);
+    const currentPath = pathname + search;
+    const SCROLL_KEY = 'grapplay_scroll_positions';
+
+    // sessionStorage에서 스크롤 위치 불러오기
+    const loadScrollPositions = (): Record<string, number> => {
+      try {
+        const saved = sessionStorage.getItem(SCROLL_KEY);
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [pathname, scrollPositions]);
-
-  React.useEffect(() => {
-    // 현재 스크롤 위치 저장
-    const saveScrollPosition = () => {
-      setScrollPositions(prev => ({
-        ...prev,
-        [prevPathnameRef.current]: window.scrollY
-      }));
+    // sessionStorage에 스크롤 위치 저장
+    const saveScrollPositions = (positions: Record<string, number>) => {
+      try {
+        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(positions));
+      } catch (e) {
+        console.warn('Failed to save scroll position:', e);
+      }
     };
 
-    // 경로가 변경될 때
-    if (prevPathnameRef.current !== pathname) {
-      saveScrollPosition();
-
-      // 뒤로가기가 아닌 일반 네비게이션인 경우 맨 위로 스크롤
-      const isBackNavigation = window.history.state?.idx !== undefined &&
-        window.history.state.idx < (window.history.length - 1);
-
-      if (!isBackNavigation) {
-        window.scrollTo(0, 0);
-      }
-
-      prevPathnameRef.current = pathname;
+    // 이전 페이지의 스크롤 위치 저장
+    if (prevPathnameRef.current !== currentPath && !isNavigatingRef.current) {
+      const positions = loadScrollPositions();
+      positions[prevPathnameRef.current] = window.scrollY;
+      saveScrollPositions(positions);
     }
-  }, [pathname]);
+
+    // 현재 페이지로 이동 시 스크롤 위치 복원 또는 맨 위로 이동
+    if (prevPathnameRef.current !== currentPath) {
+      isNavigatingRef.current = true;
+
+      // 약간의 지연을 두어 DOM이 렌더링된 후 스크롤
+      requestAnimationFrame(() => {
+        const positions = loadScrollPositions();
+        const savedPosition = positions[currentPath];
+
+        if (savedPosition !== undefined) {
+          // 저장된 위치로 복원 (뒤로가기)
+          window.scrollTo(0, savedPosition);
+        } else {
+          // 새로운 페이지는 맨 위로
+          window.scrollTo(0, 0);
+        }
+
+        isNavigatingRef.current = false;
+      });
+
+      prevPathnameRef.current = currentPath;
+    }
+  }, [pathname, search]);
+
+  // 페이지 언로드 시 현재 스크롤 위치 저장
+  React.useEffect(() => {
+    const handleBeforeUnload = () => {
+      const SCROLL_KEY = 'grapplay_scroll_positions';
+      try {
+        const saved = sessionStorage.getItem(SCROLL_KEY);
+        const positions = saved ? JSON.parse(saved) : {};
+        positions[pathname + search] = window.scrollY;
+        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(positions));
+      } catch (e) {
+        console.warn('Failed to save scroll position on unload:', e);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pathname, search]);
 
   return null;
 };

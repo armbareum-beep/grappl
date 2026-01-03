@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play } from 'lucide-react';
+import { Play, Clapperboard } from 'lucide-react';
 import { Drill } from '../types';
 import { getDrills } from '../lib/api';
 import { cn } from '../lib/utils';
@@ -106,7 +106,7 @@ export const DrillReelsSection: React.FC = () => {
                 {/* Header */}
                 <div className="mb-12 flex flex-col items-center">
                     <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                        <span className="mr-2 h-1.5 w-1.5 rounded-full bg-violet-500 inline-block animate-pulse" />
+                        <Clapperboard className="w-3.5 h-3.5 text-violet-500 mr-2" />
                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
                             SHORT FORM DRILLS
                         </span>

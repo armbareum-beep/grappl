@@ -82,7 +82,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ type, title, su
 
         <div className="absolute bottom-6 left-6 right-6">
             <h3 className="text-2xl font-black text-white mb-2 leading-tight">{title}</h3>
-            <p className="text-zinc-400 text-sm mb-6 line-clamp-2">{subtitle}</p>
+            <p className="text-zinc-400 text-sm mb-6 line-clamp-2 leading-relaxed">{subtitle}</p>
             <button className="w-full py-4 bg-white text-black font-bold rounded-xl flex items-center justify-center space-x-2 hover:bg-violet-50 transition-colors">
                 <Play className="w-4 h-4 fill-current" />
                 <span>Start Training</span>
@@ -253,13 +253,13 @@ export const AICoach: React.FC = () => {
                                     <Brain className="w-3 h-3" />
                                     <span>AI 인텔리전스 V2.0</span>
                                 </div>
-                                <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight mb-4">
+                                <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
                                     당신의 파이팅 스타일: <br />
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
                                         전술적 압박가 (The Tactical Smasher)
                                     </span>
                                 </h1>
-                                <p className="text-zinc-400 text-lg max-w-xl leading-relaxed">
+                                <p className="text-zinc-400 text-lg max-w-xl leading-[1.7]">
                                     당신은 압박 패스와 탑 컨트롤에 뛰어나지만, 데이터 분석 결과 <span className="text-white font-bold">하프 가드 하위 포지션</span>에서 승률이 급격히 떨어지는 경향이 있습니다.
                                 </p>
 
@@ -275,17 +275,18 @@ export const AICoach: React.FC = () => {
                                             <button
                                                 onClick={handleStartAnalysis}
                                                 disabled={isAnalyzing}
-                                                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                                                className="group relative inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-2xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)] hover:scale-105 disabled:opacity-50"
                                             >
                                                 {isAnalyzing ? (
                                                     <>
-                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                        <span>재분석 중...</span>
+                                                        <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                        <span>AI 재분석 진행 중...</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Sparkles className="w-4 h-4" />
-                                                        <span>AI 재분석 시작</span>
+                                                        <Sparkles className="w-5 h-5 animate-pulse" />
+                                                        <span>새로운 AI 분석 시작하기</span>
+                                                        <div className="ml-2 px-2 py-0.5 bg-white/20 rounded text-[10px] uppercase tracking-tighter">Ready</div>
                                                     </>
                                                 )}
                                             </button>
@@ -345,8 +346,8 @@ export const AICoach: React.FC = () => {
                                         <ShieldAlert className="w-8 h-8 text-orange-500" />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-bold text-white mb-1">근육 기억 감퇴 경고 (Muscle Memory Decay)</h2>
-                                        <p className="text-zinc-400">
+                                        <h2 className="text-2xl font-bold text-white mb-2">근육 기억 감퇴 경고 (Muscle Memory Decay)</h2>
+                                        <p className="text-zinc-400 leading-relaxed">
                                             <span className="text-white font-bold">72시간</span> 동안 수련 기록이 감지되지 않았습니다.
                                             내일 당신의 반응 속도가 <span className="text-orange-400 font-bold">15% 저하</span>될 것으로 예상됩니다.
                                         </p>
@@ -410,7 +411,7 @@ export const AICoach: React.FC = () => {
                     >
                         <div className="mb-8">
                             <h2 className="text-3xl font-black text-white mb-2">AI 맞춤 처방</h2>
-                            <p className="text-zinc-400">약점을 보완하고 마스터리를 가속화할 맞춤형 콘텐츠입니다.</p>
+                            <p className="text-zinc-400 leading-relaxed">약점을 보완하고 마스터리를 가속화할 맞춤형 콘텐츠입니다.</p>
                         </div>
 
                         <div className="flex overflow-x-auto pb-8 gap-6 snap-x snap-mandatory scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0">

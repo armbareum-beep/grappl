@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
-import { X, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Link2, Facebook, Twitter, Instagram, Repeat } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { ShareToFeedModal } from './ShareToFeedModal';
+import { useAuth } from '../../contexts/AuthContext';
+import { createTrainingLog } from '../../lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Custom icons for specific platforms if Lucide doesn't have them
 const KakaoIcon = () => (
@@ -25,10 +30,49 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url, imageUrl }) => {
-    if (!isOpen) return null;
-
+    const { user } = useAuth();
     const shareUrl = url || window.location.href;
     const [copied, setCopied] = useState(false);
+    const [showFeedModal, setShowFeedModal] = useState(false);
+
+    if (showFeedModal) {
+        return (
+            <ShareToFeedModal
+                isOpen={showFeedModal}
+                onClose={() => setShowFeedModal(false)}
+                onShare={async (comment) => {
+                    if (!user) return;
+                    await createTrainingLog({
+                        userId: user.id,
+                        date: new Date().toISOString().split('T')[0],
+                        durationMinutes: 0,
+                        techniques: [],
+                        sparringRounds: 0,
+                        notes: comment,
+                        isPublic: true,
+                        location: '__FEED__',
+                        metadata: {
+                            type: 'share_link',
+                            sharedTitle: title,
+                            sharedUrl: shareUrl,
+                            sharedImage: imageUrl,
+                            images: imageUrl ? [imageUrl] : []
+                        }
+                    });
+                    setShowFeedModal(false);
+                    onClose();
+                }}
+                activityType="general"
+                defaultContent={`${title}\n${shareUrl}`}
+                metadata={{
+                    userName: user?.user_metadata?.name || 'User',
+                    userAvatar: user?.user_metadata?.avatar_url,
+                    images: imageUrl ? [imageUrl] : [],
+                    notes: text
+                }}
+            />
+        );
+    }
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareUrl);
@@ -42,30 +86,30 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
         const encodedText = encodeURIComponent(text);
 
         switch (platform) {
+            case 'feed':
+                if (!user) {
+                    alert('로그인이 필요합니다.');
+                    return;
+                }
+                setShowFeedModal(true);
+                return;
             case 'kakao':
                 handleCopy();
                 alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
                 return;
-
             case 'facebook':
                 openUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
                 break;
-
-            case 'twitter': // X
+            case 'twitter':
                 openUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
                 break;
-
             case 'threads':
                 openUrl = `https://www.threads.net/intent/post?text=${encodedText}%20${encodedUrl}`;
                 break;
-
             case 'instagram':
                 handleCopy();
                 alert('링크가 복사되었습니다. 인스타그램에 붙여넣기 해주세요!');
                 return;
-
-            default:
-                break;
         }
 
         if (openUrl) {
@@ -73,93 +117,117 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-300">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
-                onClick={onClose}
-            />
-
-            {/* Modal */}
-            <div className="relative w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl p-6 overflow-hidden ring-1 ring-white/10">
-                {/* Ambient Glow */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/20 rounded-full blur-[50px] pointer-events-none"></div>
-
-                <div className="relative pb-6 border-b border-zinc-800 mb-6 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-white tracking-tight">공유하기</h3>
-                    <button
+    const modalContent = (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="p-2 -mr-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                    />
+
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden ring-1 ring-white/5"
                     >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                        {/* Ambient Glow */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 blur-[60px] rounded-full -mr-16 -mt-16 pointer-events-none" />
 
-                {/* Preview */}
-                <div className="bg-zinc-900/50 rounded-2xl overflow-hidden mb-6 border border-zinc-800/50 flex gap-4 p-2 relative group">
-                    {imageUrl && (
-                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-800">
-                            <img src={imageUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <div className="p-8 relative z-10">
+                            <div className="flex items-center justify-between mb-8">
+                                <div>
+                                    <h3 className="text-2xl font-black text-white leading-tight tracking-tight">공유하기</h3>
+                                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Share with followers</p>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all active:scale-95"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Preview Card */}
+                            <div className="bg-zinc-950/50 rounded-3xl overflow-hidden mb-8 border border-zinc-800/50 flex items-center gap-4 p-4 group transition-all hover:bg-zinc-950/80">
+                                {imageUrl && (
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
+                                        <img src={imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white font-black text-sm truncate mb-1">{title}</p>
+                                    <div className="flex items-center gap-1.5 text-zinc-500">
+                                        <Link2 className="w-3 h-3 shrink-0" />
+                                        <p className="text-[10px] font-bold truncate tracking-tight">{shareUrl}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Share Grid */}
+                            <div className="grid grid-cols-4 gap-y-8 gap-x-4">
+                                <ShareButton
+                                    icon={<Link2 className="w-5 h-5" />}
+                                    label={copied ? "복사됨!" : "링크 복사"}
+                                    onClick={handleCopy}
+                                    color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/50"
+                                    active={copied}
+                                />
+
+                                <ShareButton
+                                    icon={<Repeat className="w-5 h-5" />}
+                                    label="피드 공유"
+                                    onClick={() => handleShare('feed')}
+                                    color="bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-900/40"
+                                />
+
+                                <ShareButton
+                                    icon={<KakaoIcon />}
+                                    label="카카오톡"
+                                    onClick={() => handleShare('kakao')}
+                                    color="bg-[#FEE500] hover:bg-[#FDD835] text-[#3c1e1e]"
+                                />
+
+                                <ShareButton
+                                    icon={<Instagram className="w-5 h-5" />}
+                                    label="Instagram"
+                                    onClick={() => handleShare('instagram')}
+                                    color="bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] text-white shadow-xl shadow-rose-900/20"
+                                />
+
+                                <ShareButton
+                                    icon={<Facebook className="w-5 h-5" />}
+                                    label="Facebook"
+                                    onClick={() => handleShare('facebook')}
+                                    color="bg-[#1877F2] hover:bg-[#166FE5] text-white shadow-xl shadow-blue-900/20"
+                                />
+
+                                <ShareButton
+                                    icon={<Twitter className="w-4 h-4" />}
+                                    label="X"
+                                    onClick={() => handleShare('twitter')}
+                                    color="bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white"
+                                />
+
+                                <ShareButton
+                                    icon={<ThreadsIcon />}
+                                    label="Threads"
+                                    onClick={() => handleShare('threads')}
+                                    color="bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white"
+                                />
+                            </div>
                         </div>
-                    )}
-                    <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
-                        <p className="text-zinc-200 font-bold text-sm line-clamp-1 mb-1">{title}</p>
-                        <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
-                            <Link2 className="w-3 h-3" />
-                            <p className="truncate">{shareUrl}</p>
-                        </div>
-                    </div>
+                    </motion.div>
                 </div>
-
-                {/* Grid */}
-                <div className="grid grid-cols-4 gap-4 mb-2">
-                    <ShareButton
-                        icon={<Link2 className="w-5 h-5" />}
-                        label={copied ? "복사됨!" : "링크 복사"}
-                        onClick={handleCopy}
-                        color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
-                        active={copied}
-                    />
-
-                    <ShareButton
-                        icon={<KakaoIcon />}
-                        label="카카오톡"
-                        onClick={() => handleShare('kakao')}
-                        color="bg-[#FEE500] hover:bg-[#FDD835] text-[#3c1e1e]"
-                    />
-
-                    <ShareButton
-                        icon={<Instagram className="w-5 h-5" />}
-                        label="Instagram"
-                        onClick={() => handleShare('instagram')}
-                        color="bg-gradient-to-tr from-[#FFD600] via-[#FF0169] to-[#D300C5] text-white"
-                    />
-
-                    <ShareButton
-                        icon={<Facebook className="w-5 h-5" />}
-                        label="Facebook"
-                        onClick={() => handleShare('facebook')}
-                        color="bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                    />
-
-                    <ShareButton
-                        icon={<Twitter className="w-4 h-4" />}
-                        label="X"
-                        onClick={() => handleShare('twitter')}
-                        color="bg-black border border-zinc-700 hover:bg-zinc-900 text-white"
-                    />
-
-                    <ShareButton
-                        icon={<ThreadsIcon />}
-                        label="Threads"
-                        onClick={() => handleShare('threads')}
-                        color="bg-black border border-zinc-700 hover:bg-zinc-900 text-white"
-                    />
-                </div>
-            </div>
-        </div>
+            )}
+        </AnimatePresence>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 const ShareButton: React.FC<{
@@ -174,14 +242,14 @@ const ShareButton: React.FC<{
         className="flex flex-col items-center gap-3 group"
     >
         <div className={cn(
-            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform group-active:scale-95 shadow-lg",
+            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 transform shadow-lg",
             color,
-            active ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950 scale-95' : 'hover:scale-105'
+            active ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-900 scale-95' : 'hover:scale-110 active:scale-90'
         )}>
             {icon}
         </div>
         <span className={cn(
-            "text-[11px] font-medium transition-colors text-center",
+            "text-[10px] font-black tracking-tighter transition-colors text-center uppercase whitespace-nowrap",
             active ? "text-violet-400" : "text-zinc-500 group-hover:text-zinc-300"
         )}>
             {label}

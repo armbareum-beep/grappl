@@ -678,6 +678,7 @@ export async function recordRoutineView(userId: string, routineId: string) {
     }
 }
 
+
 // Sparring Interactions
 export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
     // Check if already followed
@@ -1075,13 +1076,14 @@ export async function getCourseProgress(userId: string, courseId: string): Promi
     return { completed, total, percentage };
 }
 
-export async function updateLastWatched(userId: string, lessonId: string) {
+export async function updateLastWatched(userId: string, lessonId: string, watchedSeconds?: number) {
     const { error } = await supabase
         .from('lesson_progress')
         .upsert({
             user_id: userId,
             lesson_id: lessonId,
             last_watched_at: new Date().toISOString(),
+            watched_seconds: watchedSeconds
         }, {
             onConflict: 'user_id,lesson_id'
         });
@@ -1135,10 +1137,12 @@ export async function getRecentActivity(userId: string) {
 
     const lessons = (lessonRes.data || []).map((item: any) => ({
         id: item.lesson?.id,
+        courseId: item.lesson?.course?.id,
         type: 'lesson',
         title: item.lesson?.title,
         courseTitle: item.lesson?.course?.title,
         progress: item.completed ? 100 : 50,
+        watchedSeconds: item.watched_seconds || 0,
         thumbnail: item.lesson?.course?.thumbnail_url,
         lastWatched: new Date(item.last_watched_at).toISOString(),
         lessonNumber: item.lesson?.lesson_number
@@ -1167,7 +1171,7 @@ export async function getRecentActivity(userId: string) {
     // Merge and Sort
     const allActivity = [...lessons, ...routines, ...sparring]
         .sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime())
-        .slice(0, 4);
+        .slice(0, 10);
 
     return allActivity;
 }
@@ -6197,6 +6201,18 @@ export async function checkCourseLiked(userId: string, courseId: string): Promis
 }
 
 /**
+ * Get course like count
+ */
+export async function getCourseLikeCount(courseId: string): Promise<number> {
+    const { count } = await supabase
+        .from('user_course_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('course_id', courseId);
+
+    return count || 0;
+}
+
+/**
  * Add a course relation to a sparring video
  */
 export async function addCourseSparringVideo(courseId: string, sparringId: string, courseTitle: string) {
@@ -6318,8 +6334,9 @@ export async function getTrainingLogComments(logId: string) {
             user_id,
             users:user_id (
                 id,
+                name,
                 email,
-                user_metadata
+                avatar_url
             )
         `)
         .eq('log_id', logId)
@@ -6336,8 +6353,8 @@ export async function getTrainingLogComments(logId: string) {
         content: comment.content,
         created_at: comment.created_at,
         user: {
-            name: (comment.users as any)?.user_metadata?.name || (comment.users as any)?.email?.split('@')[0] || 'User',
-            avatar_url: (comment.users as any)?.user_metadata?.avatar_url
+            name: (comment.users as any)?.name || (comment.users as any)?.email?.split('@')[0] || 'User',
+            avatar_url: (comment.users as any)?.avatar_url
         }
     }));
 
@@ -6361,4 +6378,169 @@ export async function addTrainingLogComment(logId: string, userId: string, conte
     }
 
     return { data, error: null };
+}
+
+// ==================== REPOST API ====================
+
+/**
+ * Repost a training log to user's feed
+ */
+export async function repostTrainingLog(userId: string, originalLogId: string, comment?: string): Promise<{ data: any; error: any }> {
+    try {
+        // Get original post
+        const { data: originalPost, error: fetchError } = await supabase
+            .from('training_logs')
+            .select('*')
+            .eq('id', originalLogId)
+            .single();
+
+        if (fetchError || !originalPost) {
+            return { data: null, error: fetchError || new Error('Original post not found') };
+        }
+
+        // Create a new training log entry as a repost
+        const { data: repost, error: insertError } = await supabase
+            .from('training_logs')
+            .insert({
+                user_id: userId,
+                date: new Date().toISOString().split('T')[0],
+                notes: comment || originalPost.notes, // Use user's comment if provided, otherwise original notes
+                duration_minutes: originalPost.duration_minutes || 0,
+                techniques: originalPost.techniques || [],
+                sparring_rounds: originalPost.sparring_rounds || 0,
+                is_public: true,
+                location: originalPost.location,
+                media_url: originalPost.media_url,
+                media_type: originalPost.media_type,
+                type: originalPost.type || 'general',
+                metadata: {
+                    ...(originalPost.metadata || {}),
+                    isRepost: true,
+                    originalPostId: originalLogId,
+                    originalUserId: originalPost.user_id,
+                    repostedAt: new Date().toISOString(),
+                    userComment: comment
+                }
+            })
+            .select()
+            .single();
+
+        if (insertError) {
+            console.error('Insert repost error:', insertError);
+            return { data: null, error: insertError };
+        }
+
+        // Transform for immediate UI use
+        const transformedRepost = {
+            ...repost,
+            mediaUrl: repost.media_url,
+            mediaType: repost.media_type,
+            durationMinutes: repost.duration_minutes,
+            sparringRounds: repost.sparring_rounds,
+            isPublic: repost.is_public,
+            youtubeUrl: repost.youtube_url,
+            createdAt: repost.created_at,
+            metadata: repost.metadata
+        };
+
+        return { data: transformedRepost, error: null };
+    } catch (error) {
+        console.error('Error reposting:', error);
+        return { data: null, error };
+    }
+}
+
+/**
+ * Check if user has reposted a log
+ */
+export async function checkUserReposted(userId: string, logId: string): Promise<boolean> {
+    try {
+        const { data, error } = await supabase
+            .from('training_logs')
+            .select('id')
+            .eq('user_id', userId)
+            .contains('metadata', { originalPostId: logId })
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error checking repost status:', error);
+            return false;
+        }
+
+        return !!data;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Get user's reposts for their library feed tab
+ */
+export async function getUserReposts(userId: string): Promise<{ data: any[]; error: any }> {
+    try {
+        const { data: logs, error } = await supabase
+            .from('training_logs')
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    email,
+                    user_metadata
+                )
+            `)
+            .eq('user_id', userId)
+            .contains('metadata', { isRepost: true })
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            return { data: [], error };
+        }
+
+        // Transform data to match TrainingLog format
+        const transformedData = logs?.map((log: any) => {
+            return {
+                ...log,
+                isRepost: true,
+                repostId: log.id,
+                repostedAt: log.metadata?.repostedAt || log.created_at,
+                userName: log.users?.user_metadata?.name || log.users?.email?.split('@')[0] || 'User',
+                userAvatar: log.users?.user_metadata?.avatar_url,
+                userBelt: log.users?.user_metadata?.belt,
+                mediaUrl: log.media_url,
+                mediaType: log.media_type,
+                durationMinutes: log.duration_minutes,
+                sparringRounds: log.sparring_rounds,
+                isPublic: log.is_public,
+                createdAt: log.created_at,
+                user: {
+                    name: log.users?.user_metadata?.name || log.users?.email?.split('@')[0] || 'User',
+                    profileImage: log.users?.user_metadata?.avatar_url,
+                    belt: log.users?.user_metadata?.belt,
+                    isInstructor: log.users?.user_metadata?.isInstructor || false
+                }
+            };
+        });
+
+        return { data: transformedData || [], error: null };
+    } catch (error) {
+        console.error('Error fetching user reposts:', error);
+        return { data: [], error };
+    }
+}
+
+/**
+ * Delete a repost
+ */
+export async function deleteRepost(userId: string, logId: string): Promise<{ error: any }> {
+    const { error } = await supabase
+        .from('training_logs')
+        .delete()
+        .eq('user_id', userId)
+        .contains('metadata', { originalPostId: logId });
+
+    if (error) {
+        console.error('Error deleting repost:', error);
+    }
+
+    return { error };
 }
