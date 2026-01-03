@@ -131,11 +131,11 @@ export const AIScanningSection = () => {
                                             Analysis Complete
                                         </div>
                                         <h3 className="text-2xl font-bold text-white leading-tight">
-                                            추천 드릴: <br />
-                                            <span className="text-violet-400">시저 스윕 (Scissor Sweep)</span>
+                                            당신은 <br />
+                                            <span className="text-violet-400">전략적인 압박가 (Pressurer)</span>
                                         </h3>
                                         <div className="inline-block px-3 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs mt-2">
-                                            패턴 일치율 98%
+                                            수련 로그 분석 완료
                                         </div>
                                     </div>
 

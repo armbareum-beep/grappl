@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/Button';
-import { Star, Zap, BookOpen, Map, Search, Award, Trophy, Quote, Sparkles } from 'lucide-react';
+
+import { Star, Search, Award, Quote, Sparkles } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
@@ -16,6 +16,9 @@ import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideo
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
 import { AIScanningSection } from '../components/landing/AIScanningSection';
+import { JournalPromotionSection } from '../components/landing/JournalPromotionSection';
+import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
+import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
 
 export const LandingPage: React.FC = () => {
     // Force redeploy check
@@ -292,157 +295,10 @@ export const LandingPage: React.FC = () => {
 
             {/* 5. Daily Free Pass Section was here - removed */}
 
-            {/* 6. Arena System Promotion Section */}
-            <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
-                {/* Background Elements */}
-                <div className="absolute inset-0 pointer-events-none">
-                    {/* Faint Center Glow */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-violet-900/10 rounded-full blur-[150px]"></div>
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid_pattern.png')] opacity-[0.02]"></div>
-                </div>
-
-                <div className="max-w-7xl mx-auto px-4 relative z-10">
-                    {/* Section Header */}
-                    <div className="text-center mb-16 md:mb-24">
-                        <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                            <Trophy className="w-3.5 h-3.5 text-violet-500 mr-2" />
-                            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
-                                ARENA SYSTEM
-                            </span>
-                        </div>
-
-                        <h2 className="text-4xl md:text-5xl font-black mb-6 text-zinc-50 leading-tight">
-                            성장을 데이터로 증명하다: <br className="md:hidden" />
-                            <span className="text-violet-400">ARENA SYSTEM</span>
-                        </h2>
-
-                        <p className="text-zinc-400 text-xl max-w-3xl mx-auto leading-relaxed">
-                            감각에 의존하는 수련은 끝났습니다. <br className="hidden md:block" />
-                            AI 분석과 체계적인 로드맵으로 당신의 주짓수를 객관적으로 추적하세요.
-                        </p>
-                    </div>
-
-                    {/* 3 Feature Cards */}
-                    <div className="grid md:grid-cols-3 gap-6 md:gap-8 mb-16" id="arena-cards">
-                        {/* Card 1: 수련일지 */}
-                        <div className="group relative bg-zinc-900/40 rounded-2xl p-8 border border-zinc-800 hover:border-violet-500/30 transition-all duration-500 hover:-translate-y-2 hover:shadow-violet-500/10 overflow-hidden">
-                            {/* Hover Gradient Glow */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-violet-500/0 to-violet-500/0 group-hover:to-violet-500/5 transition-all duration-500"></div>
-
-                            {/* Watermark Number */}
-                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-zinc-800/20 group-hover:text-violet-500/5 transition-colors leading-none select-none">
-                                01
-                            </div>
-
-                            <div className="relative z-10">
-                                <div className="w-14 h-14 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6 text-violet-500 group-hover:scale-110 group-hover:bg-violet-500 group-hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(124,58,237,0.2)]">
-                                    <BookOpen className="w-7 h-7" />
-                                </div>
-
-                                <h3 className="text-2xl font-bold text-zinc-50 mb-3 group-hover:text-violet-300 transition-colors">수련일지</h3>
-                                <p className="text-zinc-400 text-sm leading-relaxed mb-6 h-[40px]">
-                                    AI 분석과 함께 훈련과 스파링을<br />데이터로 기록하고 추적하세요.
-                                </p>
-
-                                <ul className="space-y-3">
-                                    {[
-                                        '훈련/스파링 데이터 기록',
-                                        'AI 코치 퍼포먼스 분석',
-                                        '성장 그래프 시각화'
-                                    ].map((item, i) => (
-                                        <li key={i} className="flex items-center gap-3 text-sm text-zinc-500 group-hover:text-zinc-300 transition-colors">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500/50 group-hover:bg-violet-400 group-hover:shadow-[0_0_8px_rgba(124,58,237,0.5)] transition-all"></div>
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-
-                        {/* Card 2: 훈련루틴 */}
-                        <div className="group relative bg-zinc-900/40 rounded-2xl p-8 border border-zinc-800 hover:border-violet-500/30 transition-all duration-500 hover:-translate-y-2 hover:shadow-violet-500/10 overflow-hidden">
-                            {/* Hover Gradient Glow */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-violet-500/0 to-violet-500/0 group-hover:to-violet-500/5 transition-all duration-500"></div>
-
-                            {/* Watermark Number */}
-                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-zinc-800/20 group-hover:text-violet-500/5 transition-colors leading-none select-none">
-                                02
-                            </div>
-
-                            <div className="relative z-10">
-                                <div className="w-14 h-14 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6 text-violet-500 group-hover:scale-110 group-hover:bg-violet-500 group-hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(124,58,237,0.2)]">
-                                    <Zap className="w-7 h-7" />
-                                </div>
-
-                                <h3 className="text-2xl font-bold text-zinc-50 mb-3 group-hover:text-violet-300 transition-colors">훈련루틴</h3>
-                                <p className="text-zinc-400 text-sm leading-relaxed mb-6 h-[40px]">
-                                    나만의 드릴 루틴을 설계하고<br />매일 10분, 체계적으로 연습하세요.
-                                </p>
-
-                                <ul className="space-y-3">
-                                    {[
-                                        '커스텀 드릴 루틴 생성',
-                                        '주간 스케줄 플래너',
-                                        'XP 보상 시스템'
-                                    ].map((item, i) => (
-                                        <li key={i} className="flex items-center gap-3 text-sm text-zinc-500 group-hover:text-zinc-300 transition-colors">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500/50 group-hover:bg-violet-400 group-hover:shadow-[0_0_8px_rgba(124,58,237,0.5)] transition-all"></div>
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-
-                        {/* Card 3: 테크닉로드맵 */}
-                        <div className="group relative bg-zinc-900/40 rounded-2xl p-8 border border-zinc-800 hover:border-violet-500/30 transition-all duration-500 hover:-translate-y-2 hover:shadow-violet-500/10 overflow-hidden">
-                            {/* Hover Gradient Glow */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-violet-500/0 to-violet-500/0 group-hover:to-violet-500/5 transition-all duration-500"></div>
-
-                            {/* Watermark Number */}
-                            <div className="absolute -right-4 -top-4 text-[120px] font-black text-zinc-800/20 group-hover:text-violet-500/5 transition-colors leading-none select-none">
-                                03
-                            </div>
-
-                            <div className="relative z-10">
-                                <div className="w-14 h-14 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6 text-violet-500 group-hover:scale-110 group-hover:bg-violet-500 group-hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(124,58,237,0.2)]">
-                                    <Map className="w-7 h-7" />
-                                </div>
-
-                                <h3 className="text-2xl font-bold text-zinc-50 mb-3 group-hover:text-violet-300 transition-colors">테크닉 로드맵</h3>
-                                <p className="text-zinc-400 text-sm leading-relaxed mb-6 h-[40px]">
-                                    기술의 연결고리를 시각화하여<br />나만의 주짓수 지도를 완성하세요.
-                                </p>
-
-                                <ul className="space-y-3">
-                                    {[
-                                        '기술 트리 시각화',
-                                        '레슨 & 드릴 연결 관리',
-                                        '마스터리 레벨 추적'
-                                    ].map((item, i) => (
-                                        <li key={i} className="flex items-center gap-3 text-sm text-zinc-500 group-hover:text-zinc-300 transition-colors">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500/50 group-hover:bg-violet-400 group-hover:shadow-[0_0_8px_rgba(124,58,237,0.5)] transition-all"></div>
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* CTA Button */}
-                    <div className="text-center">
-                        <Button
-                            size="lg"
-                            className="bg-violet-600 hover:bg-violet-500 text-white px-12 py-7 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-violet-500/40 shadow-lg border border-violet-500/20"
-                            onClick={() => navigate('/arena')}
-                        >
-                            ARENA 입장하기
-                        </Button>
-                    </div>
-                </div>
-            </section>
+            {/* 6. Journal Promotion Section */}
+            <JournalPromotionSection />
+            <RoutinePromotionSection />
+            <CapsuleRoadmapSection />
 
             {/* 7 & 8. Unified Social Proof & Final CTA Area */}
             <div className="relative bg-zinc-950 overflow-hidden">
@@ -524,13 +380,13 @@ export const LandingPage: React.FC = () => {
                     <div className="flex flex-col items-center gap-6">
                         <button
                             className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
-                            onClick={() => navigate('/checkout')}
+                            onClick={() => navigate('/pricing')}
                         >
                             <span className="relative z-10">지금 바로 훈련 시작</span>
                             <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
                         </button>
                         <p className="text-zinc-600 text-sm font-medium">
-                            카드 등록 없이 10초 만에 시작 가능
+                            회원가입만으로 모든 무료 콘텐츠를 즉시 체험할 수 있습니다.
                         </p>
                     </div>
                 </div>

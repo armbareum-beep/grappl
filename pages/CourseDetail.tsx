@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
-import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
+
 import { cn } from '../lib/utils';
 
 
@@ -36,7 +36,7 @@ export const CourseDetail: React.FC = () => {
     const [likeCount, setLikeCount] = useState(0);
     const [isFollowed, setIsFollowed] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [showShareToFeedModal, setShowShareToFeedModal] = useState(false);
+
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
 
 
@@ -791,7 +791,6 @@ export const CourseDetail: React.FC = () => {
 
 
 
-            {/* Share Modal Components */}
             {isShareModalOpen && course && (
                 <React.Suspense fallback={null}>
                     <ShareModal
@@ -800,22 +799,16 @@ export const CourseDetail: React.FC = () => {
                         title={course.title}
                         text={course.description}
                         url={window.location.href}
+                        imageUrl={course.thumbnailUrl}
+                        initialStep="write"
+                        activityType="general"
+                        metadata={{
+                            type: 'course',
+                            courseId: course.id,
+                            courseTitle: course.title
+                        }}
                     />
                 </React.Suspense>
-            )}
-            {showShareToFeedModal && course && (
-                <ShareToFeedModal
-                    isOpen={showShareToFeedModal}
-                    onClose={() => setShowShareToFeedModal(false)}
-                    onShare={async () => { setShowShareToFeedModal(false); }}
-                    activityType="general"
-                    defaultContent={`${course.title}\n\n${course.description}\n\n${window.location.href}`}
-                    metadata={{
-                        type: 'course',
-                        courseId: course.id,
-                        courseTitle: course.title
-                    }}
-                />
             )}
         </div>
     );

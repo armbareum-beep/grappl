@@ -133,69 +133,95 @@ export const AdminDashboard: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white">
+        <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex justify-between items-end mb-12">
-                    <div>
-                        <h1 className="text-3xl font-bold mb-2">관리자 대시보드</h1>
-                        <p className="text-slate-400">Grappl 플랫폼의 모든 기능을 관리합니다.</p>
+                    <div className="space-y-2">
+                        <h1 className="text-4xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
+                            관리자 대시보드
+                        </h1>
+                        <p className="text-zinc-400 text-lg">Grappl 플랫폼의 모든 핵심 데이터와 인프라를 관리합니다.</p>
                     </div>
-                    <Link to="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                        <Home className="w-4 h-4" />
-                        <span>홈으로</span>
+                    <Link to="/" className="group flex items-center gap-2 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-700 transition-all backdrop-blur-sm">
+                        <Home className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-medium">홈으로 가기</span>
                     </Link>
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                        <div className="text-slate-400 text-sm mb-1">총 사용자</div>
-                        <div className="text-2xl font-bold">{loading ? '-' : stats.totalUsers.toLocaleString()}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">총 사용자</span>
+                            <Users className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
+                        </div>
+                        <div className="text-3xl font-bold tracking-tight">{loading ? '-' : stats.totalUsers.toLocaleString()}</div>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                        <div className="text-slate-400 text-sm mb-1">총 강좌</div>
-                        <div className="text-2xl font-bold">{loading ? '-' : stats.totalCourses.toLocaleString()}</div>
+                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">총 강좌</span>
+                            <BookOpen className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
+                        </div>
+                        <div className="text-3xl font-bold tracking-tight">{loading ? '-' : stats.totalCourses.toLocaleString()}</div>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                        <div className="text-slate-400 text-sm mb-1">총 드릴</div>
-                        <div className="text-2xl font-bold">{loading ? '-' : stats.totalDrills.toLocaleString()}</div>
+                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">총 드릴</span>
+                            <Dumbbell className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
+                        </div>
+                        <div className="text-3xl font-bold tracking-tight">{loading ? '-' : stats.totalDrills.toLocaleString()}</div>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative overflow-hidden">
-                        <div className="text-slate-400 text-sm mb-1">승인 대기</div>
-                        <div className="text-2xl font-bold text-purple-400">{loading ? '-' : stats.pendingCreators}</div>
+                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">승인 대기</span>
+                            <Shield className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
+                        </div>
+                        <div className="text-3xl font-bold tracking-tight text-violet-400">{loading ? '-' : stats.pendingCreators}</div>
                         {stats.pendingCreators > 0 && (
-                            <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full m-3 animate-pulse" />
+                            <div className="absolute top-0 right-0 w-3 h-3 bg-violet-500 rounded-full m-4 shadow-[0_0_12px_rgba(139,92,246,0.6)] animate-pulse" />
                         )}
                     </div>
                 </div>
 
                 {/* Menu Sections */}
-                <div className="space-y-12">
+                <div className="space-y-16">
                     {MENU_SECTIONS.map((section, idx) => (
                         <div key={idx}>
-                            <h2 className="text-xl font-bold mb-6 text-slate-300 border-l-4 border-slate-700 pl-3">
-                                {section.title}
-                            </h2>
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="h-px flex-1 bg-zinc-800/50" />
+                                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-500">
+                                    {section.title}
+                                </h2>
+                                <div className="h-px flex-1 bg-zinc-800/50" />
+                            </div>
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {section.items.map((item, itemIdx) => {
                                     const Icon = item.icon;
                                     return (
                                         <Link to={item.link} key={itemIdx}>
-                                            <div className="group bg-slate-900 rounded-xl border border-slate-800 p-6 hover:border-slate-600 hover:bg-slate-800 transition-all cursor-pointer relative">
+                                            <div className="group bg-zinc-900/30 rounded-2xl border border-zinc-800/50 p-6 hover:border-violet-500/30 hover:bg-zinc-900/60 transition-all cursor-pointer relative overflow-hidden">
+                                                {/* Hover Glow */}
+                                                <div className="absolute -inset-x-20 -inset-y-20 bg-violet-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity" />
+
                                                 {item.alert && (
-                                                    <span className="absolute top-4 right-4 flex h-3 w-3">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                                    <span className="absolute top-6 right-6 flex h-3 w-3">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
                                                     </span>
                                                 )}
-                                                <div className={`w-12 h-12 ${item.bg} ${item.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                                                    <Icon className="w-6 h-6" />
+
+                                                <div className={`w-14 h-14 ${item.bg === 'bg-blue-400/10' || item.bg === 'bg-indigo-400/10' || item.bg === 'bg-purple-400/10' || item.bg === 'bg-cyan-400/10' ? 'bg-violet-500/10 text-violet-400' :
+                                                    item.bg === 'bg-emerald-400/10' || item.bg === 'bg-green-400/10' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                        item.bg === 'bg-yellow-400/10' || item.bg === 'bg-orange-400/10' ? 'bg-orange-500/10 text-orange-400' :
+                                                            item.bg === 'bg-red-400/10' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800/50 text-zinc-400'} rounded-2xl flex items-center justify-center mb-6 border border-white/5 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+                                                    <Icon className="w-7 h-7" />
                                                 </div>
-                                                <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
+
+                                                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-violet-400 transition-colors">
                                                     {item.title}
                                                 </h3>
-                                                <p className="text-slate-500 text-sm group-hover:text-slate-300">
+                                                <p className="text-zinc-500 text-sm leading-relaxed group-hover:text-zinc-400 transition-colors">
                                                     {item.desc}
                                                 </p>
                                             </div>

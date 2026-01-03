@@ -23,8 +23,6 @@ import { useNavigate, useSearchParams, useLocation, useParams } from 'react-rout
 import {
     getLatestUserSkillTree,
     listUserSkillTrees,
-    createNewSkillTree,
-    updateUserSkillTree,
     deleteUserSkillTree,
     getUserSkillTree,
     transformUserSkillTree
@@ -38,13 +36,12 @@ import { LoadingScreen } from '../LoadingScreen';
 import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
 import {
-    MoreVertical, Plus, Trash2, Edit2, Play, Pause, RotateCcw,
-    Maximize2, Minimize2, ZoomIn, ZoomOut, Save, Share2, FolderOpen,
-    Menu, X, ChevronRight, Lock, Globe, Move, Grid, List as ListIcon, FilePlus, Video, AlertCircle, UploadCloud, Type,
-    Map as MapIcon, Network, Signpost, Edit3, PlayCircle
+    Plus, Trash2, Save, Share2, FolderOpen, X, FilePlus, Video,
+    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost
 } from 'lucide-react';
 
-import { SaveModal, LoadModal, ConfirmModal, SaveData } from './SkillTreeModals';
+import { SaveModal, LoadModal, SaveData } from './SkillTreeModals';
+import { ConfirmModal } from '../common/ConfirmModal';
 import ShareModal from '../social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import screenfull from 'screenfull';
@@ -219,8 +216,7 @@ export const TechniqueSkillTree: React.FC = () => {
         onConfirm?: () => void;
         confirmText?: string;
         cancelText?: string;
-        confirmColor?: string;
-        icon?: React.ReactNode;
+        variant?: 'danger' | 'warning' | 'info';
     } | null>(null);
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [customShareUrl, setCustomShareUrl] = useState<string | null>(null);
@@ -2085,7 +2081,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     // Ensure the bucket exists or handle error gracefully
                     // For now, assume 'skill-tree-thumbnails' exists as per previous context
 
-                    const { data: uploadData, error: uploadError } = await supabase.storage
+                    const { error: uploadError } = await supabase.storage
                         .from('skill-tree-thumbnails')
                         .upload(fileName, blob, {
                             contentType: 'image/png',
@@ -2207,8 +2203,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 title: '저장 실패',
                 message: message,
                 confirmText: '확인',
-                confirmColor: 'bg-red-600 shadow-red-900/40',
-                icon: <AlertCircle className="w-8 h-8 text-red-500" />
+                variant: 'danger'
             });
             return false;
         } finally {
@@ -2246,6 +2241,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 message: '현재 기기에 임시 저장되었습니다.\n로그인하면 클라우드에 영구 저장하고 다른 기기에서도 불러올 수 있습니다.\n\n로그인 하시겠습니까?',
                 confirmText: '로그인 하러 가기',
                 cancelText: '계속 작성하기',
+                variant: 'info',
                 onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
             });
             return;
@@ -2259,14 +2255,21 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const handleDeleteTree = async (treeId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm('정말 이 로드맵을 삭제하시겠습니까? 복구할 수 없습니다.')) {
-            await deleteUserSkillTree(treeId);
-            setTreeList((prev: UserSkillTree[]) => prev.filter(t => t.id !== treeId));
-            if (currentTreeId === treeId) {
-                // If deleted current tree, reset to new
-                handleNewTree();
+        setAlertConfig({
+            title: '로드맵 삭제',
+            message: '정말 이 로드맵을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.',
+            confirmText: '삭제하기',
+            cancelText: '취소',
+            variant: 'danger',
+            onConfirm: async () => {
+                await deleteUserSkillTree(treeId);
+                setTreeList((prev: UserSkillTree[]) => prev.filter(t => t.id !== treeId));
+                if (currentTreeId === treeId) {
+                    handleNewTree();
+                }
+                setAlertConfig(null);
             }
-        }
+        });
     };
 
 
@@ -3365,9 +3368,9 @@ export const TechniqueSkillTree: React.FC = () => {
                 title={alertConfig?.title || ''}
                 message={alertConfig?.message || ''}
                 onConfirm={alertConfig?.onConfirm || (() => setAlertConfig(null))}
+                cancelText={alertConfig?.cancelText}
                 confirmText={alertConfig?.confirmText}
-                confirmColor={alertConfig?.confirmColor}
-                icon={alertConfig?.icon}
+                variant={(alertConfig?.variant as any) || 'warning'}
             />
 
             {/* New Tree Confirmation */}
@@ -3378,8 +3381,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 message={'현재 작업 중인 내용은 저장하지 않으면 사라집니다.\n정말 새로 시작하시겠습니까?'}
                 onConfirm={confirmNewTree}
                 confirmText="새로 만들기"
-                confirmColor="bg-violet-600"
-                icon={<FilePlus className="w-8 h-8 text-violet-500" />}
+                variant="warning"
             />
 
             <ShareModal
@@ -3522,6 +3524,18 @@ export const TechniqueSkillTree: React.FC = () => {
                         <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
                     </button>
                 </div>
+            )}
+            {alertConfig && (
+                <ConfirmModal
+                    isOpen={!!alertConfig}
+                    onClose={() => setAlertConfig(null)}
+                    onConfirm={alertConfig.onConfirm || (() => setAlertConfig(null))}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    confirmText={alertConfig.confirmText}
+                    cancelText={alertConfig.cancelText}
+                    variant={alertConfig.variant || 'warning'}
+                />
             )}
         </div>
     );

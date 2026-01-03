@@ -67,8 +67,8 @@ export const Arena: React.FC = () => {
     return (
         <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-64px)] bg-slate-950 text-white flex flex-col overflow-hidden">
             {/* Floating Tab Navigation - Capsule Style */}
-            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none`}>
-                <div className="inline-flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800/50 gap-1 pointer-events-auto shadow-2xl">
+            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-[94px]'} left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none`}>
+                <div className="inline-flex items-center bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/50 rounded-full p-1 gap-1 pointer-events-auto shadow-2xl h-12">
                     {ARENA_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -85,7 +85,7 @@ export const Arena: React.FC = () => {
                                         }
                                     }}
                                     className={`
-                                        flex items-center gap-1.5 px-3 md:px-5 py-2 rounded-full text-xs font-bold transition-all duration-300
+                                        flex items-center justify-center gap-1.5 px-3 md:px-6 h-10 rounded-full text-xs font-black transition-all duration-300 uppercase tracking-wider
                                         ${isActive
                                             ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
                                             : isLocked
@@ -94,7 +94,7 @@ export const Arena: React.FC = () => {
                                         }
                                     `}
                                 >
-                                    <Icon className="w-4 h-4" />
+                                    <Icon className="w-4 h-4 md:hidden" />
                                     <span className="hidden md:inline">{tab.label}</span>
                                 </button>
                                 {isLocked && (
@@ -118,7 +118,7 @@ export const Arena: React.FC = () => {
                     </div>
                 ) : (
                     <div className="h-full overflow-y-auto overflow-x-hidden relative z-10">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-16 pb-24 md:pb-6">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 md:pb-6">
                             {activeTab === 'journal' && <JournalTab />}
                             {activeTab === 'routines' && <TrainingRoutinesTab />}
                             {activeTab === 'sparring' && <SparringReviewTab />}

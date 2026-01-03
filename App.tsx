@@ -79,23 +79,7 @@ const RootRedirect: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // OAuth 로그인 후 리다이렉트 처리
-  React.useEffect(() => {
-    if (user && !loading) {
-      try {
-        const savedPath = localStorage.getItem('oauth_redirect_path');
-        if (savedPath && savedPath !== '/login' && savedPath !== '/') {
-          localStorage.removeItem('oauth_redirect_path');
-          // 약간의 지연을 두어 인증 상태가 완전히 설정된 후 리다이렉트
-          setTimeout(() => {
-            window.location.href = savedPath;
-          }, 100);
-        }
-      } catch (e) {
-        console.warn('Failed to restore redirect path:', e);
-      }
-    }
-  }, [user, loading]);
+
 
   if (loading && !forceLoad) {
     return <LoadingScreen message="로그인 정보 확인 중..." />;
@@ -111,6 +95,36 @@ const RootRedirect: React.FC = () => {
 import { useParams } from 'react-router-dom';
 import { VersionChecker } from './components/VersionChecker';
 import { useLocation } from 'react-router-dom';
+
+// OAuth 리다이렉트 핸들러 - 모든 페이지에서 실행
+const OAuthRedirectHandler: React.FC = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const [hasChecked, setHasChecked] = React.useState(false);
+
+  React.useEffect(() => {
+    // 로그인 완료되고, 아직 체크하지 않았으며, 로그인 페이지가 아닐 때만 실행
+    if (user && !loading && !hasChecked && location.pathname !== '/login') {
+      setHasChecked(true);
+
+      try {
+        const savedPath = localStorage.getItem('oauth_redirect_path');
+        if (savedPath && savedPath !== '/login' && savedPath !== '/' && savedPath !== location.pathname) {
+          localStorage.removeItem('oauth_redirect_path');
+          console.log('OAuth redirect to:', savedPath);
+          // 약간의 지연을 두어 인증 상태가 완전히 설정된 후 리다이렉트
+          setTimeout(() => {
+            window.location.href = savedPath;
+          }, 100);
+        }
+      } catch (e) {
+        console.warn('Failed to restore redirect path:', e);
+      }
+    }
+  }, [user, loading, hasChecked, location.pathname]);
+
+  return null;
+};
 
 // Scroll Restoration Component
 const ScrollToTop: React.FC = () => {
@@ -206,6 +220,7 @@ const App: React.FC = () => {
         <BackgroundUploadProvider>
           <GlobalUploadProgress />
           <Router>
+            <OAuthRedirectHandler />
             <ScrollToTop />
             <Layout>
 

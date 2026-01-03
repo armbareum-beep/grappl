@@ -102,11 +102,11 @@ interface SearchInputProps {
 export const SearchInput: React.FC<SearchInputProps> = ({ value, onChange, placeholder = '검색...' }) => (
     <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-slate-500" />
+            <Search className="h-4 w-4 text-zinc-500" />
         </div>
         <input
             type="text"
-            className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 placeholder-slate-500"
+            className="bg-zinc-950/50 border border-zinc-800 text-zinc-200 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block w-full pl-10 p-2.5 placeholder-zinc-500 transition-colors"
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -123,11 +123,11 @@ interface SortSelectProps<T> {
 export function SortSelect<T>({ options, value, onChange }: SortSelectProps<T>) {
     return (
         <div className="flex items-center space-x-2">
-            <ArrowUpDown className="w-4 h-4 text-slate-500" />
+            <ArrowUpDown className="w-4 h-4 text-zinc-500" />
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+                className="bg-zinc-950/50 border border-zinc-800 text-zinc-300 text-sm rounded-lg focus:ring-violet-500 focus:border-violet-500 block p-2.5 transition-colors"
             >
                 {options.map(opt => (
                     <option key={opt.value} value={opt.value}>
@@ -153,17 +153,17 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-400 hover:text-white transition-colors"
             >
                 <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm text-slate-400 font-medium">
-                {currentPage} / {totalPages}
+            <span className="text-sm text-zinc-400 font-medium px-4">
+                <span className="text-white">{currentPage}</span> / {totalPages}
             </span>
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-400 hover:text-white transition-colors"
             >
                 <ChevronRight className="w-4 h-4" />
             </button>

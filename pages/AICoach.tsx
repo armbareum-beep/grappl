@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { TrainingLog } from '../types';
 import {
     analyzeReadiness,
@@ -23,7 +22,6 @@ import {
     TrendingUp,
     AlertTriangle,
     CheckCircle2,
-    Dumbbell,
     Swords,
     ChevronRight,
     PieChart,
@@ -110,103 +108,50 @@ export const AICoach: React.FC = () => {
         }
     };
 
-    // --- MOCK DATA FOR UI VERIFICATION ---
-    const MOCK_LOGS: any[] = Array.from({ length: 30 }).map((_, i) => ({
-        id: `mock-${i}`,
-        user_id: user?.id || 'mock-user',
-        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration_minutes: 90,
-        type: 'Gi',
-        mood: 'Good',
-        description: 'Mock training log',
-        techniques: ['Armbar', 'Triangle Choke']
-    }));
-
-    const MOCK_DEEP_ANALYSIS: DeepAnalysisResult = {
-        styleProfile: {
-            identity: "TACTICAL SMASHER",
-            description: "당신은 압도적인 압박과 정교한 서브미션을 겸비한 그래플러입니다. 상대를 구석으로 몰아넣고 치명적인 한 방을 노리는 스타일입니다.",
-            strength: "탑 포지션 압박",
-            weakness: "하체 관절기 방어",
-            fingerprint: { standing: 40, guard: 60, passing: 85, submission: 70, defense: 50 },
-            similarPro: "Gordon Ryan"
-        },
-        gapAnalysis: {
-            blindSpots: ["Leg Locks", "Wrestling"],
-            overTrained: ["Passing"],
-            theoryPracticeGap: "하체 관절기에 대한 이해도가 부족합니다."
-        },
-        prescription: {
-            summary: "하체 방어 기술을 보완하고 스탠딩 레슬링을 강화하세요.",
-            drillDurationMinutes: 20,
-            sparringRounds: 5,
-            focusAreas: ["Heel Hook Defense", "Single Leg Takedown"]
-        },
-        recommendedContent: {
-            courses: [
-                {
-                    id: '1',
-                    title: 'Leg Lock Defense Mastery',
-                    reason: '🚨 취약점 보완: 최근 스파링에서 하체 공격에 자주 노출됨',
-                    thumbnail: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=2069&auto=format&fit=crop',
-                    instructor: 'John Danaher',
-                    duration: '45 min'
-                },
-                {
-                    id: '2',
-                    title: 'Wrestling for Jujitsu',
-                    reason: '🚀 스타일 강화: 탑 포지션 점유율을 20% 더 높일 수 있음',
-                    thumbnail: 'https://images.unsplash.com/photo-1626227050099-66b9623e5953?q=80&w=2070&auto=format&fit=crop',
-                    instructor: 'Khabib N.',
-                    duration: '60 min'
-                }
-            ],
-            routines: [
-                {
-                    id: '1',
-                    title: 'Morning Mobility Flow',
-                    reason: '⚡️ 컨디션 관리: 지난주 부상 위험도가 높음',
-                    thumbnail: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=2070&auto=format&fit=crop',
-                    duration: '15 min'
-                }
-            ],
-            chains: [
-                {
-                    id: '1',
-                    title: 'Pressure Passing System',
-                    reason: '🔥 필살기 연마: 압박 패스 성공률 극대화',
-                    thumbnail: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2072&auto=format&fit=crop',
-                    instructor: 'Roger Gracie',
-                    duration: '30 min'
-                },
-                {
-                    id: '2',
-                    title: 'Kimura Trap System',
-                    reason: '⚔️ 서브미션 연계: 사이드 포지션에서의 옵션 확장',
-                    thumbnail: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=2069&auto=format&fit=crop',
-                    instructor: 'Firas Zahabi',
-                    duration: '45 min'
-                }
-            ]
-        }
-    };
-    // -------------------------------------
-
     const fetchData = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            // FORCE MOCK DATA
-            setLogs(MOCK_LOGS);
-            setDeepAnalysis(MOCK_DEEP_ANALYSIS);
+            if (!user) return;
 
-            // Generate Rule-based stats from mock logs
-            setReadiness(analyzeReadiness(MOCK_LOGS));
-            setBalance(analyzeBalance(MOCK_LOGS));
-            setMomentum(analyzeMomentum(MOCK_LOGS));
-            setBlindSpots(identifyBlindSpots(MOCK_LOGS));
-            setRadarData(calculateRadarStats(MOCK_LOGS));
+            console.log('Fetching logs for user:', user.id);
+            const { getTrainingLogs, getPublicSparringVideos } = await import('../lib/api');
+            const { data: logsData, error: logsError } = await getTrainingLogs(user.id);
+
+            console.log('Activity logs fetched:', logsData?.length || 0);
+
+            if (logsError) throw logsError;
+
+            const combinedLogs = logsData || [];
+
+            const recentVids = await getPublicSparringVideos(5);
+            setRecentVideos(recentVids);
+
+            const cachedResult = localStorage.getItem(`ai_analysis_result_${user.id}`);
+            if (cachedResult) {
+                try {
+                    setDeepAnalysis(JSON.parse(cachedResult));
+                } catch (e) {
+                    console.error("Failed to parse cached analysis", e);
+                }
+            }
+
+            // We already have combined logs from the fixed getTrainingLogs
+            setLogs(combinedLogs as any);
+
+            if (combinedLogs.length > 0) {
+                console.log('Running rule-based analysis for', combinedLogs.length, 'entries');
+                try {
+                    setReadiness(analyzeReadiness(combinedLogs as any));
+                    setBalance(analyzeBalance(combinedLogs as any));
+                    setMomentum(analyzeMomentum(combinedLogs as any));
+                    setBlindSpots(identifyBlindSpots(combinedLogs as any));
+                    setRadarData(calculateRadarStats(combinedLogs as any));
+                } catch (analysisErr) {
+                    console.error('Core analysis failed:', analysisErr);
+                }
+            }
 
         } catch (err: any) {
             console.error('Error loading AI Coach data:', err);
@@ -218,15 +163,20 @@ export const AICoach: React.FC = () => {
 
     const handleRunAnalysis = async () => {
         if (!user || analysisCooldown) return;
+
+        // Use standard logs state which is already combined
         if (logs.length === 0) {
+            console.log('No logs to analyze deeply');
             return;
         }
 
         setIsAnalyzingDeeply(true);
+        console.log('Starting deep analysis with Gemini...');
         try {
             const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
             if (!apiKey) {
-                console.warn('Gemini API Key missing');
+                console.error('Gemini API Key missing');
+                setIsAnalyzingDeeply(false);
                 return;
             }
 
@@ -237,6 +187,7 @@ export const AICoach: React.FC = () => {
 
             const result = await analyzeUserDeeply(logs, recentVideos, userProfile, apiKey);
             if (result) {
+                console.log('Deep analysis successful:', result.styleProfile.identity);
                 setDeepAnalysis(result);
                 // Save timestamp and result
                 const now = new Date().toISOString();
@@ -245,6 +196,8 @@ export const AICoach: React.FC = () => {
 
                 // Update cooldown state immediately
                 setAnalysisCooldown("24시간 후 가능");
+            } else {
+                console.warn('Gemini returned null result');
             }
         } catch (err) {
             console.error('Deep analysis error:', err);
@@ -342,9 +295,20 @@ export const AICoach: React.FC = () => {
                                                                 ? "분석 데이터 없음"
                                                                 : analysisCooldown
                                                                     ? "분석 완료 (대기 중)"
-                                                                    : "데이터 로딩 중..."}
+                                                                    : error || deepAnalysis === null
+                                                                        ? "분석 대기 중 (클릭하여 시작)"
+                                                                        : "데이터 로딩 중..."}
                                                     </span>
                                                 </div>
+
+                                                {(error || (!isAnalyzingDeeply && !deepAnalysis && logs.length > 0)) && (
+                                                    <button
+                                                        onClick={handleRunAnalysis}
+                                                        className="inline-flex items-center px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-violet-600/20 hover:-translate-y-0.5 active:translate-y-0"
+                                                    >
+                                                        <Sparkles className="w-4 h-4 mr-2" /> 분석 수동 시작하기
+                                                    </button>
+                                                )}
 
                                                 {logs.length === 0 && (
                                                     <a href="/journal" className="inline-flex items-center px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-violet-600/25 hover:-translate-y-1">
@@ -373,7 +337,7 @@ export const AICoach: React.FC = () => {
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                                                 <PolarGrid stroke="#27272a" strokeDasharray="3 3" />
-                                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }} />
+                                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 12, fontWeight: 700 }} />
                                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                                 <Radar
                                                     name="My Stats"
@@ -417,7 +381,7 @@ export const AICoach: React.FC = () => {
                                     <div className="relative z-10">
                                         <div className="text-zinc-500 text-xs font-bold mb-1">CONSISTENCY</div>
                                         <div className="text-3xl font-black text-white italic">
-                                            {logs.length === 0 ? "데이터 없음" : `${readiness.consistencyScore}%`}
+                                            {logs.length === 0 || !readiness ? "데이터 없음" : `${readiness.consistencyScore}%`}
                                         </div>
                                         <div className="text-xs text-zinc-500 mt-2 font-medium">Last 30 Days</div>
                                     </div>
@@ -471,7 +435,7 @@ export const AICoach: React.FC = () => {
                                         <div className="space-y-3">
                                             <div className="text-zinc-500 text-xs font-bold uppercase">Focus Areas</div>
                                             <div className="flex flex-wrap gap-2">
-                                                {deepAnalysis.prescription.focusAreas.map((area: string, i: number) => (
+                                                {deepAnalysis.prescription.focusAreas?.map((area: string, i: number) => (
                                                     <span key={i} className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-bold border border-zinc-700">
                                                         {area}
                                                     </span>
@@ -501,18 +465,18 @@ export const AICoach: React.FC = () => {
                                     <div className="h-4 bg-zinc-800 rounded-full overflow-hidden flex relative">
                                         <div
                                             className="h-full bg-gradient-to-r from-violet-600 to-indigo-600"
-                                            style={{ width: `${balance.attack}%` }}
+                                            style={{ width: `${balance?.attack || 0}%` }}
                                         />
                                         <div className="absolute top-1/2 left-3 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-md">
-                                            ATTACK {balance.attack}%
+                                            ATTACK {balance?.attack || 0}%
                                         </div>
                                         <div className="absolute top-1/2 right-3 -translate-y-1/2 text-[10px] font-black text-zinc-400">
-                                            DEFENSE {balance.defense}%
+                                            DEFENSE {balance?.defense || 0}%
                                         </div>
                                     </div>
                                     <p className="text-zinc-400 text-sm leading-relaxed">
-                                        {balance.attack > 60 ? "공격적인 성향이 강합니다. 방어 밸런스를 조금 더 신경 써보세요." :
-                                            balance.defense > 60 ? "방어 위주의 플레이를 하고 있습니다. 공격 시도 횟수를 늘려보세요." :
+                                        {(balance?.attack || 0) > 60 ? "공격적인 성향이 강합니다. 방어 밸런스를 조금 더 신경 써보세요." :
+                                            (balance?.defense || 0) > 60 ? "방어 위주의 플레이를 하고 있습니다. 공격 시도 횟수를 늘려보세요." :
                                                 "공격과 방어의 균형이 매우 좋습니다."}
                                     </p>
                                 </div>
@@ -537,14 +501,14 @@ export const AICoach: React.FC = () => {
                             {logs.length > 0 ? (
                                 <div className="space-y-4">
                                     <div className="flex items-end gap-2">
-                                        <span className={`text-4xl font-black italic ${momentum.trend === 'up' ? 'text-emerald-500' : momentum.trend === 'down' ? 'text-rose-500' : 'text-zinc-400'}`}>
-                                            {momentum.score}
+                                        <span className={`text-4xl font-black italic ${momentum?.trend === 'up' ? 'text-emerald-500' : momentum?.trend === 'down' ? 'text-rose-500' : 'text-zinc-400'}`}>
+                                            {momentum?.score || 0}
                                         </span>
                                         <span className="text-zinc-500 text-sm font-bold mb-2">/ 100</span>
                                     </div>
                                     <p className="text-zinc-400 text-sm">
-                                        {momentum.trend === 'up' ? "훌륭합니다! 수련 빈도가 증가하고 있습니다." :
-                                            momentum.trend === 'down' ? "최근 수련 빈도가 줄어들었습니다. 다시 힘을 내세요!" :
+                                        {momentum?.trend === 'up' ? "훌륭합니다! 수련 빈도가 증가하고 있습니다." :
+                                            momentum?.trend === 'down' ? "최근 수련 빈도가 줄어들었습니다. 다시 힘을 내세요!" :
                                                 "꾸준한 페이스를 유지하고 있습니다."}
                                     </p>
                                 </div>
@@ -715,31 +679,4 @@ export const AICoach: React.FC = () => {
     );
 };
 
-const RecommendationCard = ({ type, title, reason, icon, color, bg, border, isLoading }: any) => (
-    <div className={`rounded-2xl border p-4 ${bg} ${border} relative overflow-hidden transition-all hover:bg-opacity-80 active:scale-[0.98] cursor-pointer group min-h-[100px] flex flex-col justify-center`}>
-        <div className="flex items-start justify-between mb-2">
-            <span className={`text-[10px] font-black uppercase tracking-wider ${color} flex items-center gap-1.5`}>
-                {icon} {type}
-            </span>
-            <ChevronRight className={`w-4 h-4 ${color} opacity-50 group-hover:opacity-100 transition-opacity`} />
-        </div>
 
-        {isLoading ? (
-            <div className="space-y-2 animate-pulse mt-2">
-                <div className="h-4 bg-black/20 rounded w-3/4" />
-                <div className="h-3 bg-black/10 rounded w-full" />
-            </div>
-        ) : !title ? (
-            <div className="text-zinc-600 text-xs font-medium">분석 대기 중...</div>
-        ) : (
-            <>
-                <h3 className="text-sm font-bold text-white mb-2 leading-tight">
-                    {title}
-                </h3>
-                <p className={`text-xs ${color} opacity-70 leading-relaxed`}>
-                    {reason}
-                </p>
-            </>
-        )}
-    </div>
-);

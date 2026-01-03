@@ -125,12 +125,12 @@ export const CoursePerformanceTab: React.FC = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-white">강좌별 성과 분석</h2>
-                    <p className="text-slate-400 mt-1">각 강좌의 수익, 조회수, 시청 시간을 확인하세요.</p>
+                    <p className="text-zinc-400 mt-1">각 강좌의 수익, 조회수, 시청 시간을 확인하세요.</p>
                 </div>
                 <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                     <option value="revenue">수익순</option>
                     <option value="views">조회수순</option>
@@ -140,78 +140,81 @@ export const CoursePerformanceTab: React.FC = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-400">총 수익</p>
-                        <DollarSign className="w-5 h-5 text-green-400" />
+                        <p className="text-sm text-zinc-400">총 수익</p>
+                        <DollarSign className="w-5 h-5 text-emerald-400" />
                     </div>
                     <p className="text-2xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-400">총 조회수</p>
-                        <Eye className="w-5 h-5 text-blue-400" />
+                        <p className="text-sm text-zinc-400">총 조회수</p>
+                        <Eye className="w-5 h-5 text-violet-400" />
                     </div>
                     <p className="text-2xl font-bold text-white">{totalViews.toLocaleString()}</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-400">총 시청 시간</p>
-                        <Clock className="w-5 h-5 text-purple-400" />
+                        <p className="text-sm text-zinc-400">총 시청 시간</p>
+                        <Clock className="w-5 h-5 text-amber-400" />
                     </div>
                     <p className="text-2xl font-bold text-white">{formatTime(totalWatchTime)}</p>
                 </div>
             </div>
 
             {/* Courses Table */}
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <div className="bg-zinc-900/40 rounded-lg border border-zinc-800 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-800/50 border-b border-slate-800">
+                        <thead className="bg-zinc-900/80 border-b border-zinc-800">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     강좌명
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     조회수
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     등록 학생
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     시청 시간
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     직접 판매
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     구독 수익
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     총 수익
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-zinc-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                                        로딩 중...
+                                    <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
+                                        <div className="flex justify-center items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
+                                            로딩 중...
+                                        </div>
                                     </td>
                                 </tr>
                             ) : sortedCourses.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                                        <TrendingUp className="w-12 h-12 mx-auto mb-2 text-slate-700" />
+                                    <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
+                                        <TrendingUp className="w-12 h-12 mx-auto mb-2 text-zinc-700" />
                                         <p>아직 강좌가 없습니다.</p>
                                     </td>
                                 </tr>
                             ) : (
                                 sortedCourses.map((course) => (
-                                    <tr key={course.id} className="hover:bg-slate-800/50 transition-colors">
+                                    <tr key={course.id} className="hover:bg-zinc-800/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-white">{course.title}</div>
-                                            <div className="text-sm text-slate-500">{course.category} · {course.difficulty}</div>
+                                            <div className="text-sm text-zinc-500">{course.category} · {course.difficulty}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
                                             {course.views.toLocaleString()}
@@ -222,10 +225,10 @@ export const CoursePerformanceTab: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
                                             {formatTime(course.watchTimeMinutes)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-green-400">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-emerald-400">
                                             {formatCurrency(course.directRevenue)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-blue-400">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-violet-400">
                                             {formatCurrency(course.subscriptionRevenue)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-white">

@@ -2,19 +2,23 @@ import React, { useEffect, useState, useRef } from 'react';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getTrainingLogs, getSparringReviews, createTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP, createSparringReview } from '../../lib/api';
+import { getTrainingLogs, getSparringReviews, createTrainingLog, deleteTrainingLog, awardTrainingXP, createSparringReview, createFeedPost } from '../../lib/api';
 import { TrainingLog, SparringReview } from '../../types';
 import { Button } from '../Button';
-import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus, LogIn, Sparkles, Share2, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus, Sparkles, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QuestCompleteModal } from '../QuestCompleteModal';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, endOfYear, subMonths, getYear, addYears, subYears } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, endOfYear, subMonths, getYear } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
 import { TrainingTrendsChart } from './TrainingTrendsChart';
 import { toPng } from 'html-to-image';
-import { ShareToFeedModal } from '../social/ShareToFeedModal';
 import { ShareModal } from '../social/ShareModal';
+import { ConfirmModal } from '../common/ConfirmModal';
+
+const filterExcludeButtons = (node: HTMLElement) => {
+    return node.tagName !== 'BUTTON';
+};
 
 type TimelineItem =
     | { type: 'log'; data: TrainingLog }
@@ -82,20 +86,29 @@ export const JournalTab: React.FC = () => {
     const [selectedMetric, setSelectedMetric] = useState<'count' | 'duration' | 'rounds'>('count');
 
     // Share Modal State
-    const [showShareModal, setShowShareModal] = useState(false); // Used for Preview (ShareToFeedModal)
-    const [showDestinationModal, setShowDestinationModal] = useState(false); // Used for Final Destination (ShareModal)
+    const [isJournalShareModalOpen, setIsJournalShareModalOpen] = useState(false);
+
+    const openJournalShareModal = (isManual: boolean = false) => {
+        if (!isManual) {
+            console.warn('[JournalTab] Blocked an automatic attempt to open ShareModal without user interaction.');
+            return;
+        }
+        setIsJournalShareModalOpen(true);
+    };
+
     const [shareImage, setShareImage] = useState<string | null>(null);
-    const [stagingComment, setStagingComment] = useState('');
-    const [isCapturing, setIsCapturing] = useState(false);
 
     // Refs for capture
-    const grassGraphRef = useRef<HTMLDivElement>(null);
     const statsGraphRef = useRef<HTMLDivElement>(null);
+    const grassGridRef = useRef<HTMLDivElement>(null);
 
     // Delete Confirmation
     const [itemToDelete, setItemToDelete] = useState<TimelineItem | null>(null);
 
     useEffect(() => {
+        // Force reset share states on mount
+        setIsJournalShareModalOpen(false);
+        setShareImage(null);
         if (user) loadData();
         else setLoading(false);
     }, [user]);
@@ -254,12 +267,29 @@ export const JournalTab: React.FC = () => {
                 }
                 shareContent += `\n${formData.notes}`;
 
+                // Capture graph if not already captured for public post
+                let finalShareImage = shareImage;
+                if (!finalShareImage && statsGraphRef.current) {
+                    try {
+                        const filterExcludeButtons = (node: HTMLElement) => node.tagName !== 'BUTTON';
+                        finalShareImage = await toPng(statsGraphRef.current, {
+                            cacheBust: true,
+                            backgroundColor: '#09090b',
+                            pixelRatio: 2,
+                            skipFonts: true,
+                            filter: filterExcludeButtons
+                        });
+                    } catch (e) {
+                        console.warn('Auto-capture graph failed:', e);
+                    }
+                }
+
                 await createFeedPost({
                     userId: user.id,
                     content: shareContent,
                     type: 'general',
                     metadata: { logId: newLog?.id },
-                    mediaUrl: undefined,
+                    mediaUrl: finalShareImage || undefined,
                     youtubeUrl: formData.sparringEntries[0]?.videoUrl ? getYouTubeEmbedUrl(formData.sparringEntries[0].videoUrl) : undefined
                 });
             }
@@ -296,23 +326,57 @@ export const JournalTab: React.FC = () => {
     // Capture Logic
     const captureGraph = async (ref: React.RefObject<HTMLDivElement>) => {
         if (!ref.current) return;
-        setIsCapturing(true);
+
+        const originalStyles = new Map<HTMLElement, { cssText: string; scrollLeft: number }>();
 
         try {
-            // skipFonts: true to avoid CORS errors with Google Fonts/External CSS
-            const dataUrl = await toPng(ref.current, {
+            const node = ref.current;
+            const scrollContainers = node.querySelectorAll('.overflow-x-auto');
+
+            scrollContainers.forEach((container) => {
+                const el = container as HTMLElement;
+                originalStyles.set(el, {
+                    cssText: el.style.cssText,
+                    scrollLeft: el.scrollLeft
+                });
+                el.style.overflow = 'visible';
+                el.style.width = 'auto';
+                el.style.maxWidth = 'none';
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            const innerContent = node.querySelector('.min-w-max') as HTMLElement;
+            let captureWidth = node.offsetWidth;
+
+            if (innerContent) {
+                captureWidth = Math.max(innerContent.offsetWidth + 80, node.offsetWidth);
+            }
+
+            const dataUrl = await toPng(node, {
                 cacheBust: true,
                 backgroundColor: '#09090b',
                 pixelRatio: 2,
-                skipFonts: true
+                skipFonts: true,
+                width: captureWidth,
+                style: {
+                    width: `${captureWidth}px`,
+                    maxWidth: 'none',
+                    overflow: 'visible'
+                },
+                filter: filterExcludeButtons
             });
+
             setShareImage(dataUrl);
-            setShowShareModal(true);
+            openJournalShareModal(true); // Always manual here
         } catch (err) {
             console.error('Capture failed', err);
             toastError('이미지 저장에 실패했습니다.');
         } finally {
-            setIsCapturing(false);
+            originalStyles.forEach((original, element) => {
+                element.style.cssText = original.cssText;
+                element.scrollLeft = original.scrollLeft;
+            });
         }
     };
 
@@ -377,28 +441,22 @@ export const JournalTab: React.FC = () => {
         );
     };
 
-    // Calculate dates for Grass Graph
     const getGrassDates = () => {
-        const today = new Date(); // Or maybe selected year end? No, assume '2026' means full year view context
-
+        const today = new Date();
         let start, end;
-
-        // Year Logic - if selectedYear is not current year, show full year
         if (selectedYear !== getYear(today)) {
             start = startOfYear(new Date(selectedYear, 0, 1));
             end = endOfYear(new Date(selectedYear, 0, 1));
         } else {
-            // Range Logic (relative to today)
             end = today;
             switch (graphRange) {
                 case '1M': start = subMonths(today, 1); break;
                 case '3M': start = subMonths(today, 3); break;
                 case '6M': start = subMonths(today, 6); break;
-                case '1Y': start = subDays(today, 364); break; // roughly 1 year back
+                case '1Y': start = subDays(today, 364); break;
                 default: start = subDays(today, 364);
             }
         }
-
         return eachDayOfInterval({ start, end });
     };
 
@@ -407,149 +465,138 @@ export const JournalTab: React.FC = () => {
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20 relative">
-
-            {/* Training Trends Chart & Share Button */}
-            <div className="relative group" ref={statsGraphRef}>
-                <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
-                <button
-                    onClick={() => captureGraph(statsGraphRef)}
-                    className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-all border border-zinc-700 backdrop-blur-sm shadow-xl"
-                    title="그래프 공유하기"
-                >
-                    <Share2 className="w-4 h-4" />
-                </button>
-            </div>
-
-            {/* Stats - Interactive Tabs */}
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
-                <div
-                    onClick={() => setSelectedMetric('count')}
-                    className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'count' ? 'ring-1 ring-violet-500/50' : ''}`}
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <TrendBadge trend={countTrend} />
-                    <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
-                        <Trophy className="w-5 h-5 text-violet-500" />
-                    </div>
-                    <div>
-                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                            {thisMonthItems.length}
-                        </div>
-                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 수련</div>
-                    </div>
-                </div>
-                <div
-                    onClick={() => setSelectedMetric('duration')}
-                    className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'duration' ? 'ring-1 ring-violet-500/50' : ''}`}
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <TrendBadge trend={durationTrend} />
-                    <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
-                        <Clock className="w-5 h-5 text-violet-500" />
-                    </div>
-                    <div>
-                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                            {Math.round(thisMonthDuration / 60)}
-                        </div>
-                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 시간(hr)</div>
-                    </div>
-                </div>
-                <div
-                    onClick={() => setSelectedMetric('rounds')}
-                    className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'rounds' ? 'ring-1 ring-violet-500/50' : ''}`}
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <TrendBadge trend={roundsTrend} />
-                    <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
-                        <Activity className="w-5 h-5 text-violet-500" />
-                    </div>
-                    <div>
-                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                            {thisMonthRounds}
-                        </div>
-                        <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 라운드</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Heatmap */}
-            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 relative group" ref={grassGraphRef}>
-                {/* Graph Capture Button */}
-                <button
-                    onClick={() => captureGraph(grassGraphRef)}
-                    className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-all border border-zinc-700 backdrop-blur-sm shadow-xl z-20"
-                    title="잔디 공유하기"
-                >
-                    <Share2 className="w-4 h-4" />
-                </button>
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-zinc-400" />
-                        수련 잔디
-                    </h3>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        {/* Year Selector */}
-                        <div className="flex items-center bg-zinc-950 rounded-lg p-1 border border-zinc-800">
-                            <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-                            <span className="text-xs font-bold px-2 text-zinc-300">{selectedYear}</span>
-                            <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
-                        </div>
-
-                        {/* Range Selector */}
-                        <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
-                            {(['1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
-                                <button
-                                    key={range}
-                                    onClick={() => setGraphRange(range)}
-                                    className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${graphRange === range
-                                        ? 'bg-violet-600 text-white shadow-lg'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                >
-                                    {range}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+            <div className="space-y-6" ref={statsGraphRef}>
+                <div className="relative group">
+                    <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            captureGraph(statsGraphRef);
+                        }}
+                        className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-all border border-zinc-700 backdrop-blur-sm shadow-xl"
+                        title="그래프 공유하기"
+                    >
+                        <Share2 className="w-4 h-4" />
+                    </button>
                 </div>
 
-                <div ref={scrollRef} className="overflow-x-auto pb-4 scrollbar-hide px-4 -mx-4">
-                    <div className="min-w-max flex gap-1.5 pl-2">
-                        {/* Render columns based on calculated weeks */}
-                        {Array.from({ length: weeks }).map((_, w) => (
-                            <div key={w} className="flex flex-col gap-1.5">
-                                {Array.from({ length: 7 }).map((_, d) => {
-                                    const idx = w * 7 + d;
-                                    if (idx >= grassDates.length) return <div key={d} className="w-3.5 h-3.5" />; // maintain grid
-
-                                    const currentDate = grassDates[idx];
-                                    const intensity = getIntensity(currentDate);
-                                    const isSel = selectedDate && isSameDay(selectedDate, currentDate);
-
-                                    // Visual logic
-                                    let bg = 'bg-zinc-800/50';
-                                    if (intensity === 1) bg = 'bg-violet-900/60 border border-violet-800/50';
-                                    if (intensity === 2) bg = 'bg-violet-600 border border-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]';
-                                    if (intensity >= 3) bg = 'bg-violet-400 border border-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.5)]';
-
-                                    return (
-                                        <div
-                                            key={d}
-                                            onClick={() => setSelectedDate(isSel ? null : currentDate)}
-                                            title={format(currentDate, 'yyyy-MM-dd')}
-                                            className={`w-3.5 h-3.5 rounded-sm cursor-pointer transition-all ${bg} ${isSel ? 'ring-2 ring-white scale-125 z-10' : 'hover:scale-110'}`}
-                                        />
-                                    );
-                                })}
+                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                    <div
+                        onClick={() => setSelectedMetric('count')}
+                        className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'count' ? 'ring-1 ring-violet-500/50' : ''}`}
+                    >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        <TrendBadge trend={countTrend} />
+                        <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
+                            <Trophy className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div>
+                            <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
+                                {thisMonthItems.length}
                             </div>
-                        ))}
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 수련</div>
+                        </div>
+                    </div>
+                    <div
+                        onClick={() => setSelectedMetric('duration')}
+                        className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'duration' ? 'ring-1 ring-violet-500/50' : ''}`}
+                    >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        <TrendBadge trend={durationTrend} />
+                        <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
+                            <Clock className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div>
+                            <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
+                                {Math.round(thisMonthDuration / 60)}
+                            </div>
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 시간(hr)</div>
+                        </div>
+                    </div>
+                    <div
+                        onClick={() => setSelectedMetric('rounds')}
+                        className={`bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-between relative overflow-hidden group transition-all cursor-pointer hover:border-violet-500/50 ${selectedMetric === 'rounds' ? 'ring-1 ring-violet-500/50' : ''}`}
+                    >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        <TrendBadge trend={roundsTrend} />
+                        <div className="w-10 h-10 rounded-full bg-zinc-950/50 flex items-center justify-center mb-4 ring-1 ring-white/5">
+                            <Activity className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div>
+                            <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
+                                {thisMonthRounds}
+                            </div>
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 라운드</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* List Header */}
+            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 relative group">
+                <div ref={grassGridRef}>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-zinc-400" />
+                            수련 잔디
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                                <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                                <span className="text-xs font-bold px-2 text-zinc-300">{selectedYear}</span>
+                                <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                            </div>
+                            <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                                {(['1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
+                                    <button
+                                        key={range}
+                                        onClick={() => setGraphRange(range)}
+                                        className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${graphRange === range
+                                            ? 'bg-violet-600 text-white shadow-lg'
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                            }`}
+                                    >
+                                        {range}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-zinc-900 rounded-xl p-4">
+                        <div ref={scrollRef} className="overflow-x-auto pb-4 scrollbar-hide">
+                            <div className="min-w-max flex gap-1.5 pl-2">
+                                {Array.from({ length: weeks }).map((_, w) => (
+                                    <div key={w} className="flex flex-col gap-1.5">
+                                        {Array.from({ length: 7 }).map((_, d) => {
+                                            const idx = w * 7 + d;
+                                            if (idx >= grassDates.length) return <div key={d} className="w-3.5 h-3.5" />;
+
+                                            const currentDate = grassDates[idx];
+                                            const intensity = getIntensity(currentDate);
+                                            const isSel = selectedDate && isSameDay(selectedDate, currentDate);
+
+                                            let bg = 'bg-zinc-800/50';
+                                            if (intensity === 1) bg = 'bg-violet-900/60 border border-violet-800/50';
+                                            if (intensity === 2) bg = 'bg-violet-600 border border-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]';
+                                            if (intensity >= 3) bg = 'bg-violet-400 border border-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.5)]';
+
+                                            return (
+                                                <div
+                                                    key={d}
+                                                    onClick={() => setSelectedDate(isSel ? null : currentDate)}
+                                                    title={format(currentDate, 'yyyy-MM-dd')}
+                                                    className={`w-3.5 h-3.5 rounded-sm cursor-pointer transition-all ${bg} ${isSel ? 'ring-2 ring-white scale-125 z-10' : 'hover:scale-110'}`}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">
                     {selectedDate ? format(selectedDate, 'M월 d일의 기록') : '최근 활동'}
@@ -563,7 +610,6 @@ export const JournalTab: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Timeline */}
             <div className="space-y-4">
                 {displayedItems.length === 0 ? (
                     <div className="text-center py-16 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30">
@@ -622,291 +668,184 @@ export const JournalTab: React.FC = () => {
                 )}
             </div>
 
-            {/* Create Modal - New Post Style */}
-            {
-                isCreating && (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsCreating(false)}>
-                        <div className="bg-zinc-900/90 backdrop-blur-2xl rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                            {/* Header */}
-                            <div className="flex justify-between items-center p-6 border-b border-white/5">
-                                <h2 className="text-lg font-bold text-white">새 게시물</h2>
-                                <button onClick={() => setIsCreating(false)} className="p-2 rounded-full hover:bg-white/5 transition-colors"><X className="w-5 h-5 text-zinc-400 hover:text-white" /></button>
+            {isCreating && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsCreating(false)}>
+                    <div className="bg-zinc-900/90 backdrop-blur-2xl rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-6 border-b border-white/5">
+                            <h2 className="text-lg font-bold text-white">새 게시물</h2>
+                            <button onClick={() => setIsCreating(false)} className="p-2 rounded-full hover:bg-white/5 transition-colors"><X className="w-5 h-5 text-zinc-400 hover:text-white" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-700">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                                    {user?.user_metadata?.avatar_url ? (
+                                        <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User className="w-5 h-5 text-gray-400" />
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="text-white font-bold text-sm">{user?.email?.split('@')[0] || 'User'}</div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, isPublic: !prev.isPublic }))}
+                                        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border w-fit mt-0.5 transition-colors ${formData.isPublic ? 'text-violet-400 bg-violet-500/10 border-violet-500/20' : 'text-gray-400 bg-gray-800 border-gray-700'}`}
+                                    >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${formData.isPublic ? 'bg-violet-400 animate-pulse' : 'bg-gray-500'}`}></span>
+                                        {formData.isPublic ? '전체 공개' : '나만 보기'}
+                                    </button>
+                                </div>
                             </div>
-
-                            {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-700">
-                                {/* User Profile */}
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                                        {user?.user_metadata?.avatar_url ? (
-                                            <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User className="w-5 h-5 text-gray-400" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="text-white font-bold text-sm">{user?.email?.split('@')[0] || 'User'}</div>
+                            <form id="postForm" onSubmit={handleSave} className="space-y-4">
+                                <textarea
+                                    value={formData.notes}
+                                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                                    className="w-full bg-transparent text-white placeholder-gray-500 text-base resize-none outline-none min-h-[120px]"
+                                    placeholder="오늘 수련은 어떠셨나요? 자유롭게 기록해보세요."
+                                />
+                                <div className="space-y-2">
+                                    {formData.techniques.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {formData.techniques.map(tech => (
+                                                <span key={tech} className="px-2 py-1 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30 flex items-center gap-1">
+                                                    #{tech} <button type="button" onClick={() => setFormData({ ...formData, techniques: formData.techniques.filter(t => t !== tech) })}>&times;</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {formData.sparringEntries.map((entry, idx) => (
+                                        <div key={idx} className="bg-[#252525] p-3 rounded-lg border border-[#333] flex items-center justify-between group">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${entry.result === 'win' ? 'bg-green-900/50 text-green-400 border border-green-800' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                                                    {entry.result === 'win' ? 'W' : entry.result === 'loss' ? 'L' : 'D'}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm text-gray-200 font-medium">{entry.opponentName} <span className="text-gray-500 text-xs">({entry.opponentBelt})</span></div>
+                                                    <div className="text-xs text-gray-500">{entry.rounds}라운드 {entry.notes && `• ${entry.notes}`}</div>
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={() => handleRemoveSparringEntry(idx)} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-4 h-4" /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="pt-2 flex flex-col gap-2">
+                                    {isAddingSparring && (
+                                        <div className="bg-[#252525] p-3 rounded-xl border border-[#333] animate-in slide-in-from-top-2">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs text-gray-400 font-bold">스파링 추가</span>
+                                                <button type="button" onClick={() => setIsAddingSparring(false)}><X className="w-3 h-3 text-gray-500" /></button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                                <input type="text" placeholder="상대 이름" value={tempSparring.opponentName} onChange={e => setTempSparring({ ...tempSparring, opponentName: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white focus:border-violet-500 outline-none" />
+                                                <select value={tempSparring.opponentBelt} onChange={e => setTempSparring({ ...tempSparring, opponentBelt: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white outline-none">
+                                                    <option value="white">White</option>
+                                                    <option value="blue">Blue</option>
+                                                    <option value="purple">Purple</option>
+                                                    <option value="brown">Brown</option>
+                                                    <option value="black">Black</option>
+                                                </select>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                                <select value={tempSparring.result} onChange={e => setTempSparring({ ...tempSparring, result: e.target.value as any })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white outline-none">
+                                                    <option value="draw">무승부</option>
+                                                    <option value="win">승리</option>
+                                                    <option value="loss">패배</option>
+                                                </select>
+                                                <div className="flex items-center gap-2">
+                                                    <input type="number" value={tempSparring.rounds} onChange={e => setTempSparring({ ...tempSparring, rounds: Number(e.target.value) })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white w-full outline-none" />
+                                                    <span className="text-xs text-gray-500 whitespace-nowrap">R</span>
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={handleAddSparringEntry} disabled={!tempSparring.opponentName} className="w-full bg-violet-600 hover:bg-violet-500 text-white py-1.5 rounded text-sm font-medium transition-colors">추가완료</button>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-4 py-2">
+                                        <div className="flex items-center gap-1">
+                                            <button type="button" onClick={() => setIsAddingSparring(!isAddingSparring)} className={`p-2 rounded-full hover:bg-gray-800 transition-colors ${isAddingSparring ? 'text-violet-400 bg-violet-500/10' : 'text-gray-400'}`} title="스파링 추가">
+                                                <Swords className="w-5 h-5" />
+                                            </button>
+                                            <div className="h-4 w-[1px] bg-gray-700 mx-1"></div>
+                                            <div className="relative group">
+                                                <label htmlFor="date-input" className="p-2 rounded-full hover:bg-gray-800 cursor-pointer block text-gray-400 group-hover:text-white transition-colors">
+                                                    <Calendar className="w-5 h-5" />
+                                                </label>
+                                                <input id="date-input" type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
+                                            </div>
+                                            <button type="button" onClick={() => setShowTechModal(true)} className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors" title="기술 태그">
+                                                <span className="font-serif italic font-bold text-lg">#</span>
+                                            </button>
+                                            <div className="relative group flex items-center">
+                                                <Clock className="w-5 h-5 text-gray-400 ml-2" />
+                                                <input type="number" value={formData.durationMinutes} onChange={e => setFormData({ ...formData, durationMinutes: Number(e.target.value) })} className="w-12 bg-transparent text-sm text-gray-300 text-center outline-none border-b border-transparent focus:border-violet-500 transition-colors" title="수련 시간(분)" />
+                                                <span className="text-xs text-gray-600">분</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1"></div>
                                         <button
                                             type="button"
-                                            onClick={() => setFormData(prev => ({ ...prev, isPublic: !prev.isPublic }))}
-                                            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border w-fit mt-0.5 transition-colors ${formData.isPublic ? 'text-violet-400 bg-violet-500/10 border-violet-500/20' : 'text-gray-400 bg-gray-800 border-gray-700'}`}
+                                            onClick={() => setSaveToLog(!saveToLog)}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${saveToLog ? 'bg-violet-500 text-white shadow-lg shadow-violet-900/20' : 'bg-gray-800 text-gray-500'}`}
                                         >
-                                            <span className={`w-1.5 h-1.5 rounded-full ${formData.isPublic ? 'bg-violet-400 animate-pulse' : 'bg-gray-500'}`}></span>
-                                            {formData.isPublic ? '전체 공개' : '나만 보기'}
+                                            <div className={`w-2 h-2 rounded-full ${saveToLog ? 'bg-white' : 'bg-gray-600'}`}></div>
+                                            수련 일지에 기록 {saveToLog && 'ON'}
                                         </button>
                                     </div>
                                 </div>
-
-                                <form id="postForm" onSubmit={handleSave} className="space-y-4">
-                                    <textarea
-                                        value={formData.notes}
-                                        onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                                        className="w-full bg-transparent text-white placeholder-gray-500 text-base resize-none outline-none min-h-[120px]"
-                                        placeholder="오늘 수련은 어떠셨나요? 자유롭게 기록해보세요."
-                                    />
-
-                                    {/* Added Items Display (Sparring, Tags, etc) */}
-                                    <div className="space-y-2">
-                                        {formData.techniques.length > 0 && (
-                                            <div className="flex flex-wrap gap-2">
-                                                {formData.techniques.map(tech => (
-                                                    <span key={tech} className="px-2 py-1 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30 flex items-center gap-1">
-                                                        #{tech} <button type="button" onClick={() => setFormData({ ...formData, techniques: formData.techniques.filter(t => t !== tech) })}>&times;</button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {formData.sparringEntries.map((entry, idx) => (
-                                            <div key={idx} className="bg-[#252525] p-3 rounded-lg border border-[#333] flex items-center justify-between group">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${entry.result === 'win' ? 'bg-green-900/50 text-green-400 border border-green-800' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                                                        {entry.result === 'win' ? 'W' : entry.result === 'loss' ? 'L' : 'D'}
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm text-gray-200 font-medium">{entry.opponentName} <span className="text-gray-500 text-xs">({entry.opponentBelt})</span></div>
-                                                        <div className="text-xs text-gray-500">{entry.rounds}라운드 {entry.notes && `• ${entry.notes}`}</div>
-                                                    </div>
-                                                </div>
-                                                <button type="button" onClick={() => handleRemoveSparringEntry(idx)} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-4 h-4" /></button>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Tools Section */}
-                                    <div className="pt-2 flex flex-col gap-2">
-                                        {/* Inline Tools: Date, Sparring Mode, Link */}
-                                        {isAddingSparring ? (
-                                            <div className="bg-[#252525] p-3 rounded-xl border border-[#333] animate-in slide-in-from-top-2">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="text-xs text-gray-400 font-bold">스파링 추가</span>
-                                                    <button type="button" onClick={() => setIsAddingSparring(false)}><X className="w-3 h-3 text-gray-500" /></button>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                                    <input type="text" placeholder="상대 이름" value={tempSparring.opponentName} onChange={e => setTempSparring({ ...tempSparring, opponentName: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white focus:border-violet-500 outline-none" />
-                                                    <select value={tempSparring.opponentBelt} onChange={e => setTempSparring({ ...tempSparring, opponentBelt: e.target.value })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white outline-none">
-                                                        <option value="white">White</option>
-                                                        <option value="blue">Blue</option>
-                                                        <option value="purple">Purple</option>
-                                                        <option value="brown">Brown</option>
-                                                        <option value="black">Black</option>
-                                                    </select>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                                    <select value={tempSparring.result} onChange={e => setTempSparring({ ...tempSparring, result: e.target.value as any })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white outline-none">
-                                                        <option value="draw">무승부</option>
-                                                        <option value="win">승리</option>
-                                                        <option value="loss">패배</option>
-                                                    </select>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="number" value={tempSparring.rounds} onChange={e => setTempSparring({ ...tempSparring, rounds: Number(e.target.value) })} className="bg-[#1a1a1a] border border-[#333] rounded px-2 py-1.5 text-sm text-white w-full outline-none" />
-                                                        <span className="text-xs text-gray-500 whitespace-nowrap">R</span>
-                                                    </div>
-                                                </div>
-                                                <button type="button" onClick={handleAddSparringEntry} disabled={!tempSparring.opponentName} className="w-full bg-violet-600 hover:bg-violet-500 text-white py-1.5 rounded text-sm font-medium transition-colors">추가완료</button>
-                                            </div>
-                                        ) : (
-                                            null
-                                        )}
-
-                                        <div className="flex items-center gap-4 py-2">
-                                            {/* Tool Icons */}
-                                            <div className="flex items-center gap-1">
-                                                <button type="button" onClick={() => setIsAddingSparring(!isAddingSparring)} className={`p-2 rounded-full hover:bg-gray-800 transition-colors ${isAddingSparring ? 'text-violet-400 bg-violet-500/10' : 'text-gray-400'}`} title="스파링 추가">
-                                                    <Swords className="w-5 h-5" />
-                                                </button>
-                                                <div className="h-4 w-[1px] bg-gray-700 mx-1"></div>
-
-                                                {/* Date Picker (Small) */}
-                                                <div className="relative group">
-                                                    <label htmlFor="date-input" className="p-2 rounded-full hover:bg-gray-800 cursor-pointer block text-gray-400 group-hover:text-white transition-colors">
-                                                        <Calendar className="w-5 h-5" />
-                                                    </label>
-                                                    <input id="date-input" type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-                                                </div>
-
-                                                <button type="button" onClick={() => setShowTechModal(true)} className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors" title="기술 태그">
-                                                    <span className="font-serif italic font-bold text-lg">#</span>
-                                                </button>
-
-                                                {/* Duration (Quick Input) */}
-                                                <div className="relative group flex items-center">
-                                                    <Clock className="w-5 h-5 text-gray-400 ml-2" />
-                                                    <input type="number" value={formData.durationMinutes} onChange={e => setFormData({ ...formData, durationMinutes: Number(e.target.value) })} className="w-12 bg-transparent text-sm text-gray-300 text-center outline-none border-b border-transparent focus:border-violet-500 transition-colors" title="수련 시간(분)" />
-                                                    <span className="text-xs text-gray-600">분</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex-1"></div>
-
-                                            {/* Journal Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setSaveToLog(!saveToLog)}
-                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${saveToLog ? 'bg-violet-500 text-white shadow-lg shadow-violet-900/20' : 'bg-gray-800 text-gray-500'}`}
-                                            >
-                                                <div className={`w-2 h-2 rounded-full ${saveToLog ? 'bg-white' : 'bg-gray-600'}`}></div>
-                                                수련 일지에 기록 {saveToLog && 'ON'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-
-                            {/* Footer Action */}
-                            <div className="p-6 border-t border-white/5 bg-zinc-900/50 backdrop-blur-md">
-                                <Button type="submit" form="postForm" className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white text-base font-bold rounded-2xl shadow-lg shadow-violet-900/20 hover:shadow-violet-500/40 flex items-center justify-center gap-2 transform transition-all active:scale-[0.98]">
-                                    {formData.isPublic ? '게시하기' : '저장하기'}
-                                    <Sparkles className="w-4 h-4 ml-1" />
-                                </Button>
-                            </div>
+                            </form>
                         </div>
-                    </div>
-                )
-            }
-
-            {/* Delete Confirmation Modal */}
-            {itemToDelete && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
-                        <h3 className="text-lg font-bold text-white mb-2">기록을 삭제하시겠습니까?</h3>
-                        <p className="text-zinc-500 text-sm mb-6">삭제된 기록은 복구할 수 없습니다.</p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setItemToDelete(null)}
-                                className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-400 hover:bg-zinc-800 font-bold text-sm transition-colors"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm transition-colors shadow-lg shadow-rose-900/20"
-                            >
-                                삭제하기
-                            </button>
+                        <div className="p-6 border-t border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                            <Button type="submit" form="postForm" className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white text-base font-bold rounded-2xl shadow-lg shadow-violet-900/20 hover:shadow-violet-500/40 flex items-center justify-center gap-2 transform transition-all active:scale-[0.98]">
+                                {formData.isPublic ? '게시하기' : '저장하기'}
+                                <Sparkles className="w-4 h-4 ml-1" />
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Shared To Feed Modal (Image Capture) - PREVIEW STEP */}
-            {showShareModal && (
-                <ShareToFeedModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    onShare={async (comment) => {
-                        setStagingComment(comment);
-                        setShowShareModal(false);
-                        setShowDestinationModal(true);
+            <ConfirmModal
+                isOpen={!!itemToDelete}
+                onClose={() => setItemToDelete(null)}
+                onConfirm={confirmDelete}
+                title="기록을 삭제하시겠습니까?"
+                message="삭제된 기록은 복구할 수 없습니다."
+                confirmText="삭제하기"
+                variant="danger"
+                isLoading={loading}
+            />
+
+            {(isJournalShareModalOpen && shareImage) && (
+                <ShareModal
+                    isOpen={true}
+                    onClose={() => {
+                        setIsJournalShareModalOpen(false);
+                        setShareImage(null);
                     }}
+                    title="수련 통계 공유"
+                    text="오늘의 수련 현황입니다! 🥋🔥"
+                    imageUrl={shareImage}
+                    initialStep="select"
                     activityType="general"
-                    defaultContent="오늘의 수련 현황입니다! 🥋🔥"
-                    metadata={{
-                        userName: user?.user_metadata?.name || 'User',
-                        userAvatar: user?.user_metadata?.avatar_url,
-                        images: shareImage ? [shareImage] : [],
-                        notes: "그래프 공유"
-                    }}
+                    metadata={{ type: 'stats_share' }}
                 />
             )}
 
-            {/* Destination Share Modal - FINAL STEP */}
-            <ShareModal
-                isOpen={showDestinationModal}
-                onClose={() => setShowDestinationModal(false)}
-                title="수련 통계 공유"
-                text={stagingComment || "오늘의 수련 현황입니다! 🥋🔥"}
-                imageUrl={shareImage || undefined}
-                onFeedShare={async () => {
-                    if (!user) {
-                        toastError('로그인이 필요합니다.');
-                        return;
-                    }
-                    if (!shareImage) {
-                        toastError('이미지가 없습니다. 다시 시도해주세요.');
-                        return;
-                    }
+            {showQuestComplete && questCompleteData && (
+                <QuestCompleteModal
+                    isOpen={showQuestComplete}
+                    onClose={() => setShowQuestComplete(false)}
+                    onContinue={() => setShowQuestComplete(false)}
+                    {...questCompleteData}
+                />
+            )}
 
-                    // Upload Image first
-                    let imageUrl = '';
-                    try {
-                        const blob = await (await fetch(shareImage)).blob();
-                        const fileName = `share-graph-${Date.now()}.png`;
-                        const { data, error } = await supabase.storage.from('hero-images').upload(fileName, blob);
-                        if (error) {
-                            console.error('Image upload failed:', error);
-                            // Continue without image or stop? Let's continue but warn
-                        }
-                        if (!error && data) {
-                            const { data: publicUrl } = supabase.storage.from('hero-images').getPublicUrl(fileName);
-                            imageUrl = publicUrl.publicUrl;
-                        }
-                    } catch (e) {
-                        console.error('Upload failed', e);
-                    }
-
-                    const { error } = await createFeedPost({
-                        userId: user.id,
-                        content: stagingComment,
-                        type: 'general',
-                        // We use general type but include visual metadata
-                        metadata: {
-                            type: 'stats_share',
-                            images: imageUrl ? [imageUrl] : []
-                        },
-                        mediaUrl: imageUrl
-                    });
-
-                    if (error) {
-                        console.error('Create feed post failed:', error);
-                        toastError('피드 공유에 실패했습니다.');
-                        return;
-                    }
-
-                    success('피드에 공유되었습니다!');
-                    setShowDestinationModal(false);
-                }}
-            />
-            {
-                showQuestComplete && questCompleteData && (
-                    <QuestCompleteModal
-                        isOpen={showQuestComplete}
-                        onClose={() => setShowQuestComplete(false)}
-                        onContinue={() => setShowQuestComplete(false)}
-                        {...questCompleteData}
-                    />
-                )
-            }
-
-            {
-                showTechModal && (
-                    <TechniqueTagModal
-                        selectedTechniques={formData.techniques}
-                        onSelect={(techs) => setFormData({ ...formData, techniques: techs })}
-                        onClose={() => setShowTechModal(false)}
-                    />
-                )
-            }
-        </div >
+            {showTechModal && (
+                <TechniqueTagModal
+                    selectedTechniques={formData.techniques}
+                    onSelect={(techs) => setFormData({ ...formData, techniques: techs })}
+                    onClose={() => setShowTechModal(false)}
+                />
+            )}
+        </div>
     );
 };

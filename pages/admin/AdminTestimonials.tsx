@@ -7,17 +7,30 @@ export const AdminTestimonials: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-slate-950 p-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex items-center gap-4 mb-8">
+        <div className="min-h-screen bg-zinc-950 text-white pb-20">
+            <div className="relative overflow-hidden">
+                {/* Background Decoration */}
+                <div className="absolute top-0 right-0 w-[500px] h-[300px] bg-violet-600/10 blur-[100px] -z-10" />
+                <div className="absolute top-0 left-0 w-[300px] h-[200px] bg-amber-600/5 blur-[100px] -z-10" />
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <button
                         onClick={() => navigate('/admin')}
-                        className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
                     >
-                        <ArrowLeft className="w-6 h-6" />
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-medium">대시보드로 돌아가기</span>
                     </button>
-                    <h1 className="text-2xl font-bold text-white">고객 후기 관리</h1>
+                    <div className="space-y-2">
+                        <h1 className="text-4xl font-black tracking-tighter text-white">고객 후기 관리</h1>
+                        <p className="text-zinc-400 max-w-2xl text-lg leading-relaxed">
+                            사용자들의 진솔한 피드백을 관리하여 플랫폼의 신뢰도를 높이고 커뮤니티 성장을 도모합니다.
+                        </p>
+                    </div>
                 </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <AdminTestimonialsTab />
             </div>
         </div>

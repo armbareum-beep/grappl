@@ -16,9 +16,7 @@ export const VideoDetail: React.FC = () => {
   const [creator, setCreator] = useState<Creator | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
-  const [ownsVideo, setOwnsVideo] = useState(false);
   const [showBeltUp, setShowBeltUp] = useState(false);
-  const [beltUpData, setBeltUpData] = useState<{ old: number; new: number } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const lastTickRef = useRef<number>(0);
@@ -37,8 +35,7 @@ export const VideoDetail: React.FC = () => {
           setCreator(creatorData);
 
           if (user) {
-            const owns = await checkVideoOwnership(user.id, id);
-            setOwnsVideo(owns);
+            await checkVideoOwnership(user.id, id);
           }
 
           const allVideos = await getVideos();
@@ -59,7 +56,7 @@ export const VideoDetail: React.FC = () => {
     fetchData();
   }, [id, user]);
 
-  const handleProgress = async (seconds: number) => {
+  const handleProgress = async (_seconds: number) => {
     if (!user || !video) return;
 
     const now = Date.now();
@@ -257,7 +254,6 @@ export const VideoDetail: React.FC = () => {
         )
       }
 
-      {/* Share Modal Portal */}
       <React.Suspense fallback={null}>
         {isShareModalOpen && video && (
           <ShareModal
@@ -266,6 +262,9 @@ export const VideoDetail: React.FC = () => {
             title={video.title}
             text={video.description}
             url={window.location.href}
+            imageUrl={video.thumbnailUrl}
+            initialStep="write"
+            activityType="general"
           />
         )}
       </React.Suspense>

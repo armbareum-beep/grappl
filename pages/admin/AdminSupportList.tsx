@@ -78,83 +78,83 @@ export const AdminSupportList: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="flex justify-center items-center min-h-screen bg-zinc-950">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-zinc-950 text-white pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Header */}
-                <div className="mb-8">
+                <div className="mb-10">
                     <button
                         onClick={() => navigate('/admin')}
-                        className="flex items-center gap-2 text-slate-400 hover:text-white mb-2 transition-colors"
+                        className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group"
                     >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>대시보드로 돌아가기</span>
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-medium">대시보드로 돌아가기</span>
                     </button>
-                    <h1 className="text-3xl font-bold text-white mb-2">1:1 문의 관리</h1>
-                    <p className="text-slate-400">사용자 문의 사항을 확인하고 답변을 등록합니다.</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">1:1 문의 관리</h1>
+                    <p className="text-zinc-400">사용자들의 문의 사항을 실시간으로 확인하고 지원합니다.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* List Section */}
-                    <div className="lg:col-span-1 space-y-4">
+                    <div className="lg:col-span-1 space-y-6">
                         {/* Filters */}
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex gap-1.5 p-1.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl backdrop-blur-sm">
                             {(['all', 'open', 'resolved'] as const).map((status) => (
                                 <button
                                     key={status}
                                     onClick={() => setFilterStatus(status)}
-                                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${filterStatus === status
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${filterStatus === status
+                                        ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]'
+                                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
                                         }`}
                                 >
-                                    {status === 'all' ? '전체' : status === 'open' ? '대기중' : '완료됨'}
+                                    {status === 'all' ? '전체' : status === 'open' ? '대기' : '완료'}
                                 </button>
                             ))}
                         </div>
 
                         {/* Search */}
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4" />
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-500 w-4 h-4" />
                             <input
                                 type="text"
                                 placeholder="검색..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className="w-full pl-10 pr-4 py-3.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all text-sm"
                             />
                         </div>
 
                         {/* Ticket List */}
-                        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden max-h-[600px] overflow-y-auto">
+                        <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden max-h-[600px] overflow-y-auto backdrop-blur-xl">
                             {filteredTickets.length > 0 ? (
-                                <div className="divide-y divide-slate-800">
+                                <div className="divide-y divide-zinc-800/50">
                                     {filteredTickets.map((ticket) => (
                                         <div
                                             key={ticket.id}
                                             onClick={() => setSelectedTicket(ticket)}
-                                            className={`p-4 cursor-pointer transition-colors hover:bg-slate-800 ${selectedTicket?.id === ticket.id ? 'bg-slate-800 border-l-4 border-blue-500' : ''
+                                            className={`p-5 cursor-pointer transition-all hover:bg-zinc-800/50 group ${selectedTicket?.id === ticket.id ? 'bg-zinc-800/80 border-l-4 border-violet-500' : ''
                                                 }`}
                                         >
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="font-medium text-white truncate pr-2">{ticket.subject}</span>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors truncate pr-2">{ticket.subject}</span>
                                                 {getStatusBadge(ticket.status)}
                                             </div>
-                                            <div className="text-xs text-slate-500 mb-2">
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-3 block">
                                                 {ticket.userName || 'Anonymous'} · {new Date(ticket.createdAt).toLocaleDateString()}
                                             </div>
-                                            <p className="text-sm text-slate-400 line-clamp-2">{ticket.message}</p>
+                                            <p className="text-sm text-zinc-400 line-clamp-2 leading-relaxed">{ticket.message}</p>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="p-8 text-center text-slate-500 text-sm">
+                                <div className="p-12 text-center text-zinc-600 font-medium">
                                     문의 내역이 없습니다.
                                 </div>
                             )}
@@ -164,72 +164,77 @@ export const AdminSupportList: React.FC = () => {
                     {/* Detail Section */}
                     <div className="lg:col-span-2">
                         {selectedTicket ? (
-                            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 h-full flex flex-col">
-                                <div className="mb-6 pb-6 border-b border-slate-800">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <h2 className="text-xl font-bold text-white">{selectedTicket.subject}</h2>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-slate-500">ID: {selectedTicket.id}</span>
+                            <div className="bg-zinc-900/40 rounded-3xl border border-zinc-800/50 p-8 h-full flex flex-col backdrop-blur-xl">
+                                <div className="mb-8 pb-8 border-b border-zinc-800/50">
+                                    <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+                                        <h2 className="text-2xl font-extrabold tracking-tight text-white leading-tight">{selectedTicket.subject}</h2>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">ID: {selectedTicket.id.substring(0, 8)}</span>
                                             {getStatusBadge(selectedTicket.status)}
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4 text-sm text-slate-400 mb-6">
-                                        <div className="flex items-center gap-1">
-                                            <MessageSquare className="w-4 h-4" />
+                                    <div className="flex flex-wrap items-center gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-8">
+                                        <div className="flex items-center gap-2">
+                                            <MessageSquare className="w-3.5 h-3.5 text-violet-500" />
                                             {selectedTicket.category}
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="w-4 h-4" />
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3.5 h-3.5 text-violet-500" />
                                             {new Date(selectedTicket.createdAt).toLocaleString()}
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {selectedTicket.priority}
+                                        <div className="flex items-center gap-2">
+                                            <AlertCircle className="w-3.5 h-3.5 text-violet-500" />
+                                            Priority: {selectedTicket.priority}
                                         </div>
                                     </div>
 
-                                    <div className="bg-slate-950 rounded-lg p-4 text-slate-300 whitespace-pre-wrap">
+                                    <div className="bg-zinc-950/50 rounded-2xl p-6 text-zinc-300 whitespace-pre-wrap leading-relaxed border border-zinc-800/50">
                                         {selectedTicket.message}
                                     </div>
                                 </div>
 
                                 {selectedTicket.adminResponse ? (
-                                    <div className="bg-blue-900/10 border border-blue-500/20 rounded-lg p-4 mb-4">
-                                        <div className="flex items-center gap-2 mb-2 text-blue-400 font-medium">
+                                    <div className="bg-violet-900/10 border border-violet-500/20 rounded-2xl p-6 mb-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                        <div className="flex items-center gap-2 mb-4 text-violet-400 font-black uppercase tracking-widest text-xs">
                                             <CheckCircle className="w-4 h-4" />
-                                            답변 완료
+                                            지원팀 답변 완료
                                         </div>
-                                        <p className="text-slate-300 whitespace-pre-wrap">{selectedTicket.adminResponse}</p>
-                                        <div className="text-xs text-slate-500 mt-4 text-right">
-                                            답변일: {new Date(selectedTicket.respondedAt!).toLocaleString()}
+                                        <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">{selectedTicket.adminResponse}</p>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mt-6 text-right">
+                                            Responded: {new Date(selectedTicket.respondedAt!).toLocaleString()}
                                         </div>
                                     </div>
                                 ) : (
-                                    <form onSubmit={handleResponse} className="mt-auto">
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            답변 작성
-                                        </label>
-                                        <textarea
-                                            value={responseText}
-                                            onChange={(e) => setResponseText(e.target.value)}
-                                            placeholder="사용자에게 보낼 답변을 입력하세요..."
-                                            className="w-full h-32 px-4 py-3 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 resize-none"
-                                            required
-                                        />
+                                    <form onSubmit={handleResponse} className="mt-auto space-y-6">
+                                        <div className="space-y-3">
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                답변 작성
+                                            </label>
+                                            <textarea
+                                                value={responseText}
+                                                onChange={(e) => setResponseText(e.target.value)}
+                                                placeholder="사용자에게 보낼 상세 답변을 입력하세요..."
+                                                className="w-full h-40 px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40 mb-2 resize-none leading-relaxed transition-all"
+                                                required
+                                            />
+                                        </div>
                                         <div className="flex justify-end">
-                                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+                                            <Button type="submit" className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-6 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.3)]">
                                                 <Send className="w-4 h-4 mr-2" />
-                                                답변 등록 및 완료 처리
+                                                답변 등록 및 완료
                                             </Button>
                                         </div>
                                     </form>
                                 )}
                             </div>
                         ) : (
-                            <div className="bg-slate-900 rounded-xl border border-slate-800 p-12 flex flex-col items-center justify-center h-full text-slate-500">
-                                <MessageSquare className="w-16 h-16 mb-4 opacity-20" />
-                                <p>좌측 목록에서 문의를 선택하세요.</p>
+                            <div className="bg-zinc-900/20 rounded-3xl border border-dashed border-zinc-800 p-20 flex flex-col items-center justify-center h-full text-zinc-600">
+                                <div className="w-20 h-20 bg-zinc-900/50 rounded-2xl flex items-center justify-center mb-6">
+                                    <MessageSquare className="w-10 h-10 opacity-20" />
+                                </div>
+                                <p className="font-bold text-lg text-zinc-500">문의 사항을 선택해주세요</p>
+                                <p className="text-sm text-zinc-600 mt-2 text-center max-w-xs">왼쪽 목록에서 상세 내용을 확인하고 싶은 문의를 선택하세요.</p>
                             </div>
                         )}
                     </div>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCourses, deleteCourse } from '../../lib/api';
 import { Course } from '../../types';
 import { Button } from '../../components/Button';
-import { Edit, Trash2, Eye, Search, Plus, ArrowLeft } from 'lucide-react';
+import { Trash2, Eye, Search, Plus, ArrowLeft } from 'lucide-react';
 
 export const AdminCourseList: React.FC = () => {
     const navigate = useNavigate();
@@ -48,31 +48,31 @@ export const AdminCourseList: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="flex justify-center items-center min-h-screen bg-zinc-950">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-zinc-950 text-white pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <div>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                    <div className="space-y-1">
                         <button
                             onClick={() => navigate('/admin')}
-                            className="flex items-center gap-2 text-slate-400 hover:text-white mb-2 transition-colors"
+                            className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span>대시보드로 돌아가기</span>
+                            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                            <span className="text-sm font-medium">대시보드로 돌아가기</span>
                         </button>
-                        <h1 className="text-3xl font-bold">강좌 관리</h1>
-                        <p className="text-slate-400">등록된 모든 강좌를 관리합니다.</p>
+                        <h1 className="text-3xl font-extrabold tracking-tight">강좌 관리</h1>
+                        <p className="text-zinc-400">등록된 모든 강좌의 데이터를 관리하고 모니터링합니다.</p>
                     </div>
                     <div className="flex gap-3 w-full md:w-auto">
-                        <Link to="/creator/courses/new">
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto">
+                        <Link to="/creator/courses/new" className="w-full md:w-auto">
+                            <Button className="bg-violet-600 hover:bg-violet-700 text-white w-full shadow-[0_0_20px_rgba(139,92,246,0.3)] border-violet-500/50">
                                 <Plus className="w-4 h-4 mr-2" />
                                 새 강좌 등록
                             </Button>
@@ -81,68 +81,79 @@ export const AdminCourseList: React.FC = () => {
                 </div>
 
                 {/* Search */}
-                <div className="relative mb-6">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
+                <div className="relative mb-8">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-500 w-5 h-5" />
                     <input
                         type="text"
                         placeholder="강좌명, 인스트럭터 검색..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all backdrop-blur-sm"
                     />
                 </div>
 
                 {/* Table */}
-                <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-800/50 border-b border-slate-800">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">강좌 정보</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">인스트럭터</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">가격</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">상태</th>
-                                    <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">관리</th>
+                            <thead>
+                                <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                    <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">강좌 정보</th>
+                                    <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">인스트럭터</th>
+                                    <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">가격</th>
+                                    <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">상태</th>
+                                    <th className="px-6 py-5 text-right text-xs font-bold text-zinc-500 uppercase tracking-widest">관리</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-zinc-800/50">
                                 {filteredCourses.length > 0 ? (
                                     filteredCourses.map((course) => (
-                                        <tr key={course.id} className="hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-6 py-4">
+                                        <tr key={course.id} className="hover:bg-zinc-800/30 transition-colors group">
+                                            <td className="px-6 py-5">
                                                 <div className="flex items-center gap-4">
-                                                    <img
-                                                        src={course.thumbnailUrl}
-                                                        alt={course.title}
-                                                        className="w-16 h-10 object-cover rounded bg-slate-800"
-                                                    />
-                                                    <div>
-                                                        <div className="font-medium text-white">{course.title}</div>
-                                                        <div className="text-xs text-slate-400">{course.category}</div>
+                                                    <div className="w-20 h-12 flex-shrink-0 relative overflow-hidden rounded-lg bg-zinc-800 border border-zinc-700/50">
+                                                        <img
+                                                            src={course.thumbnailUrl}
+                                                            alt={course.title}
+                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors truncate">{course.title}</div>
+                                                        <div className="text-xs text-zinc-500 mt-0.5">{course.category}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-slate-400">
-                                                {course.creatorName}
+                                            <td className="px-6 py-5 text-sm text-zinc-400">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-500 border border-zinc-700">
+                                                        {course.creatorName?.charAt(0)}
+                                                    </div>
+                                                    {course.creatorName}
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm font-medium text-white">
-                                                {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}
+                                            <td className="px-6 py-5 text-sm font-semibold text-zinc-200">
+                                                {course.price === 0 ? (
+                                                    <span className="text-emerald-400">무료</span>
+                                                ) : (
+                                                    `₩${course.price.toLocaleString()}`
+                                                )}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                    공개됨
+                                            <td className="px-6 py-5">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                    ACTIVE
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2">
+                                            <td className="px-6 py-5 text-right">
+                                                <div className="flex justify-end gap-1">
                                                     <Link to={`/courses/${course.id}`}>
-                                                        <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                        <button className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all">
                                                             <Eye className="w-4 h-4" />
                                                         </button>
                                                     </Link>
                                                     <button
                                                         onClick={() => handleDelete(course.id)}
-                                                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                        className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
@@ -152,7 +163,7 @@ export const AdminCourseList: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                        <td colSpan={5} className="px-6 py-20 text-center text-zinc-600 font-medium">
                                             검색 결과가 없습니다.
                                         </td>
                                     </tr>

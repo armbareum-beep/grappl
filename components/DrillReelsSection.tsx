@@ -139,13 +139,13 @@ export const DrillReelsSection: React.FC = () => {
                 {/* CTA */}
                 <div className="mt-12 text-center">
                     <button
-                        onClick={() => navigate('/pricing')}
+                        onClick={() => navigate('/drills')}
                         className="bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300"
                     >
                         지금 바로 무료 기술 습득하기
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">
-                        7-day free trial available for all premium drills.
+                        1,000개 이상의 드릴을 손끝에서 만나보세요.
                     </p>
                 </div>
             </div>

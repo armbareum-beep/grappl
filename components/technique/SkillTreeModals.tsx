@@ -9,7 +9,6 @@ import {
     Trash2,
     Calendar,
     ChevronRight,
-    AlertCircle,
     UploadCloud,
     AlignLeft,
     Trophy,
@@ -20,6 +19,7 @@ import {
     Network
 } from 'lucide-react';
 import { UserSkillTree } from '../../types';
+export { ConfirmModal } from '../common/ConfirmModal';
 
 interface ModalProps {
     isOpen: boolean;
@@ -539,60 +539,4 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
     );
 };
 
-// 3. New Confirmation Modal
-interface ConfirmModalProps extends ModalProps {
-    title: string;
-    message: string;
-    onConfirm: () => void;
-    confirmText?: string;
-    confirmColor?: string;
-    icon?: React.ReactNode;
-}
-
-export const ConfirmModal: React.FC<ConfirmModalProps> = ({
-    isOpen, onClose, title, message, onConfirm, confirmText = '확인', confirmColor = 'bg-violet-600', icon
-}) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            />
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative bg-zinc-900 border border-zinc-800 rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl ring-1 ring-white/10"
-            >
-                <div className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-3xl bg-zinc-800 border border-zinc-700/50 flex items-center justify-center mx-auto mb-6">
-                        {icon || <AlertCircle className="w-8 h-8 text-amber-500" />}
-                    </div>
-                    <h3 className="text-xl font-black text-white mb-3 tracking-tight">{title}</h3>
-                    <p className="text-zinc-500 text-sm font-medium leading-relaxed mb-8 px-2 whitespace-pre-wrap">
-                        {message}
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-black text-sm rounded-2xl transition-all"
-                        >
-                            취소
-                        </button>
-                        <button
-                            onClick={() => { onConfirm(); onClose(); }}
-                            className={`flex-1 py-4 ${confirmColor} text-white font-black text-sm rounded-2xl transition-all shadow-xl hover:brightness-110`}
-                        >
-                            {confirmText}
-                        </button>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
-    );
-};
+// ConfirmModal is now imported from ../common/ConfirmModal

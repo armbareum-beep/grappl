@@ -39,9 +39,10 @@ const FEED_POSTS = [
 
 const FeedPost = ({ post }: { post: typeof FEED_POSTS[0] }) => {
     const [liked, setLiked] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
 
     return (
-        <div className="border-b border-zinc-800 p-4 hover:bg-zinc-900/40 transition-colors cursor-pointer group text-left">
+        <div className="border-b border-zinc-800 p-4 hover:bg-zinc-900/40 transition-colors cursor-pointer group text-left relative">
             <div className="flex gap-3">
                 <div className="flex-shrink-0 pt-1">
                     <div className="w-[44px] h-[44px] rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
@@ -62,7 +63,20 @@ const FeedPost = ({ post }: { post: typeof FEED_POSTS[0] }) => {
                             )}
                             <span className="text-zinc-500 text-xs">{post.timeAgo}</span>
                         </div>
-                        <MoreHorizontal className="w-5 h-5 text-zinc-600" />
+                        <div className="relative">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                                className="p-1 rounded-full hover:bg-zinc-800 transition-colors"
+                            >
+                                <MoreHorizontal className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400" />
+                            </button>
+                            {showMenu && (
+                                <div className="absolute right-0 mt-2 w-32 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                    <button className="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-white/5 transition-colors">신고하기</button>
+                                    <button className="w-full text-left px-4 py-2 text-xs text-rose-500 hover:bg-white/5 transition-colors">삭제하기</button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {!post.user.isInstructor && (

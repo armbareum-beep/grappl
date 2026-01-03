@@ -36,7 +36,7 @@ export const analyzeUserDashboard = async (
     },
     apiKey: string
 ): Promise<GeminiDashboardResult | null> => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) head coach. Analyze the user's progress and provide personalized coaching.
@@ -98,8 +98,8 @@ export const analyzeUserDashboard = async (
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            console.error('Gemini API Error Response:', errData);
-            throw new Error(`Gemini API Error: ${response.status}`);
+            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
+            throw new Error(`Gemini API Error: ${response.status} - ${errData.error?.message || response.statusText}`);
         }
 
         const data = await response.json();
@@ -112,8 +112,8 @@ export const analyzeUserDashboard = async (
 
         // Clean up the response text - remove markdown backticks if present
         text = text.trim();
-        if (text.startsWith('```')) {
-            text = text.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+        if (text.includes('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         }
 
         return JSON.parse(text);
@@ -124,7 +124,7 @@ export const analyzeUserDashboard = async (
 };
 
 export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): Promise<GeminiAnalysisResult[]> => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) coach. Analyze the following sparring logs to identify 3 key insights:
@@ -158,19 +158,14 @@ export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): 
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    response_mime_type: "application/json"
-                }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
         if (!response.ok) {
-            const err = await response.json();
-            console.error('Gemini API Error:', err);
-            throw new Error('Failed to fetch from Gemini API');
+            const errData = await response.json().catch(() => ({}));
+            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
+            throw new Error(`Gemini API Error: ${response.status}`);
         }
 
         const data = await response.json();
@@ -232,7 +227,7 @@ export const analyzeUserDeeply = async (
     userProfile: { name: string; belt: string },
     apiKey: string
 ): Promise<DeepAnalysisResult | null> => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) Head Coach.
@@ -294,18 +289,26 @@ export const analyzeUserDeeply = async (
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { response_mime_type: "application/json" }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
-        if (!response.ok) throw new Error(response.statusText);
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
+            throw new Error(`Gemini API Error: ${response.status}`);
+        }
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) return null;
 
-        return JSON.parse(text.replace(/^```json/, '').replace(/```$/, ''));
+        text = text.trim();
+        if (text.includes('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        return JSON.parse(text);
     } catch (error) {
         console.error('Deep Analysis Failed:', error);
         return null;

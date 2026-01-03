@@ -8,16 +8,13 @@ import {
 import { getUserProgress } from '../lib/api';
 import { getBeltInfo, getXPProgress } from '../lib/belt-system';
 import {
-  getCourses,
   getRecentActivity, getDailyRoutine, getDailyFreeCourse,
   getTrainingLogs, getPublicSparringVideos,
-  searchContent, getDailyQuests,
-  getLessonById, getCourseById, getDrillRoutineById
+  searchContent, getDailyQuests
 } from '../lib/api';
-import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, UserSkillTree } from '../types';
+import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, TrainingLog } from '../types';
 import { getWeeklyFeaturedChain } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
-import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { MasteryRoadmapWidget } from '../components/home/MasteryRoadmapWidget';
 import { WeeklyFeaturedSection } from '../components/home/WeeklyFeaturedSection';
@@ -29,15 +26,13 @@ import { AICoachWidget } from '../components/AICoachWidget';
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { error: toastError, success: toastSuccess, info: toastInfo } = useToast();
   const [loading, setLoading] = useState(true);
 
   // Data states
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
   const [freeCourse, setFreeCourse] = useState<Course | null>(null);
-  const [aiCoachResults, setAiCoachResults] = useState<any[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [logs, setLogs] = useState<TrainingLog[]>([]); // Added logs state
 
   // Diverse Recommendation States
   const [recCourse, setRecCourse] = useState<Course | null>(null);
@@ -66,14 +61,7 @@ export const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    const cachedInsights = localStorage.getItem('gemini_recommendations');
     const cachedRecs = localStorage.getItem('ai_dashboard_recommendations');
-
-    if (cachedInsights) {
-      try {
-        setAiCoachResults(JSON.parse(cachedInsights));
-      } catch (e) { console.error(e); }
-    }
 
     if (cachedRecs) {
       try {
@@ -109,18 +97,22 @@ export const Home: React.FC = () => {
         const recent = await getRecentActivity(user.id);
         setRecentActivity(recent);
 
-        // Fetch Weekly Chain + Standard Daily Items
-        const [routineRes, courseRes, sparringRes, questsRes, weeklyChainRes] = await Promise.all([
+        // Fetch Weekly Chain + Standard Daily Items + LOGS
+        const [routineRes, courseRes, sparringRes, questsRes, weeklyChainRes, logsRes] = await Promise.all([
           getDailyRoutine(),
           getDailyFreeCourse(),
           getPublicSparringVideos(1),
           getDailyQuests(user.id),
-          getWeeklyFeaturedChain()
+          getWeeklyFeaturedChain(),
+          getTrainingLogs(user.id)
         ]);
 
         setDailyRoutine(routineRes.data);
         setFreeCourse(courseRes.data);
         setQuests(questsRes || []);
+
+        const combinedLogs = logsRes.data || [];
+        setLogs(combinedLogs as any);
 
         // --- Weekly Chain Logic ---
         const weeklyChain = weeklyChainRes.data;
@@ -139,7 +131,14 @@ export const Home: React.FC = () => {
         // Set Recommendations (Chain matches > Daily Fallbacks)
         setRecCourse(chainCourse || courseRes.data);
         setRecRoutines(chainRoutines.length > 0 ? chainRoutines : (routineRes.data ? [routineRes.data] : []));
-        setRecSparring(chainSparring || (sparringRes && sparringRes.length > 0 ? sparringRes[0] : null));
+
+        if (chainSparring) {
+          setRecSparring(chainSparring as SparringVideo);
+        } else if (sparringRes && sparringRes.length > 0) {
+          setRecSparring(sparringRes[0] as SparringVideo);
+        } else {
+          setRecSparring(null);
+        }
 
       } catch (error) {
         console.error('Error fetching home data:', error);
@@ -427,7 +426,7 @@ export const Home: React.FC = () => {
           </div>
 
           {/* Right: AI Coach Insight (New Widget) */}
-          <AICoachWidget />
+          <AICoachWidget logs={logs} />
         </div>
       </section>
 

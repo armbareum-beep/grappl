@@ -6,28 +6,15 @@ import { Button } from '../Button';
 import { Plus, TrendingUp, Target, Hash } from 'lucide-react';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
 import { AICoachWidget } from '../journal/AICoachWidget';
-import { TrainingLog } from '../../types';
-import { ShareToFeedModal } from '../social/ShareToFeedModal';
-import { createFeedPost } from '../../lib/api';
+import { SparringReview, TrainingLog } from '../../types';
 import { QuestCompleteModal } from '../QuestCompleteModal';
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../social/ShareModal'));
+import { createFeedPost } from '../../lib/api';
 import { ErrorScreen } from '../ErrorScreen';
 import { supabase } from '../../lib/supabase';
 
-interface SparringReview {
-    id: string;
-    userId: string;
-    date: string;
-    opponentName: string;
-    opponentBelt: string;
-    rounds: number;
-    result: 'win' | 'loss' | 'draw';
-    notes: string;
-    techniques: string[];
-    whatWorked: string;
-    whatToImprove: string;
-    videoUrl?: string;
-    createdAt: string;
-}
+
 
 interface SparringReviewTabProps {
     autoRunAI?: boolean;
@@ -119,8 +106,8 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         }));
     };
 
-    // Share to Feed Modal State
-    const [showShareModal, setShowShareModal] = useState(false);
+    // Share Modal State
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shareModalData, setShareModalData] = useState<{
         defaultContent: string;
         metadata: Record<string, any>;
@@ -143,6 +130,15 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         }
         setIsCreating(true);
     };
+
+    // Auto-open ShareModal after QuestModal
+    useEffect(() => {
+        // Only trigger if shareModalData was JUST set (not on mount)
+        if (shareModalData && !showQuestModal && !loading && !isCreating && !isShareModalOpen) {
+            console.log('[SparringReviewTab] Auto-opening ShareModal after quest completion');
+            setIsShareModalOpen(true);
+        }
+    }, [shareModalData, showQuestModal, loading, isCreating, isShareModalOpen]);
 
     // Load reviews and subscription
     useEffect(() => {
@@ -275,7 +271,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 techniques: formData.techniques,
                 isPublic: false,
                 location: 'Gym'
-            }, true); // Skip daily check
+            }); // Removed second argument
 
             // Also update daily quest progress
             try {
@@ -351,24 +347,6 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         }
     };
 
-    const handleShareToFeed = async (comment: string) => {
-        if (!user || !shareModalData) return;
-
-        try {
-            await createFeedPost({
-                userId: user.id,
-                content: comment,
-                type: 'sparring',
-                metadata: shareModalData.metadata,
-                mediaUrl: shareModalData.videoUrl, // Legacy/Direct video support
-                youtubeUrl: getYouTubeEmbedUrl(shareModalData.videoUrl || '') || undefined
-            });
-            navigate('/journal');
-        } catch (error) {
-            console.error('Error sharing to feed:', error);
-            alert('공유 중 오류가 발생했습니다.');
-        }
-    };
 
     // if (!user) {
     //     return (
@@ -776,17 +754,28 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 bonusReward={bonusReward}
             />
 
-            {/* Share Modal */}
-            {shareModalData && (
-                <ShareToFeedModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    onShare={handleShareToFeed}
-                    activityType="sparring"
-                    defaultContent={shareModalData.defaultContent}
-                    metadata={shareModalData.metadata}
-                />
-            )}
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && shareModalData && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => {
+                            setIsShareModalOpen(false);
+                            setShareModalData(null);
+                        }}
+                        title="스파링 복기 공유"
+                        text={shareModalData.defaultContent}
+                        imageUrl={undefined} // No specific image for sparring review yet
+                        initialStep="write"
+                        activityType="sparring"
+                        metadata={{
+                            ...shareModalData.metadata,
+                            videoUrl: shareModalData.videoUrl,
+                            youtubeUrl: getYouTubeEmbedUrl(shareModalData.videoUrl || '') || undefined
+                        }}
+                    />
+                )}
+            </React.Suspense>
 
             {/* Technique Selector Modal */}
             {showTechModal && (

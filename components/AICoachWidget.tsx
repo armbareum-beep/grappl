@@ -8,27 +8,61 @@ import {
     PolarRadiusAxis,
     ResponsiveContainer,
 } from 'recharts';
-import { Brain, ChevronRight, Zap, Target, Lock, Sparkles } from 'lucide-react';
+import { Brain, ChevronRight, Zap, Target, Sparkles } from 'lucide-react';
+import { TrainingLog } from '../types';
+import { DeepAnalysisResult } from '../lib/gemini';
+import { calculateRadarStats, RadarStats } from '../lib/analysis';
+import { useAuth } from '../contexts/AuthContext';
 
-export const AICoachWidget: React.FC = () => {
+interface AICoachWidgetProps {
+    logs: TrainingLog[];
+}
+
+export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [hasAnalysis, setHasAnalysis] = useState(false);
+    const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisResult | null>(null);
+    const [radarStats, setRadarStats] = useState<RadarStats[]>([]);
 
     useEffect(() => {
-        const lastAnalysis = localStorage.getItem('ai_coach_last_analysis');
-        if (lastAnalysis) {
-            setHasAnalysis(true);
-        }
-    }, []);
+        if (!user) return;
 
-    // Mock data for the mini radar chart
-    const radarData = [
-        { subject: '힘', A: 80, fullMark: 100 },
-        { subject: '민첩', A: 65, fullMark: 100 },
-        { subject: '기술', A: 90, fullMark: 100 },
-        { subject: '방어', A: 70, fullMark: 100 },
-        { subject: '심리', A: 85, fullMark: 100 },
+        // Check for cached deep analysis
+        const cachedResult = localStorage.getItem(`ai_analysis_result_${user.id}`);
+        if (cachedResult) {
+            try {
+                const parsed = JSON.parse(cachedResult);
+                setDeepAnalysis(parsed);
+                setHasAnalysis(true);
+            } catch (e) {
+                console.error("Failed to parse cached analysis", e);
+            }
+        } else {
+            // Check legacy key just in case
+            const lastAnalysis = localStorage.getItem('ai_coach_last_analysis');
+            if (lastAnalysis) {
+                setHasAnalysis(true);
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (logs.length > 0) {
+            setRadarStats(calculateRadarStats(logs));
+        }
+    }, [logs]);
+
+    // Fallback radar data if no logs
+    const defaultRadarData = [
+        { subject: '힘', A: 30, fullMark: 100 },
+        { subject: '민첩', A: 30, fullMark: 100 },
+        { subject: '기술', A: 30, fullMark: 100 },
+        { subject: '방어', A: 30, fullMark: 100 },
+        { subject: '심리', A: 30, fullMark: 100 },
     ];
+
+    const displayRadarData = radarStats.length > 0 ? radarStats : defaultRadarData;
 
     return (
         <div
@@ -83,7 +117,14 @@ export const AICoachWidget: React.FC = () => {
                         <div>
                             <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">내 주짓수 스타일</p>
                             <h4 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-tight">
-                                Tactical <span className="text-violet-400">Smasher</span>
+                                {deepAnalysis?.styleProfile.identity ? (
+                                    <>
+                                        {deepAnalysis.styleProfile.identity.split(' ')[0]}{' '}
+                                        <span className="text-violet-400">{deepAnalysis.styleProfile.identity.split(' ')[1] || ''}</span>
+                                    </>
+                                ) : (
+                                    <>Tactical <span className="text-violet-400">Grappler</span></>
+                                )}
                             </h4>
                         </div>
 
@@ -91,16 +132,20 @@ export const AICoachWidget: React.FC = () => {
                             <div className="flex items-center justify-between md:justify-start gap-4 px-3 py-2 bg-zinc-950/50 rounded-lg border border-white/5">
                                 <div className="flex items-center gap-2">
                                     <Target className="w-3.5 h-3.5 text-zinc-400" />
-                                    <span className="text-xs text-zinc-300 font-medium">Top Position</span>
+                                    <span className="text-xs text-zinc-300 font-medium">Top Possession</span>
                                 </div>
-                                <span className="text-sm font-bold text-white">82%</span>
+                                <span className="text-sm font-bold text-white">
+                                    {deepAnalysis?.styleProfile?.fingerprint?.passing ? `${deepAnalysis.styleProfile.fingerprint.passing}%` : '---'}
+                                </span>
                             </div>
                             <div className="flex items-center justify-between md:justify-start gap-4 px-3 py-2 bg-zinc-950/50 rounded-lg border border-white/5">
                                 <div className="flex items-center gap-2">
                                     <Zap className="w-3.5 h-3.5 text-zinc-400" />
                                     <span className="text-xs text-zinc-300 font-medium">Submission Rate</span>
                                 </div>
-                                <span className="text-sm font-bold text-white">45%</span>
+                                <span className="text-sm font-bold text-white">
+                                    {deepAnalysis?.styleProfile?.fingerprint?.submission ? `${deepAnalysis.styleProfile.fingerprint.submission}%` : '---'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -108,9 +153,9 @@ export const AICoachWidget: React.FC = () => {
                     {/* Right: Mini Radar */}
                     <div className="w-32 h-32 md:w-40 md:h-40 relative flex-shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={displayRadarData}>
                                 <PolarGrid stroke="#3f3f46" strokeOpacity={0.5} />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 8, fontWeight: 700 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                 <Radar
                                     name="나의 능력치"
@@ -129,7 +174,7 @@ export const AICoachWidget: React.FC = () => {
 
                 {/* Footer Text */}
                 <p className="mt-6 text-xs text-zinc-500 text-center md:text-left leading-relaxed">
-                    <strong className="text-violet-400">분석 요약:</strong> 압박 패스 능력이 매우 탁월하지만, 가드 상황에서의 유연한 대처능력이 보완된다면 더 완벽한 그래플러가 될 것입니다.
+                    <strong className="text-violet-400">분석 요약:</strong> {deepAnalysis?.styleProfile.description || "당신의 수련 로그를 분석하여 AI 코치가 개인화된 공략법을 제안합니다."}
                 </p>
             </div>
         </div>

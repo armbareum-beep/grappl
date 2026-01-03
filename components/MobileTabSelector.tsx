@@ -35,20 +35,20 @@ export const MobileTabSelector: React.FC<MobileTabSelectorProps> = ({
             {/* Main Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 shadow-sm active:bg-slate-800 transition-colors"
+                className="w-full flex items-center justify-between bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 shadow-sm active:bg-zinc-800 transition-colors"
             >
                 <div className="flex items-center gap-3">
-                    {Icon && <Icon className="w-5 h-5 text-blue-400" />}
+                    {Icon && <Icon className="w-5 h-5 text-violet-400" />}
                     <span className="font-medium text-white">{selectedTab?.label}</span>
                 </div>
                 <ChevronDown
-                    className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`w-5 h-5 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>
 
             {/* Dropdown List */}
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                     <div className="py-1 max-h-[60vh] overflow-y-auto">
                         {tabs.map((tab) => {
                             const TabIcon = tab.icon;
@@ -61,18 +61,18 @@ export const MobileTabSelector: React.FC<MobileTabSelectorProps> = ({
                                         onTabChange(tab.id);
                                         setIsOpen(false);
                                     }}
-                                    className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-900/20 text-blue-400' : 'text-slate-400 hover:bg-slate-800'
+                                    className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isActive ? 'bg-violet-500/10 text-violet-400' : 'text-zinc-400 hover:bg-zinc-800'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         {TabIcon && (
-                                            <TabIcon className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                                            <TabIcon className={`w-5 h-5 ${isActive ? 'text-violet-400' : 'text-zinc-500'}`} />
                                         )}
-                                        <span className={`font-medium ${isActive ? 'text-blue-400' : 'text-slate-300'}`}>
+                                        <span className={`font-medium ${isActive ? 'text-violet-400' : 'text-zinc-300'}`}>
                                             {tab.label}
                                         </span>
                                     </div>
-                                    {isActive && <Check className="w-4 h-4 text-blue-400" />}
+                                    {isActive && <Check className="w-4 h-4 text-violet-400" />}
                                 </button>
                             );
                         })}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, Clock, CheckCircle, AlertCircle, Calendar, Copy, Building, User } from 'lucide-react';
+import { AlertCircle, Copy, Building, User, Clock } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
 import { getAdminSettlements } from '../../lib/api-admin';
 
@@ -48,76 +48,83 @@ export const AdminPayoutsTab: React.FC = () => {
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
+        // Toast style alert? For now using simple alert or we could add a toast state
         alert('복사되었습니다: ' + text);
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">정산 및 계좌 관리</h2>
-                    <p className="text-slate-400 mt-1">이번 달 정산 예정 금액을 확인하고 입금할 수 있습니다.</p>
+                    <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">정산 및 계좌 관리</h2>
+                    <p className="text-zinc-400">크리에이터들의 수익 정산 현황과 등록된 지급 계좌를 관리합니다.</p>
                 </div>
-                <div className="flex bg-slate-800 rounded-lg p-1">
+                <div className="flex p-1.5 bg-zinc-900 border border-zinc-800 rounded-2xl backdrop-blur-sm">
                     <button
                         onClick={() => setViewMode('settlement')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'settlement' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'settlement' ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                     >
                         정산 금액 확인
                     </button>
                     <button
                         onClick={() => setViewMode('info')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'info' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'info' ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                     >
-                        계좌 정보만 보기
+                        계좌 정보
                     </button>
                 </div>
             </div>
 
             {/* Info Notice */}
-            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-200">
-                    <p className="font-medium text-blue-100">수동 정산 가이드</p>
-                    <ul className="mt-2 list-disc list-inside space-y-1 text-blue-300">
-                        <li>아래 정보를 확인하여 해당 계좌로 직접 송금해주세요.</li>
-                        <li>한국 계좌(KRW)의 경우 3.3% 사업소득세를 원천징수 후 입금해야 합니다.</li>
-                        <li>Wise(USD)의 경우 Wise 비즈니스 계정에서 이메일 송금을 권장합니다.</li>
+            <div className="bg-zinc-900/50 border border-violet-500/20 rounded-2xl p-6 flex items-start gap-4 backdrop-blur-sm">
+                <div className="p-2 bg-violet-500/10 rounded-xl">
+                    <AlertCircle className="w-5 h-5 text-violet-400" />
+                </div>
+                <div className="space-y-1">
+                    <p className="text-sm font-bold text-zinc-100 uppercase tracking-widest">수동 정산 프로세스 가이드</p>
+                    <ul className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 text-[11px] text-zinc-400 font-medium">
+                        <li className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                            지정된 계좌로 직접 실시간 송금
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                            국내 거주자 3.3% 원천세 공제 필수
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                            Wise 비즈니스 계정 송금 권장 (해외)
+                        </li>
                     </ul>
                 </div>
             </div>
 
             {/* Payouts Table */}
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-800/50 border-b border-slate-800">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                    크리에이터
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                    정산 유형
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                    계좌 정보
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                    {viewMode === 'settlement' ? '정산 금액 (이번 달)' : '추가 정보'}
+                        <thead>
+                            <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">크리에이터</th>
+                                <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">유형</th>
+                                <th className="px-6 py-5 text-left text-xs font-bold text-zinc-500 uppercase tracking-widest">상세 계좌 정보</th>
+                                <th className="px-6 py-5 text-right text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                                    {viewMode === 'settlement' ? '정산 예정 리포트' : '부가 세무 정보'}
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-zinc-800/50">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                                        로딩 중...
+                                    <td colSpan={4} className="px-6 py-20 text-center text-zinc-600 font-medium">
+                                        <Clock className="w-6 h-6 mx-auto mb-2 animate-pulse" />
+                                        데이터 로딩 중...
                                     </td>
                                 </tr>
                             ) : creators.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                                        등록된 크리에이터가 없습니다.
+                                    <td colSpan={4} className="px-6 py-20 text-center text-zinc-600 font-medium tracking-tight">
+                                        등록된 크리에이터 정보가 없습니다.
                                     </td>
                                 </tr>
                             ) : (
@@ -125,102 +132,107 @@ export const AdminPayoutsTab: React.FC = () => {
                                     const settings = creator.payout_settings || {};
                                     const isWise = settings.type === 'business';
                                     const isKoreanResident = settings.isKoreanResident;
-                                    const taxRate = isWise && !isKoreanResident ? 0 : 3.3;
 
                                     return (
-                                        <tr key={creator.id} className="hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="font-medium text-white">{creator.name}</div>
-                                                <div className="text-sm text-slate-400">{creator.email}</div>
+                                        <tr key={creator.id} className="hover:bg-zinc-800/30 transition-colors group">
+                                            <td className="px-6 py-5 whitespace-nowrap">
+                                                <div className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors">{creator.name}</div>
+                                                <div className="text-xs text-zinc-500 mt-0.5">{creator.email}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-6 py-5 whitespace-nowrap">
                                                 {isWise ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit">
-                                                            <Building className="w-3 h-3 mr-1" />
-                                                            Wise / Foreign (USD)
+                                                    <div className="space-y-1">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                                            <Building className="w-2.5 h-2.5 mr-1" />
+                                                            Wise (USD)
                                                         </span>
-                                                        <span className="text-xs text-slate-400 mt-1 ml-1">
-                                                            {isKoreanResident ? '한국 거주 (3.3%)' : '해외 거주 (0%)'}
-                                                        </span>
+                                                        <div className="text-[10px] text-zinc-500 ml-1 font-bold">
+                                                            {isKoreanResident ? 'KOR Resident' : 'Overseas'}
+                                                        </div>
                                                     </div>
                                                 ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                        <User className="w-3 h-3 mr-1" />
-                                                        한국 계좌 (KRW)
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                                        <User className="w-2.5 h-2.5 mr-1" />
+                                                        KOR Bank (KRW)
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="space-y-1">
+                                            <td className="px-6 py-5">
+                                                <div className="space-y-2">
                                                     {isWise ? (
                                                         <>
                                                             {settings.wiseEmail && (
-                                                                <div className="flex items-center text-sm text-white group cursor-pointer" onClick={() => copyToClipboard(settings.wiseEmail!)}>
-                                                                    <span className="w-20 text-slate-400">Email:</span>
-                                                                    <span>{settings.wiseEmail}</span>
-                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseEmail!)}>
+                                                                    <span className="w-20 text-zinc-500 font-bold">EMAIL:</span>
+                                                                    <span className="font-medium">{settings.wiseEmail}</span>
+                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                                 </div>
                                                             )}
                                                             {settings.wiseAccountNumber && (
-                                                                <div className="flex items-center text-sm text-white group cursor-pointer" onClick={() => copyToClipboard(settings.wiseAccountNumber!)}>
-                                                                    <span className="w-20 text-slate-400">Account:</span>
-                                                                    <span>{settings.wiseAccountNumber}</span>
-                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseAccountNumber!)}>
+                                                                    <span className="w-20 text-zinc-500 font-bold">ACCOUNT:</span>
+                                                                    <span className="font-mono">{settings.wiseAccountNumber}</span>
+                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                                 </div>
                                                             )}
                                                             {settings.wiseRoutingNumber && (
-                                                                <div className="flex items-center text-sm text-white group cursor-pointer" onClick={() => copyToClipboard(settings.wiseRoutingNumber!)}>
-                                                                    <span className="w-20 text-slate-400">Route/SWIFT:</span>
-                                                                    <span>{settings.wiseRoutingNumber}</span>
-                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseRoutingNumber!)}>
+                                                                    <span className="w-20 text-zinc-500 font-bold">SWIFT:</span>
+                                                                    <span className="font-mono">{settings.wiseRoutingNumber}</span>
+                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                                 </div>
                                                             )}
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <div className="flex items-center text-sm text-white group cursor-pointer" onClick={() => copyToClipboard(`${settings.bankName} ${settings.accountNumber}`)}>
-                                                                <span className="w-16 text-slate-400">계좌:</span>
-                                                                <span>{settings.bankName} {settings.accountNumber}</span>
-                                                                <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                            <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(`${settings.bankName} ${settings.accountNumber}`)}>
+                                                                <span className="w-16 text-zinc-500 font-bold">ACCOUNT:</span>
+                                                                <span className="font-medium">{settings.bankName} {settings.accountNumber}</span>
+                                                                <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                             </div>
-                                                            <div className="flex items-center text-sm text-white group cursor-pointer" onClick={() => copyToClipboard(settings.accountHolder!)}>
-                                                                <span className="w-16 text-slate-400">예금주:</span>
-                                                                <span>{settings.accountHolder}</span>
-                                                                <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                            <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.accountHolder!)}>
+                                                                <span className="w-16 text-zinc-500 font-bold">NAME:</span>
+                                                                <span className="font-medium">{settings.accountHolder}</span>
+                                                                <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                             </div>
                                                         </>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-6 py-5 whitespace-nowrap text-right">
                                                 {viewMode === 'settlement' ? (
-                                                    // Settlement View: Show Revenue & Settlement Amount
                                                     (() => {
                                                         const stat = settlements.find(s => s.creator_id === creator.id);
-                                                        if (!stat) return <span className="text-slate-500">-</span>;
+                                                        if (!stat) return <span className="text-zinc-600 text-xs font-bold">- NO DATA -</span>;
 
                                                         return (
-                                                            <div className="space-y-1">
-                                                                <div className="flex justify-between items-center gap-4">
-                                                                    <span className="text-slate-400 text-xs">총 매출:</span>
-                                                                    <span className="text-white font-medium">₩{stat.total_revenue.toLocaleString()}</span>
+                                                            <div className="inline-block text-right">
+                                                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+                                                                    Gross Sales
                                                                 </div>
-                                                                <div className="flex justify-between items-center gap-4 border-t border-slate-700 pt-1 mt-1">
-                                                                    <span className="text-blue-400 text-xs font-bold">정산 예정:</span>
-                                                                    <span className="text-blue-400 font-bold text-lg">₩{stat.settlement_amount.toLocaleString()}</span>
+                                                                <div className="text-zinc-100 font-bold text-sm mb-2">
+                                                                    ₩{stat.total_revenue.toLocaleString()}
                                                                 </div>
-                                                                <p className="text-[10px] text-slate-500 text-right">(수수료 20% 제외)</p>
+                                                                <div className="h-px bg-zinc-800 w-full my-2" />
+                                                                <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-1">
+                                                                    Payout (Net)
+                                                                </div>
+                                                                <div className="text-emerald-400 font-black text-lg">
+                                                                    ₩{stat.settlement_amount.toLocaleString()}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })()
                                                 ) : (
-                                                    // Info View: Show Resident Number
                                                     !isWise && settings.residentRegistrationNumber && (
-                                                        <div className="flex items-center text-sm text-slate-300 group cursor-pointer" onClick={() => copyToClipboard(settings.residentRegistrationNumber!)}>
-                                                            <span className="mr-2">주민번호:</span>
-                                                            <span>{settings.residentRegistrationNumber}</span>
-                                                            <Copy className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
+                                                        <div className="inline-block text-right group/tax cursor-pointer" onClick={() => copyToClipboard(settings.residentRegistrationNumber!)}>
+                                                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1 group-hover/tax:text-zinc-400 transition-colors">
+                                                                Tax ID / Resident No
+                                                            </div>
+                                                            <div className="text-zinc-300 font-mono text-xs flex items-center justify-end">
+                                                                {settings.residentRegistrationNumber}
+                                                                <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/tax:opacity-100 transition-opacity text-zinc-600" />
+                                                            </div>
                                                         </div>
                                                     )
                                                 )}

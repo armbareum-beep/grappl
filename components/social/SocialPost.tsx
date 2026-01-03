@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { ConfirmModal } from '../common/ConfirmModal';
+
+// Lazy load ShareModal - Moved to top to avoid scoping issues
+const ShareModal = React.lazy(() => import('./ShareModal'));
 
 interface SocialPostProps {
     post: TrainingLog;
@@ -47,31 +51,13 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     const [comments, setComments] = useState<any[]>([]);
     const [loadingComments, setLoadingComments] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isDeleted, setIsDeleted] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showReportConfirm, setShowReportConfirm] = useState(false);
+    const [isActionLoading, setIsActionLoading] = useState(false);
 
-    // Initial check for restored comment to open section
-    React.useEffect(() => {
-        const saved = localStorage.getItem(`pending_comment_${post.id}`);
-        if (saved) {
-            setShowComments(true);
-        }
-    }, [post.id]);
-
-    // Close menu when clicking outside
-    React.useEffect(() => {
-        const handleClickOutside = () => setShowMenu(false);
-        if (showMenu) {
-            document.addEventListener('click', handleClickOutside);
-            return () => document.removeEventListener('click', handleClickOutside);
-        }
-    }, [showMenu]);
-
-    // Load comments and like status when component mounts or user changes
-    React.useEffect(() => {
-        if (post.id) {
-            loadInitialStats();
-        }
-    }, [user, post.id]);
-
+    // Define data loading functions first to avoid hoisting issues
     const loadInitialStats = async () => {
         try {
             const { getTrainingLogLikes, checkTrainingLogLiked } = await import('../../lib/api');
@@ -89,13 +75,51 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         }
     };
 
-    // Load comments when showing comment section
+    const loadComments = async () => {
+        try {
+            setLoadingComments(true);
+            const { getTrainingLogComments } = await import('../../lib/api');
+            const { data } = await getTrainingLogComments(post.id);
+            if (data) {
+                setComments(data);
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            toastError('댓글을 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoadingComments(false);
+        }
+    };
+
+    // Effects
+    React.useEffect(() => {
+        const saved = localStorage.getItem(`pending_comment_${post.id}`);
+        if (saved) {
+            setShowComments(true);
+        }
+    }, [post.id]);
+
+    React.useEffect(() => {
+        const handleClickOutside = () => setShowMenu(false);
+        if (showMenu) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [showMenu]);
+
+    React.useEffect(() => {
+        if (post.id) {
+            loadInitialStats();
+        }
+    }, [user, post.id]);
+
     React.useEffect(() => {
         if (showComments && comments.length === 0) {
             loadComments();
         }
     }, [showComments]);
 
+    // Handlers
     const handleLike = async () => {
         if (!user) {
             const currentPath = location.pathname + location.search + location.hash;
@@ -150,49 +174,62 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
             toastError('로그인이 필요합니다.');
             return;
         }
+        setShowReportConfirm(true);
+    };
 
-        if (window.confirm('이 게시물을 신고하시겠습니까?')) {
-            try {
-                const { createReport } = await import('../../lib/api');
-                const { error } = await createReport({
-                    reporterId: user.id,
-                    targetId: post.id,
-                    targetType: 'post',
-                    reason: 'Inappropriate Content', // Default reason for now
-                    description: 'User reported via feed interaction'
-                });
+    const confirmReport = async () => {
+        try {
+            setIsActionLoading(true);
+            const { createReport } = await import('../../lib/api');
+            const { error } = await createReport({
+                reporterId: user!.id,
+                targetId: post.id,
+                targetType: 'post',
+                reason: 'Inappropriate Content',
+                description: 'User reported via feed interaction'
+            });
 
-                if (error) throw error;
-                success('신고가 접수되었습니다. 관리자 검토 후 조치하겠습니다.');
-                setShowMenu(false);
-            } catch (err) {
-                console.error('Report error:', err);
-                toastError('신고 처리 중 오류가 발생했습니다.');
-            }
+            if (error) throw error;
+            success('신고가 접수되었습니다. 관리자 검토 후 조치하겠습니다.');
+            setShowMenu(false);
+            setShowReportConfirm(false);
+        } catch (err) {
+            console.error('Report error:', err);
+            toastError('신고 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsActionLoading(false);
         }
     };
 
-    // Share Modal State
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const handleDelete = async () => {
+        if (!user || user.id !== post.userId) return;
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        try {
+            setIsActionLoading(true);
+            // Optimistic update
+            setIsDeleted(true);
+
+            const { deleteTrainingLog } = await import('../../lib/api');
+            const { error } = await deleteTrainingLog(post.id);
+
+            if (error) throw error;
+            success('게시물이 삭제되었습니다.');
+            setShowDeleteConfirm(false);
+            setShowMenu(false);
+        } catch (err) {
+            console.error('Delete error:', err);
+            setIsDeleted(false); // Revert on error
+            toastError('삭제 실패');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
 
     const handleShare = () => {
         setIsShareModalOpen(true);
-    };
-
-    const loadComments = async () => {
-        try {
-            setLoadingComments(true);
-            const { getTrainingLogComments } = await import('../../lib/api');
-            const { data } = await getTrainingLogComments(post.id);
-            if (data) {
-                setComments(data);
-            }
-        } catch (error) {
-            console.error('Error loading comments:', error);
-            toastError('댓글을 불러오는 중 오류가 발생했습니다.');
-        } finally {
-            setLoadingComments(false);
-        }
     };
 
     const handleAddComment = async () => {
@@ -239,9 +276,24 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     };
 
     // Determine images to display
-    const images: string[] = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
+    let images: string[] = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
         ? post.metadata.images
         : (post.mediaUrl && !post.mediaUrl.includes('youtube') && !post.mediaUrl.includes('youtu.be') ? [post.mediaUrl] : []);
+
+    // Fallback: extract from markdown if no images found in metadata/mediaUrl
+    if (images.length === 0 && post.notes?.includes('![Image](')) {
+        const matches = Array.from(post.notes.matchAll(/!\[Image\]\((.*?)\)/g), m => m[1]);
+        if (matches.length > 0) {
+            images = matches;
+        }
+    }
+
+    // Clean display text by stripping image markdown (multiline supported) and any raw Supabase URLs
+    let displayText = (post.notes || '')
+        .replace(/!\[Image\]\([\s\S]*?\)/g, '') // Remove standard markdown images
+        .replace(/!\[Image\]/g, '') // Remove leftover labels
+        .replace(/[\(]?https:\/\/[a-zA-Z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\/[^\s)]+[\)]?/g, '') // Remove Supabase URLs with optional parens
+        .trim();
 
     // Video handling
     const youtubeUrl = post.youtubeUrl ||
@@ -261,6 +313,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     };
 
     const postUrl = `${window.location.origin}/journal#${post.id}`;
+
+    if (isDeleted) return null;
 
     return (
         <div className="border-b border-zinc-900 py-8 px-4 hover:bg-zinc-900/20 transition-all group/post">
@@ -310,22 +364,37 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 <MoreHorizontal className="w-5 h-5" />
                             </button>
                             {showMenu && (
-                                <div className="absolute right-0 mt-2 w-32 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-10">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleReport();
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-zinc-800"
-                                    >
-                                        신고하기
-                                    </button>
+                                <div className="absolute right-0 mt-2 w-32 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-10 overflow-hidden">
+                                    {user && user.id === post.userId ? (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDelete();
+                                            }}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-rose-500 hover:bg-white/5 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            삭제하기
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleReport();
+                                            }}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-zinc-400 hover:text-rose-400 hover:bg-white/5 flex items-center gap-2 transition-colors"
+                                        >
+                                            <AlertTriangle className="w-4 h-4" />
+                                            신고하기
+                                        </button>
+                                    )}
+
                                     {post.metadata?.sharedRoutine && (
                                         <button
                                             onClick={handleSaveRoutine}
-                                            className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 flex items-center gap-2 border-t border-zinc-800 transition-colors"
                                         >
-                                            <Save className="w-3 h-3" />
+                                            <Save className="w-4 h-4" />
                                             루틴 저장
                                         </button>
                                     )}
@@ -336,10 +405,10 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
                     {/* Body Text */}
                     <div className="mb-3">
-                        <p className={`text-zinc-200 text-base leading-relaxed whitespace-pre-wrap ${post.notes.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
-                            {post.notes}
+                        <p className={`text-zinc-200 text-base leading-relaxed whitespace-pre-wrap ${displayText.length > 200 && !isExpanded ? 'line-clamp-4' : ''}`}>
+                            {displayText}
                         </p>
-                        {post.notes.length > 200 && !isExpanded && (
+                        {displayText.length > 200 && !isExpanded && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
                                 className="text-zinc-500 text-sm mt-1 hover:text-zinc-300 font-medium"
@@ -350,7 +419,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     </div>
 
                     {/* Specialized Content Box (Training Summary) */}
-                    {post.notes.includes('🥋') && (post.notes.includes('Sparring Session Summary') || post.notes.includes('Sparring Log')) && (
+                    {displayText.includes('🥋') && (displayText.includes('Sparring Session Summary') || displayText.includes('Sparring Log')) && (
                         <div className="my-4 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/50 backdrop-blur-sm">
                             <div className="flex items-center gap-2 mb-4">
                                 <Sparkles className="w-4 h-4 text-violet-500 fill-violet-500" />
@@ -362,7 +431,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     <div className="col-span-3 text-center">Rounds</div>
                                     <div className="col-span-3 text-right">Result</div>
                                 </div>
-                                {post.notes.split('\n').filter(line => line.includes('vs')).slice(0, 3).map((session, idx) => {
+                                {displayText.split('\n').filter(line => line.includes('vs')).slice(0, 3).map((session, idx) => {
                                     const match = session.match(/vs (.*?) \((.*?)\): (.*?) rounds - (.*)/);
                                     if (!match) return null;
                                     const [_, opponent, belt, rounds, result] = match;
@@ -393,9 +462,9 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         </div>
                                     );
                                 })}
-                                {post.notes.split('\n').filter(line => line.includes('vs')).length > 3 && (
+                                {displayText.split('\n').filter(line => line.includes('vs')).length > 3 && (
                                     <div className="text-xs text-zinc-500 text-center pt-2 mt-2 border-t border-zinc-800/50">
-                                        + {post.notes.split('\n').filter(line => line.includes('vs')).length - 3} more rounds
+                                        + {displayText.split('\n').filter(line => line.includes('vs')).length - 3} more rounds
                                     </div>
                                 )}
                             </div>
@@ -556,13 +625,42 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         isOpen={isShareModalOpen}
                         onClose={() => setIsShareModalOpen(false)}
                         title={`${post.userName}의 게시물`}
-                        text={post.notes.substring(0, 100) + '...'}
+                        text={displayText.substring(0, 100) + '...'}
                         url={postUrl}
+                        imageUrl={images[0]}
+                        initialStep="write"
+                        activityType="repost"
+                        metadata={{
+                            type: 'training_log',
+                            logId: post.id,
+                            userName: post.userName,
+                            notes: post.notes
+                        }}
                     />
                 )}
             </React.Suspense>
+
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={confirmDelete}
+                title="게시물을 삭제하시겠습니까?"
+                message="삭제된 게시물은 복구할 수 없으며,\n피드에서도 즉시 제거됩니다."
+                confirmText="삭제하기"
+                variant="danger"
+                isLoading={isActionLoading}
+            />
+
+            <ConfirmModal
+                isOpen={showReportConfirm}
+                onClose={() => setShowReportConfirm(false)}
+                onConfirm={confirmReport}
+                title="게시물을 신고하시겠습니까?"
+                message="부적절한 콘텐츠나 스팸 등이 포함되어 있나요?\n관리자가 검토 후 신속히 조치하겠습니다."
+                confirmText="신고하기"
+                variant="warning"
+                isLoading={isActionLoading}
+            />
         </div>
     );
 };
-// Lazy load
-const ShareModal = React.lazy(() => import('./ShareModal'));

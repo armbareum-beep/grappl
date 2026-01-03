@@ -94,10 +94,10 @@ export async function getPlatformStats() {
     } catch (error) {
         console.error('Error fetching platform stats:', error);
         return {
-            totalUsers: 1000,
-            totalCourses: 100,
-            totalRoutines: 50,
-            totalSparring: 20
+            totalUsers: 0,
+            totalCourses: 0,
+            totalRoutines: 0,
+            totalSparring: 0
         };
     }
 }
@@ -2225,8 +2225,8 @@ export async function getTrainingLogs(userId: string) {
         if (log.duration_minutes === -1) {
             return false;
         }
-        // 2. Exclude if type is explicitly a feed type
-        if (log.type && ['sparring', 'routine', 'mastery', 'title_earned', 'level_up', 'technique', 'general'].includes(log.type)) {
+        // 2. Exclude non-training types, but KEEP 'sparring' for holistic tracking
+        if (log.type && ['routine', 'mastery', 'title_earned', 'level_up', 'technique', 'general'].includes(log.type)) {
             return false;
         }
         // 3. Exclude if location has the special FEED tag
@@ -2309,26 +2309,48 @@ export async function getCompletedRoutinesToday(userId: string): Promise<string[
  * Create a new training log
  */
 export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt'>) {
-    // Daily check removed - users can create multiple logs per day
-    // XP is controlled by quest system which has daily limits
+    // 1. Handle mediaUrl by appending to notes AND storing in metadata
+    // This provides fallback for older display logic while using structured metadata
+    let finalNotes = log.notes;
+    let finalMetadata = { ...(log.metadata || {}) };
 
+    if (log.mediaUrl) {
+        // Append markdown for old clients
+        const imgMarkdown = `\n\n![Image](${log.mediaUrl})`;
+        if (!finalNotes?.includes(log.mediaUrl)) {
+            finalNotes = finalNotes ? `${finalNotes}${imgMarkdown}` : imgMarkdown;
+        }
 
+        // Store in metadata for new SocialPost logic
+        if (!finalMetadata.images) finalMetadata.images = [];
+        if (!finalMetadata.images.includes(log.mediaUrl)) {
+            finalMetadata.images.push(log.mediaUrl);
+        }
+    }
+
+    const dbData: any = {
+        user_id: log.userId,
+        date: log.date,
+        duration_minutes: log.durationMinutes ?? 0,
+        techniques: log.techniques ?? [],
+        sparring_rounds: log.sparringRounds ?? 0,
+        notes: finalNotes,
+        is_public: log.isPublic,
+        location: log.location,
+        youtube_url: log.youtubeUrl,
+        // media_url: log.mediaUrl, // RE-REMOVED: Column does not exist in schema
+        metadata: finalMetadata,
+        type: log.type
+    };
+
+    // Remove undefined keys
+    Object.keys(dbData).forEach(key => dbData[key] === undefined && delete dbData[key]);
+
+    console.log('[createTrainingLog] Fixed Insert:', dbData);
 
     const { data, error } = await supabase
         .from('training_logs')
-        .insert({
-            user_id: log.userId,
-            date: log.date,
-            duration_minutes: log.durationMinutes,
-            techniques: log.techniques,
-            sparring_rounds: log.sparringRounds,
-            notes: log.notes,
-            is_public: log.isPublic,
-            location: log.location,
-            youtube_url: log.youtubeUrl,
-            media_url: log.mediaUrl,
-            metadata: log.metadata
-        })
+        .insert(dbData)
         .select()
         .single();
 
@@ -2346,8 +2368,9 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
             isPublic: data.is_public,
             location: data.location,
             youtubeUrl: data.youtube_url,
-            mediaUrl: data.media_url,
+            mediaUrl: data.metadata?.images?.[0] || data.media_url, // Fallback to metadata
             metadata: data.metadata,
+            type: data.type,
             createdAt: data.created_at
         } as TrainingLog,
         error: null
@@ -4144,7 +4167,7 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
 
 
 // Helper for timeout
-const withTimeout = (promise: Promise<any>, ms: number) => {
+const withTimeout = (promise: any, ms: number) => {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
@@ -5273,6 +5296,37 @@ export async function removeCourseDrillBundle(courseId: string, drillId: string)
 
 // ==================== FEED POSTS ====================
 
+// Helper to upload feed image
+async function uploadFeedImage(userId: string, dataUrl: string): Promise<string | null> {
+    try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const fileExt = 'png';
+        const fileName = `${userId}/feed/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('profile-images')
+            .upload(fileName, blob, {
+                contentType: 'image/png',
+                upsert: true
+            });
+
+        if (uploadError) {
+            console.error('Feed image upload failed:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage
+            .from('profile-images')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    } catch (e) {
+        console.error('Error processing feed image:', e);
+        return null;
+    }
+}
+
 /**
  * Create a feed post (for sharing achievements)
  */
@@ -5307,48 +5361,43 @@ export async function createFeedPost(post: {
         console.warn('Failed to upsert user info:', e);
     }
 
-    const { data, error } = await supabase
-        .from('training_logs')
-        .insert({
-            user_id: post.userId,
-            date: new Date().toISOString().split('T')[0],
-            duration_minutes: 1, // MARKER: Set to 1 to avoid check constraints on 0
-            techniques: [],
-            sparring_rounds: 0,
-            notes: post.content,
-            is_public: true,
-            type: post.type, // Restored: Required column
-            location: `__FEED__${post.type}`,
-            metadata: post.metadata || {},
-            media_url: post.mediaUrl,
-            youtube_url: post.youtubeUrl
-        })
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error creating feed post:', error);
-        return { data: null, error };
+    // Handle Image Upload if Base64
+    let finalMediaUrl = post.mediaUrl;
+    if (post.mediaUrl && post.mediaUrl.startsWith('data:image')) {
+        const uploadedUrl = await uploadFeedImage(post.userId, post.mediaUrl);
+        if (uploadedUrl) {
+            finalMediaUrl = uploadedUrl;
+        } else {
+            console.warn('Image upload failed or skipped, posting without image to avoid 400 error.');
+            finalMediaUrl = undefined;
+        }
     }
 
-    return {
-        data: {
-            id: data.id,
-            userId: data.user_id,
-            date: data.date,
-            durationMinutes: data.duration_minutes,
-            techniques: data.techniques,
-            sparringRounds: data.sparring_rounds,
-            notes: data.notes,
-            isPublic: data.is_public,
-            type: data.type,
-            metadata: data.metadata,
-            createdAt: data.created_at,
-            mediaUrl: data.media_url,
-            youtubeUrl: data.youtube_url
-        } as TrainingLog,
-        error: null
-    };
+    // Reuse createTrainingLog with correct mapping
+    try {
+        const result = await createTrainingLog({
+            userId: post.userId,
+            date: new Date().toISOString().split('T')[0],
+            durationMinutes: 1, // Marker for feed post
+            techniques: [],
+            sparringRounds: 0,
+            notes: post.content,
+            isPublic: true,
+            location: `__FEED__${post.type}`,
+            type: post.type,
+            mediaUrl: finalMediaUrl,
+            metadata: {
+                ...(post.metadata || {}),
+                images: finalMediaUrl ? [finalMediaUrl] : []
+            },
+            youtubeUrl: post.youtubeUrl
+        });
+
+        return result;
+    } catch (err) {
+        console.error('CreateFeedPost Exception:', err);
+        return { data: null, error: err };
+    }
 }
 
 // ==================== COMMENTS ====================
@@ -5418,23 +5467,7 @@ export async function deleteComment(commentId: string) {
 /**
  * Get user's active subscription
  */
-export async function getUserSubscription(userId: string) {
-    const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error('Error fetching user subscription:', error);
-        return { data: null, error };
-    }
-
-    return { data, error: null };
-}
+// function removed
 
 /**
  * Check if user has premium subscription
@@ -6577,3 +6610,39 @@ export async function deleteRepost(userId: string, logId: string): Promise<{ err
 
     return { error };
 }
+// Subscription Management
+export async function cancelSubscription(subscriptionId: string) {
+    // This calls the Supabase Edge Function to handle Stripe subscription cancellation
+    const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { subscriptionId }
+    });
+
+    if (error) {
+        console.error('Error canceling subscription:', error);
+        throw error;
+    }
+
+    return data;
+}
+
+/**
+ * Get user's active subscription
+ */
+export async function getUserSubscription(userId: string) {
+    const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching user subscription:', error);
+        return null;
+    }
+
+    return data;
+}
+

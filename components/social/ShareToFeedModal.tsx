@@ -6,7 +6,7 @@ export interface ShareToFeedModalProps {
     isOpen: boolean;
     onClose: () => void;
     onShare: (comment: string) => Promise<void>;
-    activityType: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general';
+    activityType: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'repost' | 'drill_reel';
     defaultContent: string;
     metadata?: Record<string, any>;
 }

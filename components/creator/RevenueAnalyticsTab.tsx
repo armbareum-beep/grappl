@@ -50,7 +50,12 @@ export const RevenueAnalyticsTab: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-400">로딩 중...</div>;
+        return (
+            <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
+                <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-zinc-400 text-sm">로딩 중...</p>
+            </div>
+        );
     }
 
     return (
@@ -58,19 +63,19 @@ export const RevenueAnalyticsTab: React.FC = () => {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-white">수익 분석</h2>
-                    <p className="text-slate-400 mt-1">기간별 수익 현황과 정산 내역을 확인하세요.</p>
+                    <p className="text-zinc-400 mt-1">기간별 수익 현황과 정산 내역을 확인하세요.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <select
                         value={period}
                         onChange={(e) => setPeriod(e.target.value as any)}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                     >
                         <option value="6m">최근 6개월</option>
                         <option value="1y">최근 1년</option>
                         <option value="all">전체 기간</option>
                     </select>
-                    <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800 whitespace-nowrap">
+                    <Button variant="outline" size="sm" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 whitespace-nowrap">
                         <Download className="w-4 h-4 mr-2" />
                         엑셀 다운로드
                     </Button>
@@ -79,61 +84,61 @@ export const RevenueAnalyticsTab: React.FC = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-sm">
+                <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-slate-400">총 예상 수익</h3>
-                        <div className="p-2 bg-blue-900/20 rounded-full text-blue-400">
+                        <h3 className="text-sm font-medium text-zinc-400">총 예상 수익</h3>
+                        <div className="p-2 bg-violet-500/10 rounded-full text-violet-400">
                             <DollarSign className="w-5 h-5" />
                         </div>
                     </div>
                     <p className="text-2xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
-                    <div className="mt-2 flex items-center text-sm text-green-400">
+                    <div className="mt-2 flex items-center text-sm text-emerald-400">
                         <TrendingUp className="w-4 h-4 mr-1" />
                         <span>지난달 대비 +12%</span>
                     </div>
                 </div>
 
-                <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-sm">
+                <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-slate-400">이번 달 정산 예정</h3>
-                        <div className="p-2 bg-purple-900/20 rounded-full text-purple-400">
+                        <h3 className="text-sm font-medium text-zinc-400">이번 달 정산 예정</h3>
+                        <div className="p-2 bg-purple-500/10 rounded-full text-purple-400">
                             <Calendar className="w-5 h-5" />
                         </div>
                     </div>
                     <p className="text-2xl font-bold text-white">{formatCurrency(monthlyStats[0]?.amount || 0)}</p>
-                    <p className="text-sm text-slate-500 mt-2">정산일: 매월 15일</p>
+                    <p className="text-sm text-zinc-500 mt-2">정산일: 매월 15일</p>
                 </div>
 
-                <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-sm">
+                <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-slate-400">미지급 정산금</h3>
-                        <div className="p-2 bg-orange-900/20 rounded-full text-orange-400">
+                        <h3 className="text-sm font-medium text-zinc-400">미지급 정산금</h3>
+                        <div className="p-2 bg-amber-500/10 rounded-full text-amber-400">
                             <DollarSign className="w-5 h-5" />
                         </div>
                     </div>
                     <p className="text-2xl font-bold text-white">{formatCurrency(monthlyStats[0]?.amount || 0)}</p>
-                    <p className="text-sm text-slate-500 mt-2">다음 정산일에 지급됩니다.</p>
+                    <p className="text-sm text-zinc-500 mt-2">다음 정산일에 지급됩니다.</p>
                 </div>
             </div>
 
             {/* Monthly Breakdown Table */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-800">
+            <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-zinc-800">
                     <h3 className="text-lg font-bold text-white">월별 수익 내역</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-800/50">
+                        <thead className="bg-zinc-900/80">
                             <tr>
-                                <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">기간</th>
-                                <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">수익금액</th>
-                                <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">상태</th>
-                                <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">지급일</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">기간</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">수익금액</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">상태</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">지급일</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-zinc-800">
                             {monthlyStats.map((stat, index) => (
-                                <tr key={index} className="hover:bg-slate-800/50 transition-colors">
+                                <tr key={index} className="hover:bg-zinc-800/30 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                                         {stat.period}
                                     </td>
@@ -141,14 +146,14 @@ export const RevenueAnalyticsTab: React.FC = () => {
                                         {formatCurrency(stat.amount)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${stat.status === 'paid'
-                                            ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                            : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-md border ${stat.status === 'paid'
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                             }`}>
                                             {stat.status === 'paid' ? '지급 완료' : '정산 예정'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                                         {stat.status === 'paid' ? `${stat.period}-15` : '익월 15일'}
                                     </td>
                                 </tr>

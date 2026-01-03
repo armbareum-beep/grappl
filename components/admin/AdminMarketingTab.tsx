@@ -223,131 +223,143 @@ export const AdminMarketingTab: React.FC = () => {
     }, {} as Record<string, Course[]>);
 
     return (
-        <div className="space-y-8 relative">
+        <div className="space-y-12 relative pb-20 animate-in fade-in duration-700">
             {loading && (
-                <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-xl">
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-slate-400 text-sm">불러오는 중...</p>
+                <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[100] flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(139,92,246,0.3)]" />
+                        <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Processing Data...</p>
                     </div>
                 </div>
             )}
+
             {/* Platform Bundles Section */}
-            <div>
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Package className="w-6 h-6 text-blue-400" />
+            <section className="space-y-8">
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-violet-500/10 rounded-2xl border border-violet-500/20">
+                            <Package className="w-6 h-6 text-violet-400" />
+                        </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white">플랫폼 번들</h2>
-                            <p className="text-sm text-slate-400">여러 크리에이터의 강좌를 묶어서 판매</p>
+                            <h2 className="text-2xl font-extrabold tracking-tight text-white mb-1">플랫폼 번들 (Bundles)</h2>
+                            <p className="text-sm font-medium text-zinc-500">Cross-Creator 패키지 상품을 기획하여 구매 전환율을 높입니다.</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowBundleForm(!showBundleForm)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        className="px-6 py-3 bg-violet-600 text-white rounded-2xl font-bold text-sm tracking-tight hover:bg-violet-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.3)] border border-violet-500/30"
                     >
                         <Plus className="w-4 h-4" />
-                        번들 만들기
+                        새 번들 기획하기
                     </button>
                 </div>
 
                 {/* Bundle Form */}
                 {showBundleForm && (
-                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-                        <h3 className="font-semibold text-white mb-4">
-                            {editingBundle ? '번들 수정하기' : '새 플랫폼 번들 만들기'}
+                    <div className="bg-zinc-900/40 rounded-3xl border border-zinc-800/50 p-8 backdrop-blur-xl animate-in slide-in-from-top-4 duration-500">
+                        <h3 className="text-lg font-extrabold text-white mb-8 flex items-center gap-2">
+                            <span className="w-1 h-6 bg-violet-500 rounded-full" />
+                            {editingBundle ? '번들 스펙 수정' : '신규 번들 규격 설정'}
                         </h3>
-                        <form onSubmit={editingBundle ? handleUpdateBundle : handleCreateBundle} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    번들 제목
-                                </label>
-                                <input
-                                    type="text"
-                                    value={bundleTitle}
-                                    onChange={(e) => setBundleTitle(e.target.value)}
-                                    placeholder="예: BJJ 마스터 패키지"
-                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
-                                    required
-                                />
-                            </div>
+                        <form onSubmit={editingBundle ? handleUpdateBundle : handleCreateBundle} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            번들 타이틀
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bundleTitle}
+                                            onChange={(e) => setBundleTitle(e.target.value)}
+                                            placeholder="예: 주짓수 기본기 완성 패키지"
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40 placeholder-zinc-700 transition-all font-bold"
+                                            required
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    설명
-                                </label>
-                                <textarea
-                                    value={bundleDescription}
-                                    onChange={(e) => setBundleDescription(e.target.value)}
-                                    placeholder="번들에 대한 설명을 입력하세요"
-                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
-                                    rows={3}
-                                    required
-                                />
-                            </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            정가 설정 (KRW)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={bundlePrice}
+                                            onChange={(e) => setBundlePrice(e.target.value)}
+                                            placeholder="120000"
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40 placeholder-zinc-700 transition-all font-mono font-bold text-lg"
+                                            required
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    가격 (KRW)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={bundlePrice}
-                                    onChange={(e) => setBundlePrice(e.target.value)}
-                                    placeholder="100000"
-                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
-                                    required
-                                />
-                            </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            상세 요약 설명
+                                        </label>
+                                        <textarea
+                                            value={bundleDescription}
+                                            onChange={(e) => setBundleDescription(e.target.value)}
+                                            placeholder="사용자에게 노출될 번들의 메인 USP를 입력하세요"
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40 placeholder-zinc-700 resize-none transition-all leading-relaxed font-bold"
+                                            rows={4}
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    포함할 강좌 선택
-                                </label>
-                                <div className="space-y-4 max-h-96 overflow-y-auto border border-slate-700 rounded-lg p-4 bg-slate-800/50">
-                                    {Object.entries(coursesByCreator).map(([creatorName, courses]) => (
-                                        <div key={creatorName} className="space-y-2">
-                                            <h4 className="font-semibold text-slate-300 sticky top-0 bg-slate-900 py-1 px-2 rounded">
-                                                {creatorName}
-                                            </h4>
-                                            {courses.map((course) => (
-                                                <label
-                                                    key={course.id}
-                                                    className="flex items-center gap-3 p-2 hover:bg-slate-700 rounded cursor-pointer ml-4 transition-colors"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedCourses.includes(course.id)}
-                                                        onChange={() => toggleCourseSelection(course.id)}
-                                                        className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500"
-                                                    />
-                                                    <div className="flex-1">
-                                                        <span className="text-sm text-slate-200">{course.title}</span>
-                                                        <span className="text-xs text-slate-500 ml-2">
-                                                            (₩{course.price.toLocaleString()})
-                                                        </span>
-                                                    </div>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    ))}
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                        번들 구성 강좌 라이브러리 (최소 1개 선택)
+                                    </label>
+                                    <div className="max-h-[380px] overflow-y-auto border border-zinc-800 rounded-2xl p-2 bg-zinc-950 custom-scrollbar">
+                                        {Object.entries(coursesByCreator).map(([creatorName, courses]) => (
+                                            <div key={creatorName} className="mb-4 last:mb-0">
+                                                <div className="sticky top-0 bg-zinc-900/80 backdrop-blur-sm py-2 px-4 rounded-xl mb-1 flex items-center justify-between border border-zinc-800/50">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{creatorName}</span>
+                                                    <span className="text-[10px] font-bold text-zinc-600">{courses.length} Courses</span>
+                                                </div>
+                                                <div className="space-y-1 mt-1">
+                                                    {courses.map((course) => (
+                                                        <label
+                                                            key={course.id}
+                                                            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${selectedCourses.includes(course.id) ? 'bg-violet-500/10 border-violet-500/30' : 'hover:bg-zinc-900 border-transparent'}`}
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedCourses.includes(course.id) ? 'bg-violet-500 border-violet-500' : 'bg-zinc-800 border-zinc-700'}`}>
+                                                                {selectedCourses.includes(course.id) && <Plus className="w-3 h-3 text-white" />}
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedCourses.includes(course.id)}
+                                                                onChange={() => toggleCourseSelection(course.id)}
+                                                                className="hidden"
+                                                            />
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-xs font-bold text-zinc-200 truncate">{course.title}</div>
+                                                                <div className="text-[10px] font-bold text-zinc-500">₩{course.price.toLocaleString()}</div>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-3">
+                            <div className="flex gap-4 pt-6 border-t border-zinc-800/50">
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-8 py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-violet-700 transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(139,92,246,0.3)]"
                                     disabled={selectedCourses.length === 0}
                                 >
-                                    {editingBundle ? '수정 완료' : '번들 생성'}
+                                    {editingBundle ? 'Confirm Changes' : 'Publish New Bundle'}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clearBundleForm}
-                                    className="px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors"
+                                    className="px-8 py-4 border border-zinc-700 text-zinc-400 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 hover:text-white transition-all"
                                 >
-                                    취소
+                                    Cancel
                                 </button>
                             </div>
                         </form>
@@ -355,159 +367,179 @@ export const AdminMarketingTab: React.FC = () => {
                 )}
 
                 {/* Bundle List */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {bundles.length === 0 ? (
-                        <p className="text-slate-500 col-span-3 text-center py-12 bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
-                            아직 생성된 번들이 없습니다.
-                        </p>
+                        <div className="col-span-full py-20 bg-zinc-900/20 rounded-3xl border border-dashed border-zinc-800 flex flex-col items-center justify-center gap-4 text-zinc-600">
+                            <Package className="w-12 h-12 opacity-20" />
+                            <p className="font-bold">기획된 정기 번들 상품이 없습니다.</p>
+                        </div>
                     ) : (
                         bundles.map((bundle) => (
                             <div
                                 key={bundle.id}
-                                className="bg-slate-900 rounded-xl border border-slate-800 p-6 flex flex-col group relative hover:border-slate-700 transition-colors"
+                                className="bg-zinc-900/40 rounded-3xl border border-zinc-800/50 p-8 flex flex-col group relative hover:border-violet-500/50 transition-all backdrop-blur-sm overflow-hidden"
                             >
-                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-violet-600/10 blur-[50px] rounded-full group-hover:bg-violet-600/20 transition-all" />
+
+                                <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
                                     <button
                                         onClick={() => startEditingBundle(bundle)}
-                                        className="p-2 text-slate-500 hover:text-blue-400 bg-slate-800 rounded-lg transition-colors shadow-lg"
-                                        title="수정"
+                                        className="p-2.5 bg-zinc-800 hover:bg-violet-600 text-zinc-400 hover:text-white rounded-xl transition-all shadow-xl"
+                                        title="스펙 수정"
                                     >
                                         <Plus className="w-4 h-4 rotate-45" />
                                     </button>
                                     <button
                                         onClick={() => handleDeleteBundle(bundle.id)}
-                                        className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg transition-colors shadow-lg"
-                                        title="삭제"
+                                        className="p-2.5 bg-zinc-800 hover:bg-rose-600 text-zinc-400 hover:text-white rounded-xl transition-all shadow-xl"
+                                        title="영구 삭제"
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <h3 className="font-semibold text-white mb-2 pr-8">{bundle.title}</h3>
-                                <p className="text-sm text-slate-400 mb-6 line-clamp-2 flex-grow">{bundle.description}</p>
-                                <div className="flex items-center justify-between pt-6 border-t border-slate-800/50">
-                                    <span className="text-lg font-bold text-blue-400">
-                                        ₩{bundle.price.toLocaleString()}
-                                    </span>
-                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
-                                        {bundle.courseIds?.length || 0}개 강좌 포함
-                                    </span>
+
+                                <div className="mb-6">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-3 block">Platform Exclusive</span>
+                                    <h3 className="text-xl font-extrabold text-white mb-3 tracking-tight pr-10">{bundle.title}</h3>
+                                    <p className="text-sm font-medium text-zinc-500 line-clamp-2 leading-relaxed h-[44px]">{bundle.description}</p>
+                                </div>
+
+                                <div className="mt-auto pt-8 border-t border-zinc-800/50 flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Price Points</div>
+                                        <div className="text-2xl font-black text-white tracking-tighter">
+                                            ₩{bundle.price.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div className="px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl">
+                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                            {bundle.courseIds?.length || 0} Modules
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
-            </div>
+            </section>
 
             {/* Platform Coupons Section */}
-            <div>
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Tag className="w-6 h-6 text-green-400" />
+            <section className="space-y-8">
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-12 border-t border-zinc-800">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                            <Tag className="w-6 h-6 text-emerald-400" />
+                        </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white">플랫폼 쿠폰</h2>
-                            <p className="text-sm text-slate-400">모든 강좌에 적용되는 할인 쿠폰</p>
+                            <h2 className="text-2xl font-extrabold tracking-tight text-white mb-1">통합 할인 쿠폰 (Coupons)</h2>
+                            <p className="text-sm font-medium text-zinc-500">프로모션용 쿠폰 코드를 발급하고 소진 내역을 추적합니다.</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowCouponForm(!showCouponForm)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                        className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold text-sm tracking-tight hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] border border-emerald-500/30"
                     >
                         <Plus className="w-4 h-4" />
-                        쿠폰 만들기
+                        쿠폰 코드 생성
                     </button>
                 </div>
 
                 {/* Coupon Form */}
                 {showCouponForm && (
-                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
-                        <h3 className="font-semibold text-white mb-4">
-                            {editingCoupon ? '쿠폰 수정하기' : '새 플랫폼 쿠폰 만들기'}
+                    <div className="bg-zinc-900/40 rounded-3xl border border-zinc-800/50 p-8 backdrop-blur-xl animate-in slide-in-from-top-4 duration-500">
+                        <h3 className="text-lg font-extrabold text-white mb-8 flex items-center gap-2">
+                            <span className="w-1 h-6 bg-emerald-500 rounded-full" />
+                            {editingCoupon ? '쿠폰 속성 변경' : '신규 프로모션 코드 발급'}
                         </h3>
-                        <form onSubmit={editingCoupon ? handleUpdateCoupon : handleCreateCoupon} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    쿠폰 코드
-                                </label>
-                                <input
-                                    type="text"
-                                    value={couponCode}
-                                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                    placeholder="예: WELCOME2024"
-                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-slate-500"
-                                    required
-                                />
+                        <form onSubmit={editingCoupon ? handleUpdateCoupon : handleCreateCoupon} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            CODE (대문자 자동 변환)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={couponCode}
+                                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                            placeholder="예: BLACKFRIDAY50"
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 placeholder-zinc-700 font-black tracking-widest text-xl transition-all"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                                할인 정책
+                                            </label>
+                                            <select
+                                                value={discountType}
+                                                onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
+                                                className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-bold transition-all"
+                                            >
+                                                <option value="percent">PERCENT (%)</option>
+                                                <option value="fixed">AMOUNT (KRW)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                                VALUE
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={discountValue}
+                                                onChange={(e) => setDiscountValue(e.target.value)}
+                                                placeholder={discountType === 'percent' ? '30' : '20000'}
+                                                className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 placeholder-zinc-700 font-black font-mono transition-all"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            수량 제한 (LIMIT)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={maxUses}
+                                            onChange={(e) => setMaxUses(e.target.value)}
+                                            placeholder="무제한 (Blank)"
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 placeholder-zinc-700 font-bold transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                            유효 기간 종료 (EXPIRATION)
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={expiresAt}
+                                            onChange={(e) => setExpiresAt(e.target.value)}
+                                            className="w-full px-5 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-bold transition-all"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        할인 유형
-                                    </label>
-                                    <select
-                                        value={discountType}
-                                        onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
-                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    >
-                                        <option value="percent">퍼센트 (%)</option>
-                                        <option value="fixed">고정 금액 (KRW)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        할인 값
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={discountValue}
-                                        onChange={(e) => setDiscountValue(e.target.value)}
-                                        placeholder={discountType === 'percent' ? '20' : '10000'}
-                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-slate-500"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        최대 사용 횟수 (선택)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={maxUses}
-                                        onChange={(e) => setMaxUses(e.target.value)}
-                                        placeholder="무제한"
-                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-slate-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        만료일 (선택)
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={expiresAt}
-                                        onChange={(e) => setExpiresAt(e.target.value)}
-                                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
+                            <div className="flex gap-4 pt-6 border-t border-zinc-800/50">
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                    className="flex-1 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]"
                                 >
-                                    {editingCoupon ? '수정 완료' : '쿠폰 생성'}
+                                    {editingCoupon ? 'Apply Changes' : 'Publish Coupon Code'}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clearCouponForm}
-                                    className="px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors"
+                                    className="px-8 py-4 border border-zinc-700 text-zinc-400 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 hover:text-white transition-all"
                                 >
-                                    취소
+                                    Cancel
                                 </button>
                             </div>
                         </form>
@@ -515,57 +547,64 @@ export const AdminMarketingTab: React.FC = () => {
                 )}
 
                 {/* Coupon List */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {coupons.length === 0 ? (
-                        <p className="text-slate-500 col-span-4 text-center py-12 bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
-                            아직 생성된 쿠폰이 없습니다.
-                        </p>
+                        <div className="col-span-full py-20 bg-zinc-900/20 rounded-3xl border border-dashed border-zinc-800 flex flex-col items-center justify-center gap-4 text-zinc-600">
+                            <Tag className="w-12 h-12 opacity-20" />
+                            <p className="font-bold">발행된 플랫폼 쿠폰 코드가 없습니다.</p>
+                        </div>
                     ) : (
                         coupons.map((coupon) => (
                             <div
                                 key={coupon.id}
-                                className="bg-slate-900 rounded-xl border border-slate-800 p-6 group relative hover:border-slate-700 transition-colors"
+                                className="bg-zinc-900/40 rounded-3xl border border-zinc-800/50 p-6 group relative hover:border-emerald-500/50 transition-all backdrop-blur-sm overflow-hidden"
                             >
-                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-10">
                                     <button
                                         onClick={() => startEditingCoupon(coupon)}
-                                        className="p-2 text-slate-500 hover:text-blue-400 bg-slate-800 rounded-lg transition-colors shadow-lg"
-                                        title="수정"
+                                        className="p-2 bg-zinc-800 hover:bg-emerald-600 text-zinc-500 hover:text-white rounded-lg transition-all shadow-xl"
+                                        title="조건 수정"
                                     >
                                         <Plus className="w-4 h-4 rotate-45" />
                                     </button>
                                     <button
                                         onClick={() => handleDeleteCoupon(coupon.id)}
-                                        className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg transition-colors shadow-lg"
-                                        title="삭제"
+                                        className="p-2 bg-zinc-800 hover:bg-rose-600 text-zinc-500 hover:text-white rounded-lg transition-all shadow-xl"
+                                        title="영구 삭제"
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <code className="bg-green-900/30 text-green-400 px-3 py-1 rounded-md font-mono text-sm font-bold border border-green-900/50">
-                                        {coupon.code}
-                                    </code>
-                                </div>
-                                <div className="mb-4">
-                                    <span className="text-2xl font-bold text-white">
-                                        {coupon.discountType === 'percent' ? `${coupon.value}%` : `₩${coupon.value.toLocaleString()}`}
-                                    </span>
-                                    <span className="text-slate-400 text-sm ml-1">할인</span>
-                                </div>
-                                <div className="flex flex-col gap-2 text-xs text-slate-500 border-t border-slate-800/50 pt-4">
-                                    <div className="flex justify-between">
-                                        <span>사용 횟수</span>
-                                        <span className="text-slate-300">{coupon.usedCount} / {coupon.maxUses || '무제한'}</span>
+
+                                <div className="relative mb-6">
+                                    <div className="inline-block bg-emerald-500/5 border border-emerald-500/20 px-3 py-1.5 rounded-xl mb-4">
+                                        <code className="text-emerald-400 font-black tracking-widest text-sm">
+                                            {coupon.code}
+                                        </code>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span>생성자</span>
-                                        <span className="text-slate-300">{coupon.creatorName || '시스템'}</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-4xl font-black text-white tracking-tighter">
+                                            {coupon.discountType === 'percent' ? `${coupon.value}%` : `₩${coupon.value.toLocaleString()}`}
+                                        </span>
+                                        <span className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Off</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 pt-6 border-t border-zinc-800/50">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-zinc-600">Usage</span>
+                                        <span className={`px-2 py-0.5 rounded-md ${coupon.maxUses && coupon.usedCount >= coupon.maxUses ? 'bg-rose-500/20 text-rose-500' : 'text-zinc-300'}`}>
+                                            {coupon.usedCount} / {coupon.maxUses || '∞'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-zinc-600">Issuer</span>
+                                        <span className="text-zinc-300 truncate max-w-[100px]">{coupon.creatorName || 'PLATFORM'}</span>
                                     </div>
                                     {coupon.expiresAt && (
-                                        <div className="flex justify-between">
-                                            <span>만료일</span>
-                                            <span className="text-slate-300">{new Date(coupon.expiresAt).toLocaleDateString()}</span>
+                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                            <span className="text-zinc-600">Expiry</span>
+                                            <span className="text-emerald-500/80">{new Date(coupon.expiresAt).toLocaleDateString()}</span>
                                         </div>
                                     )}
                                 </div>
@@ -573,7 +612,7 @@ export const AdminMarketingTab: React.FC = () => {
                         ))
                     )}
                 </div>
-            </div>
+            </section>
         </div>
     );
 };

@@ -319,13 +319,13 @@ export const DailyFreeDrillSection: React.FC = () => {
                 {/* 3. CTA Button */}
                 <div className="text-center">
                     <button
-                        onClick={() => navigate('/courses')}
+                        onClick={() => navigate('/login')}
                         className="bg-violet-600 hover:bg-violet-500 text-white text-xl font-bold py-5 px-12 rounded-full shadow-[0_20px_40px_rgba(124,58,237,0.3)] transition-all hover:scale-105 active:scale-95"
                     >
-                        모든 클래스 보기
+                        로그인 하기
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">
-                        언제 어디서나 무제한으로 수련하세요.
+                        지금 로그인하고 오늘의 무료 기술을 확인하세요.
                     </p>
                 </div>
             </div>

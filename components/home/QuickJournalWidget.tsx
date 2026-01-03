@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Smile, Meh, Frown, Zap } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { createTrainingLog } from '../../lib/api';
@@ -11,9 +12,41 @@ export const QuickJournalWidget: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [selectedMood, setSelectedMood] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [hasJournaledToday, setHasJournaledToday] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [note, setNote] = useState('');
+
+    useEffect(() => {
+        if (!user) return;
+
+        const checkDailyJournal = async () => {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+
+            try {
+                const { data } = await supabase
+                    .from('training_logs')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .contains('metadata', { source: 'quick_journal' })
+                    .gte('created_at', todayStart.toISOString())
+                    .lte('created_at', todayEnd.toISOString())
+                    .limit(1);
+
+                if (data && data.length > 0) {
+                    setHasJournaledToday(true);
+                }
+            } catch (err) {
+                console.error('Error checking daily journal:', err);
+            }
+        };
+
+        checkDailyJournal();
+    }, [user]);
 
     const moods = [
         { id: 'great', label: '최고였어요', icon: Smile, color: 'text-violet-400', bg: 'bg-violet-500/10', emoji: '🔥' },
@@ -62,6 +95,7 @@ export const QuickJournalWidget: React.FC = () => {
             setTimeout(() => {
                 setShowSuccess(false);
                 setSelectedMood(null);
+                setHasJournaledToday(true);
             }, 3000);
 
         } catch (e) {
@@ -121,6 +155,20 @@ export const QuickJournalWidget: React.FC = () => {
                                         <div className="text-center">
                                             <div className="text-xl font-black tracking-tight text-white mb-1">기록 성공!</div>
                                             <div className="text-violet-400 font-bold">+10 XP 획득</div>
+                                        </div>
+                                    </motion.div>
+                                ) : hasJournaledToday ? (
+                                    <motion.div
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="col-span-3 flex flex-col items-center justify-center gap-4 py-10 text-zinc-400 bg-zinc-500/5 rounded-[40px] border border-white/5"
+                                    >
+                                        <div className="w-20 h-20 rounded-full bg-zinc-500/20 flex items-center justify-center border border-zinc-500/30">
+                                            <span className="text-3xl">✅</span>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xl font-black tracking-tight text-white mb-1">오늘의 기록 완료!</div>
+                                            <div className="text-zinc-500 font-medium text-sm">내일 또 만나요 👋</div>
                                         </div>
                                     </motion.div>
                                 ) : (
