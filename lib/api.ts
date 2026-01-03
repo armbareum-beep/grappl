@@ -277,21 +277,27 @@ export async function searchContent(query: string) {
                 tags: d.tags || [],
                 createdAt: d.created_at
             })),
-            feeds: (feedsRes.data || []).map((log: any) => ({
-                id: log.id,
-                userId: log.user_id,
-                userName: log.user?.name || 'User',
-                userAvatar: log.user?.avatar_url,
-                date: log.date,
-                notes: log.notes,
-                mediaUrl: log.media_url,
-                type: log.type,
-                durationMinutes: log.duration_minutes || 0,
-                techniques: log.techniques || [],
-                sparringRounds: log.sparring_rounds || 0,
-                isPublic: log.is_public,
-                createdAt: log.created_at
-            })),
+            feeds: (feedsRes.data || []).map((log: any) => {
+                let type = log.type;
+                if (!type && log.location && log.location.startsWith('__FEED__')) {
+                    type = log.location.replace('__FEED__', '');
+                }
+                return {
+                    id: log.id,
+                    userId: log.user_id,
+                    userName: log.user?.name || 'User',
+                    userAvatar: log.user?.avatar_url,
+                    date: log.date,
+                    notes: log.notes,
+                    mediaUrl: log.media_url,
+                    type: type || 'general',
+                    durationMinutes: log.duration_minutes || 0,
+                    techniques: log.techniques || [],
+                    sparringRounds: log.sparring_rounds || 0,
+                    isPublic: log.is_public,
+                    createdAt: log.created_at
+                };
+            }),
             sparring: (sparringRes.data || []).map((v: any) => {
                 const creator = sparringCreators[v.creator_id];
                 return {
@@ -2468,20 +2474,47 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 1. Fetch ALL public logs (including feed posts and regular logs)
-    const fetchPromise = supabase
-        .from('training_logs')
-        .select('*', { count: 'exact' })
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+    // 1. Fetch Using Recommended Algorithm (Gravity Score)
+    // Try RPC first, fallback to standard query if not exists
+    let fetchPromise;
+
+    // Check if we want recommendation (default) or if we need specific filtering
+    // For now, apply recommendation to standard feed
+    fetchPromise = supabase
+        .rpc('get_recommended_feed', {
+            page_num: page,
+            page_size: limit
+        });
 
     let data, count, error;
+
     try {
         const result = await fetchPromise;
-        data = result.data;
-        count = result.count;
-        error = result.error;
+
+        // If RPC fails (e.g. function doesn't exist yet), fallback to standard query
+        if (result.error) {
+            console.warn('Recommended feed RPC failed, falling back to standard query:', result.error);
+            const fallbackResult = await supabase
+                .from('training_logs')
+                .select('*', { count: 'exact' })
+                .eq('is_public', true)
+                .order('created_at', { ascending: false })
+                .range(from, to);
+
+            data = fallbackResult.data;
+            count = fallbackResult.count;
+            error = fallbackResult.error;
+        } else {
+            data = result.data;
+            // Count gives total count for pagination, but RPC might not return it easily
+            // For now, get total count separately for pagination to work
+            const { count: totalCount } = await supabase
+                .from('training_logs')
+                .select('id', { count: 'exact', head: true })
+                .eq('is_public', true);
+            count = totalCount;
+            error = null;
+        }
     } catch (e) {
         console.error('getPublicTrainingLogs failed:', e);
         return { data: null, count: 0, error: e };
@@ -5279,12 +5312,12 @@ export async function createFeedPost(post: {
         .insert({
             user_id: post.userId,
             date: new Date().toISOString().split('T')[0],
-            duration_minutes: -1, // MARKER: -1 indicates a feed post
+            duration_minutes: 1, // MARKER: Set to 1 to avoid check constraints on 0
             techniques: [],
             sparring_rounds: 0,
             notes: post.content,
             is_public: true,
-            // type: post.type, // REMOVED: Causing insert error if column is missing
+            type: post.type, // Restored: Required column
             location: `__FEED__${post.type}`,
             metadata: post.metadata || {},
             media_url: post.mediaUrl,

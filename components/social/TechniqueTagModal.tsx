@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, Check, Sparkles, Plus } from 'lucide-react';
 
 interface TechniqueTagModalProps {
@@ -39,8 +40,8 @@ export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTe
         return acc;
     }, {} as Record<string, string[]>);
 
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-in fade-in duration-200">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
@@ -149,6 +150,7 @@ export const TechniqueTagModal: React.FC<TechniqueTagModalProps> = ({ selectedTe
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

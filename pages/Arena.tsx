@@ -72,7 +72,7 @@ export const Arena: React.FC = () => {
                     {ARENA_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
-                        const isLocked = !user && tab.id !== 'skills' && tab.id !== 'routines';
+                        const isLocked = !user && tab.id === 'sparring';
 
                         return (
                             <div key={tab.id} className="relative group">
@@ -117,7 +117,7 @@ export const Arena: React.FC = () => {
                         <TechniqueRoadmapDashboard />
                     </div>
                 ) : (
-                    <div className={`h-full overflow-y-auto overflow-x-hidden relative z-10 ${(!user && activeTab !== 'routines') ? 'blur-sm pointer-events-none' : ''}`}>
+                    <div className="h-full overflow-y-auto overflow-x-hidden relative z-10">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-16 pb-24 md:pb-6">
                             {activeTab === 'journal' && <JournalTab />}
                             {activeTab === 'routines' && <TrainingRoutinesTab />}

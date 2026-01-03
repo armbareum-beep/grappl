@@ -65,6 +65,7 @@ import { Navigate } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
 import { GlobalUploadProgress } from './components/GlobalUploadProgress';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { LandingPageV2 } from './pages/LandingPageV2';
 
@@ -244,7 +245,11 @@ const App: React.FC = () => {
                 <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                 <Route path="/arena" element={<Arena />} />
-                <Route path="/ai-coach" element={<AICoach />} />
+                <Route path="/ai-coach" element={
+                  <ProtectedRoute>
+                    <AICoach />
+                  </ProtectedRoute>
+                } />
                 <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
 
                 <Route path="/sparring" element={<SparringFeed />} />

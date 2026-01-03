@@ -34,9 +34,10 @@ export function transformUserSkillTree(data: any): UserSkillTree {
  * List all public skill trees with creator info
  */
 export async function listPublicSkillTrees(limit = 20) {
-    const { data, error } = await supabase
+    // 1. Fetch trees without joining users (to avoid FK error)
+    const { data: trees, error } = await supabase
         .from('user_skill_trees')
-        .select('*, users(name, avatar_url)')
+        .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -46,7 +47,26 @@ export async function listPublicSkillTrees(limit = 20) {
         return { data: [], error };
     }
 
-    return { data: data.map(transformUserSkillTree), error: null };
+    if (!trees || trees.length === 0) return { data: [], error: null };
+
+    // 2. Extract unique User IDs
+    const userIds = [...new Set(trees.map(t => t.user_id).filter(Boolean))];
+
+    // 3. Fetch Creator Profiles manually
+    const { data: users } = await supabase
+        .from('users')
+        .select('id, name, avatar_url')
+        .in('id', userIds);
+
+    const userMap = new Map((users || []).map(u => [u.id, u]));
+
+    // 4. Merge Data
+    const enrichedData = trees.map(tree => ({
+        ...tree,
+        users: userMap.get(tree.user_id) || { name: 'Unknown', avatar_url: null }
+    }));
+
+    return { data: enrichedData.map(transformUserSkillTree), error: null };
 }
 
 /**

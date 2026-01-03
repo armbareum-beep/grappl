@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader, Repeat } from 'lucide-react';
+import { X, Loader, Share2 } from 'lucide-react';
 
 export interface ShareToFeedModalProps {
     isOpen: boolean;
@@ -88,10 +88,10 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                 <div className="flex items-center justify-between p-6 border-b border-zinc-800/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center border border-violet-500/20">
-                            <Repeat className="w-5 h-5 text-violet-400" />
+                            <Share2 className="w-5 h-5 text-violet-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-zinc-100 tracking-tight">리포스트</h2>
+                            <h2 className="text-lg font-bold text-zinc-100 tracking-tight">공유하기</h2>
                         </div>
                     </div>
                     <button
@@ -114,7 +114,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="리포스트와 함께 남길 생각을 적어보세요..."
+                                    placeholder="공유와 함께 남길 생각을 적어보세요..."
                                     rows={3}
                                     className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed"
                                     disabled={isSharing}
@@ -126,7 +126,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                         {/* Footer info inside Input Area */}
                         <div className="flex items-center justify-between mt-2 pt-3 border-t border-zinc-800/50">
                             <p className="text-zinc-600 italic text-[11px]">
-                                Tip: Cmd/Ctrl + Enter로 리포스트
+                                Tip: Cmd/Ctrl + Enter로 공유하기
                             </p>
                             <p className={`text-[10px] font-mono ${isOverLimit ? 'text-red-400' : 'text-zinc-600'}`}>
                                 {characterCount} / {MAX_CHARACTERS}
@@ -200,12 +200,12 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
                             {isSharing ? (
                                 <>
                                     <Loader className="w-4 h-4 animate-spin" />
-                                    <span>리포스트 중...</span>
+                                    <span>공유 중...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Repeat className="w-4 h-4" />
-                                    <span>리포스트</span>
+                                    <Share2 className="w-4 h-4" />
+                                    <span>공유하기</span>
                                 </>
                             )}
                         </div>

@@ -183,3 +183,131 @@ export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): 
         return [];
     }
 };
+
+export interface DeepAnalysisResult {
+    styleProfile: {
+        identity: string; // e.g. "Smasher", "Guard Player"
+        description: string;
+        strength: string;
+        weakness: string;
+        similarPro?: string;
+        fingerprint?: {
+            standing: number;
+            guard: number;
+            passing: number;
+            submission: number;
+            defense: number;
+        };
+    };
+    gapAnalysis: {
+        hasGap?: boolean;
+        message?: string; // "You watch Pass videos but only do Guard"
+        blindSpots?: string[];
+        overTrained?: string[];
+        theoryPracticeGap?: string;
+    };
+    prescription: {
+        summary: string; // "High Intensity"
+        drillDurationMinutes: number;
+        sparringRounds: number;
+        focusPoint?: string;
+        focusAreas?: string[];
+    };
+    recommendedContent: {
+        courses: Array<{ id?: string; title: string; reason: string; thumbnail?: string; instructor?: string; duration?: string }>;
+        routines: Array<{ id?: string; title: string; reason: string; thumbnail?: string; instructor?: string; duration?: string }>;
+        chains: Array<{ id?: string; title: string; reason: string; thumbnail?: string; instructor?: string; duration?: string }>;
+    };
+    sparringMission?: {
+        scenario: string;
+        opponentStyle: string;
+        duration: string;
+        reason: string;
+    };
+}
+
+export const analyzeUserDeeply = async (
+    logs: TrainingLog[],
+    recentVideos: { title: string; category?: string }[],
+    userProfile: { name: string; belt: string },
+    apiKey: string
+): Promise<DeepAnalysisResult | null> => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const prompt = `
+    You are an expert BJJ (Brazilian Jiu-Jitsu) Head Coach.
+    Analyze the user's training logs and video history to provide a deep, personalized coaching report in KOREAN.
+
+    User: ${userProfile.name} (${userProfile.belt} Belt)
+
+    DATA - Training Logs (Last 30 days):
+    ${logs.map(l => `- [${l.date}] ${l.notes} (Tags: ${l.techniques?.join(', ')})`).join('\n')}
+
+    DATA - Recently Watched Videos:
+    ${recentVideos.map(v => `- ${v.title} (${v.category || 'General'})`).join('\n')}
+
+    TASK:
+    1. Identify their **Style/Identity** based on keywords in logs.
+    2. Detect **Theory-Practice Gap**.
+    3. Prescribe **Training Volume for Tomorrow** (min/rounds).
+    4. Recommend **3 specific content types** with a "Why" reason.
+
+    IMPORTANT: All text fields (identity, message, strength, weakness, summary, reason) MUST be in KOREAN language.
+
+    OUTPUT FORMAT (JSON ONLY):
+    {
+      "styleProfile": {
+        "identity": "스타일 명칭 (예: 압박 패서)",
+        "description": "한 문장 설명",
+        "strength": "강점 (한국어)",
+        "weakness": "약점 (한국어)",
+        "fingerprint": { "standing": 50, "guard": 50, "passing": 50, "submission": 50, "defense": 50 }
+      },
+      "gapAnalysis": {
+        "blindSpots": ["부족한 영역1", "부족한 영역2"],
+        "theoryPracticeGap": "이론과 실천의 갭에 대한 정중한 지적 (한국어)"
+      },
+      "prescription": {
+        "summary": "한 줄 요약 (예: 오늘은 고강도 스파링 추천)",
+        "drillDurationMinutes": number,
+        "sparringRounds": number,
+        "focusAreas": ["집중해야 할 기술1", "집중해야 할 기술2"]
+      },
+      "sparringMission": {
+        "scenario": "스파링 시나리오 (예: 가드 패스 당한 상태에서 탈출)",
+        "opponentStyle": "상대 스타일 (예: 무거운 압박러)",
+        "duration": "추천 시간 (예: 5분 x 3라운드)",
+        "reason": "이 미션을 추천하는 이유 (한국어)"
+      },
+      "recommendedContent": {
+        "courses": [{ "title": "추천 강의 제목", "reason": "추천 사유 (한국어)" }],
+        "routines": [{ "title": "추천 루틴 제목", "reason": "추천 사유 (한국어)" }],
+        "chains": [{ "title": "추천 체인 제목", "reason": "추천 사유 (한국어)" }]
+      }
+    }
+    
+    Respond STRICTLY with valid JSON.
+    `;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { response_mime_type: "application/json" }
+            })
+        });
+
+        if (!response.ok) throw new Error(response.statusText);
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return null;
+
+        return JSON.parse(text.replace(/^```json/, '').replace(/```$/, ''));
+    } catch (error) {
+        console.error('Deep Analysis Failed:', error);
+        return null;
+    }
+};

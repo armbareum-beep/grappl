@@ -15,7 +15,7 @@ export const Browse: React.FC = () => {
   const [selectedUniform, setSelectedUniform] = useState<string>('All');
   const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | null>(null);
 
-  const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side Control', 'Mount', 'Back Control', 'Gi', 'No-Gi'];
+  const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -43,11 +43,9 @@ export const Browse: React.FC = () => {
     if (selectedCategory === 'Standing') matchesCategory = (course.category as string) === 'Takedown' || course.category === 'Standing';
     if (selectedCategory === 'Guard') matchesCategory = course.category === 'Guard';
     if (selectedCategory === 'Passing') matchesCategory = course.category === 'Passing';
-    if (selectedCategory === 'Side Control') matchesCategory = (course.category as string) === 'Defense' || course.category === 'Side';
+    if (selectedCategory === 'Side') matchesCategory = (course.category as string) === 'Defense' || course.category === 'Side' || (course.category as string) === 'Side Control';
     if (selectedCategory === 'Mount') matchesCategory = (course.category as string) === 'Submission' || course.category === 'Mount';
-    if (selectedCategory === 'Back Control') matchesCategory = course.category === 'Back';
-    if (selectedCategory === 'Gi') matchesCategory = course.category === 'Gi';
-    if (selectedCategory === 'No-Gi') matchesCategory = course.category === 'No-Gi';
+    if (selectedCategory === 'Back') matchesCategory = course.category === 'Back' || (course.category as string) === 'Back Control';
 
     const matchesDifficulty = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;

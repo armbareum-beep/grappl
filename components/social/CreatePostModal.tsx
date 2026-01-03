@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Image as ImageIcon, Hash, Globe, Sparkles, Plus, BookOpen, Link as LinkIcon } from 'lucide-react';
+import { X, Image as ImageIcon, Hash, Globe, Sparkles, Plus, BookOpen, Link as LinkIcon, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { TrainingLog } from '../../types';
@@ -17,7 +17,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
     const { error: toastError } = useToast();
     const [content, setContent] = useState('');
     const [selectedTechniques, setSelectedTechniques] = useState<string[]>([]);
-    const [addToJournal, setAddToJournal] = useState(true);
+    // Removed explicit addToJournal toggle. Now purely based on isPublic.
+    const [isPublic, setIsPublic] = useState(true);
     const [showTechModal, setShowTechModal] = useState(false);
     const [mediaFiles, setMediaFiles] = useState<File[]>([]);
     const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
@@ -112,31 +113,58 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                 }
             }
 
-            // 1. Create Feed Log (Feed Post)
-            const { data: newLog, error } = await createTrainingLog({
-                userId: user.id,
-                date: new Date().toISOString().split('T')[0],
-                durationMinutes: -1, // Feed Post Marker
-                techniques: selectedTechniques,
-                sparringRounds: 0,
-                notes: content,
-                isPublic: true,
-                location: `__FEED__`,
-                mediaUrl: uploadedUrls[0],
-                youtubeUrl: youtubeUrl || undefined,
-                metadata: {
-                    images: uploadedUrls
-                }
-            });
+            let newLog: TrainingLog | null = null;
 
-            if (error) throw error;
+            // Logic: 
+            // If Public: Create Feed Post (.__FEED__) AND Journal Entry (Standard) - though previous logic created both.
+            // Simplified Logic as per user req:
+            // "Only Me" -> Private Journal Entry.
+            // "Public" -> Public Feed Post.
 
-            // 2. Add to Journal (Private Log) if checked
-            if (addToJournal) {
+            if (isPublic) {
+                // 1. Create Public Feed Post
+                const { data: feedLog, error } = await createTrainingLog({
+                    userId: user.id,
+                    date: new Date().toISOString().split('T')[0],
+                    durationMinutes: -1, // Feed Post Marker
+                    techniques: selectedTechniques,
+                    sparringRounds: 0,
+                    notes: content,
+                    isPublic: true,
+                    location: `__FEED__`,
+                    mediaUrl: uploadedUrls[0],
+                    youtubeUrl: youtubeUrl || undefined,
+                    metadata: {
+                        images: uploadedUrls
+                    }
+                });
+                if (error) throw error;
+                newLog = feedLog;
+
+                // 2. Also create a Private Journal Copy effectively (so it shows in Journal)
+                // Historically we toggled this. Now we assume Public posts should also be in Journal (Standard Log).
                 await createTrainingLog({
                     userId: user.id,
                     date: new Date().toISOString().split('T')[0],
-                    durationMinutes: 60, // Standard duration for log
+                    durationMinutes: 60,
+                    techniques: selectedTechniques,
+                    sparringRounds: 0,
+                    notes: content,
+                    isPublic: false, // Journal copy is private or just standard? make private to avoid duplicate feed entries
+                    mediaUrl: uploadedUrls[0],
+                    youtubeUrl: youtubeUrl || undefined,
+                    metadata: {
+                        images: uploadedUrls,
+                        source: 'feed_post'
+                    }
+                });
+
+            } else {
+                // "Only Me" -> Create ONLY Journal Entry (Private)
+                const { data: journalLog, error } = await createTrainingLog({
+                    userId: user.id,
+                    date: new Date().toISOString().split('T')[0],
+                    durationMinutes: 60,
                     techniques: selectedTechniques,
                     sparringRounds: 0,
                     notes: content,
@@ -145,9 +173,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     youtubeUrl: youtubeUrl || undefined,
                     metadata: {
                         images: uploadedUrls,
-                        source: 'feed_post'
+                        source: 'private_post'
                     }
                 });
+                if (error) throw error;
+                newLog = journalLog;
             }
 
             if (newLog) {
@@ -165,15 +195,14 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     },
                     likes: 0,
                     comments: 0,
-                    // Optimistic update for multiple images
                     metadata: {
-                        images: mediaPreviews // Use previews immediately for smoother UX
+                        images: mediaPreviews
                     }
                 };
 
                 const { xpEarned } = await updateQuestProgress(user.id, 'write_log');
 
-                setQuestCompleteData({ questName: '수련 일지 작성', xpEarned: xpEarned || 0 });
+                setQuestCompleteData({ questName: isPublic ? '게시물 작성' : '비공개 일지 작성', xpEarned: xpEarned || 0 });
                 setShowQuestComplete(true);
 
                 onPostCreated(enrichedLog);
@@ -232,11 +261,18 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                                     </span>
                                 )}
                             </div>
+                            {/* Privacy Selector (Toggle) */}
                             <div className="flex items-center gap-1.5 mt-1">
-                                <div className="px-2 py-0.5 rounded-full bg-slate-800/50 border border-slate-700/50 flex items-center gap-1">
-                                    <Globe className="w-3 h-3 text-slate-400" />
-                                    <span className="text-xs text-slate-400 font-medium">전체 공개</span>
-                                </div>
+                                <button
+                                    onClick={() => setIsPublic(!isPublic)}
+                                    className={`px-2 py-0.5 rounded-full border flex items-center gap-1 transition-colors ${isPublic
+                                            ? 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                >
+                                    {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                    <span className="text-xs font-medium">{isPublic ? '전체 공개' : '나만 보기'}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -357,18 +393,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                             </button>
                         </div>
 
-                        {/* Journal Toggle */}
-                        <button
-                            onClick={() => setAddToJournal(!addToJournal)}
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border flex items-center gap-2 ${addToJournal
-                                ? 'bg-violet-500 border-violet-400 text-white shadow-[0_0_12px_rgba(124,58,237,0.3)]'
-                                : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-400'
-                                }`}
-                        >
-                            <BookOpen className={`w-3.5 h-3.5 transition-transform ${addToJournal ? 'scale-110' : 'scale-100 opacity-60'}`} />
-                            <span>수련 일지에 기록</span>
-                            <div className={`w-1.5 h-1.5 rounded-full transition-all ${addToJournal ? 'bg-white scale-100' : 'bg-slate-600 scale-50'}`} />
-                        </button>
+                        {/* Toggle Removed as requested */}
                     </div>
 
                     <button
@@ -383,7 +408,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                             </>
                         ) : (
                             <>
-                                게시하기
+                                {isPublic ? '게시하기' : '일지에 저장하기'}
                                 <Sparkles className="w-4 h-4 ml-1 text-violet-200" />
                             </>
                         )}

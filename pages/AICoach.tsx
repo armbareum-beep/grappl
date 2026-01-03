@@ -1,4 +1,36 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { TrainingLog } from '../types';
+import {
+    analyzeReadiness,
+    analyzeBalance,
+    analyzeMomentum,
+    identifyBlindSpots,
+    calculateRadarStats,
+    ReadinessAnalysis,
+    BalanceAnalysis,
+    MomentumAnalysis,
+    RadarStats
+} from '../lib/analysis';
+import { analyzeUserDeeply, DeepAnalysisResult } from '../lib/gemini';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
+import {
+    Activity,
+    Brain,
+    Zap,
+    TrendingUp,
+    AlertTriangle,
+    CheckCircle2,
+    Dumbbell,
+    Swords,
+    ChevronRight,
+    PieChart,
+    Sparkles,
+    Clock,
+    Play
+} from 'lucide-react';
 import {
     Radar,
     RadarChart,
@@ -6,525 +38,708 @@ import {
     PolarAngleAxis,
     PolarRadiusAxis,
     ResponsiveContainer,
+    Tooltip
 } from 'recharts';
-import {
-    Brain,
-    Zap,
-    ShieldAlert,
-    Activity,
-    UserCheck,
-    Play,
-    TrendingUp,
-    Flame,
-    LucideIcon,
-    Sparkles,
-    Lock,
-} from 'lucide-react';
-
-interface MetricCardProps {
-    title: string;
-    value: string;
-    change: string;
-    isPositive: boolean;
-    icon: LucideIcon;
-}
-
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, isPositive, icon: Icon }) => (
-    <div className="bg-zinc-900/50 backdrop-blur-sm border border-violet-500/20 p-6 rounded-2xl relative overflow-hidden group hover:border-violet-500/40 transition-all duration-300">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-violet-500/20 transition-all"></div>
-        <div className="relative z-10">
-            <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-zinc-950/50 rounded-xl border border-zinc-800">
-                    <Icon className="w-6 h-6 text-violet-400" />
-                </div>
-                <div
-                    className={`flex items-center space-x-1 text-sm font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'
-                        }`}
-                >
-                    {isPositive ? (
-                        <TrendingUp className="w-4 h-4" />
-                    ) : (
-                        <TrendingUp className="w-4 h-4 rotate-180" />
-                    )}
-                    <span>{change}</span>
-                </div>
-            </div>
-            <h3 className="text-zinc-400 text-sm font-medium mb-1">{title}</h3>
-            <div className="text-3xl font-black text-white tracking-tight">{value}</div>
-        </div>
-    </div>
-);
-
-interface RecommendationCardProps {
-    type: string;
-    title: string;
-    subtitle: string;
-    icon: LucideIcon;
-    color: string;
-    image: string;
-}
-
-const RecommendationCard: React.FC<RecommendationCardProps> = ({ type, title, subtitle, icon: Icon, color, image }) => (
-    <div className="min-w-[320px] h-[420px] bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 relative group cursor-pointer hover:border-zinc-700 transition-all">
-        <img
-            src={image}
-            alt={title}
-            className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent"></div>
-
-        <div className="absolute top-6 left-6">
-            <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${color} bg-black/50 backdrop-blur-md border border-white/10`}>
-                <Icon className="w-3 h-3" />
-                <span>{type}</span>
-            </div>
-        </div>
-
-        <div className="absolute bottom-6 left-6 right-6">
-            <h3 className="text-2xl font-black text-white mb-2 leading-tight">{title}</h3>
-            <p className="text-zinc-400 text-sm mb-6 line-clamp-2 leading-relaxed">{subtitle}</p>
-            <button className="w-full py-4 bg-white text-black font-bold rounded-xl flex items-center justify-center space-x-2 hover:bg-violet-50 transition-colors">
-                <Play className="w-4 h-4 fill-current" />
-                <span>Start Training</span>
-            </button>
-        </div>
-    </div>
-);
 
 export const AICoach: React.FC = () => {
-    const sectionsRef = useRef<(HTMLElement | null)[]>([]);
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    // Mock Data
-    const radarData = [
-        { subject: 'Pass', A: 85, fullMark: 100 },
-        { subject: 'Sweep', A: 65, fullMark: 100 },
-        { subject: 'Submission', A: 90, fullMark: 100 },
-        { subject: 'Defense', A: 50, fullMark: 100 },
-        { subject: 'Stamina', A: 70, fullMark: 100 },
-    ];
+    // Data
+    const [logs, setLogs] = useState<TrainingLog[]>([]);
+    const [recentVideos, setRecentVideos] = useState<any[]>([]);
 
-    const expertPosts = [
-        {
-            user: "Master Kim",
-            rank: "Black Belt",
-            title: "How I fixed my triangle chokes",
-            avatar: "https://i.pravatar.cc/150?u=kim"
-        },
-        {
-            user: "Sarah JJ",
-            rank: "Brown Belt",
-            title: "Guard retention drills for small players",
-            avatar: "https://i.pravatar.cc/150?u=sarah"
-        }
-    ];
+    // Analysis Results (Rule-based)
+    const [readiness, setReadiness] = useState<ReadinessAnalysis | null>(null);
+    const [balance, setBalance] = useState<BalanceAnalysis | null>(null);
+    const [momentum, setMomentum] = useState<MomentumAnalysis | null>(null);
+    const [blindSpots, setBlindSpots] = useState<string[]>([]);
+    const [radarData, setRadarData] = useState<RadarStats[]>([]);
 
-    // Analysis State Management
-    const [hasAnalysis, setHasAnalysis] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [nextAnalysisTime, setNextAnalysisTime] = useState<number | null>(null);
+    // AI Deep Analysis
+    const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisResult | null>(null);
+    const [isAnalyzingDeeply, setIsAnalyzingDeeply] = useState(false);
+    const [analysisCooldown, setAnalysisCooldown] = useState<string | null>(null);
 
-    // Check analysis status on mount
+    // Auto-run analysis if logs are loaded and no cooldown
     useEffect(() => {
-        const lastAnalysis = localStorage.getItem('ai_coach_last_analysis');
-        if (lastAnalysis) {
-            const lastTime = parseInt(lastAnalysis);
-            const now = Date.now();
-            const timeDiff = now - lastTime;
-            const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (logs.length > 0 && user && !analysisCooldown && !deepAnalysis && !isAnalyzingDeeply) {
+            handleRunAnalysis();
+        }
+    }, [logs, user, analysisCooldown, deepAnalysis]);
 
-            if (timeDiff < twentyFourHours) {
-                setHasAnalysis(true);
-                setNextAnalysisTime(lastTime + twentyFourHours);
+    useEffect(() => {
+        if (user) {
+            fetchData();
+            checkAnalysisCooldown();
+        }
+    }, [user]);
+
+    // Check localStorage for last analysis time
+    const checkAnalysisCooldown = () => {
+        const lastRun = localStorage.getItem(`ai_analysis_last_run_${user?.id}`);
+        const cachedResult = localStorage.getItem(`ai_analysis_result_${user?.id}`);
+
+        if (lastRun) {
+            const lastDate = new Date(lastRun);
+            const now = new Date();
+            const diffMs = now.getTime() - lastDate.getTime();
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            // 쿨타임이 남았고, 캐시된 결과도 있는 경우에만 쿨타임 적용
+            if (diffHours < 24 && cachedResult) {
+                const remainingHours = Math.ceil(24 - diffHours);
+                setAnalysisCooldown(`${remainingHours}시간 후 가능`);
+
+                try {
+                    setDeepAnalysis(JSON.parse(cachedResult));
+                } catch (e) {
+                    console.error("Failed to parse cached analysis", e);
+                    // 결과 파싱 실패 시 쿨타임 해제 (다시 시도하게 함)
+                    setAnalysisCooldown(null);
+                    localStorage.removeItem(`ai_analysis_last_run_${user?.id}`);
+                }
+            } else if (!cachedResult) {
+                // 최근 실행 기록은 있지만 결과가 없으면 (오류 등), 쿨타임 무시하고 다시 실행
+                setAnalysisCooldown(null);
+                localStorage.removeItem(`ai_analysis_last_run_${user?.id}`);
+            } else {
+                setAnalysisCooldown(null);
             }
         }
-    }, []);
-
-    const handleStartAnalysis = async () => {
-        setIsAnalyzing(true);
-
-        // Simulate AI analysis (replace with actual API call)
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        const now = Date.now();
-        localStorage.setItem('ai_coach_last_analysis', now.toString());
-        setHasAnalysis(true);
-        setNextAnalysisTime(now + 24 * 60 * 60 * 1000);
-        setIsAnalyzing(false);
     };
 
-    const getTimeUntilNextAnalysis = () => {
-        if (!nextAnalysisTime) return null;
-        const now = Date.now();
-        const diff = nextAnalysisTime - now;
-        if (diff <= 0) return null;
+    // --- MOCK DATA FOR UI VERIFICATION ---
+    const MOCK_LOGS: any[] = Array.from({ length: 30 }).map((_, i) => ({
+        id: `mock-${i}`,
+        user_id: user?.id || 'mock-user',
+        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration_minutes: 90,
+        type: 'Gi',
+        mood: 'Good',
+        description: 'Mock training log',
+        techniques: ['Armbar', 'Triangle Choke']
+    }));
 
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        return `${hours}시간 ${minutes}분`;
+    const MOCK_DEEP_ANALYSIS: DeepAnalysisResult = {
+        styleProfile: {
+            identity: "TACTICAL SMASHER",
+            description: "당신은 압도적인 압박과 정교한 서브미션을 겸비한 그래플러입니다. 상대를 구석으로 몰아넣고 치명적인 한 방을 노리는 스타일입니다.",
+            strength: "탑 포지션 압박",
+            weakness: "하체 관절기 방어",
+            fingerprint: { standing: 40, guard: 60, passing: 85, submission: 70, defense: 50 },
+            similarPro: "Gordon Ryan"
+        },
+        gapAnalysis: {
+            blindSpots: ["Leg Locks", "Wrestling"],
+            overTrained: ["Passing"],
+            theoryPracticeGap: "하체 관절기에 대한 이해도가 부족합니다."
+        },
+        prescription: {
+            summary: "하체 방어 기술을 보완하고 스탠딩 레슬링을 강화하세요.",
+            drillDurationMinutes: 20,
+            sparringRounds: 5,
+            focusAreas: ["Heel Hook Defense", "Single Leg Takedown"]
+        },
+        recommendedContent: {
+            courses: [
+                {
+                    id: '1',
+                    title: 'Leg Lock Defense Mastery',
+                    reason: '🚨 취약점 보완: 최근 스파링에서 하체 공격에 자주 노출됨',
+                    thumbnail: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=2069&auto=format&fit=crop',
+                    instructor: 'John Danaher',
+                    duration: '45 min'
+                },
+                {
+                    id: '2',
+                    title: 'Wrestling for Jujitsu',
+                    reason: '🚀 스타일 강화: 탑 포지션 점유율을 20% 더 높일 수 있음',
+                    thumbnail: 'https://images.unsplash.com/photo-1626227050099-66b9623e5953?q=80&w=2070&auto=format&fit=crop',
+                    instructor: 'Khabib N.',
+                    duration: '60 min'
+                }
+            ],
+            routines: [
+                {
+                    id: '1',
+                    title: 'Morning Mobility Flow',
+                    reason: '⚡️ 컨디션 관리: 지난주 부상 위험도가 높음',
+                    thumbnail: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=2070&auto=format&fit=crop',
+                    duration: '15 min'
+                }
+            ],
+            chains: [
+                {
+                    id: '1',
+                    title: 'Pressure Passing System',
+                    reason: '🔥 필살기 연마: 압박 패스 성공률 극대화',
+                    thumbnail: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2072&auto=format&fit=crop',
+                    instructor: 'Roger Gracie',
+                    duration: '30 min'
+                },
+                {
+                    id: '2',
+                    title: 'Kimura Trap System',
+                    reason: '⚔️ 서브미션 연계: 사이드 포지션에서의 옵션 확장',
+                    thumbnail: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=2069&auto=format&fit=crop',
+                    instructor: 'Firas Zahabi',
+                    duration: '45 min'
+                }
+            ]
+        }
+    };
+    // -------------------------------------
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // FORCE MOCK DATA
+            setLogs(MOCK_LOGS);
+            setDeepAnalysis(MOCK_DEEP_ANALYSIS);
+
+            // Generate Rule-based stats from mock logs
+            setReadiness(analyzeReadiness(MOCK_LOGS));
+            setBalance(analyzeBalance(MOCK_LOGS));
+            setMomentum(analyzeMomentum(MOCK_LOGS));
+            setBlindSpots(identifyBlindSpots(MOCK_LOGS));
+            setRadarData(calculateRadarStats(MOCK_LOGS));
+
+        } catch (err: any) {
+            console.error('Error loading AI Coach data:', err);
+            setError('데이터를 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
     };
 
+    const handleRunAnalysis = async () => {
+        if (!user || analysisCooldown) return;
+        if (logs.length === 0) {
+            return;
+        }
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('opacity-100', 'translate-y-0');
-                        entry.target.classList.remove('opacity-0', 'translate-y-10');
-                    }
-                });
-            },
-            { threshold: 0.1 }
-        );
+        setIsAnalyzingDeeply(true);
+        try {
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                console.warn('Gemini API Key missing');
+                return;
+            }
 
-        sectionsRef.current.forEach((el) => {
-            if (el) observer.observe(el);
-        });
+            const userProfile = {
+                name: user.user_metadata?.name || 'User',
+                belt: user.user_metadata?.belt || 'White'
+            };
 
-        return () => observer.disconnect();
-    }, []);
+            const result = await analyzeUserDeeply(logs, recentVideos, userProfile, apiKey);
+            if (result) {
+                setDeepAnalysis(result);
+                // Save timestamp and result
+                const now = new Date().toISOString();
+                localStorage.setItem(`ai_analysis_last_run_${user.id}`, now);
+                localStorage.setItem(`ai_analysis_result_${user.id}`, JSON.stringify(result));
+
+                // Update cooldown state immediately
+                setAnalysisCooldown("24시간 후 가능");
+            }
+        } catch (err) {
+            console.error('Deep analysis error:', err);
+        } finally {
+            setIsAnalyzingDeeply(false);
+        }
+    };
+
+    if (loading) return <LoadingScreen message="데이터를 분석하고 있습니다..." />;
+    if (error) return <ErrorScreen error={error} onRetry={fetchData} />;
 
     return (
-        <div className="min-h-screen bg-zinc-950 pb-24 overflow-x-hidden">
-            {/* Background Glows */}
-            <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-900/20 blur-[120px] rounded-full animate-pulse-slow"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-900/20 blur-[120px] rounded-full animate-pulse-slow delay-1000"></div>
-            </div>
-
-            {/* Overlay for Unanalyzed State */}
-            {!hasAnalysis && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/90 backdrop-blur-md">
-                    <div className="max-w-2xl mx-auto px-6 text-center">
-                        <div className="mb-8 relative">
-                            <div className="absolute inset-0 bg-violet-500/20 blur-3xl rounded-full"></div>
-                            <div className="relative w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center border-4 border-zinc-900 shadow-2xl">
-                                <Sparkles className="w-12 h-12 text-white" />
-                            </div>
-                        </div>
-
-                        <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
-                            AI 전술 분석을 시작하세요
-                        </h2>
-                        <p className="text-zinc-400 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
-                            당신의 수련 데이터를 분석하여 <span className="text-white font-bold">맞춤형 전략</span>과 <span className="text-white font-bold">약점 보완 플랜</span>을 제공합니다.
-                        </p>
-
-                        <button
-                            onClick={handleStartAnalysis}
-                            disabled={isAnalyzing}
-                            className="group relative px-12 py-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg rounded-2xl transition-all duration-300 shadow-[0_0_40px_rgba(124,58,237,0.4)] hover:shadow-[0_0_60px_rgba(124,58,237,0.6)] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700 ease-in-out rounded-2xl"></div>
-                            <div className="relative flex items-center gap-3">
-                                {isAnalyzing ? (
-                                    <>
-                                        <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        <span>분석 중...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-6 h-6" />
-                                        <span>첫 AI 분석 시작하기</span>
-                                    </>
-                                )}
-                            </div>
-                        </button>
-
-                        <p className="text-zinc-600 text-sm mt-6">
-                            <Lock className="w-3 h-3 inline mr-1" />
-                            분석은 하루에 1회만 가능합니다
-                        </p>
+        <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans pb-32">
+            {/* Header */}
+            <header className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-xl border-b border-white/5">
+                <div className="max-w-screen-xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Brain className="w-5 h-5 text-violet-500" />
+                        <h1 className="text-base font-bold tracking-tight text-white">AI COACH</h1>
                     </div>
                 </div>
-            )}
+            </header>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-8 pt-12 space-y-24">{/* Add filter blur when not analyzed */}
-                <div className={!hasAnalysis ? 'filter blur-sm pointer-events-none select-none' : ''}>
+            <main className="max-w-screen-xl mx-auto px-4 pt-24 space-y-6">
 
-                    {/* Section 1: Hero (Combat Profile) */}
-                    <section
-                        ref={el => { sectionsRef.current[0] = el; }}
-                        className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center opacity-0 translate-y-10 transition-all duration-1000 ease-out"
-                    >
-                        <div className="space-y-8">
-                            <div>
-                                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-400 text-xs font-bold uppercase tracking-wider mb-4">
-                                    <Brain className="w-3 h-3" />
-                                    <span>AI 인텔리전스 V2.0</span>
-                                </div>
-                                <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
-                                    당신의 파이팅 스타일: <br />
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
-                                        전술적 압박가 (The Tactical Smasher)
-                                    </span>
-                                </h1>
-                                <p className="text-zinc-400 text-lg max-w-xl leading-[1.7]">
-                                    당신은 압박 패스와 탑 컨트롤에 뛰어나지만, 데이터 분석 결과 <span className="text-white font-bold">하프 가드 하위 포지션</span>에서 승률이 급격히 떨어지는 경향이 있습니다.
-                                </p>
+                {/* 1. HERO: Combat Profile Card */}
+                <section className="relative bg-[#09090b] border border-zinc-800 rounded-[32px] p-8 md:p-12 shadow-2xl relative group">
+                    {/* Dynamic Background Gradient based on Style */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-900/20 via-black to-black opacity-80" />
+                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-violet-600/10 blur-[150px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2" />
 
-                                {/* Re-analysis Button */}
-                                {hasAnalysis && (
-                                    <div className="mt-6">
-                                        {getTimeUntilNextAnalysis() ? (
-                                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-xl text-zinc-500 text-sm">
-                                                <Lock className="w-4 h-4" />
-                                                <span>다음 분석까지 <strong className="text-white">{getTimeUntilNextAnalysis()}</strong></span>
+                    <div className="relative z-10">
+                        {/* Header Label */}
+                        <div className="flex items-center gap-3 mb-8 opacity-70">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                <Brain className="w-4 h-4 text-violet-400" />
+                            </div>
+                            <span className="text-xs font-bold tracking-[0.2em] text-violet-400 uppercase">AI Combat Analysis</span>
+                        </div>
+
+                        {/* CONTENT CONTAINER */}
+                        <div className="flex flex-col lg:flex-row gap-12 lg:items-end">
+
+                            {/* LEFT: MASSIVE TYPOGRAPHY IDENTITY */}
+                            <div className="flex-1 lg:max-w-[60%] relative z-10">
+                                <div className="space-y-6">
+                                    {deepAnalysis ? (
+                                        <>
+                                            <div>
+                                                <div className="text-zinc-500 text-sm font-bold mb-2 tracking-wider uppercase">Your Fighting Style</div>
+                                                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter uppercase italic transform -skew-x-6 drop-shadow-lg whitespace-nowrap">
+                                                    <span className="inline-block pr-8 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-white to-zinc-400">
+                                                        {deepAnalysis.styleProfile.identity}
+                                                    </span>
+                                                </h1>
                                             </div>
-                                        ) : (
-                                            <button
-                                                onClick={handleStartAnalysis}
-                                                disabled={isAnalyzing}
-                                                className="group relative inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-2xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)] hover:scale-105 disabled:opacity-50"
-                                            >
-                                                {isAnalyzing ? (
-                                                    <>
-                                                        <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                        <span>AI 재분석 진행 중...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Sparkles className="w-5 h-5 animate-pulse" />
-                                                        <span>새로운 AI 분석 시작하기</span>
-                                                        <div className="ml-2 px-2 py-0.5 bg-white/20 rounded text-[10px] uppercase tracking-tighter">Ready</div>
-                                                    </>
+
+                                            <div className="h-1 w-24 bg-violet-600 rounded-full my-6" />
+
+                                            <p className="text-zinc-300 text-base md:text-lg font-medium leading-relaxed max-w-xl">
+                                                {deepAnalysis.styleProfile.description}
+                                            </p>
+
+                                            {/* Summary Footer */}
+                                            <div className="pt-6 mt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 sm:items-center text-sm">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold">
+                                                    <Zap className="w-3 h-3 mr-2" /> 강점: {deepAnalysis.styleProfile.strength}
+                                                </span>
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold">
+                                                    <AlertTriangle className="w-3 h-3 mr-2" /> 보완: {deepAnalysis.styleProfile.weakness}
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="space-y-8 py-10">
+                                            <div>
+                                                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-zinc-800 leading-[0.9] tracking-tighter uppercase italic transform -skew-x-6 select-none pr-32 mr-8">
+                                                    ANALYZING...
+                                                </h1>
+                                            </div>
+
+                                            <div className="space-y-4 max-w-md">
+                                                <div className="flex items-center gap-3">
+                                                    {isAnalyzingDeeply ? (
+                                                        <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                                                    ) : logs.length === 0 ? (
+                                                        <AlertTriangle className="w-6 h-6 text-amber-500" />
+                                                    ) : (
+                                                        <Sparkles className="w-6 h-6 text-violet-500 animate-pulse" />
+                                                    )}
+                                                    <span className="font-bold text-xl text-zinc-300">
+                                                        {isAnalyzingDeeply
+                                                            ? "스타일 정밀 분석 중..."
+                                                            : logs.length === 0
+                                                                ? "분석 데이터 없음"
+                                                                : analysisCooldown
+                                                                    ? "분석 완료 (대기 중)"
+                                                                    : "데이터 로딩 중..."}
+                                                    </span>
+                                                </div>
+
+                                                {logs.length === 0 && (
+                                                    <a href="/journal" className="inline-flex items-center px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-violet-600/25 hover:-translate-y-1">
+                                                        첫 번째 수련 일지 기록하기 <ChevronRight className="w-4 h-4 ml-2" />
+                                                    </a>
                                                 )}
-                                            </button>
-                                        )}
+
+                                                <p className="text-zinc-500 text-sm">
+                                                    {isAnalyzingDeeply ? "AI가 수련 패턴과 스타일을 분석하고 있습니다." :
+                                                        logs.length === 0 ? "나만의 전투 프로필을 완성하려면 데이터가 필요합니다." :
+                                                            "잠시만 기다려주세요."}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* RIGHT: RADAR CHART (Integrated visually but secondary) */}
+                            <div className="flex-1 w-full flex justify-center lg:justify-end relative z-0">
+                                <div className="relative w-full max-w-[400px] aspect-square">
+                                    {/* Chart Glow */}
+                                    <div className="absolute inset-0 bg-violet-500/10 blur-3xl rounded-full" />
+
+                                    {radarData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                                <PolarGrid stroke="#27272a" strokeDasharray="3 3" />
+                                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }} />
+                                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                                <Radar
+                                                    name="My Stats"
+                                                    dataKey="A"
+                                                    stroke="#8b5cf6"
+                                                    strokeWidth={4}
+                                                    fill="#8b5cf6"
+                                                    fillOpacity={0.5}
+                                                />
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
+                                                    labelStyle={{ color: '#e4e4e7', fontWeight: 'bold' }}
+                                                    itemStyle={{ color: '#a78bfa' }}
+                                                />
+                                            </RadarChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full border border-zinc-800/50 rounded-full bg-black/20 backdrop-blur-sm">
+                                            <PieChart className="w-12 h-12 text-zinc-700 mb-2 opacity-50" />
+                                            <p className="text-zinc-600 font-bold text-sm">NOT ENOUGH DATA</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* 2. Dashboard Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+                    {/* A. Readiness & Prescription (Span 7) */}
+                    <div className="md:col-span-12 lg:col-span-7 space-y-6 h-full flex flex-col">
+                        {/* Readiness */}
+                        <div className="bg-[#13111C] border border-white/5 rounded-3xl p-6 md:p-8">
+                            <h3 className="text-zinc-400 font-bold mb-6 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                <Activity className="w-4 h-4" /> Today's Readiness
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-zinc-900/50 rounded-2xl p-5 border border-white/5 relative overflow-hidden group hover:border-violet-500/20 transition-colors">
+                                    <div className="relative z-10">
+                                        <div className="text-zinc-500 text-xs font-bold mb-1">CONSISTENCY</div>
+                                        <div className="text-3xl font-black text-white italic">
+                                            {logs.length === 0 ? "데이터 없음" : `${readiness.consistencyScore}%`}
+                                        </div>
+                                        <div className="text-xs text-zinc-500 mt-2 font-medium">Last 30 Days</div>
+                                    </div>
+                                    <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4">
+                                        <CheckCircle2 className="w-24 h-24 text-white" />
+                                    </div>
+                                </div>
+                                <div className="bg-zinc-900/50 rounded-2xl p-5 border border-white/5 relative overflow-hidden group hover:border-red-500/20 transition-colors">
+                                    <div className="relative z-10">
+                                        <div className="text-zinc-500 text-xs font-bold mb-1">INJURY RISKS</div>
+                                        <div className="text-3xl font-black text-white italic">
+                                            {logs.length === 0 ? "데이터 없음" : deepAnalysis?.styleProfile.identity ? "LOW" : "ANALYZING"}
+                                        </div>
+                                        <div className="text-xs text-zinc-500 mt-2 font-medium">Based on recent load</div>
+                                    </div>
+                                    <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4">
+                                        <Activity className="w-24 h-24 text-red-500" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Prescription Card */}
+                        <div className="bg-[#13111C] border border-white/5 rounded-3xl p-6 md:p-8 md:min-h-[300px] flex-1 flex flex-col">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-zinc-400 font-bold flex items-center gap-2 text-sm uppercase tracking-wider">
+                                    <Zap className="w-4 h-4" /> AI Prescription
+                                </h3>
+                            </div>
+
+                            <div className="flex-1">
+                                {deepAnalysis ? (
+                                    <div className="space-y-6 animate-in fade-in duration-500">
+                                        <div className="p-5 rounded-2xl bg-gradient-to-br from-violet-900/10 to-transparent border border-violet-500/10">
+                                            <p className="text-violet-200 text-lg font-medium leading-relaxed italic">
+                                                "{deepAnalysis.prescription.summary}"
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                                                <div className="text-zinc-500 text-xs font-bold uppercase mb-1">Recommended Drills</div>
+                                                <div className="text-2xl font-black text-white">{deepAnalysis.prescription.drillDurationMinutes}<span className="text-sm font-medium text-zinc-500 ml-1">mins</span></div>
+                                            </div>
+                                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                                                <div className="text-zinc-500 text-xs font-bold uppercase mb-1">Sparring Focus</div>
+                                                <div className="text-2xl font-black text-white">{deepAnalysis.prescription.sparringRounds}<span className="text-sm font-medium text-zinc-500 ml-1">rounds</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div className="text-zinc-500 text-xs font-bold uppercase">Focus Areas</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {deepAnalysis.prescription.focusAreas.map((area: string, i: number) => (
+                                                    <span key={i} className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-bold border border-zinc-700">
+                                                        {area}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-zinc-600 space-y-4 min-h-[200px]">
+                                        <Brain className="w-12 h-12 opacity-20" />
+                                        <p className="text-sm font-medium">분석 결과가 나오면 맞춤 처방이 표시됩니다.</p>
                                     </div>
                                 )}
                             </div>
-
-                            <div className="flex gap-4">
-                                <div className="px-6 py-4 bg-zinc-900/80 rounded-2xl border border-zinc-800">
-                                    <div className="text-xs text-zinc-500 font-bold uppercase mb-1">탑 포지션 점유율</div>
-                                    <div className="text-2xl font-black text-white">82%</div>
-                                </div>
-                                <div className="px-6 py-4 bg-zinc-900/80 rounded-2xl border border-zinc-800">
-                                    <div className="text-xs text-zinc-500 font-bold uppercase mb-1">서브미션 성공률</div>
-                                    <div className="text-2xl font-black text-white p-0">45%</div>
-                                </div>
-                            </div>
                         </div>
+                    </div>
 
-                        <div className="relative flex justify-center items-center">
-                            <div className="absolute inset-0 bg-violet-500/10 blur-[80px] rounded-full"></div>
-                            <div className="relative w-full aspect-square max-w-[500px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                        <PolarGrid stroke="#3f3f46" strokeDasharray="3 3" />
-                                        <PolarAngleAxis
-                                            dataKey="subject"
-                                            tick={{ fill: '#e4e4e7', fontSize: 12, fontWeight: 700 }}
+                    {/* B. Balance & Momentum (Span 5) */}
+                    <div className="md:col-span-12 lg:col-span-5 space-y-6 h-full flex flex-col">
+                        {/* Game Balance */}
+                        <div className="bg-[#13111C] border border-white/5 rounded-3xl p-6 md:p-8">
+                            <h3 className="text-zinc-400 font-bold mb-6 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                <Swords className="w-4 h-4" /> Game Balance (Att/Def)
+                            </h3>
+                            {logs.length > 0 ? (
+                                <div className="space-y-6">
+                                    <div className="h-4 bg-zinc-800 rounded-full overflow-hidden flex relative">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-violet-600 to-indigo-600"
+                                            style={{ width: `${balance.attack}%` }}
                                         />
-                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                        <Radar
-                                            name="My Power"
-                                            dataKey="A"
-                                            stroke="#8b5cf6"
-                                            strokeWidth={3}
-                                            fill="#8b5cf6"
-                                            fillOpacity={0.3}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </section>
-
-
-                    {/* Section 2: Urgency (Muscle Memory Decay) */}
-                    <section
-                        ref={el => { sectionsRef.current[1] = el; }}
-                        className="opacity-0 translate-y-10 transition-all duration-1000 ease-out delay-200"
-                    >
-                        <div className="bg-gradient-to-r from-red-900/20 to-orange-900/20 border border-orange-500/20 rounded-3xl p-8 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-                                <div className="flex items-center gap-6">
-                                    <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30 shrink-0 animate-pulse">
-                                        <ShieldAlert className="w-8 h-8 text-orange-500" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-white mb-2">근육 기억 감퇴 경고 (Muscle Memory Decay)</h2>
-                                        <p className="text-zinc-400 leading-relaxed">
-                                            <span className="text-white font-bold">72시간</span> 동안 수련 기록이 감지되지 않았습니다.
-                                            내일 당신의 반응 속도가 <span className="text-orange-400 font-bold">15% 저하</span>될 것으로 예상됩니다.
-                                        </p>
-                                    </div>
-                                </div>
-                                <button className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-orange-900/50 whitespace-nowrap">
-                                    지금 수련 재개하기
-                                </button>
-                            </div>
-                        </div>
-                    </section>
-
-
-                    {/* Section 3: Analysis (Data Cards) */}
-                    <section
-                        ref={el => { sectionsRef.current[2] = el; }}
-                        className="opacity-0 translate-y-10 transition-all duration-1000 ease-out delay-300"
-                    >
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-3xl font-black text-white">퍼포먼스 분석</h2>
-                            <div className="text-sm font-bold text-violet-400 cursor-pointer hover:text-violet-300">전체 리포트 보기 {'->'}</div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <MetricCard
-                                title="가드 패스 성공률"
-                                value="62%"
-                                change="+12.5%"
-                                isPositive={true}
-                                icon={Zap}
-                            />
-                            <MetricCard
-                                title="서브미션 방어율"
-                                value="88%"
-                                change="+5.2%"
-                                isPositive={true}
-                                icon={ShieldAlert}
-                            />
-                            <MetricCard
-                                title="스윕 성공률"
-                                value="34%"
-                                change="-8.1%"
-                                isPositive={false}
-                                icon={Activity}
-                            />
-                            <MetricCard
-                                title="주간 매트 시간"
-                                value="4.5h"
-                                change="-2.0h"
-                                isPositive={false}
-                                icon={Flame}
-                            />
-                        </div>
-                    </section>
-
-
-                    {/* Section 4: Action (AI Prescription) */}
-                    <section
-                        ref={el => { sectionsRef.current[3] = el; }}
-                        className="opacity-0 translate-y-10 transition-all duration-1000 ease-out delay-400"
-                    >
-                        <div className="mb-8">
-                            <h2 className="text-3xl font-black text-white mb-2">AI 맞춤 처방</h2>
-                            <p className="text-zinc-400 leading-relaxed">약점을 보완하고 마스터리를 가속화할 맞춤형 콘텐츠입니다.</p>
-                        </div>
-
-                        <div className="flex overflow-x-auto pb-8 gap-6 snap-x snap-mandatory scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0">
-                            <div className="snap-center">
-                                <RecommendationCard
-                                    type="약점 보완"
-                                    title="하프 가드 리커버리"
-                                    subtitle="납작하게 눌렸을 때 가드 리텐션 성공률이 40% 감소합니다. 프레임을 만드는 법을 익히세요."
-                                    icon={ShieldAlert}
-                                    color="text-rose-400 border-rose-400/30"
-                                    image="https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=2069&auto=format&fit=crop"
-                                />
-                            </div>
-                            <div className="snap-center">
-                                <RecommendationCard
-                                    type="로드맵 확장"
-                                    title="X-가드 트랜지션 매트릭스"
-                                    subtitle="현재의 오픈 가드 게임을 확장할 수 있는 고급 진입 기술입니다."
-                                    icon={TrendingUp}
-                                    color="text-violet-400 border-violet-400/30"
-                                    image="https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2072&auto=format&fit=crop"
-                                />
-                            </div>
-                            <div className="snap-center">
-                                <RecommendationCard
-                                    type="리텐션 부스터"
-                                    title="5분 솔로 힙 드릴"
-                                    subtitle="가드 리텐션을 위한 고관절 유연성 및 움직임 훈련."
-                                    icon={Activity}
-                                    color="text-emerald-400 border-emerald-400/30"
-                                    image="https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=2070&auto=format&fit=crop"
-                                />
-                            </div>
-                        </div>
-                    </section>
-
-
-                    {/* Section 5: Care & Social */}
-                    <section
-                        ref={el => { sectionsRef.current[4] = el; }}
-                        className="grid grid-cols-1 lg:grid-cols-2 gap-8 opacity-0 translate-y-10 transition-all duration-1000 ease-out delay-500"
-                    >
-                        {/* Injury Guard */}
-                        <div className="bg-zinc-900 rounded-3xl border border-zinc-800 p-8">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-rose-500/10 rounded-xl">
-                                    <Activity className="w-6 h-6 text-rose-500" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-white">부상 방지 가드</h3>
-                                    <p className="text-zinc-400 text-sm">최근 일지에서 감지된 키워드: "무릎 통증"</p>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4 p-4 bg-zinc-950 rounded-xl cursor-pointer hover:bg-zinc-950/80 transition-colors">
-                                    <div className="w-16 h-10 bg-zinc-800 rounded-lg overflow-hidden relative">
-                                        <Play className="w-4 h-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
-                                    </div>
-                                    <div>
-                                        <div className="text-white font-bold text-sm">안전한 무릎 테이핑 가이드</div>
-                                        <div className="text-zinc-500 text-xs text-nowrap">3분 • 부상 방지</div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4 p-4 bg-zinc-950 rounded-xl cursor-pointer hover:bg-zinc-950/80 transition-colors">
-                                    <div className="w-16 h-10 bg-zinc-800 rounded-lg overflow-hidden relative">
-                                        <Play className="w-4 h-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
-                                    </div>
-                                    <div>
-                                        <div className="text-white font-bold text-sm">무릎 부담 없는 패스 기술</div>
-                                        <div className="text-zinc-500 text-xs">12분 • 테크닉</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Expert Matching */}
-                        <div className="bg-zinc-900 rounded-3xl border border-zinc-800 p-8">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-violet-500/10 rounded-xl">
-                                    <UserCheck className="w-6 h-6 text-violet-500" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-white">고수 매칭</h3>
-                                    <p className="text-zinc-400 text-sm">당신의 약점(하프 가드)을 마스터한 고수들</p>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                {expertPosts.map((post, idx) => (
-                                    <div key={idx} className="flex gap-4 p-4 bg-zinc-950 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-colors cursor-pointer">
-                                        <img src={post.avatar} alt={post.user} className="w-10 h-10 rounded-full object-cover border border-zinc-700" />
-                                        <div>
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-white font-bold text-sm">{post.user}</span>
-                                                <span className="text-xs text-violet-400 font-medium px-1.5 py-0.5 bg-violet-500/10 rounded flex items-center gap-1">
-                                                    {post.rank}
-                                                </span>
-                                            </div>
-                                            <p className="text-zinc-400 text-sm mt-1 line-clamp-1">{post.title === "How I fixed my triangle chokes" ? "트라이앵글 초크 디테일 교정법" : "작은 사람을 위한 가드 리텐션 드릴"}</p>
+                                        <div className="absolute top-1/2 left-3 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-md">
+                                            ATTACK {balance.attack}%
+                                        </div>
+                                        <div className="absolute top-1/2 right-3 -translate-y-1/2 text-[10px] font-black text-zinc-400">
+                                            DEFENSE {balance.defense}%
                                         </div>
                                     </div>
-                                ))}
-                                <button className="w-full py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors">
-                                    커뮤니티 피드 보기 {'->'}
-                                </button>
+                                    <p className="text-zinc-400 text-sm leading-relaxed">
+                                        {balance.attack > 60 ? "공격적인 성향이 강합니다. 방어 밸런스를 조금 더 신경 써보세요." :
+                                            balance.defense > 60 ? "방어 위주의 플레이를 하고 있습니다. 공격 시도 횟수를 늘려보세요." :
+                                                "공격과 방어의 균형이 매우 좋습니다."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="h-24 flex items-center justify-center text-zinc-600 text-sm font-bold bg-zinc-900/30 rounded-xl">
+                                    데이터 필요
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Momentum Chart */}
+                        <div className="bg-[#13111C] border border-white/5 rounded-3xl p-6 md:p-8">
+                            <div className="flex items-center gap-2 mb-6 group cursor-help relative">
+                                <TrendingUp className="w-4 h-4 text-zinc-500" />
+                                <h3 className="text-zinc-400 text-xs font-bold uppercase tracking-wider">주간 성장 모멘텀</h3>
+                                <div className="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-zinc-800/90 backdrop-blur-md border border-zinc-700 rounded-xl z-50 shadow-xl">
+                                    <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                        지난 4주간의 수련 빈도와 강도를 분석하여 산출된 성장 가속도 지수입니다. 80점 이상을 유지하면 실력이 빠르게 향상됩니다.
+                                    </p>
+                                </div>
+                            </div>
+                            {logs.length > 0 ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-end gap-2">
+                                        <span className={`text-4xl font-black italic ${momentum.trend === 'up' ? 'text-emerald-500' : momentum.trend === 'down' ? 'text-rose-500' : 'text-zinc-400'}`}>
+                                            {momentum.score}
+                                        </span>
+                                        <span className="text-zinc-500 text-sm font-bold mb-2">/ 100</span>
+                                    </div>
+                                    <p className="text-zinc-400 text-sm">
+                                        {momentum.trend === 'up' ? "훌륭합니다! 수련 빈도가 증가하고 있습니다." :
+                                            momentum.trend === 'down' ? "최근 수련 빈도가 줄어들었습니다. 다시 힘을 내세요!" :
+                                                "꾸준한 페이스를 유지하고 있습니다."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="h-24 flex items-center justify-center text-zinc-600 text-sm font-bold bg-zinc-900/30 rounded-xl">
+                                    데이터 필요
+                                </div>
+                            )}
+                        </div>
+
+                        {/* NEW: AI Combat Simulation (Sparring Mission) */}
+                        <div className="bg-[#13111C] border border-white/5 rounded-3xl p-6 md:p-8 relative overflow-hidden group hover:border-violet-500/30 transition-colors flex-1">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Swords className="w-32 h-32 text-violet-500 transform rotate-12" />
+                            </div>
+
+                            <div className="relative z-10">
+                                <h3 className="text-zinc-400 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                    <Swords className="w-4 h-4" /> AI Sparring Mission
+                                </h3>
+
+                                {deepAnalysis?.sparringMission ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">TARGET SCENARIO</div>
+                                            <div className="text-xl font-black text-white italic">
+                                                "{deepAnalysis.sparringMission.scenario}"
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5">
+                                                <div className="text-[10px] text-zinc-500 font-bold mb-1">OPPONENT STYLE</div>
+                                                <div className="text-sm font-bold text-zinc-300">{deepAnalysis.sparringMission.opponentStyle}</div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5">
+                                                <div className="text-[10px] text-zinc-500 font-bold mb-1">DURATION</div>
+                                                <div className="text-sm font-bold text-zinc-300">{deepAnalysis.sparringMission.duration}</div>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-900/30 p-3 rounded-lg border border-white/5">
+                                            <span className="text-violet-400 font-bold mr-1">Why?</span>
+                                            {deepAnalysis.sparringMission.reason}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="h-24 flex items-center justify-center text-zinc-600 text-sm font-bold">
+                                        분석 후 미션이 제공됩니다.
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </section>
-
+                    </div>
                 </div>
-            </div>
+
+                {/* Blind Spots Tags - Moved here */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
+                    <div className="text-[10px] uppercase font-bold text-zinc-500 mb-3">집중 관리 필요 (30일 미수련)</div>
+                    {blindSpots.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {blindSpots.map((spot, i) => (
+                                <span key={i} className="px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-400 text-xs font-bold border border-zinc-700">
+                                    {spot}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>모든 영역을 골고루 수련 중입니다.</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. AI 맞춤 추천 콘텐츠 (Moved to Bottom & Refined) */}
+                {deepAnalysis && deepAnalysis.recommendedContent && (
+                    <section className="space-y-6 pt-6 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-violet-500" />
+                                AI 맞춤 추천
+                            </h3>
+                            <button className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">
+                                전체 보기
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {[
+                                deepAnalysis.recommendedContent.courses?.[0] ? { ...deepAnalysis.recommendedContent.courses[0], type: 'course', label: 'Course' } : null,
+                                deepAnalysis.recommendedContent.routines?.[0] ? { ...deepAnalysis.recommendedContent.routines[0], type: 'routine', label: 'Routine' } : null,
+                                deepAnalysis.recommendedContent.chains?.[0] ? { ...deepAnalysis.recommendedContent.chains[0], type: 'chain', label: 'Chain' } : null
+                            ].filter(Boolean).map((item: any, idx) => (
+                                <a
+                                    key={idx}
+                                    href={`/${item.type}/${item.id}`}
+                                    className="group flex flex-col bg-[#13111C] border border-white/5 rounded-2xl overflow-hidden hover:border-violet-500/50 transition-all hover:shadow-xl hover:shadow-violet-900/10 hover:-translate-y-1"
+                                >
+                                    {/* Thumbnail */}
+                                    <div className="relative aspect-video bg-zinc-900 overflow-hidden">
+                                        {item.thumbnail ? (
+                                            <img
+                                                src={item.thumbnail}
+                                                alt={item.title}
+                                                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                                                <Play className="w-10 h-10 text-zinc-700" />
+                                            </div>
+                                        )}
+
+                                        {/* Badges */}
+                                        <div className="absolute top-3 left-3 flex gap-2">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider backdrop-blur-md border ${item.type === 'course' ? 'bg-blue-500/20 border-blue-500/30 text-blue-100' :
+                                                item.type === 'routine' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-100' :
+                                                    'bg-amber-500/20 border-amber-500/30 text-amber-100'
+                                                }`}>
+                                                {item.label}
+                                            </span>
+                                        </div>
+
+                                        {/* Duration */}
+                                        {item.duration && (
+                                            <div className="absolute bottom-3 right-3 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-white flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" /> {item.duration}
+                                            </div>
+                                        )}
+
+                                        {/* Play Overlay */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
+                                            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <h4 className="text-white font-bold text-lg leading-snug mb-2 group-hover:text-violet-300 transition-colors line-clamp-2">
+                                            {item.title}
+                                        </h4>
+
+                                        {item.instructor && (
+                                            <div className="text-xs text-zinc-500 font-medium mb-4">
+                                                {item.instructor}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-auto pt-4 border-t border-white/5">
+                                            <div className="flex items-start gap-2">
+                                                <Sparkles className="w-3.5 h-3.5 text-violet-500 mt-0.5 shrink-0" />
+                                                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                                                    <span className="text-violet-400 font-bold block mb-0.5">AI Recommendation</span>
+                                                    {item.reason.replace(/^[🚨🚀⚡️🔥]\s*/, '')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </section>
+                )}
+            </main>
         </div>
     );
 };
 
-export default AICoach;
+const RecommendationCard = ({ type, title, reason, icon, color, bg, border, isLoading }: any) => (
+    <div className={`rounded-2xl border p-4 ${bg} ${border} relative overflow-hidden transition-all hover:bg-opacity-80 active:scale-[0.98] cursor-pointer group min-h-[100px] flex flex-col justify-center`}>
+        <div className="flex items-start justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${color} flex items-center gap-1.5`}>
+                {icon} {type}
+            </span>
+            <ChevronRight className={`w-4 h-4 ${color} opacity-50 group-hover:opacity-100 transition-opacity`} />
+        </div>
 
+        {isLoading ? (
+            <div className="space-y-2 animate-pulse mt-2">
+                <div className="h-4 bg-black/20 rounded w-3/4" />
+                <div className="h-3 bg-black/10 rounded w-full" />
+            </div>
+        ) : !title ? (
+            <div className="text-zinc-600 text-xs font-medium">분석 대기 중...</div>
+        ) : (
+            <>
+                <h3 className="text-sm font-bold text-white mb-2 leading-tight">
+                    {title}
+                </h3>
+                <p className={`text-xs ${color} opacity-70 leading-relaxed`}>
+                    {reason}
+                </p>
+            </>
+        )}
+    </div>
+);

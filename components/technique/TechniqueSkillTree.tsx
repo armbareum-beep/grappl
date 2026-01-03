@@ -19,7 +19,7 @@ import 'reactflow/dist/style.css';
 import { toPng } from 'html-to-image';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, useParams } from 'react-router-dom';
 import {
     getLatestUserSkillTree,
     listUserSkillTrees,
@@ -376,9 +376,11 @@ export const TechniqueSkillTree: React.FC = () => {
             const dataUrl = await toPng(reactFlowWrapper.current, {
                 cacheBust: true,
                 filter: (node) => !node.classList?.contains('react-flow__controls') && !node.classList?.contains('react-flow__minimap'),
-                backgroundColor: '#09090b', // zinc-950
+                backgroundColor: '#18181b', // zinc-900 (matches modal bg)
                 width: reactFlowWrapper.current.offsetWidth,
                 height: reactFlowWrapper.current.offsetHeight,
+                skipFonts: true, // Fix for SecurityError (CORS)
+                fontEmbedCSS: '', // Disable font embedding
                 style: {
                     width: `${reactFlowWrapper.current.offsetWidth}px`,
                     height: `${reactFlowWrapper.current.offsetHeight}px`,
@@ -813,6 +815,8 @@ export const TechniqueSkillTree: React.FC = () => {
         }
     }, [user, handleNodeDataChange]);
 
+    const { id: paramTreeId } = useParams<{ id: string }>();
+
     useEffect(() => {
         const sharedData = searchParams.get('data');
         // 공유된 데이터(URL)가 있으면 항상 로드 (DB보다 우선)
@@ -888,9 +892,12 @@ export const TechniqueSkillTree: React.FC = () => {
         }
 
         const sharedTreeId = searchParams.get('id');
+        // Route param takes precedence if present, then query param
+        const targetTreeId = paramTreeId || sharedTreeId;
+
         // 공유된 트리가 있으면 항상 로드
-        if (sharedTreeId) {
-            loadData(sharedTreeId);
+        if (targetTreeId) {
+            loadData(targetTreeId);
             return;
         }
         // 로그인 후 게스트 데이터가 있으면 서버 데이터를 로드하지 않음
@@ -912,7 +919,7 @@ export const TechniqueSkillTree: React.FC = () => {
         }
         // 일반적인 경우: 서버 데이터 로드
         loadData(undefined);
-    }, [user, searchParams, loadData, handleNodeDataChange]);
+    }, [user, searchParams, paramTreeId, loadData, handleNodeDataChange]);
 
     const loadTreeList = async () => {
         if (!user) {
@@ -2067,23 +2074,38 @@ export const TechniqueSkillTree: React.FC = () => {
 
             // Thumbnail Upload
             let uploadedThumbnailUrl = data.thumbnailUrl;
-            if (data.isPublic && thumbnailPreview && !uploadedThumbnailUrl && supabase) {
+            // Upload if: it's public AND we have a preview AND (it's not already an uploaded URL OR we want to update it)
+            if (data.isPublic && thumbnailPreview && thumbnailPreview.startsWith('data:image') && supabase) {
                 try {
-                    const blob = await (await fetch(thumbnailPreview)).blob();
+                    // Convert base64 to blob robustly
+                    const fetchResponse = await fetch(thumbnailPreview);
+                    const blob = await fetchResponse.blob();
+
                     const fileName = `${user?.id}_${Date.now()}.png`;
+                    // Ensure the bucket exists or handle error gracefully
+                    // For now, assume 'skill-tree-thumbnails' exists as per previous context
+
                     const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('skill-tree-thumbnails')
-                        .upload(fileName, blob);
+                        .upload(fileName, blob, {
+                            contentType: 'image/png',
+                            upsert: true
+                        });
 
-                    if (uploadError) throw uploadError;
+                    if (uploadError) {
+                        console.error('Supabase upload error:', uploadError);
+                        throw uploadError;
+                    }
 
                     const { data: publicUrlData } = supabase.storage
                         .from('skill-tree-thumbnails')
                         .getPublicUrl(fileName);
 
                     uploadedThumbnailUrl = publicUrlData.publicUrl;
+                    console.log('Thumbnail uploaded successfully:', uploadedThumbnailUrl);
                 } catch (thumbErr) {
                     console.error('Thumbnail upload failed:', thumbErr);
+                    // Don't block save on thumbnail failure, but log it
                 }
             }
 

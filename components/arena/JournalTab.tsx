@@ -5,13 +5,16 @@ import { useToast } from '../../contexts/ToastContext';
 import { getTrainingLogs, getSparringReviews, createTrainingLog, deleteTrainingLog, createFeedPost, awardTrainingXP, createSparringReview } from '../../lib/api';
 import { TrainingLog, SparringReview } from '../../types';
 import { Button } from '../Button';
-import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus, LogIn, Sparkles } from 'lucide-react';
+import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus, LogIn, Sparkles, Share2, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { QuestCompleteModal } from '../QuestCompleteModal';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, endOfYear, subMonths, getYear, addYears, subYears } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
 import { TrainingTrendsChart } from './TrainingTrendsChart';
+import { toPng } from 'html-to-image';
+import { ShareToFeedModal } from '../social/ShareToFeedModal';
+import { ShareModal } from '../social/ShareModal';
 
 type TimelineItem =
     | { type: 'log'; data: TrainingLog }
@@ -26,14 +29,14 @@ type SparringEntry = {
     notes: string;
 };
 
+type GraphRange = '1M' | '3M' | '6M' | '1Y';
+
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
     const { success, error: toastError } = useToast();
-    // const navigate = useNavigate(); // Unused
 
     const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
     const [loading, setLoading] = useState(true);
-    // const [error, setError] = useState<string | null>(null); // Unused
 
     // Form State
     const [isCreating, setIsCreating] = useState(false);
@@ -64,8 +67,12 @@ export const JournalTab: React.FC = () => {
 
     // Filter & UI State
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [showAllLogs] = useState(false); // Removed setter as it was unused
+    const [showAllLogs] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Graph Range & Year State
+    const [graphRange, setGraphRange] = useState<GraphRange>('1Y');
+    const [selectedYear, setSelectedYear] = useState(2026);
 
     // Reward State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
@@ -74,14 +81,35 @@ export const JournalTab: React.FC = () => {
     // Chart Metric State
     const [selectedMetric, setSelectedMetric] = useState<'count' | 'duration' | 'rounds'>('count');
 
+    // Share Modal State
+    const [showShareModal, setShowShareModal] = useState(false); // Used for Preview (ShareToFeedModal)
+    const [showDestinationModal, setShowDestinationModal] = useState(false); // Used for Final Destination (ShareModal)
+    const [shareImage, setShareImage] = useState<string | null>(null);
+    const [stagingComment, setStagingComment] = useState('');
+    const [isCapturing, setIsCapturing] = useState(false);
+
+    // Refs for capture
+    const grassGraphRef = useRef<HTMLDivElement>(null);
+    const statsGraphRef = useRef<HTMLDivElement>(null);
+
+    // Delete Confirmation
+    const [itemToDelete, setItemToDelete] = useState<TimelineItem | null>(null);
+
     useEffect(() => {
         if (user) loadData();
         else setLoading(false);
     }, [user]);
 
     useEffect(() => {
-        if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-    }, [timelineItems, loading]);
+        // Scroll to end when date range or items change
+        if (scrollRef.current) {
+            setTimeout(() => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+                }
+            }, 100);
+        }
+    }, [timelineItems, loading, graphRange, selectedYear]);
 
     const loadData = async () => {
         if (!user) return;
@@ -110,13 +138,16 @@ export const JournalTab: React.FC = () => {
             setTimelineItems(items);
         } catch (err: any) {
             console.error(err);
-            // setError(err.message || 'Error loading data');
         } finally {
             setLoading(false);
         }
     };
 
     const handleStartCreate = () => {
+        if (!user) {
+            window.location.href = '/login';
+            return;
+        }
         setFormData({
             date: new Date().toISOString().split('T')[0],
             durationMinutes: 90,
@@ -126,7 +157,6 @@ export const JournalTab: React.FC = () => {
             location: '',
             sparringEntries: []
         });
-        // setEditingItem(null);
         setIsCreating(true);
     };
 
@@ -163,7 +193,6 @@ export const JournalTab: React.FC = () => {
             let streak = 0;
             let sparringXp = 0;
 
-            // 1. Save Training Log (if enabled)
             if (saveToLog) {
                 const logResult = await createTrainingLog({
                     userId: user.id,
@@ -179,7 +208,6 @@ export const JournalTab: React.FC = () => {
                 if (logResult.error || !logResult.data) throw logResult.error || new Error('Failed to create log');
                 newLog = logResult.data;
 
-                // Award XP for Log
                 const logXpRes = await awardTrainingXP(user.id, 'training_log', 20);
                 if (logXpRes.data) {
                     logXp = logXpRes.data.xpEarned;
@@ -187,7 +215,6 @@ export const JournalTab: React.FC = () => {
                 }
             }
 
-            // 2. Save Sparring Entries
             const newSparringItems: TimelineItem[] = [];
             for (const entry of formData.sparringEntries) {
                 const spResult = await createSparringReview({
@@ -210,7 +237,6 @@ export const JournalTab: React.FC = () => {
                 }
             }
 
-            // 3. Update State
             const newItems: TimelineItem[] = [];
             if (newLog) newItems.push({ type: 'log', data: newLog });
             newItems.push(...newSparringItems);
@@ -218,7 +244,6 @@ export const JournalTab: React.FC = () => {
             setTimelineItems(prev => [...newItems, ...prev].sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()));
             setIsCreating(false);
 
-            // 4. Create Feed Post (Directly)
             if (formData.isPublic) {
                 let shareContent = `📝 수련 일지\n\n날짜: ${formData.date}\n시간: ${formData.durationMinutes}분\n`;
                 if (formData.sparringEntries.length > 0) {
@@ -239,7 +264,6 @@ export const JournalTab: React.FC = () => {
                 });
             }
 
-            // 5. XP Modal (Always show feedback)
             setQuestCompleteData({
                 questName: formData.isPublic ? '수련 일지 게시' : '수련 기록 완료',
                 xpEarned: logXp + sparringXp,
@@ -253,12 +277,43 @@ export const JournalTab: React.FC = () => {
         }
     };
 
-    const handleDelete = async (item: TimelineItem) => {
-        if (!window.confirm('삭제하시겠습니까?')) return;
-        if (item.type === 'log') await deleteTrainingLog(item.data.id);
-        else await supabase.from('sparring_reviews').delete().eq('id', item.data.id);
-        setTimelineItems(prev => prev.filter(i => i.data.id !== item.data.id));
-        success('삭제되었습니다.');
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            if (itemToDelete.type === 'log') await deleteTrainingLog(itemToDelete.data.id);
+            else await supabase.from('sparring_reviews').delete().eq('id', itemToDelete.data.id);
+
+            setTimelineItems(prev => prev.filter(i => i.data.id !== itemToDelete.data.id));
+            success('삭제되었습니다.');
+            setItemToDelete(null);
+        } catch (err) {
+            console.error(err);
+            toastError('삭제 실패');
+        }
+    };
+
+    // Capture Logic
+    const captureGraph = async (ref: React.RefObject<HTMLDivElement>) => {
+        if (!ref.current) return;
+        setIsCapturing(true);
+
+        try {
+            // skipFonts: true to avoid CORS errors with Google Fonts/External CSS
+            const dataUrl = await toPng(ref.current, {
+                cacheBust: true,
+                backgroundColor: '#09090b',
+                pixelRatio: 2,
+                skipFonts: true
+            });
+            setShareImage(dataUrl);
+            setShowShareModal(true);
+        } catch (err) {
+            console.error('Capture failed', err);
+            toastError('이미지 저장에 실패했습니다.');
+        } finally {
+            setIsCapturing(false);
+        }
     };
 
     // Helper functions
@@ -277,29 +332,24 @@ export const JournalTab: React.FC = () => {
         return v ? `https://www.youtube.com/embed/${v[1]}` : url;
     };
 
-    // Render Logic
     const filteredItems = selectedDate
         ? timelineItems.filter(item => isSameDay(parseISO(item.data.date), selectedDate))
         : timelineItems;
     const displayedItems = showAllLogs ? filteredItems : filteredItems.slice(0, 10);
 
-    // Stats
     const safeItems = timelineItems || [];
     const now = new Date();
     const thisMonth = now.getMonth();
-    const lastMonth = subDays(new Date(now.getFullYear(), now.getMonth(), 1), 1).getMonth(); // Handle Jan -> Dec
+    const lastMonth = subDays(new Date(now.getFullYear(), now.getMonth(), 1), 1).getMonth();
 
-    // This Month Stats
     const thisMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === thisMonth);
     const thisMonthDuration = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
     const thisMonthRounds = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
-    // Last Month Stats
     const lastMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === lastMonth);
     const lastMonthDuration = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
     const lastMonthRounds = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
-    // Trend Helper
     const getTrend = (current: number, previous: number) => {
         if (previous === 0) return { value: current > 0 ? 100 : 0, direction: 'up' };
         const percent = ((current - previous) / previous) * 100;
@@ -327,54 +377,50 @@ export const JournalTab: React.FC = () => {
         );
     };
 
+    // Calculate dates for Grass Graph
+    const getGrassDates = () => {
+        const today = new Date(); // Or maybe selected year end? No, assume '2026' means full year view context
+
+        let start, end;
+
+        // Year Logic - if selectedYear is not current year, show full year
+        if (selectedYear !== getYear(today)) {
+            start = startOfYear(new Date(selectedYear, 0, 1));
+            end = endOfYear(new Date(selectedYear, 0, 1));
+        } else {
+            // Range Logic (relative to today)
+            end = today;
+            switch (graphRange) {
+                case '1M': start = subMonths(today, 1); break;
+                case '3M': start = subMonths(today, 3); break;
+                case '6M': start = subMonths(today, 6); break;
+                case '1Y': start = subDays(today, 364); break; // roughly 1 year back
+                default: start = subDays(today, 364);
+            }
+        }
+
+        return eachDayOfInterval({ start, end });
+    };
+
+    const grassDates = getGrassDates();
+    const weeks = Math.ceil(grassDates.length / 7);
+
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20 relative">
-            {/* Non-Logged-In Overlay */}
-            {!user && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 backdrop-blur-xl">
-                    <div className="bg-zinc-950/80 backdrop-blur-md border border-zinc-800 rounded-3xl p-8 md:p-12 max-w-md mx-4 text-center shadow-2xl">
-                        <div className="w-16 h-16 rounded-full bg-violet-600/20 flex items-center justify-center mx-auto mb-6">
-                            <Sparkles className="w-8 h-8 text-violet-400" />
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-black text-zinc-50 mb-4">
-                            주짓수 성장을 분석하세요
-                        </h2>
-                        <p className="text-zinc-500 mb-8 leading-relaxed">
-                            Grapplay에 가입하여 스파링 기록과 드릴 루틴을 추적하고, 당신의 성장을 시각화하세요.
-                        </p>
-                        <div className="space-y-3">
-                            <Button
-                                onClick={() => window.location.href = '/login'}
-                                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-4 rounded-full shadow-lg shadow-violet-900/40"
-                            >
-                                <LogIn className="w-5 h-5 mr-2" />
-                                로그인 / 회원가입
-                            </Button>
-                            <p className="text-xs text-zinc-600">
-                                1,200+ 드릴 · 활발한 커뮤니티 · 무료 시작
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* Social Proof Badge */}
-            {user && timelineItems.length === 0 && (
-                <div className="fixed bottom-24 right-4 md:right-8 z-40 animate-in slide-in-from-bottom-4 fade-in duration-500">
-                    <div className="bg-zinc-900/90 backdrop-blur-md border border-violet-500/30 rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs text-zinc-300 font-medium">
-                            이강사님이 5일 루틴을 완료했습니다
-                        </span>
-                    </div>
-                </div>
-            )}
-            {/* AI Coach Widget */}
-            {/* Training Trends Chart */}
-            <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
+            {/* Training Trends Chart & Share Button */}
+            <div className="relative group" ref={statsGraphRef}>
+                <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
+                <button
+                    onClick={() => captureGraph(statsGraphRef)}
+                    className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-all border border-zinc-700 backdrop-blur-sm shadow-xl"
+                    title="그래프 공유하기"
+                >
+                    <Share2 className="w-4 h-4" />
+                </button>
+            </div>
 
-            {/* Stats */}
-            {/* Stats - Interactive Tabs from Plan */}
+            {/* Stats - Interactive Tabs */}
             <div className="grid grid-cols-3 gap-3 md:gap-4">
                 <div
                     onClick={() => setSelectedMetric('count')}
@@ -386,7 +432,7 @@ export const JournalTab: React.FC = () => {
                         <Trophy className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
                             {thisMonthItems.length}
                         </div>
                         <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 수련</div>
@@ -402,7 +448,7 @@ export const JournalTab: React.FC = () => {
                         <Clock className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
                             {Math.round(thisMonthDuration / 60)}
                         </div>
                         <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 시간(hr)</div>
@@ -418,7 +464,7 @@ export const JournalTab: React.FC = () => {
                         <Activity className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <div className="text-4xl font-black text-zinc-50/20 leading-none mb-2 group-hover:text-violet-500/30 transition-colors">
+                        <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
                             {thisMonthRounds}
                         </div>
                         <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 라운드</div>
@@ -427,34 +473,72 @@ export const JournalTab: React.FC = () => {
             </div>
 
             {/* Heatmap */}
-            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6">
-                <div className="flex items-center justify-between mb-4">
+            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 relative group" ref={grassGraphRef}>
+                {/* Graph Capture Button */}
+                <button
+                    onClick={() => captureGraph(grassGraphRef)}
+                    className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-all border border-zinc-700 backdrop-blur-sm shadow-xl z-20"
+                    title="잔디 공유하기"
+                >
+                    <Share2 className="w-4 h-4" />
+                </button>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-zinc-400" />
                         수련 잔디
                     </h3>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Year Selector */}
+                        <div className="flex items-center bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                            <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                            <span className="text-xs font-bold px-2 text-zinc-300">{selectedYear}</span>
+                            <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                        </div>
+
+                        {/* Range Selector */}
+                        <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                            {(['1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
+                                <button
+                                    key={range}
+                                    onClick={() => setGraphRange(range)}
+                                    className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${graphRange === range
+                                        ? 'bg-violet-600 text-white shadow-lg'
+                                        : 'text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                >
+                                    {range}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-                <div ref={scrollRef} className="overflow-x-auto pb-2 scrollbar-hide">
-                    <div className="min-w-max flex gap-1.5">
-                        {Array.from({ length: 53 }).map((_, w) => (
+
+                <div ref={scrollRef} className="overflow-x-auto pb-4 scrollbar-hide px-4 -mx-4">
+                    <div className="min-w-max flex gap-1.5 pl-2">
+                        {/* Render columns based on calculated weeks */}
+                        {Array.from({ length: weeks }).map((_, w) => (
                             <div key={w} className="flex flex-col gap-1.5">
                                 {Array.from({ length: 7 }).map((_, d) => {
-                                    const today = new Date();
-                                    const sta = subDays(today, 364);
-                                    const dates = eachDayOfInterval({ start: sta, end: today });
                                     const idx = w * 7 + d;
-                                    if (idx >= dates.length) return null;
-                                    const currentDate = dates[idx];
+                                    if (idx >= grassDates.length) return <div key={d} className="w-3.5 h-3.5" />; // maintain grid
+
+                                    const currentDate = grassDates[idx];
                                     const intensity = getIntensity(currentDate);
                                     const isSel = selectedDate && isSameDay(selectedDate, currentDate);
-                                    let bg = 'bg-zinc-900';
-                                    if (intensity === 1) bg = 'bg-violet-900 border border-violet-800 shadow-[0_0_8px_rgba(139,92,246,0.1)]';
+
+                                    // Visual logic
+                                    let bg = 'bg-zinc-800/50';
+                                    if (intensity === 1) bg = 'bg-violet-900/60 border border-violet-800/50';
                                     if (intensity === 2) bg = 'bg-violet-600 border border-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]';
                                     if (intensity >= 3) bg = 'bg-violet-400 border border-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.5)]';
+
                                     return (
                                         <div
                                             key={d}
                                             onClick={() => setSelectedDate(isSel ? null : currentDate)}
+                                            title={format(currentDate, 'yyyy-MM-dd')}
                                             className={`w-3.5 h-3.5 rounded-sm cursor-pointer transition-all ${bg} ${isSel ? 'ring-2 ring-white scale-125 z-10' : 'hover:scale-110'}`}
                                         />
                                     );
@@ -483,8 +567,8 @@ export const JournalTab: React.FC = () => {
             <div className="space-y-4">
                 {displayedItems.length === 0 ? (
                     <div className="text-center py-16 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30">
-                        <p className="text-zinc-600 mb-4 text-sm">기록이 없습니다.</p>
-                        <Button onClick={handleStartCreate} variant="outline" size="sm">첫 기록 남기기</Button>
+                        <p className="text-zinc-600 mb-4 text-sm">{user ? '기록이 없습니다.' : '로그인하여 수련 기록을 시작하세요.'}</p>
+                        <Button onClick={handleStartCreate} variant="outline" size="sm">{user ? '첫 기록 남기기' : '로그인하기'}</Button>
                     </div>
                 ) : (
                     displayedItems.map((item) => {
@@ -514,7 +598,7 @@ export const JournalTab: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <button onClick={() => handleDelete(item)} className="p-2 text-slate-500 hover:text-red-500">
+                                    <button onClick={() => setItemToDelete(item)} className="p-2 text-slate-500 hover:text-red-500">
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -701,7 +785,108 @@ export const JournalTab: React.FC = () => {
                 )
             }
 
-            {/* Modals */}
+            {/* Delete Confirmation Modal */}
+            {itemToDelete && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-lg font-bold text-white mb-2">기록을 삭제하시겠습니까?</h3>
+                        <p className="text-zinc-500 text-sm mb-6">삭제된 기록은 복구할 수 없습니다.</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setItemToDelete(null)}
+                                className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-400 hover:bg-zinc-800 font-bold text-sm transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm transition-colors shadow-lg shadow-rose-900/20"
+                            >
+                                삭제하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Shared To Feed Modal (Image Capture) - PREVIEW STEP */}
+            {showShareModal && (
+                <ShareToFeedModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    onShare={async (comment) => {
+                        setStagingComment(comment);
+                        setShowShareModal(false);
+                        setShowDestinationModal(true);
+                    }}
+                    activityType="general"
+                    defaultContent="오늘의 수련 현황입니다! 🥋🔥"
+                    metadata={{
+                        userName: user?.user_metadata?.name || 'User',
+                        userAvatar: user?.user_metadata?.avatar_url,
+                        images: shareImage ? [shareImage] : [],
+                        notes: "그래프 공유"
+                    }}
+                />
+            )}
+
+            {/* Destination Share Modal - FINAL STEP */}
+            <ShareModal
+                isOpen={showDestinationModal}
+                onClose={() => setShowDestinationModal(false)}
+                title="수련 통계 공유"
+                text={stagingComment || "오늘의 수련 현황입니다! 🥋🔥"}
+                imageUrl={shareImage || undefined}
+                onFeedShare={async () => {
+                    if (!user) {
+                        toastError('로그인이 필요합니다.');
+                        return;
+                    }
+                    if (!shareImage) {
+                        toastError('이미지가 없습니다. 다시 시도해주세요.');
+                        return;
+                    }
+
+                    // Upload Image first
+                    let imageUrl = '';
+                    try {
+                        const blob = await (await fetch(shareImage)).blob();
+                        const fileName = `share-graph-${Date.now()}.png`;
+                        const { data, error } = await supabase.storage.from('hero-images').upload(fileName, blob);
+                        if (error) {
+                            console.error('Image upload failed:', error);
+                            // Continue without image or stop? Let's continue but warn
+                        }
+                        if (!error && data) {
+                            const { data: publicUrl } = supabase.storage.from('hero-images').getPublicUrl(fileName);
+                            imageUrl = publicUrl.publicUrl;
+                        }
+                    } catch (e) {
+                        console.error('Upload failed', e);
+                    }
+
+                    const { error } = await createFeedPost({
+                        userId: user.id,
+                        content: stagingComment,
+                        type: 'general',
+                        // We use general type but include visual metadata
+                        metadata: {
+                            type: 'stats_share',
+                            images: imageUrl ? [imageUrl] : []
+                        },
+                        mediaUrl: imageUrl
+                    });
+
+                    if (error) {
+                        console.error('Create feed post failed:', error);
+                        toastError('피드 공유에 실패했습니다.');
+                        return;
+                    }
+
+                    success('피드에 공유되었습니다!');
+                    setShowDestinationModal(false);
+                }}
+            />
             {
                 showQuestComplete && questCompleteData && (
                     <QuestCompleteModal

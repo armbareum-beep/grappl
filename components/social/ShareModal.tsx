@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Link2, Facebook, Twitter, Instagram, Repeat } from 'lucide-react';
+import { X, Link2, Facebook, Twitter, Instagram, Repeat, Share } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ShareToFeedModal } from './ShareToFeedModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { createTrainingLog } from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Custom icons for specific platforms if Lucide doesn't have them
 const KakaoIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 3C5.925 3 1 6.925 1 11.775C1 14.675 2.875 17.225 5.75 18.725C5.75 18.725 5.225 20.675 5.15 20.975C5.075 21.275 5.375 21.425 5.6 21.275C6.725 20.525 9.05 18.95 10.625 17.875C11.075 17.95 11.6 17.95 12 17.95C18.075 17.95 23 14.025 23 9.175C23 4.325 18.075 3 12 3Z" />
@@ -27,9 +26,10 @@ interface ShareModalProps {
     text: string;
     url?: string;
     imageUrl?: string;
+    onFeedShare?: () => void;
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url, imageUrl }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, text, url, imageUrl, onFeedShare }) => {
     const { user } = useAuth();
     const shareUrl = url || window.location.href;
     const [copied, setCopied] = useState(false);
@@ -80,20 +80,54 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleShare = (platform: string) => {
+    const handleShare = async (platform: string) => {
         let openUrl = '';
         const encodedUrl = encodeURIComponent(shareUrl);
         const encodedText = encodeURIComponent(text);
 
         switch (platform) {
             case 'feed':
+                if (onFeedShare) {
+                    onFeedShare();
+                    return;
+                }
                 if (!user) {
                     alert('로그인이 필요합니다.');
                     return;
                 }
                 setShowFeedModal(true);
                 return;
+            case 'system':
+                if (navigator.share && imageUrl) {
+                    try {
+                        const blob = await (await fetch(imageUrl)).blob();
+                        const file = new File([blob], "share.png", { type: blob.type });
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                            url: shareUrl,
+                            files: [file]
+                        });
+                    } catch (err) {
+                        console.error('System share failed:', err);
+                    }
+                } else if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                            url: shareUrl
+                        });
+                    } catch (err) {
+                        console.error('System share failed:', err);
+                    }
+                } else {
+                    handleCopy();
+                    alert('이기기에서는 공유 기능을 지원하지 않습니다. 링크가 복사되었습니다.');
+                }
+                return;
             case 'kakao':
+                // ... (Keep existing)
                 handleCopy();
                 alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
                 return;
@@ -121,6 +155,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    {/* ... (Keep backdrop) */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -135,7 +170,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[2.5rem] shadow-2xl overflow-hidden ring-1 ring-white/5"
                     >
-                        {/* Ambient Glow */}
+                        {/* ... (Keep glow and header) */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 blur-[60px] rounded-full -mr-16 -mt-16 pointer-events-none" />
 
                         <div className="p-8 relative z-10">
@@ -152,7 +187,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                                 </button>
                             </div>
 
-                            {/* Preview Card */}
+                            {/* ... (Keep preview card) */}
                             <div className="bg-zinc-950/50 rounded-3xl overflow-hidden mb-8 border border-zinc-800/50 flex items-center gap-4 p-4 group transition-all hover:bg-zinc-950/80">
                                 {imageUrl && (
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
@@ -183,6 +218,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, title, 
                                     label="피드 공유"
                                     onClick={() => handleShare('feed')}
                                     color="bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-900/40"
+                                />
+
+                                <ShareButton
+                                    icon={<Share className="w-5 h-5" />}
+                                    label="다른 앱"
+                                    onClick={() => handleShare('system')}
+                                    color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/50"
                                 />
 
                                 <ShareButton

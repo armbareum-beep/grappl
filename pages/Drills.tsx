@@ -20,7 +20,7 @@ export const Drills: React.FC = () => {
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>((searchParams.get('view') as 'reels' | 'grid') || 'reels'); // Default to reels for immersive experience
     const [initialReelIndex, setInitialReelIndex] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
-    const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side Control', 'Mount', 'Back Control'];
+    const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
 
     useEffect(() => {
         loadDrills();
@@ -123,6 +123,8 @@ export const Drills: React.FC = () => {
 
         const matchesCategory = selectedCategory === 'All' ||
             drill.category === selectedCategory ||
+            (selectedCategory === 'Side' && (drill.category as string) === 'Side Control') ||
+            (selectedCategory === 'Back' && (drill.category as string) === 'Back Control') ||
             (drill.tags && drill.tags.includes(selectedCategory));
 
         return matchesSearch && matchesCategory;

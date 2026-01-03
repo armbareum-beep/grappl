@@ -210,7 +210,7 @@ export const CommunityFeed: React.FC = () => {
             )}
 
             {/* Content Area - ADJUSTED PT TO 20 AS REQUESTED */}
-            <main className={`max-w-xl mx-auto px-4 pt-20 pb-32 transition-all ${activeTab === 'library' ? 'max-w-6xl pt-20' : ''}`}>
+            <main className={`mx-auto px-4 pt-20 pb-32 transition-all ${activeTab === 'library' ? 'max-w-7xl' : 'max-w-xl'}`}>
                 {activeTab === 'feed' ? (
                     <>
                         {/* Post Input Trigger - Hidden on mobile, FAB is used instead */}
