@@ -112,6 +112,7 @@ export const Home: React.FC = () => {
         setQuests(questsRes || []);
 
         const combinedLogs = logsRes.data || [];
+        console.log(`[Home] Fetched ${combinedLogs.length} training logs for widget`);
         setLogs(combinedLogs as any);
 
         // --- Weekly Chain Logic ---

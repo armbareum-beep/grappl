@@ -7,7 +7,7 @@ import { TrainingLog, SparringReview } from '../../types';
 import { Button } from '../Button';
 import { Plus, Calendar, Clock, Swords, Trash2, X, User, Trophy, Activity, TrendingUp, TrendingDown, Minus, Sparkles, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QuestCompleteModal } from '../QuestCompleteModal';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, endOfYear, subMonths, getYear } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, endOfYear, subMonths, getYear, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
@@ -33,7 +33,7 @@ type SparringEntry = {
     notes: string;
 };
 
-type GraphRange = '1M' | '3M' | '6M' | '1Y';
+type GraphRange = '1W' | '1M' | '3M' | '6M' | '1Y';
 
 export const JournalTab: React.FC = () => {
     const { user } = useAuth();
@@ -76,7 +76,7 @@ export const JournalTab: React.FC = () => {
 
     // Graph Range & Year State
     const [graphRange, setGraphRange] = useState<GraphRange>('1Y');
-    const [selectedYear, setSelectedYear] = useState(2026);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
     // Reward State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
@@ -382,11 +382,20 @@ export const JournalTab: React.FC = () => {
 
     // Helper functions
     const getIntensity = (date: Date) => {
-        const count = timelineItems.filter(item => isSameDay(parseISO(item.data.date), date)).length;
-        if (count >= 3) return 3;
-        if (count >= 2) return 2;
-        if (count >= 1) return 1;
-        return 0;
+        // 1. Check if ANY training happened ON THIS DAY. If not, transparent/0.
+        const hasTrainingOnDay = timelineItems.some(item => isSameDay(parseISO(item.data.date), date));
+        if (!hasTrainingOnDay) return 0;
+
+        // 2. Count active unique days in this week
+        const activeDaysInWeek = new Set(
+            timelineItems
+                .filter(item => isSameWeek(parseISO(item.data.date), date, { weekStartsOn: 1 }))
+                .map(item => format(parseISO(item.data.date), 'yyyy-MM-dd'))
+        ).size;
+
+        if (activeDaysInWeek >= 4) return 3; // 4+ days/week = High intensity
+        if (activeDaysInWeek >= 2) return 2; // 2-3 days/week = Medium intensity
+        return 1; // 1 day/week = Low intensity
     };
 
     const getYouTubeEmbedUrl = (url?: string) => {
@@ -397,22 +406,22 @@ export const JournalTab: React.FC = () => {
     };
 
     const filteredItems = selectedDate
-        ? timelineItems.filter(item => isSameDay(parseISO(item.data.date), selectedDate))
+        ? timelineItems.filter(item => isSameWeek(parseISO(item.data.date), selectedDate, { weekStartsOn: 1 }))
         : timelineItems;
     const displayedItems = showAllLogs ? filteredItems : filteredItems.slice(0, 10);
 
     const safeItems = timelineItems || [];
     const now = new Date();
-    const thisMonth = now.getMonth();
-    const lastMonth = subDays(new Date(now.getFullYear(), now.getMonth(), 1), 1).getMonth();
+    const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const prevWeekStart = subDays(thisWeekStart, 7);
 
-    const thisMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === thisMonth);
-    const thisMonthDuration = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
-    const thisMonthRounds = thisMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+    const thisWeekItems = safeItems.filter(item => isSameWeek(parseISO(item.data.date), now, { weekStartsOn: 1 }));
+    const thisWeekDuration = thisWeekItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
+    const thisWeekRounds = thisWeekItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
-    const lastMonthItems = safeItems.filter(item => new Date(item.data.date).getMonth() === lastMonth);
-    const lastMonthDuration = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
-    const lastMonthRounds = lastMonthItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
+    const lastWeekItems = safeItems.filter(item => isSameWeek(parseISO(item.data.date), prevWeekStart, { weekStartsOn: 1 }));
+    const lastWeekDuration = lastWeekItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.durationMinutes || 0) : 0), 0);
+    const lastWeekRounds = lastWeekItems.reduce((acc, item) => acc + (item.type === 'log' ? (item.data.sparringRounds || 0) : (item.data.rounds || 0)), 0);
 
     const getTrend = (current: number, previous: number) => {
         if (previous === 0) return { value: current > 0 ? 100 : 0, direction: 'up' };
@@ -423,9 +432,9 @@ export const JournalTab: React.FC = () => {
         };
     };
 
-    const countTrend = getTrend(thisMonthItems.length, lastMonthItems.length);
-    const durationTrend = getTrend(thisMonthDuration, lastMonthDuration);
-    const roundsTrend = getTrend(thisMonthRounds, lastMonthRounds);
+    const countTrend = getTrend(thisWeekItems.length, lastWeekItems.length);
+    const durationTrend = getTrend(thisWeekDuration, lastWeekDuration);
+    const roundsTrend = getTrend(thisWeekRounds, lastWeekRounds);
 
     const TrendBadge = ({ trend }: { trend: { value: number, direction: string } }) => {
         const isUp = trend.direction === 'up';
@@ -450,6 +459,7 @@ export const JournalTab: React.FC = () => {
         } else {
             end = today;
             switch (graphRange) {
+                case '1W': start = subDays(today, 6); break;
                 case '1M': start = subMonths(today, 1); break;
                 case '3M': start = subMonths(today, 3); break;
                 case '6M': start = subMonths(today, 6); break;
@@ -467,7 +477,7 @@ export const JournalTab: React.FC = () => {
         <div className="max-w-3xl mx-auto space-y-8 pb-20 relative">
             <div className="space-y-6" ref={statsGraphRef}>
                 <div className="relative group">
-                    <TrainingTrendsChart items={timelineItems} metric={selectedMetric} />
+                    <TrainingTrendsChart items={timelineItems} metric={selectedMetric} range={graphRange} />
                     <button
                         onClick={(e) => {
                             e.preventDefault();
@@ -493,9 +503,9 @@ export const JournalTab: React.FC = () => {
                         </div>
                         <div>
                             <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                                {thisMonthItems.length}
+                                {thisWeekItems.length}
                             </div>
-                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 수련</div>
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 주 수련</div>
                         </div>
                     </div>
                     <div
@@ -509,9 +519,9 @@ export const JournalTab: React.FC = () => {
                         </div>
                         <div>
                             <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                                {Math.round(thisMonthDuration / 60)}
+                                {Math.round(thisWeekDuration / 60)}
                             </div>
-                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 시간(hr)</div>
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 주 시간(hr)</div>
                         </div>
                     </div>
                     <div
@@ -525,9 +535,9 @@ export const JournalTab: React.FC = () => {
                         </div>
                         <div>
                             <div className="text-4xl font-black text-white leading-none mb-2 transition-colors">
-                                {thisMonthRounds}
+                                {thisWeekRounds}
                             </div>
-                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 달 라운드</div>
+                            <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">이번 주 라운드</div>
                         </div>
                     </div>
                 </div>
@@ -547,7 +557,7 @@ export const JournalTab: React.FC = () => {
                                 <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
                             </div>
                             <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
-                                {(['1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
+                                {(['1W', '1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
                                     <button
                                         key={range}
                                         onClick={() => setGraphRange(range)}
@@ -565,32 +575,47 @@ export const JournalTab: React.FC = () => {
                     <div className="bg-zinc-900 rounded-xl p-4">
                         <div ref={scrollRef} className="overflow-x-auto pb-4 scrollbar-hide">
                             <div className="min-w-max flex gap-1.5 pl-2">
-                                {Array.from({ length: weeks }).map((_, w) => (
-                                    <div key={w} className="flex flex-col gap-1.5">
-                                        {Array.from({ length: 7 }).map((_, d) => {
-                                            const idx = w * 7 + d;
-                                            if (idx >= grassDates.length) return <div key={d} className="w-3.5 h-3.5" />;
+                                {Array.from({ length: weeks }).map((_, w) => {
+                                    const weekStart = grassDates[w * 7];
+                                    if (!weekStart) return null;
 
-                                            const currentDate = grassDates[idx];
-                                            const intensity = getIntensity(currentDate);
-                                            const isSel = selectedDate && isSameDay(selectedDate, currentDate);
+                                    const isWeekSelected = selectedDate && isSameWeek(weekStart, selectedDate, { weekStartsOn: 1 });
 
-                                            let bg = 'bg-zinc-800/50';
-                                            if (intensity === 1) bg = 'bg-violet-900/60 border border-violet-800/50';
-                                            if (intensity === 2) bg = 'bg-violet-600 border border-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]';
-                                            if (intensity >= 3) bg = 'bg-violet-400 border border-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.5)]';
+                                    return (
+                                        <div
+                                            key={w}
+                                            onClick={() => setSelectedDate(isWeekSelected ? null : weekStart)}
+                                            className={`flex flex-col gap-1.5 p-1 rounded-lg transition-all cursor-pointer border ${isWeekSelected ? 'bg-violet-500/10 border-violet-500/50' : 'border-transparent hover:bg-zinc-800/30'}`}
+                                        >
+                                            {Array.from({ length: 7 }).map((_, d) => {
+                                                const idx = w * 7 + d;
+                                                if (idx >= grassDates.length) return <div key={d} className="w-3.5 h-3.5" />;
 
-                                            return (
-                                                <div
-                                                    key={d}
-                                                    onClick={() => setSelectedDate(isSel ? null : currentDate)}
-                                                    title={format(currentDate, 'yyyy-MM-dd')}
-                                                    className={`w-3.5 h-3.5 rounded-sm cursor-pointer transition-all ${bg} ${isSel ? 'ring-2 ring-white scale-125 z-10' : 'hover:scale-110'}`}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                ))}
+                                                const currentDate = grassDates[idx];
+                                                const intensity = getIntensity(currentDate);
+
+                                                let bg = 'bg-zinc-900/50'; // Empty
+
+                                                // Tier 1: Silver (Weak/Basic) - 1 day/week
+                                                if (intensity === 1) bg = 'bg-zinc-700 border border-zinc-600';
+                                                // Tier 2: Gold (Pro/Standard) - 2-3 days/week
+                                                if (intensity === 2) bg = 'bg-violet-600 border border-violet-500';
+                                                // Tier 3: Diamond (Elite/Master) - 4+ days/week (Glowing)
+                                                if (intensity >= 3) bg = 'bg-violet-300 border border-white/50 shadow-[0_0_12px_rgba(167,139,250,0.8)] z-10';
+
+                                                return (
+                                                    <div
+                                                        key={d}
+                                                        title={intensity > 0
+                                                            ? `${format(currentDate, 'yyyy-MM-dd')} (${intensity === 3 ? 'Elite' : intensity === 2 ? 'Pro' : 'Basic'} Tier)`
+                                                            : format(currentDate, 'yyyy-MM-dd')}
+                                                        className={`w-3.5 h-3.5 rounded-sm transition-all ${bg}`}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -599,7 +624,9 @@ export const JournalTab: React.FC = () => {
 
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">
-                    {selectedDate ? format(selectedDate, 'M월 d일의 기록') : '최근 활동'}
+                    {selectedDate
+                        ? `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'M월 d일')} ~ ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'M월 d일')}의 기록`
+                        : '최근 활동'}
                 </h3>
                 <Button
                     onClick={handleStartCreate}

@@ -36,7 +36,12 @@ export const analyzeUserDashboard = async (
     },
     apiKey: string
 ): Promise<GeminiDashboardResult | null> => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    // Remove quotes and whitespace - common .env issue
+    const cleanKey = apiKey.replace(/["']/g, '').trim();
+    console.log('[Gemini Debug] Using Key:', cleanKey.slice(0, 10) + '...'); // Check if key starts correctly
+
+    // Upgrading to Gemini 2.0 Flash for best performance in 2026
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) head coach. Analyze the user's progress and provide personalized coaching.
@@ -88,18 +93,14 @@ export const analyzeUserDashboard = async (
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    response_mime_type: "application/json",
-                    temperature: 0.7
-                }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
-            throw new Error(`Gemini API Error: ${response.status} - ${errData.error?.message || response.statusText}`);
+            const errText = await response.text();
+            console.error('Gemini API Error Body:', errText);
+            throw new Error(`Gemini API Error (${response.status}): ${errText.slice(0, 200)}`);
         }
 
         const data = await response.json();
@@ -110,7 +111,6 @@ export const analyzeUserDashboard = async (
             return null;
         }
 
-        // Clean up the response text - remove markdown backticks if present
         text = text.trim();
         if (text.includes('```')) {
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -124,7 +124,13 @@ export const analyzeUserDashboard = async (
 };
 
 export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): Promise<GeminiAnalysisResult[]> => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    // Remove quotes and whitespace - common .env issue
+    const cleanKey = apiKey.replace(/["']/g, '').trim();
+    console.log('[Gemini Debug] Using Key:', cleanKey.slice(0, 10) + '...'); // Check if key starts correctly
+
+    // Upgrading to Gemini 2.0 Flash for best performance in 2026
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
+
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) coach. Analyze the following sparring logs to identify 3 key insights:
@@ -163,9 +169,9 @@ export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): 
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
-            throw new Error(`Gemini API Error: ${response.status}`);
+            const errText = await response.text();
+            console.error('Gemini API Error Body:', errText);
+            throw new Error(`Gemini API Error (${response.status}): ${errText.slice(0, 200)}`);
         }
 
         const data = await response.json();
@@ -187,11 +193,14 @@ export interface DeepAnalysisResult {
         weakness: string;
         similarPro?: string;
         fingerprint?: {
-            standing: number;
-            guard: number;
-            passing: number;
-            submission: number;
-            defense: number;
+            Standing: number;
+            Guard: number;
+            Passing: number;
+            Side: number;
+            Mount: number;
+            Back: number;
+            topPossession: number;
+            submissionRate: number;
         };
     };
     gapAnalysis: {
@@ -222,66 +231,99 @@ export interface DeepAnalysisResult {
 }
 
 export const analyzeUserDeeply = async (
-    logs: TrainingLog[],
+    recentLogs: TrainingLog[],
+    historicalSummary: {
+        totalSessions: number;
+        dominantTechniques: string[];
+        avgTopPossession: number;
+        avgSubmissionRate: number;
+        periodDays: number;
+    },
     recentVideos: { title: string; category?: string }[],
     userProfile: { name: string; belt: string },
-    apiKey: string
+    apiKey: string,
+    availableContent?: {
+        courses: Array<{ id: string; title: string; category?: string }>;
+        routines: Array<{ id: string; title: string }>;
+    }
 ): Promise<DeepAnalysisResult | null> => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    // Remove quotes and whitespace - common .env issue
+    const cleanKey = apiKey.replace(/["']/g, '').trim();
+
+    // Upgrading to Gemini 2.0 Flash for best performance
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
 
     const prompt = `
     You are an expert BJJ (Brazilian Jiu-Jitsu) Head Coach.
-    Analyze the user's training logs and video history to provide a deep, personalized coaching report in KOREAN.
+    Analyze the user's training history and recent activity to provide a deep, personalized coaching report in KOREAN.
 
     User: ${userProfile.name} (${userProfile.belt} Belt)
 
-    DATA - Training Logs (Last 30 days):
-    ${logs.map(l => `- [${l.date}] ${l.notes} (Tags: ${l.techniques?.join(', ')})`).join('\n')}
+    HISTORICAL CONTEXT (Consolidated data from the past ${historicalSummary.periodDays} days):
+    - Total Sessions: ${historicalSummary.totalSessions}
+    - Dominant Techniques/Styles: ${historicalSummary.dominantTechniques.join(', ') || 'Various'}
+    - Lifetime Top Possession: ${historicalSummary.avgTopPossession}%
+    - Lifetime Submission Rate: ${historicalSummary.avgSubmissionRate}%
+
+    RECENT ACTIVITY (Last 30 days - High detail):
+    ${recentLogs.map(l => `- [${l.date}] ${l.notes} (Tags: ${l.techniques?.join(', ')})`).join('\n')}
 
     DATA - Recently Watched Videos:
     ${recentVideos.map(v => `- ${v.title} (${v.category || 'General'})`).join('\n')}
 
+    REAL AVAILABLE CONTENT (Priority Recommended):
+    - Courses: ${availableContent?.courses.map(c => `[ID: ${c.id}] ${c.title}`).join(', ') || 'No specific listing'}
+    - Routines: ${availableContent?.routines.map(r => `[ID: ${r.id}] ${r.title}`).join(', ') || 'No specific listing'}
+
     TASK:
-    1. Identify their **Style/Identity** based on keywords in logs.
+    1. Identify their **Style/Identity** (MUST be in English, MAX 3 words, e.g., "Technical Guard Player").
+       - Synthesize the historical dominant styles with recent changes to see their evolution.
     2. Detect **Theory-Practice Gap**.
     3. Prescribe **Training Volume for Tomorrow** (min/rounds).
-    4. Recommend **3 specific content types** with a "Why" reason.
+    4. Calculate **Fingerprint Stats** (Standing, Guard, Passing, Side, Mount, Back) and specific **topPossession/submissionRate** (0-100).
+    5. Recommend **3 items (1 Course, 1 Routine, 1 Chain/Suggestion)** from the REAL listing.
 
-    IMPORTANT: All text fields (identity, message, strength, weakness, summary, reason) MUST be in KOREAN language.
+    IMPORTANT: 
+    - The "identity" field MUST be in English.
+    - All other text fields MUST be in KOREAN.
+    - Respond STRICTLY with valid JSON.
 
-    OUTPUT FORMAT (JSON ONLY):
+    OUTPUT FORMAT:
     {
       "styleProfile": {
-        "identity": "스타일 명칭 (예: 압박 패서)",
-        "description": "한 문장 설명",
-        "strength": "강점 (한국어)",
-        "weakness": "약점 (한국어)",
-        "fingerprint": { "standing": 50, "guard": 50, "passing": 50, "submission": 50, "defense": 50 }
+        "identity": "...",
+        "description": "...",
+        "strength": "...",
+        "weakness": "...",
+        "similarPro": "유사한 스타일의 유명 선수 이름",
+        "fingerprint": { 
+            "Standing": number, "Guard": number, "Passing": number, 
+            "Side": number, "Mount": number, "Back": number,
+            "topPossession": number, "submissionRate": number
+        }
       },
       "gapAnalysis": {
-        "blindSpots": ["부족한 영역1", "부족한 영역2"],
-        "theoryPracticeGap": "이론과 실천의 갭에 대한 정중한 지적 (한국어)"
+        "blindSpots": ["...", "..."],
+        "theoryPracticeGap": "..."
       },
       "prescription": {
-        "summary": "한 줄 요약 (예: 오늘은 고강도 스파링 추천)",
+        "summary": "...",
         "drillDurationMinutes": number,
         "sparringRounds": number,
-        "focusAreas": ["집중해야 할 기술1", "집중해야 할 기술2"]
+        "focusAreas": ["...", "..."]
       },
       "sparringMission": {
-        "scenario": "스파링 시나리오 (예: 가드 패스 당한 상태에서 탈출)",
-        "opponentStyle": "상대 스타일 (예: 무거운 압박러)",
-        "duration": "추천 시간 (예: 5분 x 3라운드)",
-        "reason": "이 미션을 추천하는 이유 (한국어)"
+        "scenario": "...",
+        "opponentStyle": "...",
+        "duration": "...",
+        "reason": "..."
       },
       "recommendedContent": {
-        "courses": [{ "title": "추천 강의 제목", "reason": "추천 사유 (한국어)" }],
-        "routines": [{ "title": "추천 루틴 제목", "reason": "추천 사유 (한국어)" }],
-        "chains": [{ "title": "추천 체인 제목", "reason": "추천 사유 (한국어)" }]
+        "courses": [{ "id": "ID", "title": "제목", "reason": "이유" }],
+        "routines": [{ "id": "ID", "title": "제목", "reason": "이유" }],
+        "chains": [{ "title": "제목", "reason": "이유" }]
       }
     }
-    
-    Respond STRICTLY with valid JSON.
     `;
 
     try {
@@ -294,9 +336,9 @@ export const analyzeUserDeeply = async (
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            console.error('Gemini API Error Detail:', JSON.stringify(errData, null, 2));
-            throw new Error(`Gemini API Error: ${response.status}`);
+            const errText = await response.text();
+            console.error('Gemini API Error Body:', errText);
+            throw new Error(`Gemini API Error (${response.status}): ${errText.slice(0, 200)}`);
         }
 
         const data = await response.json();
@@ -307,6 +349,12 @@ export const analyzeUserDeeply = async (
         if (text.includes('```')) {
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         }
+
+        // The provided snippet for keyword recognition seems to be intended for a different context
+        // or a separate analysis function. It's not directly applicable here as this function
+        // expects a JSON response to be parsed.
+        // If there's an `analyzeBalance` function elsewhere that needs this logic, it should be applied there.
+        // For this function, we proceed with JSON parsing.
 
         return JSON.parse(text);
     } catch (error) {

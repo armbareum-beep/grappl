@@ -8,7 +8,7 @@ import {
     YAxis,
     CartesianGrid
 } from 'recharts';
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
+import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO, subDays, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { TrainingLog, SparringReview } from '../../types';
 
@@ -22,13 +22,23 @@ export type TrainingMetric = 'count' | 'duration' | 'rounds';
 interface TrainingTrendsChartProps {
     items: TimelineItem[];
     metric: TrainingMetric;
+    range?: '1W' | '1M' | '3M' | '6M' | '1Y';
 }
 
-export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items, metric }) => {
+export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items, metric, range }) => {
     const chartData = useMemo(() => {
         const today = new Date();
-        const start = startOfMonth(today);
-        const end = endOfMonth(today);
+        let start, end;
+
+        switch (range) {
+            case '1W': start = subDays(today, 6); end = today; break;
+            case '1M': start = subMonths(today, 1); end = today; break;
+            case '3M': start = subMonths(today, 3); end = today; break;
+            case '6M': start = subMonths(today, 6); end = today; break;
+            case '1Y': start = subDays(today, 364); end = today; break;
+            default: start = startOfMonth(today); end = endOfMonth(today);
+        }
+
         const days = eachDayOfInterval({ start, end });
         const hasData = items.length > 0;
 
@@ -68,14 +78,14 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
             }
 
             return {
-                date: format(day, 'd일', { locale: ko }),
+                date: format(day, range === '1W' ? 'EEEE' : 'd일', { locale: ko }),
                 fullDate: format(day, 'yyyy-MM-dd'),
                 duration,
                 rounds,
                 count
             };
         });
-    }, [items]);
+    }, [items, range]);
 
     // Configuration based on metric
     const config = useMemo(() => {
@@ -101,6 +111,13 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
                     name: '스파링',
                     unit: 'R'
                 };
+            default:
+                return {
+                    dataKey: 'count',
+                    color: '#6366f1',
+                    name: '수련 횟수',
+                    unit: '회'
+                };
         }
     }, [metric]);
 
@@ -113,7 +130,9 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         {config.name} 추이
                     </h3>
-                    <p className="text-sm text-zinc-500">이번 달 {config.name} 변화 그래프</p>
+                    <p className="text-sm text-zinc-500">
+                        {range === '1W' ? '최근 7일' : range === '1M' ? '최근 1개월' : range === '3M' ? '최근 3개월' : range === '6M' ? '최근 6개월' : range === '1Y' ? '최근 1년' : '이번 달'} {config.name} 변화 그래프
+                    </p>
                 </div>
             </div>
 

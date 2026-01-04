@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { TrainingLog } from '../types';
 import {
     analyzeReadiness,
@@ -27,7 +28,8 @@ import {
     PieChart,
     Sparkles,
     Clock,
-    Play
+    Play,
+    Target
 } from 'lucide-react';
 import {
     Radar,
@@ -41,6 +43,7 @@ import {
 
 export const AICoach: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -87,16 +90,18 @@ export const AICoach: React.FC = () => {
 
             // 쿨타임이 남았고, 캐시된 결과도 있는 경우에만 쿨타임 적용
             if (diffHours < 24 && cachedResult) {
-                const remainingHours = Math.ceil(24 - diffHours);
-                setAnalysisCooldown(`${remainingHours}시간 후 가능`);
+                const remainingMs = (24 * 60 * 60 * 1000) - diffMs;
+                const remHours = Math.floor(remainingMs / (1000 * 60 * 60));
+                const remMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                setAnalysisCooldown(`${remHours}시간 ${remMinutes}분 후 가능`);
 
                 try {
                     setDeepAnalysis(JSON.parse(cachedResult));
                 } catch (e) {
                     console.error("Failed to parse cached analysis", e);
-                    // 결과 파싱 실패 시 쿨타임 해제 (다시 시도하게 함)
                     setAnalysisCooldown(null);
-                    localStorage.removeItem(`ai_analysis_last_run_${user?.id}`);
+                    localStorage.removeItem(`ai_analysis_last_run_${user?.id}`); // Clear cooldown if parsing fails
                 }
             } else if (!cachedResult) {
                 // 최근 실행 기록은 있지만 결과가 없으면 (오류 등), 쿨타임 무시하고 다시 실행
@@ -174,6 +179,7 @@ export const AICoach: React.FC = () => {
         console.log('Starting deep analysis with Gemini...');
         try {
             const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            console.log('[Debug] Loaded API Key length:', apiKey?.length);
             if (!apiKey) {
                 console.error('Gemini API Key missing');
                 setIsAnalyzingDeeply(false);
@@ -185,7 +191,51 @@ export const AICoach: React.FC = () => {
                 belt: user.user_metadata?.belt || 'White'
             };
 
-            const result = await analyzeUserDeeply(logs, recentVideos, userProfile, apiKey);
+            // Fetch REAL available content for recommendation anchoring
+            const { getCourses, getRoutines } = await import('../lib/api');
+            const [coursesData, routinesData] = await Promise.all([
+                getCourses(15), // Top 15 courses
+                getRoutines()   // All routines
+            ]);
+
+            const availableContent = {
+                courses: (coursesData || []).map(c => ({ id: c.id, title: c.title, category: c.category })),
+                routines: (routinesData || []).map(r => ({ id: r.id, title: r.title }))
+            };
+
+            // 1. Data Partitioning (Hybrid System)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const recentLogs = logs.filter(l => new Date(l.date) >= thirtyDaysAgo);
+            const olderLogs = logs.filter(l => new Date(l.date) < thirtyDaysAgo);
+
+            // 2. Generate Historical Summary (Compression)
+            const historicalStats = olderLogs.reduce((acc, l) => {
+                l.techniques?.forEach(t => acc.techniques.add(t));
+                return acc;
+            }, { techniques: new Set<string>() });
+
+            const historicalBalance = olderLogs.length > 0 ? analyzeBalance(olderLogs) : null;
+
+            const historicalSummary = {
+                totalSessions: olderLogs.length,
+                dominantTechniques: Array.from(historicalStats.techniques).slice(0, 5),
+                avgTopPossession: historicalBalance?.topRatio || 0,
+                avgSubmissionRate: historicalBalance ? Math.round(historicalBalance.attack * 0.8) : 0,
+                periodDays: olderLogs.length > 0
+                    ? Math.ceil((new Date().getTime() - new Date(olderLogs[olderLogs.length - 1].date).getTime()) / (1000 * 60 * 60 * 24))
+                    : 0
+            };
+
+            const result = await analyzeUserDeeply(
+                recentLogs,
+                historicalSummary,
+                recentVideos,
+                userProfile,
+                apiKey,
+                availableContent
+            );
             if (result) {
                 console.log('Deep analysis successful:', result.styleProfile.identity);
                 setDeepAnalysis(result);
@@ -195,12 +245,14 @@ export const AICoach: React.FC = () => {
                 localStorage.setItem(`ai_analysis_result_${user.id}`, JSON.stringify(result));
 
                 // Update cooldown state immediately
-                setAnalysisCooldown("24시간 후 가능");
+                setAnalysisCooldown("24시간 후 가능"); // This will be updated by checkAnalysisCooldown on next render if needed
             } else {
                 console.warn('Gemini returned null result');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Deep analysis error:', err);
+            // Show detailed error
+            setError(`분석 오류: ${err.message || '알 수 없는 오류'}`);
         } finally {
             setIsAnalyzingDeeply(false);
         }
@@ -231,11 +283,20 @@ export const AICoach: React.FC = () => {
 
                     <div className="relative z-10">
                         {/* Header Label */}
-                        <div className="flex items-center gap-3 mb-8 opacity-70">
-                            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                                <Brain className="w-4 h-4 text-violet-400" />
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3 opacity-70">
+                                <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                    <Brain className="w-4 h-4 text-violet-400" />
+                                </div>
+                                <span className="text-xs font-bold tracking-[0.2em] text-violet-400 uppercase">AI Combat Analysis</span>
                             </div>
-                            <span className="text-xs font-bold tracking-[0.2em] text-violet-400 uppercase">AI Combat Analysis</span>
+
+                            {analysisCooldown && (
+                                <div className="px-4 py-1.5 rounded-full bg-zinc-900/50 border border-white/5 text-[10px] font-bold text-zinc-500 flex items-center gap-2">
+                                    <Clock className="w-3 h-3" />
+                                    다음 분석 가능: {analysisCooldown}
+                                </div>
+                            )}
                         </div>
 
                         {/* CONTENT CONTAINER */}
@@ -246,29 +307,80 @@ export const AICoach: React.FC = () => {
                                 <div className="space-y-6">
                                     {deepAnalysis ? (
                                         <>
-                                            <div>
-                                                <div className="text-zinc-500 text-sm font-bold mb-2 tracking-wider uppercase">Your Fighting Style</div>
-                                                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-[0.9] tracking-tighter uppercase italic transform -skew-x-6 drop-shadow-lg whitespace-nowrap">
-                                                    <span className="inline-block pr-8 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-white to-zinc-400">
-                                                        {deepAnalysis.styleProfile.identity}
+                                            <div className="relative z-[100] max-w-full">
+                                                <div className="text-zinc-500 text-[10px] font-black mb-3 tracking-[0.4em] uppercase opacity-70">Your Fighting Style</div>
+                                                <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter uppercase transform -skew-x-2 drop-shadow-[0_20px_50px_rgba(139,92,246,0.3)]">
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-zinc-500 drop-shadow-sm mr-3">
+                                                        {deepAnalysis.styleProfile.identity.split(' ').slice(0, -1).join(' ') || 'BJJ'}
+                                                    </span>
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-500">
+                                                        {deepAnalysis.styleProfile.identity.split(' ').slice(-1)}
                                                     </span>
                                                 </h1>
                                             </div>
 
-                                            <div className="h-1 w-24 bg-violet-600 rounded-full my-6" />
+                                            <div className="h-0.5 w-32 bg-gradient-to-r from-violet-600 to-transparent my-10" />
 
-                                            <p className="text-zinc-300 text-base md:text-lg font-medium leading-relaxed max-w-xl">
+                                            <p className="text-zinc-400 text-lg md:text-xl font-medium leading-relaxed max-w-2xl bg-zinc-950/30 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-2xl">
                                                 {deepAnalysis.styleProfile.description}
                                             </p>
 
-                                            {/* Summary Footer */}
-                                            <div className="pt-6 mt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 sm:items-center text-sm">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold">
-                                                    <Zap className="w-3 h-3 mr-2" /> 강점: {deepAnalysis.styleProfile.strength}
-                                                </span>
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold">
-                                                    <AlertTriangle className="w-3 h-3 mr-2" /> 보완: {deepAnalysis.styleProfile.weakness}
-                                                </span>
+                                            {/* POSSESSION & SUBMISSION STATS - Unified with Home Widget */}
+                                            <div className="grid grid-cols-2 gap-4 max-w-md">
+                                                <div className="flex items-center justify-between gap-4 px-5 py-4 bg-zinc-900/50 rounded-2xl border border-white/10 hover:border-violet-500/30 transition-colors group/stat">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20 group-hover/stat:bg-violet-500/20 transition-colors">
+                                                            <Target className="w-5 h-5 text-violet-400" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Top Possession</div>
+                                                            <div className="text-2xl font-black text-white italic">
+                                                                {deepAnalysis?.styleProfile?.fingerprint?.topPossession !== undefined
+                                                                    ? `${deepAnalysis.styleProfile.fingerprint.topPossession}%`
+                                                                    : (balance ? `${balance.topRatio}%` : '0%')}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-4 px-5 py-4 bg-zinc-900/50 rounded-2xl border border-white/10 hover:border-violet-500/30 transition-colors group/stat">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20 group-hover/stat:bg-violet-500/20 transition-colors">
+                                                            <Zap className="w-5 h-5 text-violet-400" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Submission Rate</div>
+                                                            <div className="text-2xl font-black text-white italic">
+                                                                {deepAnalysis?.styleProfile?.fingerprint?.submissionRate !== undefined
+                                                                    ? `${deepAnalysis.styleProfile.fingerprint.submissionRate}%`
+                                                                    : (balance ? `${Math.round(balance.attack * 0.8)}%` : '0%')}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Summary Footer - Refined Icons & Layout */}
+                                            <div className="pt-10 flex flex-wrap gap-4 items-center">
+                                                <div className="group relative">
+                                                    <div className="absolute inset-0 bg-emerald-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity rounded-full" />
+                                                    <span className="relative flex items-center px-5 py-2.5 rounded-2xl bg-[#0F1712] border border-emerald-500/20 text-emerald-400 font-bold text-sm shadow-xl transition-transform hover:scale-105">
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-500 mr-3 animate-pulse" />
+                                                        강점: {deepAnalysis.styleProfile.strength}
+                                                    </span>
+                                                </div>
+                                                <div className="group relative">
+                                                    <div className="absolute inset-0 bg-amber-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity rounded-full" />
+                                                    <span className="relative flex items-center px-5 py-2.5 rounded-2xl bg-[#1A160F] border border-amber-500/20 text-amber-400 font-bold text-sm shadow-xl transition-transform hover:scale-105">
+                                                        <div className="w-2 h-2 rounded-full bg-amber-500 mr-3 animate-pulse" />
+                                                        보완: {deepAnalysis.styleProfile.weakness}
+                                                    </span>
+                                                </div>
+                                                {deepAnalysis.styleProfile.similarPro && (
+                                                    <span className="flex items-center px-5 py-2.5 rounded-2xl bg-zinc-900 border border-white/5 text-zinc-400 font-bold text-sm shadow-xl hover:bg-zinc-800 transition-colors cursor-default">
+                                                        <Sparkles className="w-4 h-4 mr-2 text-violet-400 font-bold" />
+                                                        유사 프로: {deepAnalysis.styleProfile.similarPro}
+                                                    </span>
+                                                )}
                                             </div>
                                         </>
                                     ) : (
@@ -294,7 +406,7 @@ export const AICoach: React.FC = () => {
                                                             : logs.length === 0
                                                                 ? "분석 데이터 없음"
                                                                 : analysisCooldown
-                                                                    ? "분석 완료 (대기 중)"
+                                                                    ? `다음 분석까지 ${analysisCooldown}`
                                                                     : error || deepAnalysis === null
                                                                         ? "분석 대기 중 (클릭하여 시작)"
                                                                         : "데이터 로딩 중..."}
@@ -333,33 +445,44 @@ export const AICoach: React.FC = () => {
                                     {/* Chart Glow */}
                                     <div className="absolute inset-0 bg-violet-500/10 blur-3xl rounded-full" />
 
-                                    {radarData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                                <PolarGrid stroke="#27272a" strokeDasharray="3 3" />
-                                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 12, fontWeight: 700 }} />
-                                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                                <Radar
-                                                    name="My Stats"
-                                                    dataKey="A"
-                                                    stroke="#8b5cf6"
-                                                    strokeWidth={4}
-                                                    fill="#8b5cf6"
-                                                    fillOpacity={0.5}
-                                                />
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
-                                                    labelStyle={{ color: '#e4e4e7', fontWeight: 'bold' }}
-                                                    itemStyle={{ color: '#a78bfa' }}
-                                                />
-                                            </RadarChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full border border-zinc-800/50 rounded-full bg-black/20 backdrop-blur-sm">
-                                            <PieChart className="w-12 h-12 text-zinc-700 mb-2 opacity-50" />
-                                            <p className="text-zinc-600 font-bold text-sm">NOT ENOUGH DATA</p>
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const displayData = deepAnalysis?.styleProfile?.fingerprint ? [
+                                            { subject: '스탠딩', A: deepAnalysis.styleProfile.fingerprint.Standing || 10, fullMark: 100 },
+                                            { subject: '가드', A: deepAnalysis.styleProfile.fingerprint.Guard || 10, fullMark: 100 },
+                                            { subject: '패스', A: deepAnalysis.styleProfile.fingerprint.Passing || 10, fullMark: 100 },
+                                            { subject: '사이드', A: deepAnalysis.styleProfile.fingerprint.Side || 10, fullMark: 100 },
+                                            { subject: '마운트', A: deepAnalysis.styleProfile.fingerprint.Mount || 10, fullMark: 100 },
+                                            { subject: '백', A: deepAnalysis.styleProfile.fingerprint.Back || 10, fullMark: 100 },
+                                        ] : radarData;
+
+                                        return displayData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={displayData}>
+                                                    <PolarGrid stroke="#27272a" strokeDasharray="3 3" />
+                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#71717a', fontSize: 12, fontWeight: 700 }} />
+                                                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                                    <Radar
+                                                        name="My Stats"
+                                                        dataKey="A"
+                                                        stroke="#8b5cf6"
+                                                        strokeWidth={4}
+                                                        fill="#8b5cf6"
+                                                        fillOpacity={0.5}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
+                                                        labelStyle={{ color: '#e4e4e7', fontWeight: 'bold' }}
+                                                        itemStyle={{ color: '#a78bfa' }}
+                                                    />
+                                                </RadarChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full border border-zinc-800/50 rounded-full bg-black/20 backdrop-blur-sm">
+                                                <PieChart className="w-12 h-12 text-zinc-700 mb-2 opacity-50" />
+                                                <p className="text-zinc-600 font-bold text-sm">NOT ENOUGH DATA</p>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -603,10 +726,14 @@ export const AICoach: React.FC = () => {
                                 deepAnalysis.recommendedContent.routines?.[0] ? { ...deepAnalysis.recommendedContent.routines[0], type: 'routine', label: 'Routine' } : null,
                                 deepAnalysis.recommendedContent.chains?.[0] ? { ...deepAnalysis.recommendedContent.chains[0], type: 'chain', label: 'Chain' } : null
                             ].filter(Boolean).map((item: any, idx) => (
-                                <a
+                                <div
                                     key={idx}
-                                    href={`/${item.type}/${item.id}`}
-                                    className="group flex flex-col bg-[#13111C] border border-white/5 rounded-2xl overflow-hidden hover:border-violet-500/50 transition-all hover:shadow-xl hover:shadow-violet-900/10 hover:-translate-y-1"
+                                    onClick={() => {
+                                        if (item.id) {
+                                            navigate(`/${item.type}/${item.id}`);
+                                        }
+                                    }}
+                                    className={`group flex flex-col bg-[#13111C] border border-white/5 rounded-2xl overflow-hidden transition-all ${item.id ? 'hover:border-violet-500/50 hover:shadow-xl hover:shadow-violet-900/10 hover:-translate-y-1 cursor-pointer' : 'opacity-80'}`}
                                 >
                                     {/* Thumbnail */}
                                     <div className="relative aspect-video bg-zinc-900 overflow-hidden">
@@ -640,11 +767,13 @@ export const AICoach: React.FC = () => {
                                         )}
 
                                         {/* Play Overlay */}
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
-                                            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                        {item.id && (
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
+                                                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                                                    <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
 
                                     {/* Content */}
@@ -669,7 +798,7 @@ export const AICoach: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </a>
+                                </div>
                             ))}
                         </div>
                     </section>

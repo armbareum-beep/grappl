@@ -3014,29 +3014,41 @@ export const TechniqueSkillTree: React.FC = () => {
             {/* Guest Experience Overlay - Bottom Discovery Bar */}
             {
                 !user && String(viewMode) === 'map' && !hideGuestOverlay && (
-                    <div className={`fixed ${isMobile ? 'bottom-32' : 'bottom-4'} left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4`}>
-                        <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/50 p-4 rounded-2xl w-full text-center shadow-2xl">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`fixed ${isMobile ? 'bottom-32' : 'bottom-10'} left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4`}
+                    >
+                        <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 rounded-[2rem] w-full text-center overflow-hidden">
+                            {/* Decorative Glow */}
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/20 blur-[40px] rounded-full -mr-12 -mt-12" />
+
                             {/* Close Button */}
                             <button
                                 onClick={() => setHideGuestOverlay(true)}
-                                className="absolute -top-3 -right-3 w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white shadow-xl z-10"
+                                className="absolute top-4 right-4 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all z-10"
                             >
                                 <X className="w-4 h-4" />
                             </button>
 
-                            <h3 className="text-2xl font-black text-white mb-2">공유 완료!</h3>
-                            <p className="text-zinc-400 text-sm mb-6">
-                                체인 라이브러리에 당신의 체인이 등록되었습니다.<br />
-                                커뮤니티가 당신의 시그니처 무브를 배울 수 있습니다!
+                            <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center border border-violet-500/20 mx-auto mb-5">
+                                <Network className="w-7 h-7 text-violet-500" />
+                            </div>
+
+                            <h3 className="text-xl font-black text-white mb-2">나만의 기술 로드맵</h3>
+                            <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+                                로그인하고 나만의 주짓수 커리큘럼을 설계하세요.<br />
+                                성장을 기록하고 커뮤니티와 공유할 수 있습니다!
                             </p>
+
                             <button
-                                onClick={() => (window.location.href = '/login')}
-                                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
+                                onClick={() => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })}
+                                className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-2xl transition-all shadow-xl shadow-violet-600/30 active:scale-95"
                             >
                                 무료로 시작하기
                             </button>
                         </div>
-                    </div>
+                    </motion.div>
                 )
             }
 

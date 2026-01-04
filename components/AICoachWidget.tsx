@@ -11,7 +11,7 @@ import {
 import { Brain, ChevronRight, Zap, Target, Sparkles } from 'lucide-react';
 import { TrainingLog } from '../types';
 import { DeepAnalysisResult } from '../lib/gemini';
-import { calculateRadarStats, RadarStats } from '../lib/analysis';
+import { calculateRadarStats, RadarStats, analyzeBalance, BalanceAnalysis } from '../lib/analysis';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AICoachWidgetProps {
@@ -24,6 +24,7 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
     const [hasAnalysis, setHasAnalysis] = useState(false);
     const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysisResult | null>(null);
     const [radarStats, setRadarStats] = useState<RadarStats[]>([]);
+    const [balance, setBalance] = useState<BalanceAnalysis | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -48,21 +49,54 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
     }, [user]);
 
     useEffect(() => {
-        if (logs.length > 0) {
-            setRadarStats(calculateRadarStats(logs));
-        }
+        // Run analysis even on empty logs to show accurate (0%) baselines
+        setRadarStats(calculateRadarStats(logs));
+        setBalance(analyzeBalance(logs));
+        console.log(`[AICoachWidget] Logs updated: ${logs.length} entries`);
     }, [logs]);
 
     // Fallback radar data if no logs
     const defaultRadarData = [
-        { subject: '힘', A: 30, fullMark: 100 },
-        { subject: '민첩', A: 30, fullMark: 100 },
-        { subject: '기술', A: 30, fullMark: 100 },
-        { subject: '방어', A: 30, fullMark: 100 },
-        { subject: '심리', A: 30, fullMark: 100 },
+        { subject: '스탠딩', A: 10, fullMark: 100 },
+        { subject: '가드', A: 10, fullMark: 100 },
+        { subject: '패스', A: 10, fullMark: 100 },
+        { subject: '사이드', A: 10, fullMark: 100 },
+        { subject: '마운트', A: 10, fullMark: 100 },
+        { subject: '백', A: 10, fullMark: 100 }
     ];
 
-    const displayRadarData = radarStats.length > 0 ? radarStats : defaultRadarData;
+    // Map English subjects to Korean for the widget display
+    const translateSubject = (subject: string) => {
+        const map: { [key: string]: string } = {
+            'Standing': '스탠딩',
+            'Guard': '가드',
+            'Passing': '패스',
+            'Side': '사이드',
+            'Mount': '마운트',
+            'Back': '백'
+        };
+        return map[subject] || subject;
+    };
+
+    const displayRadarData = (() => {
+        if (deepAnalysis?.styleProfile?.fingerprint) {
+            const f = deepAnalysis.styleProfile.fingerprint;
+            return [
+                { subject: '스탠딩', A: f.Standing || 10, fullMark: 100 },
+                { subject: '가드', A: f.Guard || 10, fullMark: 100 },
+                { subject: '패스', A: f.Passing || 10, fullMark: 100 },
+                { subject: '사이드', A: f.Side || 10, fullMark: 100 },
+                { subject: '마운트', A: f.Mount || 10, fullMark: 100 },
+                { subject: '백', A: f.Back || 10, fullMark: 100 },
+            ];
+        }
+
+        if (radarStats.length > 0) {
+            return radarStats.map(s => ({ ...s, subject: translateSubject(s.subject) }));
+        }
+
+        return defaultRadarData;
+    })();
 
     return (
         <div
@@ -119,8 +153,8 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
                             <h4 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-tight">
                                 {deepAnalysis?.styleProfile.identity ? (
                                     <>
-                                        {deepAnalysis.styleProfile.identity.split(' ')[0]}{' '}
-                                        <span className="text-violet-400">{deepAnalysis.styleProfile.identity.split(' ')[1] || ''}</span>
+                                        {deepAnalysis.styleProfile.identity.split(' ').slice(0, -1).join(' ')}{' '}
+                                        <span className="text-violet-400">{deepAnalysis.styleProfile.identity.split(' ').slice(-1)}</span>
                                     </>
                                 ) : (
                                     <>Tactical <span className="text-violet-400">Grappler</span></>
@@ -135,7 +169,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
                                     <span className="text-xs text-zinc-300 font-medium">Top Possession</span>
                                 </div>
                                 <span className="text-sm font-bold text-white">
-                                    {deepAnalysis?.styleProfile?.fingerprint?.passing ? `${deepAnalysis.styleProfile.fingerprint.passing}%` : '---'}
+                                    {deepAnalysis?.styleProfile?.fingerprint?.topPossession !== undefined
+                                        ? `${deepAnalysis.styleProfile.fingerprint.topPossession}%`
+                                        : (balance ? `${balance.topRatio}%` : '0%')}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between md:justify-start gap-4 px-3 py-2 bg-zinc-950/50 rounded-lg border border-white/5">
@@ -144,7 +180,9 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
                                     <span className="text-xs text-zinc-300 font-medium">Submission Rate</span>
                                 </div>
                                 <span className="text-sm font-bold text-white">
-                                    {deepAnalysis?.styleProfile?.fingerprint?.submission ? `${deepAnalysis.styleProfile.fingerprint.submission}%` : '---'}
+                                    {deepAnalysis?.styleProfile?.fingerprint?.submissionRate !== undefined
+                                        ? `${deepAnalysis.styleProfile.fingerprint.submissionRate}%`
+                                        : (balance ? `${Math.round(balance.attack * 0.8)}%` : '0%')}
                                 </span>
                             </div>
                         </div>

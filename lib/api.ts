@@ -2225,8 +2225,9 @@ export async function getTrainingLogs(userId: string) {
         if (log.duration_minutes === -1) {
             return false;
         }
-        // 2. Exclude non-training types, but KEEP 'sparring' for holistic tracking
-        if (log.type && ['routine', 'mastery', 'title_earned', 'level_up', 'technique', 'general'].includes(log.type)) {
+        // 2. Exclude non-training system markers (level ups, titles, etc)
+        // But KEEP 'technique', 'general', 'sparring' as they contain training data
+        if (log.type && ['mastery', 'title_earned', 'level_up'].includes(log.type)) {
             return false;
         }
         // 3. Exclude if location has the special FEED tag

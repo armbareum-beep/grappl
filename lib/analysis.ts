@@ -1,5 +1,5 @@
 
-import { TrainingLog } from './types';
+import { TrainingLog } from '../types';
 
 export interface ReadinessAnalysis {
     daysSinceLastTraining: number;
@@ -52,19 +52,29 @@ export const analyzeReadiness = (logs: TrainingLog[]): ReadinessAnalysis => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentLogs = logs.filter(l => new Date(l.date) >= thirtyDaysAgo);
 
-    // Simple consistency logic: 3+ times a week is 100%
-    // 30 days ~ 4 weeks. Target 12 sessions.
-    const consistencyScore = Math.min(100, Math.round((recentLogs.length / 12) * 100));
+    // Calculate UNIQUE training days in the last 30 days
+    const uniqueDays = new Set(recentLogs.map(l => new Date(l.date).toDateString())).size;
+
+    // Target: 3.5 sessions per week ≈ 14 sessions in 30 days
+    const consistencyScore = Math.min(100, Math.round((uniqueDays / 14) * 100));
 
     // Volume Assessment (Last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const weeklyLogs = logs.filter(l => new Date(l.date) >= sevenDaysAgo);
 
-    let volume: 'low' | 'optimal' | 'high' | 'overtraining' = 'optimal';
-    if (weeklyLogs.length < 2) volume = 'low';
-    else if (weeklyLogs.length > 6) volume = 'overtraining';
-    else if (weeklyLogs.length > 4) volume = 'high';
+    let volume: 'low' | 'optimal' | 'high' | 'overtraining' = 'low';
+    const weeklyUniqueDays = new Set(weeklyLogs.map(l => new Date(l.date).toDateString())).size;
+
+    // Injury Risk Mapping:
+    // 5+ days/week -> Overtraining (HIGH Risk)
+    // 4 days/week -> High (MEDIUM Risk)
+    // 2-3 days/week -> Optimal (LOW Risk)
+    // 0-1 days/week -> Low (LOW Risk)
+    if (weeklyUniqueDays >= 5) volume = 'overtraining';
+    else if (weeklyUniqueDays === 4) volume = 'high';
+    else if (weeklyUniqueDays >= 2) volume = 'optimal';
+    else volume = 'low';
 
     return {
         daysSinceLastTraining: daysSince,
@@ -86,15 +96,19 @@ export const analyzeBalance = (logs: TrainingLog[]): BalanceAnalysis => {
     let noGiCount = 0;
 
     logs.forEach(log => {
-        const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase();
+        const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase().replace(/\s/g, '');
 
-        // Simple keyword matching
-        if (text.includes('top') || text.includes('pass') || text.includes('mount') || text.includes('side')) topCount++;
-        if (text.includes('bottom') || text.includes('guard') || text.includes('escape')) bottomCount++;
+        // Simple keyword matching (no-space comparison)
+        if (text.includes('top') || text.includes('pass') || text.includes('mount') || text.includes('side') ||
+            text.includes('탑') || text.includes('패스') || text.includes('마운트') || text.includes('사이드') || text.includes('상위') ||
+            text.includes('압박') || text.includes('스매시') || text.includes('무릎누르기')) topCount++;
+
+        if (text.includes('bottom') || text.includes('guard') || text.includes('escape') ||
+            text.includes('바텀') || text.includes('가드') || text.includes('이스케이프') || text.includes('하위') ||
+            text.includes('리텐션') || text.includes('브릿지')) bottomCount++;
 
         // User preference or specific logs (Assuming default Gi if not specified?)
-        // Let's look for explicit 'no-gi' or 'nogi'. Default to Gi.
-        if (text.includes('no-gi') || text.includes('nogi') || text.includes('no gi')) {
+        if (text.includes('no-gi') || text.includes('nogi') || text.includes('no gi') || text.includes('노기')) {
             noGiCount++;
         } else {
             giCount++; // Roughly assume Gi unless specified NoGi
@@ -133,14 +147,14 @@ export const identifyBlindSpots = (logs: TrainingLog[]): string[] => {
     const performedCategories = new Set<string>();
 
     recentLogs.forEach(log => {
-        const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase();
+        const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase().replace(/\s/g, '');
 
-        if (text.includes('stand') || text.includes('takedown') || text.includes('judo') || text.includes('wrestle')) performedCategories.add('Standing');
-        if (text.includes('guard') || text.includes('bottom')) performedCategories.add('Guard');
-        if (text.includes('pass') || text.includes('top')) performedCategories.add('Passing');
-        if (text.includes('side') || text.includes('north south') || text.includes('kesa')) performedCategories.add('Side');
-        if (text.includes('mount')) performedCategories.add('Mount');
-        if (text.includes('back') || text.includes('turtle')) performedCategories.add('Back');
+        if (text.includes('stand') || text.includes('takedown') || text.includes('judo') || text.includes('wrestle') || text.includes('스탠딩') || text.includes('테이크다운') || text.includes('유도') || text.includes('레슬링')) performedCategories.add('Standing');
+        if (text.includes('guard') || text.includes('bottom') || text.includes('가드') || text.includes('하프') || text.includes('클로즈') || text.includes('데라히바') || text.includes('버터플라이')) performedCategories.add('Guard');
+        if (text.includes('pass') || text.includes('top') || text.includes('패스') || text.includes('탑') || text.includes('압박')) performedCategories.add('Passing');
+        if (text.includes('side') || text.includes('northsouth') || text.includes('kesa') || text.includes('사이드') || text.includes('곁누르기') || text.includes('남북')) performedCategories.add('Side');
+        if (text.includes('mount') || text.includes('마운트')) performedCategories.add('Mount');
+        if (text.includes('back') || text.includes('turtle') || text.includes('백') || text.includes('터틀')) performedCategories.add('Back');
     });
 
     return allCategories.filter(cat => !performedCategories.has(cat));
@@ -160,12 +174,12 @@ export interface RadarStats {
 export const calculateRadarStats = (logs: TrainingLog[]): RadarStats[] => {
     // Official Categories mapping with keywords
     const categories = [
-        { key: 'Standing', keywords: ['standing', 'takedown', 'throw', 'wrestle', 'judo', 'single leg', 'double leg', 'stand'] },
-        { key: 'Guard', keywords: ['guard', 'bottom', 'spider', 'lasso', 'x-guard', 'half guard', 'retention'] },
-        { key: 'Passing', keywords: ['pass', 'top', 'torreando', 'knee cut', 'stack', 'pressure', 'smash'] },
-        { key: 'Side', keywords: ['side', 'side control', 'north south', 'kesa', 'cross face', 'underhook'] },
-        { key: 'Mount', keywords: ['mount', 's-mount', 'high mount'] },
-        { key: 'Back', keywords: ['back', 'back control', 'hooks', 'turtle', 'rear naked', 'choke'] }
+        { key: 'Standing', keywords: ['standing', 'takedown', 'throw', 'wrestle', 'judo', 'singleleg', 'doubleleg', 'stand', '스탠딩', '테이크다운', '메치기', '레슬링', '유도', '싱글렉', '더블렉'] },
+        { key: 'Guard', keywords: ['guard', 'bottom', 'spider', 'lasso', 'xguard', 'halfguard', 'retention', '가드', '바텀', '스파이더', '라쏘', '엑스가드', '하프가드', '클로즈가드', '데라히바', '버터플라이'] },
+        { key: 'Passing', keywords: ['pass', 'top', 'torreando', 'kneecut', 'stack', 'pressure', 'smash', '패스', '탑', '토레안도', '니컷', '스택', '압박', '스매시'] },
+        { key: 'Side', keywords: ['side', 'sidecontrol', 'northsouth', 'kesa', 'crossface', 'underhook', '사이드', '사이드컨트롤', '남북', '곁누르기', '크로스페이스', '언더훅'] },
+        { key: 'Mount', keywords: ['mount', 'smount', 'highmount', '마운트', 's마운트', '하이마운트'] },
+        { key: 'Back', keywords: ['back', 'backcontrol', 'hooks', 'turtle', 'rearnaked', 'choke', '백', '백컨트롤', '훅', '터틀', '리어네이키드', '초크'] }
     ];
 
     // Basic scoring: 1 occurrence = 20 points, max 100
@@ -174,18 +188,18 @@ export const calculateRadarStats = (logs: TrainingLog[]): RadarStats[] => {
     return categories.map(cat => {
         let score = 0;
         recentLogs.forEach(log => {
-            const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase();
+            const text = (log.notes + ' ' + (log.techniques?.join(' ') || '')).toLowerCase().replace(/\s/g, '');
             if (cat.keywords.some(k => text.includes(k))) {
-                score += 20;
+                score += 20; // Revert to +20 per occurrence
             }
         });
 
-        // Normalize 40-100 range for visuals (don't show 0 usually)
-        const finalScore = Math.min(100, Math.max(30, score));
+        // Lowered minimum visual baseline to 10 for better accuracy
+        const finalScore = Math.min(100, Math.max(10, score));
 
         return {
             subject: cat.key,
-            A: score === 0 ? 30 : finalScore, // Minimum visual baseline
+            A: finalScore,
             fullMark: 100
         };
     });
@@ -223,11 +237,11 @@ export const analyzeMomentum = (logs: TrainingLog[]): MomentumAnalysis => {
     const trend = weeks[0] > weeks[1] ? 'rising' : (weeks[0] < weeks[1] ? 'falling' : 'stable');
     const uiTrend = weeks[0] > weeks[1] ? 'up' : (weeks[0] < weeks[1] ? 'down' : 'stable');
 
-    // Simple Score: 0-100 based on consistency and volume trend
-    // Base 50 + (this week vs avg)
+    // Score: 0-100 based on consistency and volume trend
+    // Baseline 70. Reverted to be a bit more generous.
     const avg = (weeks[1] + weeks[2] + weeks[3]) / 3 || 1;
     const ratio = weeks[0] / avg;
-    const score = Math.min(100, Math.max(0, Math.round(50 * ratio)));
+    const score = Math.min(100, Math.max(0, Math.round(70 * ratio)));
 
     return {
         weeklyXPTrend: reversedWeeks,
