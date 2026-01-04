@@ -170,20 +170,23 @@ export const MasteryRoadmapWidget: React.FC = () => {
     if (!nextTechnique) {
         return (
             <div className="relative overflow-hidden w-full bg-zinc-900/40 border border-zinc-800/50 p-6 md:p-8 rounded-[32px] group hover:border-violet-500/30 transition-all">
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="text-center md:text-left">
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
-                            <Network className="w-5 h-5 text-violet-500" />
-                            나만의 로드맵 만들기
+                <div className="relative z-10 flex flex-row items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-lg md:text-xl font-bold text-white mb-1 flex items-center gap-2">
+                            <Network className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                            <span className="truncate">나만의 로드맵 만들기</span>
                         </h3>
-                        <p className="text-zinc-400 text-sm">아직 생성된 스킬 트리가 없습니다.<br />지금 바로 수련 계획을 세워보세요.</p>
+                        <p className="text-zinc-400 text-xs md:text-sm line-clamp-2">아직 생성된 스킬 트리가 없습니다. 지금 바로 수련 계획을 세워보세요.</p>
                     </div>
                     <button
-                        onClick={() => navigate(`/arena?tab=skills${treeId ? `&id=${treeId}` : ''}`)}
-                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 px-6 rounded-full transition-all flex items-center gap-2 shadow-lg shadow-violet-900/20"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/arena?tab=skills${treeId ? `&id=${treeId}` : ''}`);
+                        }}
+                        className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 px-4 md:py-3 md:px-6 rounded-full text-xs md:text-sm transition-all flex items-center gap-2 shadow-lg shadow-violet-900/20"
                     >
-                        스킬 트리 생성
-                        <ArrowRight className="w-4 h-4" />
+                        <span>생성</span>
+                        <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     </button>
                 </div>
             </div>
@@ -202,7 +205,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
             {/* Background Effects */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-violet-900/10 blur-[80px] rounded-full group-hover:bg-violet-900/20 transition-all" />
 
-            <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center justify-between">
+            <div className="relative z-10 flex flex-row gap-4 items-center justify-between">
 
                 {/* Left: Info */}
                 <div className="flex-1 min-w-0">
@@ -211,16 +214,16 @@ export const MasteryRoadmapWidget: React.FC = () => {
                             <Network className="w-3 h-3" />
                             Next Step
                         </span>
-                        <span className="text-zinc-500 text-xs font-medium">
+                        <span className="hidden sm:inline text-zinc-500 text-xs font-medium">
                             마스터리 로드맵
                         </span>
                     </div>
 
-                    <h3 className="text-2xl md:text-3xl font-black text-white mb-2 truncate leading-tight group-hover:text-violet-200 transition-colors">
+                    <h3 className="text-xl md:text-3xl font-black text-white mb-2 truncate leading-tight group-hover:text-violet-200 transition-colors">
                         {nextTechnique.title}
                     </h3>
 
-                    <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-4 mt-2 md:mt-4">
                         <div className="flex flex-col gap-1.5">
                             <div className="flex items-end gap-2 text-sm font-bold text-zinc-300">
                                 <span>Level {level}</span>
@@ -228,7 +231,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
                                     {isMastered ? 'Mastered' : 'Progress'}
                                 </span>
                             </div>
-                            <div className="w-48 h-2 bg-zinc-800/80 rounded-full overflow-hidden">
+                            <div className="w-32 sm:w-48 h-1.5 md:h-2 bg-zinc-800/80 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 shadow-[0_0_10px_rgba(139,92,246,0.5)] transition-all duration-1000"
                                     style={{ width: `${isMastered ? 100 : Math.max(5, progress)}%` }}
@@ -240,11 +243,11 @@ export const MasteryRoadmapWidget: React.FC = () => {
 
                 {/* Right: Action */}
                 <div className="flex-shrink-0">
-                    <button className="w-14 h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 group-hover:bg-violet-600 group-hover:border-violet-500 flex items-center justify-center transition-all duration-300 shadow-xl">
+                    <button className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 group-hover:bg-violet-600 group-hover:border-violet-500 flex items-center justify-center transition-all duration-300 shadow-xl">
                         {isMastered ? (
-                            <Star className="w-6 h-6 text-zinc-400 group-hover:text-white fill-current" />
+                            <Star className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current" />
                         ) : (
-                            <Play className="w-6 h-6 text-zinc-400 group-hover:text-white fill-current ml-1" />
+                            <Play className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current ml-0.5 md:ml-1" />
                         )}
                     </button>
                 </div>

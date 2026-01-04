@@ -4580,6 +4580,61 @@ export async function getDailyFreeCourse() {
     }
 }
 
+/**
+ * Fetches a drill to be featured as "Free for Today" based on the current date.
+ */
+export async function getDailyFreeDrill() {
+    try {
+        const { data, error } = await supabase
+            .from('drills')
+            .select(`
+                *,
+                creator:creators(name, profile_image)
+            `)
+            .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) return { data: null, error: null };
+
+        // Deterministic selection based on date
+        const today = new Date();
+        const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        const index = dateSeed % data.length;
+        const drill = data[index];
+
+        // Inline transformation to ensure safety if transformDrill is not available
+        const transformedDrill: Drill = {
+            id: drill.id,
+            title: drill.title,
+            description: drill.description,
+            creatorId: drill.creator_id,
+            creatorName: drill.creator?.name || 'Unknown',
+            category: drill.category,
+            difficulty: drill.difficulty,
+            thumbnailUrl: drill.thumbnail_url,
+            videoUrl: drill.video_url,
+            vimeoUrl: drill.vimeo_url,
+            descriptionVideoUrl: drill.description_video_url,
+            aspectRatio: '9:16',
+            views: drill.views || 0,
+            durationMinutes: drill.duration_minutes || 0,
+            length: drill.length || drill.duration,
+            tags: drill.tags || [],
+            likes: drill.likes || 0,
+            price: drill.price || 0,
+            createdAt: drill.created_at,
+        };
+
+        return {
+            data: transformedDrill,
+            error: null
+        };
+    } catch (error) {
+        console.error('Error fetching daily free drill:', error);
+        return { data: null, error };
+    }
+}
+
 // Alias for backward compatibility
 export const getDrillRoutines = getRoutines;
 
@@ -4838,13 +4893,24 @@ export async function getUserRoutines(userId: string) {
 
     const routines: DrillRoutine[] = [];
 
+    // Fetch user details for created routines
+    const { data: userData } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', userId)
+        .single();
+
     // Add purchased routines
     if (purchasedData) {
+        // Collect creator IDs to fetch names
+        const creatorIds = purchasedData.map((item: any) => item.routine?.creator_id).filter(Boolean);
+        const creatorsMap = await fetchCreatorsByIds(creatorIds);
+
         const purchased = purchasedData.map((item: any) => {
             const routine = item.routine;
             return {
                 ...transformDrillRoutine(routine),
-                creatorName: 'Unknown Creator',
+                creatorName: creatorsMap[routine.creator_id] || 'Unknown Creator',
                 purchasedAt: item.purchased_at
             };
         });
@@ -4855,7 +4921,8 @@ export async function getUserRoutines(userId: string) {
     if (createdData) {
         const created = createdData.map((routine: any) => ({
             ...transformDrillRoutine(routine),
-            creatorName: 'Me',
+            creatorName: userData?.name || 'Me', // Use actual name if available
+            creatorProfileImage: userData?.avatar_url,
             isOwned: true
         }));
         routines.push(...created);
@@ -4876,9 +4943,17 @@ export async function getUserCreatedRoutines(userId: string) {
         return { data: [], error };
     }
 
+    // Fetch user details
+    const { data: userData } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', userId)
+        .single();
+
     const routines = data.map((routine: any) => ({
         ...transformDrillRoutine(routine),
-        creatorName: 'Me',
+        creatorName: userData?.name || 'Me',
+        creatorProfileImage: userData?.avatar_url,
         isOwned: true
     }));
 

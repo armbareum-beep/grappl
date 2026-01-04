@@ -8,11 +8,11 @@ import {
 import { getUserProgress } from '../lib/api';
 import { getBeltInfo, getXPProgress } from '../lib/belt-system';
 import {
-  getRecentActivity, getDailyRoutine, getDailyFreeCourse,
+  getRecentActivity, getDailyRoutine, getDailyFreeDrill,
   getTrainingLogs, getPublicSparringVideos,
   searchContent, getDailyQuests
 } from '../lib/api';
-import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, TrainingLog } from '../types';
+import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, TrainingLog, Drill } from '../types';
 import { getWeeklyFeaturedChain } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { supabase } from '../lib/supabase';
@@ -31,7 +31,7 @@ export const Home: React.FC = () => {
   // Data states
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
-  const [freeCourse, setFreeCourse] = useState<Course | null>(null);
+  const [freeDrill, setFreeDrill] = useState<Drill | null>(null);
   const [logs, setLogs] = useState<TrainingLog[]>([]); // Added logs state
 
   // Diverse Recommendation States
@@ -98,9 +98,9 @@ export const Home: React.FC = () => {
         setRecentActivity(recent);
 
         // Fetch Weekly Chain + Standard Daily Items + LOGS
-        const [routineRes, courseRes, sparringRes, questsRes, weeklyChainRes, logsRes] = await Promise.all([
+        const [routineRes, drillRes, sparringRes, questsRes, weeklyChainRes, logsRes] = await Promise.all([
           getDailyRoutine(),
-          getDailyFreeCourse(),
+          getDailyFreeDrill(),
           getPublicSparringVideos(1),
           getDailyQuests(user.id),
           getWeeklyFeaturedChain(),
@@ -108,7 +108,7 @@ export const Home: React.FC = () => {
         ]);
 
         setDailyRoutine(routineRes.data);
-        setFreeCourse(courseRes.data);
+        setFreeDrill(drillRes.data);
         setQuests(questsRes || []);
 
         const combinedLogs = logsRes.data || [];
@@ -130,7 +130,7 @@ export const Home: React.FC = () => {
         }
 
         // Set Recommendations (Chain matches > Daily Fallbacks)
-        setRecCourse(chainCourse || courseRes.data);
+        setRecCourse(chainCourse || null);
         setRecRoutines(chainRoutines.length > 0 ? chainRoutines : (routineRes.data ? [routineRes.data] : []));
 
         if (chainSparring) {
@@ -153,7 +153,7 @@ export const Home: React.FC = () => {
 
   // Auto-slide carousel effect
   useEffect(() => {
-    const items = [dailyRoutine, freeCourse].filter(Boolean);
+    const items = [dailyRoutine, freeDrill].filter(Boolean);
     if (items.length <= 1) return;
 
     const timer = setInterval(() => {
@@ -161,7 +161,7 @@ export const Home: React.FC = () => {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [dailyRoutine, freeCourse]);
+  }, [dailyRoutine, freeDrill]);
 
   if (loading) {
     return <LoadingScreen message="홈 데이터 불러오는 중..." />;
@@ -175,7 +175,7 @@ export const Home: React.FC = () => {
 
   const slides = [
     ...(dailyRoutine ? [{ type: 'routine' as const, data: dailyRoutine }] : []),
-    ...(freeCourse ? [{ type: 'course' as const, data: freeCourse }] : [])
+    ...(freeDrill ? [{ type: 'drill' as const, data: freeDrill }] : [])
   ];
 
   return (
@@ -265,15 +265,15 @@ export const Home: React.FC = () => {
                     </div>
                   );
                 } else {
-                  const course = slide.data as Course;
+                  const drill = slide.data as Drill;
                   return (
                     <div
-                      key={`slide-course-${idx}`}
+                      key={`slide-drill-${idx}`}
                       className={`absolute inset-0 transition-all duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-12 z-0 pointer-events-none'
                         }`}
                     >
                       <div
-                        onClick={() => navigate(`/courses/${course.id}`)}
+                        onClick={() => navigate(`/drills/${drill.id}`)}
                         className="relative overflow-hidden w-full h-full bg-zinc-900 border border-white/5 px-6 pt-6 pb-20 md:p-8 rounded-[32px] cursor-pointer group transition-all duration-500 hover:border-violet-500/50 flex flex-col justify-center"
                       >
                         {/* Abstract Background Pattern */}
@@ -286,25 +286,25 @@ export const Home: React.FC = () => {
                           <div className="space-y-4 flex-1 max-w-2xl">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="px-3 py-1 bg-violet-600 text-white text-xs font-black rounded-full uppercase tracking-widest shadow-lg shadow-violet-900/20">
-                                데일리 클래스
+                                데일리 기술
                               </span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1">
-                                <Video className="w-3 h-3" /> 영상 강의
+                                <Video className="w-3 h-3" /> 무료 영상
                               </span>
                             </div>
                             <h2 className="text-white text-3xl md:text-5xl font-black tracking-tighter leading-[1.1] group-hover:text-violet-300 transition-colors">
-                              {course.title}
+                              {drill.title}
                             </h2>
                             <div className="flex items-center gap-4 text-sm text-zinc-400">
                               <span className="flex items-center gap-1">
-                                <Video className="w-4 h-4" /> {course.lessonCount || 0}개의 레슨
+                                <Clock className="w-4 h-4" /> {drill.durationMinutes || 1} min
                               </span>
                               <span className="flex items-center gap-1 text-violet-300 font-bold">
-                                <Zap className="w-4 h-4 fill-current text-yellow-500" /> +30 XP
+                                <Zap className="w-4 h-4 fill-current text-yellow-500" /> +15 XP
                               </span>
                             </div>
                             <p className="text-sm text-zinc-400 flex items-center gap-2 font-medium">
-                              <span className="text-zinc-300 text-base">{course.creatorName}</span>
+                              <span className="text-zinc-300 text-base">{drill.creatorName}</span>
                             </p>
                           </div>
 

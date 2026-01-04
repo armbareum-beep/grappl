@@ -3015,9 +3015,9 @@ export const TechniqueSkillTree: React.FC = () => {
             {
                 !user && String(viewMode) === 'map' && !hideGuestOverlay && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`fixed ${isMobile ? 'bottom-32' : 'bottom-10'} left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4`}
+                        initial={{ opacity: 0, y: 20, x: "-50%" }}
+                        animate={{ opacity: 1, y: 0, x: "-50%" }}
+                        className={`fixed ${isMobile ? 'bottom-32' : 'bottom-10'} left-1/2 z-[60] w-full max-w-sm px-4`}
                     >
                         <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 rounded-[2rem] w-full text-center overflow-hidden">
                             {/* Decorative Glow */}

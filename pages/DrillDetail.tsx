@@ -198,6 +198,17 @@ export const DrillDetail: React.FC = () => {
     };
 
     const checkUser = async () => {
+        let isDailyFree = false;
+        try {
+            const { getDailyFreeDrill } = await import('../lib/api');
+            const { data: freeDrill } = await getDailyFreeDrill();
+            if (freeDrill && freeDrill.id === id) {
+                isDailyFree = true;
+            }
+        } catch (e) {
+            console.warn('Error checking daily free status:', e);
+        }
+
         if (contextUser) {
             setUser(contextUser);
             const { data: userData } = await supabase
@@ -210,7 +221,7 @@ export const DrillDetail: React.FC = () => {
             setIsSubscriber(isSub);
 
             if (id && drill) {
-                let hasAccess = false;
+                let hasAccess = isDailyFree; // Start with daily free status
 
                 // Check if creator (HIGHEST PRIORITY)
                 if (drill.creatorId === contextUser.id) {
@@ -240,8 +251,11 @@ export const DrillDetail: React.FC = () => {
                 }
             }
         } else {
-            // Not logged in - check if first drill in routine (free preview)
-            if (id) {
+            // Not logged in
+            if (isDailyFree) {
+                setOwns(true);
+            } else if (id) {
+                // Check if first drill in routine (free preview)
                 try {
                     const { getRoutineByDrillId } = await import('../lib/api');
                     const { data: routineData } = await getRoutineByDrillId(id);
