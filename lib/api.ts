@@ -4977,44 +4977,26 @@ export async function getRandomSampleRoutines(limit: number = 3) {
         const creatorIds = data.map((r: any) => r.creator_id).filter(Boolean);
 
         // Fetch creator details
-        // internal helper or reuse fetchCreatorsByIds if available/exported, 
-        // but since this is inside api.ts, I can just use supabase directly or the helper function if it's in scope.
-        // I recall fetchCreatorsByIds is exported. Let's try to use it or reimplement simple fetch.
-        // Re-implementing simple fetch to be safe and avoid dependency issues if it's defined below/above in a weird way, 
-        // though it is defined in this file.
+        let creatorsMap: Record<string, { name: string, avatarUrl: string | null }> = {};
 
-        let creatorsMap: Record<string, string> = {};
         if (creatorIds.length > 0) {
             const uniqueIds = [...new Set(creatorIds)];
-            const { data: creators } = await supabase
-                .from('users') // Creators are users in this system generally, or 'creators' table? 
-            // Previous code in getUserRoutines used `fetchCreatorsByIds` which queries 'creators' table.
-            // However, user created routines in `getUserCreatedRoutines` queried 'users'.
-            // `getRandomSampleRoutines` likely fetches from 'routines' table which links to 'users' or 'creators'.
-            // Most likely 'users' if it's general users, but let's check `fetchCreatorsByIds` implementation in previous view.
-            // It queried `creators` table.
-            // But `getUserRoutines` change used `fetchCreatorsByIds` for purchased routines.
-            // Let's assume these are "Official" routines if they are random samples, maybe?
-            // Or just general public routines.
-            // Let's try to fetch from 'users' table as a fallback if 'creators' is empty, or just 'users' if that's where names are.
-            // Actually, `transformDrillRoutine` uses `creator_name` or `creator.name`.
-            // Let's use `fetchCreatorsByIds` logic but adapted here to be sure.
-
             const { data: users } = await supabase
                 .from('users')
-                .select('id, name')
+                .select('id, name, avatar_url')
                 .in('id', uniqueIds);
 
             if (users) {
                 users.forEach((u: any) => {
-                    creatorsMap[u.id] = u.name;
+                    creatorsMap[u.id] = { name: u.name, avatarUrl: u.avatar_url };
                 });
             }
         }
 
         const routines = data.map((r: any) => ({
             ...transformDrillRoutine(r),
-            creatorName: creatorsMap[r.creator_id] || 'Grapplay Team' // Fallback to Grapplay Team if name not found
+            creatorName: creatorsMap[r.creator_id]?.name || 'Grapplay Team',
+            creatorProfileImage: creatorsMap[r.creator_id]?.avatarUrl || null
         }));
 
         return { data: routines as DrillRoutine[], error: null };

@@ -138,8 +138,8 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                         <Save className="w-6 h-6 text-violet-500" />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-black text-white leading-tight">체인 저장</h3>
-                                        <p className="text-zinc-500 text-sm font-medium">나만의 시그니처 체인을 안전하게 보관합니다</p>
+                                        <h3 className="text-2xl font-black text-white leading-tight">스킬 로드맵 저장</h3>
+                                        <p className="text-zinc-500 text-sm font-medium">나만의 스킬 로드맵을 안전하게 보관합니다</p>
                                     </div>
                                 </div>
                                 {isPublic && (
@@ -151,14 +151,14 @@ export const SaveModal: React.FC<SaveModalProps> = ({
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">체인 이름</label>
+                                    <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">로드맵 이름</label>
                                     <input
                                         autoFocus
                                         type="text"
                                         value={titleInput}
                                         onChange={(e) => setTitleInput(e.target.value)}
                                         className="w-full bg-zinc-800/50 border border-zinc-700/50 focus:border-violet-500/50 focus:bg-zinc-800 rounded-2xl p-4 text-white font-bold outline-none transition-all focus:ring-4 focus:ring-violet-500/10 placeholder:text-zinc-600"
-                                        placeholder="나만의 체인 이름을 입력하세요"
+                                        placeholder="나만의 로드맵 이름을 입력하세요"
                                     />
                                 </div>
 
@@ -177,10 +177,10 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                             </div>
                                             <div className="text-left">
                                                 <div className={`text-sm font-black mb-0.5 ${isPublic ? 'text-white' : 'text-zinc-300'}`}>
-                                                    {isPublic ? '체인 라이브러리에 공개' : '나만 보기'}
+                                                    {isPublic ? '피드에 공개 및 공유' : '나만 보기'}
                                                 </div>
                                                 <p className="text-[10px] text-zinc-500 font-medium max-w-[160px]">
-                                                    {isPublic ? '커뮤니티의 다른 플레이어들에게 나의 체인을 공유합니다.' : '오직 나만 이 체인을 관리하고 열람합니다.'}
+                                                    {isPublic ? '커뮤니티 피드에 공유하고 다른 플레이어들과 소통합니다.' : '오직 나만 이 로드맵을 관리하고 열람합니다.'}
                                                 </p>
                                             </div>
                                         </div>
@@ -249,8 +249,8 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                         <Network className="w-6 h-6 text-violet-500" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-black text-white leading-tight">체인 공유하기</h3>
-                                        <p className="text-zinc-500 text-xs md:text-sm font-medium">당신의 시그니처 체인을 공유하고 커뮤니티 성장을 도와주세요!</p>
+                                        <h3 className="text-xl font-black text-white leading-tight">로드맵 공유하기</h3>
+                                        <p className="text-zinc-500 text-xs md:text-sm font-medium">당신의 스킬 로드맵을 피드에 공유하여 함께 성장하세요!</p>
                                     </div>
                                 </div>
                                 <div className="min-w-[80px] flex items-center justify-center px-3 py-1 bg-violet-600/20 rounded-full border border-violet-500/30 text-violet-300 text-[10px] font-black uppercase tracking-wider mt-1 whitespace-nowrap text-center">
@@ -354,13 +354,13 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                 {/* Description */}
                                 <div>
                                     <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">
-                                        <AlignLeft className="w-3 h-3 inline mr-1" />한줄 요약
+                                        <AlignLeft className="w-3 h-3 inline mr-1" />한줄 요약(피드 내용)
                                     </label>
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-2xl p-3 text-white text-sm font-medium outline-none h-20 resize-none focus:ring-2 focus:ring-violet-500/20"
-                                        placeholder="이 스킬 트리에 대한 간단한 설명을 적어주세요."
+                                        placeholder="이 스킬 로드맵에 대한 설명을 적어주세요. 피드에 함께 게시됩니다."
                                     />
                                 </div>
                             </div>
@@ -383,12 +383,12 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                     {isSaving ? (
                                         <>
                                             <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
-                                            공유 중...
+                                            저장 및 공유 중...
                                         </>
                                     ) : (
                                         <>
                                             <UploadCloud className="w-4 h-4" />
-                                            라이브러리에 공유하기
+                                            저장하고 피드에 공유
                                         </>
                                     )}
                                 </button>
@@ -418,8 +418,8 @@ export const SaveModal: React.FC<SaveModalProps> = ({
 
                             <h3 className="text-2xl font-black text-white mb-2">공유 완료!</h3>
                             <p className="text-zinc-400 text-sm mb-6">
-                                체인 라이브러리에 당신의 체인이 등록되었습니다.<br />
-                                커뮤니티가 당신의 시그니처 무브를 배울 수 있습니다!
+                                스킬 로드맵이 안전하게 저장되었고,<br />
+                                커뮤니티 피드에 공유되었습니다!
                             </p>
 
                             <button
@@ -470,8 +470,8 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
                                 <FolderOpen className="w-6 h-6 text-violet-500" />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-black text-white leading-tight">체인 불러오기</h3>
-                                <p className="text-zinc-500 text-sm font-medium">저장된 나의 테크닉 체인 목록</p>
+                                <h3 className="text-2xl font-black text-white leading-tight">마이 로드맵</h3>
+                                <p className="text-zinc-500 text-sm font-medium">저장된 나의 스킬 로드맵 목록</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all">
@@ -483,7 +483,7 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
                         {trees.length === 0 ? (
                             <div className="py-12 text-center bg-zinc-800/20 rounded-3xl border border-zinc-800/50 border-dashed">
                                 <FolderOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-                                <p className="text-zinc-600 font-bold uppercase text-xs tracking-widest">저장된 체인이 없습니다</p>
+                                <p className="text-zinc-600 font-bold uppercase text-xs tracking-widest">저장된 로드맵이 없습니다</p>
                             </div>
                         ) : (
                             trees.map(tree => (
