@@ -121,28 +121,28 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 100, scale: 0.95 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="relative bg-zinc-950 w-full h-full md:max-w-5xl md:h-[90vh] md:rounded-[2rem] border-y md:border border-zinc-800 flex flex-col shadow-2xl overflow-hidden"
+                className="relative bg-zinc-950 w-full h-full md:w-[95%] md:max-w-2xl md:h-[85vh] md:rounded-3xl border-y md:border border-zinc-800 flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 md:p-8 border-b border-zinc-800/50 bg-zinc-900/30 backdrop-blur-md">
+                <div className="flex items-center justify-between p-5 md:p-6 border-b border-zinc-800/50 bg-zinc-900/30 backdrop-blur-md">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">콘텐츠 추가</h2>
-                        <p className="text-sm md:text-base text-zinc-500 mt-1">로드맵에 추가할 레슨과 드릴을 선택하거나 한눈에 관리하세요.</p>
+                        <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">콘텐츠 추가</h2>
+                        <p className="text-xs md:text-sm text-zinc-500 mt-0.5">로드맵에 추가할 콘텐츠를 선택하세요.</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-12 h-12 flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-800 rounded-2xl"
+                        className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-800 rounded-xl"
                     >
-                        <X className="w-8 h-8" />
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Main Content Area */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Controls Bar */}
-                    <div className="flex flex-col gap-4 p-6 md:p-8 border-b border-zinc-800/30 bg-zinc-950">
+                    <div className="flex flex-col gap-3 p-5 md:p-6 border-b border-zinc-800/30 bg-zinc-950">
                         {/* Tabs */}
-                        <div className="flex items-center p-1 bg-zinc-900/50 rounded-2xl w-fit">
+                        <div className="flex items-center p-1 bg-zinc-900/50 rounded-xl w-fit">
                             {(['all', 'lesson', 'drill'] as const).map(tab => {
                                 const isActive = activeTab === tab;
                                 return (
@@ -152,14 +152,14 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                             setActiveTab(tab);
                                             setSearchQuery('');
                                         }}
-                                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${isActive
+                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${isActive
                                             ? 'bg-violet-600 text-white shadow-lg'
                                             : 'text-zinc-500 hover:text-zinc-300'
                                             }`}
                                     >
-                                        {tab === 'all' && <LayoutGrid className="w-4 h-4" />}
-                                        {tab === 'lesson' && <GraduationCap className="w-4 h-4" />}
-                                        {tab === 'drill' && <Target className="w-4 h-4" />}
+                                        {tab === 'all' && <LayoutGrid className="w-3.5 h-3.5" />}
+                                        {tab === 'lesson' && <GraduationCap className="w-3.5 h-3.5" />}
+                                        {tab === 'drill' && <Target className="w-3.5 h-3.5" />}
                                         {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : '드릴'}
                                     </button>
                                 );
@@ -167,29 +167,29 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                         </div>
 
                         {/* Search & Categories */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-3">
                             <div className="relative group">
-                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-violet-500 transition-colors" />
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-violet-500 transition-colors" />
                                 <input
                                     type="text"
-                                    placeholder="기술 제목 또는 강사 이름으로 검색 (예: 이바름)"
+                                    placeholder="검색 (제목, 강사 등)"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-zinc-50 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 focus:bg-zinc-900 transition-all text-lg"
+                                    className="w-full pl-11 pr-4 py-3 bg-zinc-900/50 border border-zinc-800/50 rounded-xl text-zinc-50 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 focus:bg-zinc-900 transition-all text-sm"
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
                                 {categories.map(category => (
                                     <button
                                         key={category}
                                         onClick={() => setActiveCategory(category)}
-                                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border ${activeCategory === category
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap border ${activeCategory === category
                                             ? 'bg-violet-600/10 text-violet-400 border-violet-500/50'
                                             : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-700'
                                             }`}
                                     >
-                                        {category === 'All' ? '전체 카테고리' : category}
+                                        {category === 'All' ? '전체' : category}
                                     </button>
                                 ))}
                             </div>
@@ -197,7 +197,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                     </div>
 
                     {/* Content List */}
-                    <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6 scrollbar-thin scrollbar-thumb-zinc-800 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="flex-1 overflow-y-auto px-5 md:px-6 py-5 scrollbar-thin scrollbar-thumb-zinc-800 grid grid-cols-1 gap-3">
                         {(activeTab === 'all' || activeTab === 'lesson') && filteredLessons.map(lesson => (
                             <ContentItemRow
                                 key={`lesson-${lesson.id}`}
@@ -245,29 +245,28 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 md:p-8 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="p-4 md:p-6 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-md flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-violet-600/20 flex items-center justify-center text-violet-400 font-bold text-lg">
+                        <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center text-violet-400 font-bold text-sm md:text-base">
                             {selectedItems.length}
                         </div>
-                        <div>
-                            <div className="text-white font-bold text-lg">아이템 선택됨</div>
-                            <div className="text-zinc-500 text-sm">로드맵에 추가될 준비가 되었습니다.</div>
+                        <div className="hidden sm:block">
+                            <div className="text-white font-bold text-sm md:text-base">아이템 선택됨</div>
                         </div>
                     </div>
-                    <div className="flex gap-3 w-full md:w-auto">
+                    <div className="flex gap-2 flex-1 md:flex-none">
                         <button
                             onClick={onClose}
-                            className="flex-1 md:flex-none px-8 py-4 bg-zinc-900 text-white rounded-2xl hover:bg-zinc-800 transition-all font-bold text-lg border border-zinc-800"
+                            className="flex-1 md:flex-none px-5 py-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-all font-bold text-sm border border-zinc-800"
                         >
-                            닫기
+                            취소
                         </button>
                         <button
                             onClick={handleAddSelected}
                             disabled={selectedItems.length === 0}
-                            className="flex-[2] md:flex-none px-12 py-4 bg-violet-600 text-white rounded-2xl hover:bg-violet-500 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed font-bold text-lg shadow-[0_10px_30px_rgba(139,92,246,0.3)] active:scale-95"
+                            className="flex-[2] md:flex-none px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed font-bold text-sm shadow-[0_4px_12px_rgba(139,92,246,0.3)] active:scale-95"
                         >
-                            선택한 콘텐츠 추가하기
+                            {selectedItems.length}개 추가하기
                         </button>
                     </div>
                 </div>
@@ -292,59 +291,59 @@ const ContentItemRow: React.FC<{
         onDragStart={onDragStart}
         onClick={() => !isAdded && onClick()}
         disabled={isAdded}
-        className={`w-full flex flex-row items-center bg-zinc-900/40 border rounded-[1.5rem] p-4 md:p-5 transition-all text-left group ${isAdded
+        className={`w-full flex flex-row items-center bg-zinc-900/40 border rounded-2xl p-3 md:p-4 transition-all text-left group ${isAdded
             ? 'border-zinc-800 opacity-40 cursor-not-allowed'
             : isSelected
-                ? 'border-violet-500 bg-violet-600/20 shadow-[0_10px_30px_rgba(139,92,246,0.2)]'
-                : 'border-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-900/60 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'
+                ? 'border-violet-500 bg-violet-600/10 shadow-[0_4px_12px_rgba(139,92,246,0.15)]'
+                : 'border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900/60 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)]'
             }`}
     >
         {/* Left Visual */}
-        <div className="relative w-20 h-20 md:w-24 md:h-24 bg-zinc-800 rounded-2xl flex-shrink-0 overflow-hidden shadow-inner">
+        <div className="relative w-16 h-16 md:w-20 md:h-20 bg-zinc-800 rounded-xl flex-shrink-0 overflow-hidden shadow-inner">
             {thumbnail ? (
-                <img src={thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                    <GraduationCap className="w-10 h-10 text-zinc-700" />
+                    <GraduationCap className="w-8 h-8 text-zinc-700" />
                 </div>
             )}
             {isSelected && (
-                <div className="absolute inset-0 bg-violet-600/40 flex items-center justify-center backdrop-blur-[2px]">
-                    <Check className="w-10 h-10 text-white" />
+                <div className="absolute inset-0 bg-violet-600/30 flex items-center justify-center backdrop-blur-[1px]">
+                    <Check className="w-8 h-8 text-white" />
                 </div>
             )}
         </div>
 
         {/* Center Info */}
-        <div className="flex-1 px-5 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${pathInfo.toLowerCase().includes('lesson') ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+        <div className="flex-1 px-4 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+                <span className={`px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black uppercase tracking-wider ${pathInfo.toLowerCase().includes('lesson') ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                     {pathInfo.toLowerCase().includes('lesson') ? 'LESSON' : 'DRILL'}
                 </span>
             </div>
-            <div className={`text-zinc-50 text-xl font-bold truncate transition-colors ${isSelected ? 'text-violet-300' : 'group-hover:text-white'}`}>{title}</div>
+            <div className={`text-zinc-50 text-sm md:text-base font-bold truncate transition-colors ${isSelected ? 'text-violet-300' : 'group-hover:text-white'}`}>{title}</div>
             {instructor && (
-                <div className="text-zinc-400 text-sm font-medium mt-0.5 flex items-center gap-1">
+                <div className="text-zinc-500 text-[10px] md:text-xs font-medium mt-0.5 flex items-center gap-1">
                     <div className="w-1 h-1 rounded-full bg-violet-500" />
                     {instructor}
                 </div>
             )}
-            <div className="text-zinc-600 text-xs mt-1 font-medium truncate">{pathInfo}</div>
+            <div className="text-zinc-600 text-[10px] md:text-[11px] mt-0.5 font-medium truncate">{pathInfo}</div>
         </div>
 
         {/* Right Action */}
-        <div className="flex-shrink-0 ml-2">
+        <div className="flex-shrink-0 ml-1">
             {isAdded ? (
-                <div className="flex flex-col items-center gap-1 opacity-50">
-                    <Check className="w-6 h-6 text-zinc-500" />
-                    <span className="text-[10px] font-bold text-zinc-500">ADDED</span>
+                <div className="flex flex-col items-center gap-0.5 opacity-50">
+                    <Check className="w-4 h-4 text-zinc-500" />
+                    <span className="text-[8px] font-bold text-zinc-500 uppercase">Added</span>
                 </div>
             ) : (
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isSelected
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isSelected
                     ? 'bg-violet-600 text-white shadow-lg rotate-0'
                     : 'bg-zinc-800 text-zinc-400 group-hover:bg-violet-600/20 group-hover:text-violet-400'
                     }`}>
-                    {isSelected ? <Check className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+                    {isSelected ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                 </div>
             )}
         </div>
