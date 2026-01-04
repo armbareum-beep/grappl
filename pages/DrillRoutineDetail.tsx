@@ -4,9 +4,11 @@ import { getDrillRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineV
 import { DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, List, Eye, ArrowLeft, Clock } from 'lucide-react';
+import { PlayCircle, List, Eye, ArrowLeft, Clock, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
 export const DrillRoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -17,6 +19,7 @@ export const DrillRoutineDetail: React.FC = () => {
     const [owns, setOwns] = useState(false);
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -185,7 +188,16 @@ export const DrillRoutineDetail: React.FC = () => {
 
                         {/* Info */}
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 mb-4">{routine.title}</h1>
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <h1 className="text-3xl font-bold text-slate-900">{routine.title}</h1>
+                                <button
+                                    onClick={() => setIsShareModalOpen(true)}
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                    title="루틴 공유하기"
+                                >
+                                    <Share2 className="w-6 h-6" />
+                                </button>
+                            </div>
 
                             {/* Creator */}
                             <div className="flex items-center gap-2 mb-6">
@@ -305,6 +317,28 @@ export const DrillRoutineDetail: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {routine && isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={routine.title}
+                        text={routine.description || `Check out this routine: ${routine.title}`}
+                        url={`${window.location.origin}/routines/${routine.id}`}
+                        imageUrl={routine.thumbnailUrl}
+                        initialStep="write"
+                        activityType="routine"
+                        metadata={{
+                            type: 'routine',
+                            routineId: routine.id,
+                            routineTitle: routine.title,
+                            sharedRoutine: routine // Pass full routine object for advanced card rendering
+                        }}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };

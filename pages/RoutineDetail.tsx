@@ -600,7 +600,7 @@ export const RoutineDetail: React.FC = () => {
             <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
-                        <button onClick={() => navigate(-1)} className="fixed top-24 left-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
+                        <button onClick={() => navigate(-1)} className="absolute top-6 left-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
                         {/* Hero Section */}
                         <div className="relative w-full pt-20 pb-16 flex flex-col items-center justify-center overflow-hidden">
                             {/* Routine Thumbnail Background */}

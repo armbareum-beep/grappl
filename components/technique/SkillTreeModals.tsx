@@ -44,10 +44,11 @@ interface SaveModalProps extends ModalProps {
     isSaving: boolean;
     thumbnailPreview?: string; // Data URL of the snapshot
     onCaptureThumbnail?: () => void; // Trigger to capture snapshot
+    mode?: 'save' | 'publish';
 }
 
 export const SaveModal: React.FC<SaveModalProps> = ({
-    isOpen, onClose, onSave, initialTitle, initialIsPublic, isSaving, thumbnailPreview, onCaptureThumbnail
+    isOpen, onClose, onSave, initialTitle, initialIsPublic, isSaving, thumbnailPreview, onCaptureThumbnail, mode = 'save'
 }) => {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [titleInput, setTitleInput] = useState(initialTitle);
@@ -61,27 +62,26 @@ export const SaveModal: React.FC<SaveModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            setStep(1);
+            setStep(mode === 'publish' ? 2 : 1);
             setTitleInput(initialTitle);
-            setIsPublic(initialIsPublic);
+            setIsPublic(mode === 'publish' ? true : initialIsPublic);
             // Reset metadata
-            setDescription('');
-            setDifficulty('Intermediate');
-            setTags([]);
-            setCurrentTag('');
+            if (mode === 'publish' && !description) {
+                setDescription('');
+            }
         }
-    }, [isOpen, initialTitle, initialIsPublic]);
+    }, [isOpen, initialTitle, initialIsPublic, mode]);
 
-    // Effect to trigger capture when entering Step 2
+    // Effect to trigger capture when entering Step 2 (Publish Mode)
     useEffect(() => {
-        if (step === 2 && onCaptureThumbnail && !thumbnailPreview) {
+        if ((step === 2 || mode === 'publish') && onCaptureThumbnail && !thumbnailPreview) {
             // Give a small delay for modal transition
             const timer = setTimeout(() => {
                 onCaptureThumbnail();
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [step, onCaptureThumbnail, thumbnailPreview]);
+    }, [step, mode, onCaptureThumbnail, thumbnailPreview]);
 
     const handleAddTag = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && currentTag.trim()) {
@@ -101,7 +101,8 @@ export const SaveModal: React.FC<SaveModalProps> = ({
             difficulty: isPublic ? difficulty : undefined,
             tags: isPublic ? tags : undefined,
         });
-        if (isPublic) {
+
+        if (isPublic && mode === 'publish') {
             setStep(3); // Show success step for public upload
         } else {
             onClose(); // Just close for private save
@@ -121,7 +122,11 @@ export const SaveModal: React.FC<SaveModalProps> = ({
             />
 
             <AnimatePresence mode="wait">
-                {step === 1 && (
+                {/* 
+                    MODE: SAVE (Step 1)
+                    Simple save dialog - primarily for private saving or basic public toggle
+                */}
+                {step === 1 && mode === 'save' && (
                     <motion.div
                         key="step1"
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -129,24 +134,17 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                         exit={{ opacity: 0, scale: 0.95, x: -20 }}
                         className="relative bg-zinc-900 border border-zinc-800 rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl ring-1 ring-white/10"
                     >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/20 blur-[60px] rounded-full -mr-16 -mt-16" />
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-[60px] rounded-full -mr-16 -mt-16" />
 
                         <div className="p-8">
-                            <div className="flex items-start justify-between mb-8">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-violet-500/10 rounded-2xl flex items-center justify-center border border-violet-500/20">
-                                        <Save className="w-6 h-6 text-violet-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-2xl font-black text-white leading-tight">스킬 로드맵 저장</h3>
-                                        <p className="text-zinc-500 text-sm font-medium">나만의 스킬 로드맵을 안전하게 보관합니다</p>
-                                    </div>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center border border-zinc-700">
+                                    <Save className="w-6 h-6 text-zinc-300" />
                                 </div>
-                                {isPublic && (
-                                    <div className="min-w-[80px] flex items-center justify-center px-3 py-1 bg-violet-600/20 rounded-full border border-violet-500/30 text-violet-300 text-[10px] font-black uppercase tracking-wider mt-1 whitespace-nowrap text-center">
-                                        Step 1/2
-                                    </div>
-                                )}
+                                <div>
+                                    <h3 className="text-2xl font-black text-white leading-tight">저장하기</h3>
+                                    <p className="text-zinc-500 text-sm font-medium">현재 상태를 내 보관함에 저장합니다</p>
+                                </div>
                             </div>
 
                             <div className="space-y-6">
@@ -163,34 +161,31 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-3 block px-1">공개 여부</label>
                                     <div
                                         onClick={() => setIsPublic(!isPublic)}
-                                        className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${isPublic
-                                            ? 'bg-violet-600/10 border-violet-500/50 shadow-[0_0_30px_rgba(139,92,246,0.1)]'
-                                            : 'bg-zinc-800/30 border-zinc-700/50'
+                                        className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${isPublic
+                                            ? 'bg-violet-600/10 border-violet-500/30'
+                                            : 'bg-zinc-800/20 border-zinc-800 hover:bg-zinc-800/50'
                                             }`}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isPublic ? 'bg-violet-600 shadow-lg shadow-violet-600/20' : 'bg-zinc-800 border border-zinc-700'}`}>
-                                                {isPublic ? <Globe className="w-5 h-5 text-white" /> : <Lock className="w-5 h-5 text-zinc-500" />}
-                                            </div>
-                                            <div className="text-left">
-                                                <div className={`text-sm font-black mb-0.5 ${isPublic ? 'text-white' : 'text-zinc-300'}`}>
-                                                    {isPublic ? '피드에 공개 및 공유' : '나만 보기'}
-                                                </div>
-                                                <p className="text-[10px] text-zinc-500 font-medium max-w-[160px]">
-                                                    {isPublic ? '커뮤니티 피드에 공유하고 다른 플레이어들과 소통합니다.' : '오직 나만 이 로드맵을 관리하고 열람합니다.'}
-                                                </p>
+                                        <div className="flex items-center gap-3">
+                                            {isPublic ? <Globe className="w-4 h-4 text-violet-400" /> : <Lock className="w-4 h-4 text-zinc-500" />}
+                                            <div className="text-xs font-bold text-zinc-400">
+                                                {isPublic ? '공개 모드로 저장' : '비공개(나만 보기)로 저장'}
                                             </div>
                                         </div>
-                                        <div className={`w-12 h-6 rounded-full relative transition-colors ${isPublic ? 'bg-violet-500' : 'bg-zinc-700'}`}>
+                                        <div className={`w-8 h-4 rounded-full relative transition-colors ${isPublic ? 'bg-violet-500' : 'bg-zinc-700'}`}>
                                             <motion.div
-                                                animate={{ x: isPublic ? 24 : 4 }}
-                                                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-md"
+                                                animate={{ x: isPublic ? 16 : 2 }}
+                                                className="absolute top-1 left-0 w-2 h-2 bg-white rounded-full shadow-md"
                                             />
                                         </div>
                                     </div>
+                                    {isPublic && (
+                                        <p className="text-[10px] text-zinc-500 mt-2 px-1">
+                                            * 공개 모드로 저장하면 나중에 피드에 공유할 수 있습니다.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -202,37 +197,26 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                     취소
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        if (isPublic) {
-                                            setStep(2);
-                                        } else {
-                                            handleSave();
-                                        }
-                                    }}
+                                    onClick={handleSave}
                                     disabled={!titleInput.trim()}
                                     className={`flex-1 py-4 font-black text-sm rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 ${isPublic
-                                        ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-900/20 hover:shadow-violet-500/30'
-                                        : 'bg-zinc-700 hover:bg-zinc-600 text-white'
+                                        ? 'bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-900/20'
+                                        : 'bg-zinc-200 hover:bg-white text-black'
                                         }`}
                                 >
-                                    {isPublic ? (
-                                        <>
-                                            다음 단계
-                                            <ChevronRight className="w-4 h-4" />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="w-4 h-4" />
-                                            비공개 저장
-                                        </>
-                                    )}
+                                    <Save className="w-4 h-4" />
+                                    {isSaving ? '저장 중...' : '저장하기'}
                                 </button>
                             </div>
                         </div>
                     </motion.div>
                 )}
 
-                {step === 2 && (
+                {/* 
+                    MODE: PUBLISH (Step 2)
+                    Feed sharing wizard
+                */}
+                {(step === 2 || mode === 'publish') && step !== 3 && step !== 1 && (
                     <motion.div
                         key="step2"
                         initial={{ opacity: 0, scale: 0.95, x: 20 }}
@@ -249,12 +233,9 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                         <Network className="w-6 h-6 text-violet-500" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-black text-white leading-tight">로드맵 공유하기</h3>
-                                        <p className="text-zinc-500 text-xs md:text-sm font-medium">당신의 스킬 로드맵을 피드에 공유하여 함께 성장하세요!</p>
+                                        <h3 className="text-xl font-black text-white leading-tight">로드맵 게시하기</h3>
+                                        <p className="text-zinc-500 text-xs md:text-sm font-medium">커뮤니티 피드에 공유하여 다른 사람들과 기술을 나누세요!</p>
                                     </div>
-                                </div>
-                                <div className="min-w-[80px] flex items-center justify-center px-3 py-1 bg-violet-600/20 rounded-full border border-violet-500/30 text-violet-300 text-[10px] font-black uppercase tracking-wider mt-1 whitespace-nowrap text-center">
-                                    Step 2/2
                                 </div>
                             </div>
 
@@ -270,14 +251,27 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                         </div>
                                     )}
                                     <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 rounded text-[10px] text-white font-bold backdrop-blur-sm">
-                                        PREVIEW
+                                        THUMBNAIL
                                     </div>
+                                </div>
+
+                                {/* Title */}
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">
+                                        <AlignLeft className="w-3 h-3 inline mr-1" />게시물 제목
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={titleInput}
+                                        onChange={(e) => setTitleInput(e.target.value)}
+                                        className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3 py-3 text-white font-bold outline-none focus:border-violet-500/50"
+                                    />
                                 </div>
 
                                 {/* Difficulty */}
                                 <div>
                                     <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">
-                                        <AlignLeft className="w-3 h-3 inline mr-1" />난이도
+                                        <Trophy className="w-3 h-3 inline mr-1" />난이도
                                     </label>
                                     <div className="flex gap-2">
                                         {['Beginner', 'Intermediate', 'Advanced'].map((lvl) => (
@@ -327,7 +321,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                     </div>
 
                                     <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">
-                                        <Hash className="w-3 h-3 inline mr-1" />커스텀 태그 (Enter로 추가)
+                                        <Hash className="w-3 h-3 inline mr-1" />태그
                                     </label>
                                     <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-2xl p-2 flex flex-wrap gap-2 focus-within:ring-2 ring-violet-500/20 transition-all">
                                         {tags.map(tag => (
@@ -354,20 +348,20 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                 {/* Description */}
                                 <div>
                                     <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 block px-1">
-                                        <AlignLeft className="w-3 h-3 inline mr-1" />한줄 요약(피드 내용)
+                                        <AlignLeft className="w-3 h-3 inline mr-1" />내용 설명
                                     </label>
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-2xl p-3 text-white text-sm font-medium outline-none h-20 resize-none focus:ring-2 focus:ring-violet-500/20"
-                                        placeholder="이 스킬 로드맵에 대한 설명을 적어주세요. 피드에 함께 게시됩니다."
+                                        placeholder="이 로드맵이 어떤 기술들을 다루는지 설명해주세요."
                                     />
                                 </div>
                             </div>
 
                             <div className="flex gap-3 mt-8">
                                 <button
-                                    onClick={() => setStep(1)}
+                                    onClick={onClose}
                                     className="px-4 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-2xl transition-all"
                                 >
                                     <ArrowLeft className="w-5 h-5" />
@@ -383,12 +377,12 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                     {isSaving ? (
                                         <>
                                             <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
-                                            저장 및 공유 중...
+                                            게시 중...
                                         </>
                                     ) : (
                                         <>
                                             <UploadCloud className="w-4 h-4" />
-                                            저장하고 피드에 공유
+                                            저장하고 피드에 게시
                                         </>
                                     )}
                                 </button>
@@ -538,5 +532,3 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
         </div>
     );
 };
-
-// ConfirmModal is now imported from ../common/ConfirmModal

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getLessonById, getCourseById, checkCourseOwnership } from '../lib/api';
-import { Lock } from 'lucide-react';
+import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
+import { Lock, Heart } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -19,6 +20,7 @@ export const LessonDetail: React.FC = () => {
     const [course, setCourse] = useState<Course | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
+    const [isLiked, setIsLiked] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     useEffect(() => {
@@ -32,6 +34,11 @@ export const LessonDetail: React.FC = () => {
                 setLesson(lessonData);
 
                 if (lessonData) {
+                    // Check like status
+                    if (user) {
+                        checkLessonLiked(user.id, lessonData.id).then(({ liked }) => setIsLiked(liked));
+                    }
+
                     let courseData = null;
                     if (lessonData.courseId) {
                         courseData = await getCourseById(lessonData.courseId);
@@ -65,12 +72,7 @@ export const LessonDetail: React.FC = () => {
     }
 
     if (!user) {
-        return <ErrorScreen
-            title="로그인이 필요합니다"
-            error="레슨을 시청하려면 로그인이 필요합니다."
-            resetMessage="로그인 페이지로 이동합니다."
-            onReset={() => navigate('/login', { state: { from: location } })}
-        />;
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
     if (!lesson) {
@@ -82,38 +84,15 @@ export const LessonDetail: React.FC = () => {
     }
 
     return (
-        <div className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30">
-            {/* Header (Transparent Sticky) */}
-            <div className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900">
-                <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group"
-                    >
-                        <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center group-hover:bg-zinc-800 transition-colors">
-                            <ArrowLeft className="w-4 h-4" />
-                        </div>
-                        <span className="font-medium text-sm">뒤로 가기</span>
-                    </button>
-                    <div className="flex items-center gap-2">
-                        {course && (
-                            <Link
-                                to={`/courses/${course.id}`}
-                                className="text-xs font-bold text-violet-400 uppercase tracking-wider hover:text-violet-300 transition-colors px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20"
-                            >
-                                전체 클래스 보기
-                            </Link>
-                        )}
-                        <button
-                            onClick={() => setIsShareModalOpen(true)}
-                            className="p-2.5 rounded-full bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800"
-                            title="공유하기"
-                        >
-                            <Share2 className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30 relative">
+            {/* Floating Back Button */}
+            <button
+                onClick={() => navigate(-1)}
+                className="absolute top-6 left-4 lg:left-8 z-50 w-12 h-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all shadow-xl"
+                title="뒤로 가기"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
 
             {/* Main Content Area */}
             <div className="pt-24 pb-20 px-4 lg:px-8 max-w-[1800px] mx-auto">
@@ -201,11 +180,33 @@ export const LessonDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight mb-8">
+                            <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight mb-6">
                                 {lesson.title}
                             </h1>
 
-                            <div className="border-t border-zinc-900 pt-8 mt-8">
+                            {/* Actions: Like & Share */}
+                            <div className="flex items-center gap-3 mb-8">
+                                <button
+                                    onClick={async () => {
+                                        if (!user || !lesson) return navigate('/login');
+                                        const { liked } = await toggleLessonLike(user.id, lesson.id);
+                                        setIsLiked(liked);
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all text-sm font-bold ${isLiked ? 'bg-zinc-900 border-red-500/50 text-red-500' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                                >
+                                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                                    좋아요
+                                </button>
+                                <button
+                                    onClick={() => setIsShareModalOpen(true)}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800 text-sm font-bold"
+                                >
+                                    <Share2 className="w-4 h-4" />
+                                    공유하기
+                                </button>
+                            </div>
+
+                            <div className="border-t border-zinc-900 pt-8">
                                 <h3 className="text-zinc-100 text-lg font-bold mb-4 flex items-center gap-2">
                                     레슨 설명
                                 </h3>

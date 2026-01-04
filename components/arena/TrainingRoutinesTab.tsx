@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlaySquare, Clock, Dumbbell, Check, CalendarCheck, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap, Calendar } from 'lucide-react';
+import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap, Calendar, Share2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -12,6 +12,8 @@ import { ErrorScreen } from '../ErrorScreen';
 import { Modal } from '../Modal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { PromptModal } from '../common/PromptModal';
+
+const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 
 export const TrainingRoutinesTab: React.FC = () => {
@@ -42,6 +44,8 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     // Custom Modal States
     const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [routineToShare, setRoutineToShare] = useState<DrillRoutine | null>(null);
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
         title: string;
@@ -599,7 +603,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         }}
                                         className={`bg-zinc-900 rounded-xl border transition-all cursor-pointer group relative p-4
                                             ${isSelected ? 'ring-2 ring-violet-500 border-transparent' : ''}
-                                            ${isCompleted ? 'border-emerald-500/50' : 'border-zinc-800 hover:border-violet-500/50'}
+                                            border-zinc-800 hover:border-violet-500/50
                                         `}
                                     >
                                         <div className="flex items-center gap-3">
@@ -612,23 +616,16 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         <PlaySquare className="w-6 h-6 text-zinc-700" />
                                                     </div>
                                                 )}
-                                                {isCompleted && (
-                                                    <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-[1px]" />
-                                                )}
+                                                {/* Badge/Overlay removed */}
                                             </div>
 
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className={`font-bold text-sm truncate ${isCompleted ? 'text-emerald-400' : 'text-zinc-100'}`}>
+                                                    <h3 className={`font-bold text-sm truncate text-zinc-100`}>
                                                         {routine.title}
                                                     </h3>
-                                                    {isCompleted && (
-                                                        <div className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0">
-                                                            <CalendarCheck className="w-2.5 h-2.5" />
-                                                            완료
-                                                        </div>
-                                                    )}
+                                                    {/* Badge removed */}
                                                 </div>
                                                 <div className="flex items-center gap-3 text-xs text-zinc-400 mb-2">
                                                     <span className="flex items-center gap-1">
@@ -659,9 +656,20 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Action Buttons - Only Delete (Show only for logged in user) */}
+                                            {/* Action Buttons */}
                                             {user && (
                                                 <div className="flex gap-2 flex-shrink-0">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setRoutineToShare(routine);
+                                                            setIsShareModalOpen(true);
+                                                        }}
+                                                        className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:bg-violet-500 hover:text-white transition-all"
+                                                        title="루틴 공유"
+                                                    >
+                                                        <Share2 className="w-4 h-4" />
+                                                    </button>
                                                     <button
                                                         onClick={(e) => handleDeleteRoutine(e, routine.id)}
                                                         className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:bg-red-500 hover:text-white transition-all"
@@ -694,24 +702,32 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         }}
                                         className={`bg-zinc-900 rounded-2xl overflow-hidden border transition-all cursor-pointer group relative 
                                             ${isSelected ? 'ring-2 ring-violet-500 border-transparent shadow-[0_0_15px_rgba(124,58,237,0.5)]' : ''}
-                                            ${isCompleted ? 'border-emerald-500/50' : 'border-zinc-800 hover:border-violet-500/50'}
+                                            border-zinc-800 hover:border-violet-500/50
                                         `}
                                     >
                                         <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
-                                            {isCompleted && (
-                                                <div className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
-                                                    <CalendarCheck className="w-3 h-3" />
-                                                    <span>완료</span>
-                                                </div>
-                                            )}
+                                            {/* Badge removed as per request */}
                                             {user && (
-                                                <button
-                                                    onClick={(e) => handleDeleteRoutine(e, routine.id)}
-                                                    className="p-1.5 bg-zinc-800/80 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
-                                                    title="루틴 삭제"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setRoutineToShare(routine);
+                                                            setIsShareModalOpen(true);
+                                                        }}
+                                                        className="p-1.5 bg-zinc-800/80 hover:bg-violet-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                                                        title="루틴 공유"
+                                                    >
+                                                        <Share2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteRoutine(e, routine.id)}
+                                                        className="p-1.5 bg-zinc-800/80 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                                                        title="루틴 삭제"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
 
@@ -721,8 +737,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                     draggable={false}
                                                     src={routine.thumbnailUrl}
                                                     alt={routine.title}
-                                                    className={`w-full h-full object-cover transition-transform duration-500 ${isCompleted ? 'grayscale-[0.5]' : 'group-hover:scale-105'
-                                                        }`}
+                                                    className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105`}
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50">
@@ -730,8 +745,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                     <span className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest">No Thumbnail</span>
                                                 </div>
                                             )}
-                                            <div className={`absolute inset-0 transition-colors ${isCompleted ? 'bg-black/40' : 'bg-black/20 group-hover:bg-black/0'
-                                                }`} />
+                                            <div className={`absolute inset-0 transition-colors bg-black/20 group-hover:bg-black/0`} />
 
                                             <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
@@ -739,8 +753,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="p-4">
-                                            <h3 className={`font-bold mb-1 transition-colors ${isCompleted ? 'text-emerald-400' : 'text-zinc-100 group-hover:text-violet-400'
-                                                }`}>
+                                            <h3 className={`font-bold mb-1 transition-colors text-zinc-100 group-hover:text-violet-400`}>
                                                 {routine.title}
                                             </h3>
                                             <p className="text-xs text-zinc-500 mb-1.5 whitespace-pre-wrap">{routine.description}</p>
@@ -908,6 +921,30 @@ export const TrainingRoutinesTab: React.FC = () => {
                 message={confirmConfig.message}
                 variant={confirmConfig.variant}
             />
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {routineToShare && isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => {
+                            setIsShareModalOpen(false);
+                            setRoutineToShare(null);
+                        }}
+                        title={routineToShare.title}
+                        text={routineToShare.description || `Check out this routine: ${routineToShare.title}`}
+                        url={`${window.location.origin}/routines/${routineToShare.id}`}
+                        imageUrl={routineToShare.thumbnailUrl}
+                        initialStep="write"
+                        activityType="routine"
+                        metadata={{
+                            type: 'routine',
+                            routineId: routineToShare.id,
+                            routineTitle: routineToShare.title,
+                            sharedRoutine: routineToShare
+                        }}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };

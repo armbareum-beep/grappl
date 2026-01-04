@@ -97,6 +97,8 @@ export const JournalTab: React.FC = () => {
     };
 
     const [shareImage, setShareImage] = useState<string | null>(null);
+    const [shareTitle, setShareTitle] = useState("수련 통계 공유");
+    const [shareText, setShareText] = useState("오늘의 수련 현황입니다! 🥋🔥");
 
     // Refs for capture
     const statsGraphRef = useRef<HTMLDivElement>(null);
@@ -368,6 +370,8 @@ export const JournalTab: React.FC = () => {
             });
 
             setShareImage(dataUrl);
+            setShareTitle("수련 통계 공유");
+            setShareText("오늘의 수련 현황입니다! 🥋🔥");
             openJournalShareModal(true); // Always manual here
         } catch (err) {
             console.error('Capture failed', err);
@@ -377,6 +381,50 @@ export const JournalTab: React.FC = () => {
                 element.style.cssText = original.cssText;
                 element.scrollLeft = original.scrollLeft;
             });
+        }
+    };
+
+    const handleShareItem = async (item: TimelineItem) => {
+        const elementId = `journal-card-${item.type}-${item.data.id}`;
+        const element = document.getElementById(elementId);
+
+        if (!element) {
+            console.error('Element not found:', elementId);
+            return;
+        }
+
+        try {
+            const filterExcludeButtons = (node: HTMLElement) => node.tagName !== 'BUTTON';
+            const dataUrl = await toPng(element, {
+                cacheBust: true,
+                backgroundColor: '#18181b', // zinc-900
+                pixelRatio: 2,
+                skipFonts: true,
+                filter: filterExcludeButtons,
+                style: {
+                    margin: '0',
+                    border: '1px solid #27272a', // zinc-800
+                    borderRadius: '16px',
+                }
+            });
+
+            setShareImage(dataUrl);
+            const dateStr = format(parseISO(item.data.date), 'M월 d일');
+            setShareTitle(`${dateStr} 수련 일지`);
+
+            let text = `${dateStr} 수련 기록입니다.`;
+            if (item.data.notes) {
+                text += `\n\n${item.data.notes}`;
+            }
+            if (item.type === 'sparring') {
+                text += `\n\nvs ${item.data.opponentName} (${item.data.result === 'win' ? '승' : item.data.result === 'loss' ? '패' : '무'})`;
+            }
+
+            setShareText(text);
+            openJournalShareModal(true);
+        } catch (err) {
+            console.error('Journal capture failed', err);
+            toastError('이미지 저장에 실패했습니다.');
         }
     };
 
@@ -648,7 +696,11 @@ export const JournalTab: React.FC = () => {
                         const isSparring = item.type === 'sparring';
                         const date = parseISO(item.data.date);
                         return (
-                            <div key={`${item.type}-${item.data.id}`} className="bg-zinc-900/80 rounded-2xl border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-all shadow-lg group">
+                            <div
+                                key={`${item.type}-${item.data.id}`}
+                                id={`journal-card-${item.type}-${item.data.id}`}
+                                className="bg-zinc-900/80 rounded-2xl border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-all shadow-lg group relative"
+                            >
                                 <div className="p-5 flex items-start justify-between">
                                     <div className="flex gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-lg ${isSparring
@@ -671,9 +723,18 @@ export const JournalTab: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <button onClick={() => setItemToDelete(item)} className="p-2 text-slate-500 hover:text-red-500">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => handleShareItem(item)}
+                                            className="p-2 text-slate-500 hover:text-white transition-colors"
+                                            title="공유하기"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => setItemToDelete(item)} className="p-2 text-slate-500 hover:text-red-500 transition-colors">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                                 {(isSparring || item.data.notes) && (
                                     <div className="px-5 pb-5">
@@ -848,8 +909,8 @@ export const JournalTab: React.FC = () => {
                         setIsJournalShareModalOpen(false);
                         setShareImage(null);
                     }}
-                    title="수련 통계 공유"
-                    text="오늘의 수련 현황입니다! 🥋🔥"
+                    title={shareTitle}
+                    text={shareText}
                     imageUrl={shareImage}
                     initialStep="select"
                     activityType="general"

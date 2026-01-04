@@ -12,6 +12,8 @@ import { ErrorScreen } from '../components/ErrorScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
+
 export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -24,6 +26,7 @@ export const DrillDetail: React.FC = () => {
     const [showQuestComplete, setShowQuestComplete] = useState(false);
     const [showAddToRoutine, setShowAddToRoutine] = useState(false);
     const [associatedRoutineId, setAssociatedRoutineId] = useState<string | null>(null);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     // Video player state
     const [isPlaying, setIsPlaying] = useState(true);
@@ -439,21 +442,8 @@ export const DrillDetail: React.FC = () => {
         }
     };
 
-    const handleShare = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: drill?.title,
-                    text: `Check out this drill: ${drill?.title}`,
-                    url: window.location.href
-                });
-            } catch (err) {
-                console.log('Share error:', err);
-            }
-        } else {
-            navigator.clipboard.writeText(window.location.href);
-            alert('링크가 복사되었습니다!');
-        }
+    const handleShare = () => {
+        setIsShareModalOpen(true);
     };
 
     if (loading) {
@@ -782,6 +772,28 @@ export const DrillDetail: React.FC = () => {
                     }}
                 />
             )}
+
+            {/* Share Modal Portal */}
+            <React.Suspense fallback={null}>
+                {drill && isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={drill.title}
+                        text={drill.description || `Check out this drill: ${drill.title}`}
+                        url={`${window.location.origin}/drills/${drill.id}`}
+                        imageUrl={drill.thumbnailUrl}
+                        initialStep="write"
+                        activityType="drill_reel"
+                        metadata={{
+                            type: 'drill',
+                            drillId: drill.id,
+                            drillTitle: drill.title,
+                            sharedDrill: drill
+                        }}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };

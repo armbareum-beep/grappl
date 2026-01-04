@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle, Map, Signpost, BookOpen, Zap, Activity } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle, Map, Signpost, BookOpen, Zap, Activity, Clock } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -345,14 +345,14 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
     if (cardType === 'roadmap') {
         cardTitle = post.metadata?.treeTitle || '스킬 로드맵';
-        cardImage = images[0] || post.metadata?.sharedImage;
+        cardImage = images[0] || post.metadata?.sharedImage || post.mediaUrl || '';
         cardLabel = 'SKILL ROADMAP';
         cardIcon = <Signpost className="w-3 h-3" />;
         cardSubtitle = `${post.userName || 'Anonymous'}님의 기술 추천 경로`;
         cardNavigatePath = `/technique-roadmap?id=${treeId || post.metadata?.treeId}`;
     } else if (cardType === 'routine') {
         cardTitle = routineData?.title || post.metadata?.sharedTitle || '드릴 루틴';
-        cardImage = routineData?.thumbnailUrl || post.metadata?.sharedImage || images[0];
+        cardImage = routineData?.thumbnailUrl || post.metadata?.routineThumbnailUrl || post.metadata?.sharedImage || (images && images.length > 0 ? images[0] : '') || post.mediaUrl || '';
         cardLabel = 'DRILL ROUTINE';
         cardIcon = <Zap className="w-3 h-3" />;
         cardSubtitle = routineData?.creatorName ? `${routineData.creatorName} 인스트럭터의 루틴` : `${post.userName || 'Anonymous'}님이 완료한 훈련 루틴`;
@@ -360,23 +360,23 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         cardAccentColor = 'bg-zinc-800/90';
     } else if (cardType === 'course') {
         cardTitle = post.metadata?.courseTitle || post.metadata?.sharedTitle || '레슨 클래스';
-        cardImage = post.metadata?.sharedImage || images[0] || post.mediaUrl;
+        cardImage = post.metadata?.courseThumbnailUrl || post.metadata?.sharedImage || (images && images.length > 0 ? images[0] : '') || post.mediaUrl || '';
         cardLabel = 'LESSON CLASS';
         cardIcon = <BookOpen className="w-3 h-3" />;
         cardSubtitle = `전문가와 함께하는 체계적인 가르침`;
         cardNavigatePath = `/courses/${courseId}`;
-        cardAccentColor = 'bg-violet-600/90';
+        cardAccentColor = 'bg-zinc-800/90';
     } else if (cardType === 'lesson') {
         cardTitle = post.metadata?.lessonTitle || post.metadata?.sharedTitle || '레슨 상세';
-        cardImage = post.metadata?.sharedImage || images[0];
+        cardImage = post.metadata?.lessonThumbnailUrl || post.metadata?.sharedImage || (images && images.length > 0 ? images[0] : '') || post.mediaUrl || '';
         cardLabel = 'LESSON';
         cardIcon = <Play className="w-3 h-3" />;
         cardSubtitle = `기술의 핵심 원리를 배워보세요`;
         cardNavigatePath = `/lessons/${lessonId}`;
-        cardAccentColor = 'bg-violet-500/90';
+        cardAccentColor = 'bg-zinc-800/90';
     } else if (cardType === 'drill') {
         cardTitle = post.metadata?.drillTitle || post.metadata?.sharedTitle || '드릴 트레이닝';
-        cardImage = post.metadata?.sharedImage || images[0];
+        cardImage = post.metadata?.drillThumbnailUrl || post.metadata?.sharedImage || (images && images.length > 0 ? images[0] : '') || post.mediaUrl || '';
         cardLabel = 'DRILL';
         cardIcon = <Zap className="w-3 h-3" />;
         cardSubtitle = `반복 숙달을 위한 필수 트레이닝`;
@@ -384,13 +384,16 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         cardAccentColor = 'bg-zinc-800/90';
     } else if (cardType === 'sparring') {
         cardTitle = post.metadata?.sparringTitle || post.metadata?.sharedTitle || '스파링 분석';
-        cardImage = post.metadata?.sharedImage || images[0] || (sparringId ? `https://vumbnail.com/${sparringId}.jpg` : '');
+        cardImage = post.metadata?.sharedImage || (images && images.length > 0 ? images[0] : '') || post.mediaUrl || (sparringId ? `https://vumbnail.com/${sparringId}.jpg` : '');
         cardLabel = 'SPARRING';
         cardIcon = <Activity className="w-3 h-3" />;
         cardSubtitle = `실전 감각을 위한 스파링 리플레이`;
         cardNavigatePath = `/sparring?id=${sparringId}`;
         cardAccentColor = 'bg-zinc-800/90';
     }
+
+    let cardAspectRatio = 'aspect-video'; // Default 16:9 for all
+    // User requested 16:9 for all
 
     return (
         <div className="border-b border-zinc-900 py-8 px-4 hover:bg-zinc-900/20 transition-all group/post">
@@ -594,90 +597,104 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         </div>
                     )}
 
-                    {/* Shared Content Preview Card (Combined with Image) */}
+                    {/* Shared Content Preview Card (Free Pass Style) */}
                     {cardType && (
                         <div
                             onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(cardNavigatePath);
                             }}
-                            className="group/card relative my-6 cursor-pointer overflow-hidden rounded-[2rem] border border-zinc-900 bg-zinc-950/50 backdrop-blur-sm shadow-xl transition-all duration-500 hover:border-violet-500/30 hover:shadow-violet-500/5 active:scale-[0.99]"
+                            className="group/card flex flex-col bg-zinc-900/30 border border-zinc-800/50 rounded-[24px] overflow-hidden cursor-pointer transition-all duration-300 hover:border-violet-500/30 hover:bg-zinc-900/60 hover:shadow-lg my-6"
                         >
-                            {/* Premium Subtle Glow */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/5 via-transparent to-zinc-900/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700" />
-
-                            <div className="flex flex-col sm:flex-row items-stretch relative z-10">
-                                {/* Thumbnail Section */}
-                                <div className="w-full sm:w-48 h-48 sm:h-auto relative overflow-hidden shrink-0 bg-zinc-900 group-hover/card:bg-zinc-800 transition-colors">
-                                    {cardImage ? (
+                            {/* Image Section */}
+                            <div className={cn("w-full relative overflow-hidden shrink-0", cardAspectRatio)}>
+                                {cardImage ? (
+                                    <>
                                         <img
                                             src={cardImage}
                                             alt={cardTitle}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
                                         />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <div className={cn("p-4 rounded-3xl bg-opacity-10", cardAccentColor)}>
-                                                {React.cloneElement(cardIcon as React.ReactElement, { className: "w-8 h-8 text-violet-400" })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Glassmorphic Type Badge */}
-                                    <div className="absolute top-4 left-4">
-                                        <div className={cn("flex items-center gap-2 px-3.5 py-2 rounded-full backdrop-blur-xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-white shadow-2xl", cardAccentColor)}>
-                                            {cardType === 'roadmap' && <Signpost className="w-3 h-3" />}
-                                            {cardType === 'routine' && <Zap className="w-3 h-3" />}
-                                            {cardType === 'course' && <BookOpen className="w-3 h-3" />}
-                                            {cardType === 'lesson' && <Play className="w-3 h-3" />}
-                                            {cardType === 'drill' && <Zap className="w-3 h-3" />}
-                                            {cardLabel}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
+                                    </>
+                                ) : (
+                                    <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                                        <div className={cn("p-4 rounded-full bg-opacity-10", cardAccentColor)}>
+                                            {React.cloneElement(cardIcon as React.ReactElement, { className: "w-8 h-8 text-white opacity-80" })}
                                         </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
 
-                                {/* Content Section */}
-                                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-zinc-900 bg-gradient-to-br from-transparent to-zinc-900/30">
-                                    <h4 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2 group-hover/card:text-violet-400 transition-colors">
+                            {/* Content Section */}
+                            <div className="flex-1 p-5 flex flex-col justify-between relative bg-zinc-950/20 backdrop-blur-sm">
+                                <div className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2 text-violet-400">
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", cardType === 'sparring' ? 'bg-rose-500' : 'bg-violet-500')} />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80">
+                                            {cardLabel}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-zinc-100 text-lg font-bold tracking-tight leading-tight mb-2 group-hover/card:text-violet-300 transition-colors line-clamp-1">
                                         {cardTitle}
-                                    </h4>
-                                    <p className="text-zinc-500 text-sm font-medium mb-6 line-clamp-2 leading-relaxed italic opacity-90">
+                                    </h3>
+                                    <p className="text-zinc-500 text-xs line-clamp-2 leading-relaxed font-medium">
                                         {cardSubtitle}
                                     </p>
+                                </div>
 
-                                    <div className="mt-auto flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 group-hover/card:text-zinc-400 transition-colors">
-                                            <span>더 알아보기</span>
-                                            <ChevronRight className="w-4 h-4 group-hover/card:translate-x-1 transition-transform" />
-                                        </div>
+                                <div className="flex items-center justify-between pt-3 border-t border-zinc-800/50">
+                                    <div className="flex items-center gap-3">
+                                        {/* Metadata Badges */}
+                                        {cardType === 'routine' && (
+                                            <>
+                                                <div className="flex items-center gap-1.5 text-zinc-500">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span className="text-[10px] font-bold">{post.metadata?.sharedRoutine?.totalDurationMinutes || 10}m</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-zinc-500">
+                                                    <Zap className="w-3 h-3" />
+                                                    <span className="text-[10px] font-bold">{post.metadata?.sharedRoutine?.difficulty || 'General'}</span>
+                                                </div>
+                                            </>
+                                        )}
+                                        {cardType !== 'routine' && (
+                                            <div className="flex items-center gap-1.5 text-zinc-500">
+                                                <Sparkles className="w-3 h-3" />
+                                                <span className="text-[10px] font-bold">Premium Content</span>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                        {/* Subtle Type Icon */}
-                                        <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-600 group-hover/card:border-violet-500/30 group-hover/card:text-violet-500 transition-all">
-                                            {cardType === 'roadmap' ? <Signpost className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                        </div>
+                                    <div className="flex items-center gap-1.5 text-zinc-400 group-hover/card:text-violet-400 transition-colors">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Start</span>
+                                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/card:translate-x-1" />
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
+
                     {/* Technique Tags */}
-                    {post.techniques && post.techniques.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {post.techniques.map((tech, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/search?q=${encodeURIComponent(tech)}`);
-                                    }}
-                                    className="text-violet-400 text-sm font-medium hover:underline"
-                                >
-                                    #{tech}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    {
+                        post.techniques && post.techniques.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {post.techniques.map((tech, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/search?q=${encodeURIComponent(tech)}`);
+                                        }}
+                                        className="text-violet-400 text-sm font-medium hover:underline"
+                                    >
+                                        #{tech}
+                                    </button>
+                                ))}
+                            </div>
+                        )
+                    }
 
                     {/* Interaction Bar */}
                     <div className="flex items-center gap-1 pt-2 -ml-2">
@@ -713,56 +730,58 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                     </div>
 
                     {/* Comments Section (Simplified style) */}
-                    {showComments && (
-                        <div className="mt-4 pt-4 border-t border-zinc-900/50">
-                            {/* Existing comment logic - styling update */}
-                            <div className="space-y-4 mb-4">
-                                {loadingComments ? (
-                                    <div className="flex justify-center py-4">
-                                        <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-                                    </div>
-                                ) : comments.length === 0 ? (
-                                    <div className="text-center py-4 text-zinc-500 text-sm">
-                                        No comments yet. Be the first to reply!
-                                    </div>
-                                ) : (
-                                    comments.map((comment: any) => (
-                                        <div key={comment.id} className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
-                                                {comment.user?.avatar_url && <img src={comment.user.avatar_url} className="w-full h-full object-cover" />}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-xs font-bold text-zinc-300">{comment.user?.name}</span>
-                                                    <span className="text-[10px] text-zinc-600">{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })}</span>
-                                                </div>
-                                                <p className="text-sm text-zinc-400">{comment.content}</p>
-                                            </div>
+                    {
+                        showComments && (
+                            <div className="mt-4 pt-4 border-t border-zinc-900/50">
+                                {/* Existing comment logic - styling update */}
+                                <div className="space-y-4 mb-4">
+                                    {loadingComments ? (
+                                        <div className="flex justify-center py-4">
+                                            <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
                                         </div>
-                                    ))
-                                )}
+                                    ) : comments.length === 0 ? (
+                                        <div className="text-center py-4 text-zinc-500 text-sm">
+                                            No comments yet. Be the first to reply!
+                                        </div>
+                                    ) : (
+                                        comments.map((comment: any) => (
+                                            <div key={comment.id} className="flex gap-3">
+                                                <div className="w-6 h-6 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
+                                                    {comment.user?.avatar_url && <img src={comment.user.avatar_url} className="w-full h-full object-cover" />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <span className="text-xs font-bold text-zinc-300">{comment.user?.name}</span>
+                                                        <span className="text-[10px] text-zinc-600">{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })}</span>
+                                                    </div>
+                                                    <p className="text-sm text-zinc-400">{comment.content}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        placeholder="Add a reply..."
+                                        className="flex-1 bg-transparent border-b border-zinc-800 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                                    />
+                                    {commentText && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleAddComment(); }} className="text-violet-400 text-sm font-bold">Post</button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={commentText}
-                                    onChange={(e) => setCommentText(e.target.value)}
-                                    placeholder="Add a reply..."
-                                    className="flex-1 bg-transparent border-b border-zinc-800 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-                                />
-                                {commentText && (
-                                    <button onClick={(e) => { e.stopPropagation(); handleAddComment(); }} className="text-violet-400 text-sm font-bold">Post</button>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+                        )
+                    }
+                </div >
+            </div >
 
             {/* Share Modal Portal */}
-            <React.Suspense fallback={null}>
+            < React.Suspense fallback={null} >
                 {isShareModalOpen && (
                     <ShareModal
                         isOpen={isShareModalOpen}
@@ -781,7 +800,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         }}
                     />
                 )}
-            </React.Suspense>
+            </React.Suspense >
 
             <ConfirmModal
                 isOpen={showDeleteConfirm}
@@ -804,6 +823,6 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                 variant="warning"
                 isLoading={isActionLoading}
             />
-        </div>
+        </div >
     );
 };

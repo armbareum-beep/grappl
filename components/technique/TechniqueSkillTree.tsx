@@ -228,6 +228,7 @@ export const TechniqueSkillTree: React.FC = () => {
     // Custom Modal States
     const [isNewTreeModalOpen, setIsNewTreeModalOpen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [saveMode, setSaveMode] = useState<'save' | 'publish'>('save');
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [saveTitleInput, setSaveTitleInput] = useState('');
     const [alertConfig, setAlertConfig] = useState<{
@@ -2572,9 +2573,18 @@ export const TechniqueSkillTree: React.FC = () => {
         }
 
 
-        // Always open SaveModal to allow publishing/metadata management
-        setSaveTitleInput(currentTreeTitle);
-        setIsSaveModalOpen(true);
+        if (currentTreeId) {
+            // Quick Save for existing trees
+            await executeSave({
+                title: currentTreeTitle,
+                isPublic: isPublic
+            });
+        } else {
+            // New Tree -> Open Save Modal (Simple Mode)
+            setSaveTitleInput(currentTreeTitle);
+            setSaveMode('save');
+            setIsSaveModalOpen(true);
+        }
     };
 
     const handleDeleteTree = async (treeId: string, e: React.MouseEvent) => {
@@ -2816,16 +2826,16 @@ export const TechniqueSkillTree: React.FC = () => {
                                             }
                                             return;
                                         }
-                                        if (!currentTreeId && (nodes.length > 0 || edges.length > 0)) {
-                                            const titleToUse = currentTreeTitle || '나의 스킬 트리';
-                                            const saved = await executeSave(titleToUse);
-                                            if (saved && currentTreeId) {
-                                                setCustomShareUrl(null);
-                                                setIsShareModalOpen(true);
-                                            }
-                                        } else {
+
+                                        // If already public, show Share Link
+                                        if (isPublic) {
                                             setCustomShareUrl(null);
                                             setIsShareModalOpen(true);
+                                        } else {
+                                            // If private, open Publish Wizard
+                                            setSaveTitleInput(currentTreeTitle);
+                                            setSaveMode('publish');
+                                            setIsSaveModalOpen(true);
                                         }
                                     }}
                                     className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
@@ -3768,6 +3778,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 isSaving={saving}
                 thumbnailPreview={thumbnailPreview}
                 onCaptureThumbnail={handleCaptureThumbnail}
+                mode={saveMode}
             />
 
             <LoadModal

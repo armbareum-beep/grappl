@@ -102,3 +102,48 @@ export async function getStandaloneLessons(creatorId?: string) {
 
     return { data, error };
 }
+
+export async function toggleLessonLike(userId: string, lessonId: string) {
+    // Check if already liked
+    const { data: existing } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'like')
+        .single();
+
+    if (existing) {
+        // Unlike
+        const { error } = await supabase
+            .from('user_interactions')
+            .delete()
+            .eq('id', existing.id);
+        return { liked: false, error };
+    } else {
+        // Like
+        const { error } = await supabase
+            .from('user_interactions')
+            .insert([{
+                user_id: userId,
+                content_type: 'lesson',
+                content_id: lessonId,
+                interaction_type: 'like'
+            }]);
+        return { liked: true, error };
+    }
+}
+
+export async function checkLessonLiked(userId: string, lessonId: string) {
+    const { data, error } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'like')
+        .single();
+
+    return { liked: !!data, error };
+}
