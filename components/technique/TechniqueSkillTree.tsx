@@ -27,7 +27,7 @@ import {
     getUserSkillTree,
     transformUserSkillTree
 } from '../../lib/api-skill-tree';
-import { getLessons, getDrills, getUserSkills } from '../../lib/api';
+import { getLessons, getDrills, getUserSkills, createTrainingLog } from '../../lib/api';
 import { getUserTechniqueMastery } from '../../lib/api-technique-mastery';
 import { Lesson, Drill, SkillTreeNode, UserSkill, UserTechniqueMastery, UserSkillTree } from '../../types';
 import { TechniqueNode } from './TechniqueNode';
@@ -2169,6 +2169,34 @@ export const TechniqueSkillTree: React.FC = () => {
                 throw result.error;
             }
 
+            // Share to Feed if Public
+            if (data.isPublic && result.data && user) {
+                try {
+                    await createTrainingLog({
+                        userId: user.id,
+                        date: new Date().toISOString().split('T')[0],
+                        durationMinutes: 0,
+                        techniques: [],
+                        sparringRounds: 0,
+                        notes: data.description || `${data.title} 스킬 로드맵을 공유했습니다!`,
+                        isPublic: true,
+                        location: '__FEED__skill_roadmap',
+                        type: 'skill_roadmap',
+                        mediaUrl: uploadedThumbnailUrl,
+                        metadata: {
+                            source: 'skill_tree',
+                            treeId: result.data.id,
+                            treeTitle: data.title,
+                            tags: data.tags
+                        }
+                    });
+                    console.log('Shared to feed successfully');
+                } catch (feedErr) {
+                    console.error('Error sharing to feed:', feedErr);
+                    // Don't fail the save proper if feed share fails
+                }
+            }
+
             console.log('Save successful! Final data:', {
                 id: result.data?.id,
                 title: data.title,
@@ -3404,24 +3432,28 @@ export const TechniqueSkillTree: React.FC = () => {
                 url={customShareUrl || (currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined)}
             />
 
-            <AddTechniqueModal
-                isOpen={isAddModalOpen}
-                onClose={() => {
-                    setIsAddModalOpen(false);
-                    setPendingConnection(null);
-                }}
-                lessons={allLessons}
-                drills={allDrills}
-                addedItems={nodes.map(n => ({
-                    id: n.data.contentId || '',
-                    type: n.data.contentType || 'technique'
-                }))}
-                onAddContent={(items) => {
-                    const targetGroupId = (window as any)._targetGroupId;
-                    handleAddContent(items, undefined, targetGroupId);
-                    (window as any)._targetGroupId = null;
-                }}
-            />
+            <AnimatePresence>
+                {isAddModalOpen && (
+                    <AddTechniqueModal
+                        isOpen={isAddModalOpen}
+                        onClose={() => {
+                            setIsAddModalOpen(false);
+                            setPendingConnection(null);
+                        }}
+                        lessons={allLessons}
+                        drills={allDrills}
+                        addedItems={nodes.map(n => ({
+                            id: n.data.contentId || '',
+                            type: n.data.contentType || 'technique'
+                        }))}
+                        onAddContent={(items) => {
+                            const targetGroupId = (window as any)._targetGroupId;
+                            handleAddContent(items, undefined, targetGroupId);
+                            (window as any)._targetGroupId = null;
+                        }}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Video Preview Modal */}
             {

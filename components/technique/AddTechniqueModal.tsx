@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { Lesson, Drill } from '../../types';
-import { X, Search, GraduationCap, Target, LayoutGrid } from 'lucide-react';
+import { X, Search, GraduationCap, Target, LayoutGrid, Check, Plus } from 'lucide-react';
 
 interface AddContentItem {
     id: string;
@@ -33,6 +35,21 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItems, setSelectedItems] = useState<AddContentItem[]>([]);
 
+    // Prevent scrolling behind modal
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
+    // Note: We don't return null here if we want AnimatePresence in the parent to handle exit animations.
+    // However, to keep it simple and safe, we'll keep the null check if the parent doesn't use AnimatePresence.
+    // If the parent uses AnimatePresence with conditional rendering, this null check is redundant.
     if (!isOpen) return null;
 
     const isAlreadyAdded = (id: string, type: 'lesson' | 'drill' | 'technique') =>
@@ -56,8 +73,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
         // Check instructor name for both lessons and drills
         let instructorMatch = false;
-        if ('course' in item && item.course?.creatorName) {
-            instructorMatch = item.course.creatorName.toLowerCase().includes(query);
+        if ('course' in item && (item as any).course?.creatorName) {
+            instructorMatch = (item as any).course.creatorName.toLowerCase().includes(query);
         } else if ('category' in item) {
             // This is a Drill
             const drill = item as Drill;
@@ -69,8 +86,9 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
         const matchesSearch = titleMatch || instructorMatch;
 
         // Only apply category filter to Drills
+        const isDrill = 'category' in item;
         const matchesCategory = activeCategory === 'All' ||
-            ('category' in item && item.category === activeCategory);
+            (isDrill && (item as Drill).category === activeCategory);
 
         return matchesSearch && matchesCategory;
     };
@@ -86,137 +104,176 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-            <div className="bg-zinc-950 rounded-2xl border border-zinc-800 w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex flex-col md:items-center md:justify-center">
+            {/* Backdrop */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+
+            {/* Modal Container */}
+            <motion.div
+                initial={{ opacity: 0, y: 100, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 100, scale: 0.95 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="relative bg-zinc-950 w-full h-full md:max-w-5xl md:h-[90vh] md:rounded-[2rem] border-y md:border border-zinc-800 flex flex-col shadow-2xl overflow-hidden"
+            >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-zinc-800 bg-zinc-900/50">
+                <div className="flex items-center justify-between p-6 md:p-8 border-b border-zinc-800/50 bg-zinc-900/30 backdrop-blur-md">
                     <div>
-                        <h2 className="text-2xl font-bold text-zinc-50">콘텐츠 추가</h2>
-                        <p className="text-sm text-zinc-400">로드맵에 추가할 레슨과 드릴을 선택하세요.</p>
+                        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">콘텐츠 추가</h2>
+                        <p className="text-sm md:text-base text-zinc-500 mt-1">로드맵에 추가할 레슨과 드릴을 선택하거나 한눈에 관리하세요.</p>
                     </div>
-                    <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full">
-                        <X className="w-6 h-6" />
+                    <button
+                        onClick={onClose}
+                        className="w-12 h-12 flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-800 rounded-2xl"
+                    >
+                        <X className="w-8 h-8" />
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-zinc-800 px-6 overflow-x-auto no-scrollbar">
-                    {(['all', 'lesson', 'drill'] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => {
-                                setActiveTab(tab);
-                                setSearchQuery('');
-                            }}
-                            className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all relative shrink-0 ${activeTab === tab ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                        >
-                            {tab === 'all' && <LayoutGrid className="w-4 h-4" />}
-                            {tab === 'lesson' && <GraduationCap className="w-4 h-4" />}
-                            {tab === 'drill' && <Target className="w-4 h-4" />}
-                            {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : '드릴'}
-                            {activeTab === tab && (
-                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                            )}
-                        </button>
-                    ))}
-                </div>
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    {/* Controls Bar */}
+                    <div className="flex flex-col gap-4 p-6 md:p-8 border-b border-zinc-800/30 bg-zinc-950">
+                        {/* Tabs */}
+                        <div className="flex items-center p-1 bg-zinc-900/50 rounded-2xl w-fit">
+                            {(['all', 'lesson', 'drill'] as const).map(tab => {
+                                const isActive = activeTab === tab;
+                                return (
+                                    <button
+                                        key={tab}
+                                        onClick={() => {
+                                            setActiveTab(tab);
+                                            setSearchQuery('');
+                                        }}
+                                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${isActive
+                                            ? 'bg-violet-600 text-white shadow-lg'
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                            }`}
+                                    >
+                                        {tab === 'all' && <LayoutGrid className="w-4 h-4" />}
+                                        {tab === 'lesson' && <GraduationCap className="w-4 h-4" />}
+                                        {tab === 'drill' && <Target className="w-4 h-4" />}
+                                        {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : '드릴'}
+                                    </button>
+                                );
+                            })}
+                        </div>
 
-                {/* Search & Category Filter */}
-                <div className="p-6 border-b border-zinc-800 space-y-4 bg-zinc-900/30">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500" />
-                        <input
-                            type="text"
-                            placeholder="Search by technique title or instructor name (e.g., 이바름)"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-50 placeholder-zinc-500 focus:outline-none focus:border-violet-500/50 transition-all"
-                        />
-                    </div>
-
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                        {categories.map(category => (
-                            <button
-                                key={category}
-                                onClick={() => setActiveCategory(category)}
-                                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeCategory === category
-                                    ? 'bg-violet-600 text-white border-violet-500 shadow-lg shadow-violet-600/20'
-                                    : 'bg-zinc-800/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
-                                    }`}
-                            >
-                                {category === 'All' ? '전체' : category}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Content List */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-3 max-h-[600px] scrollbar-thin scrollbar-thumb-zinc-800">
-                    {(activeTab === 'all' || activeTab === 'lesson') && filteredLessons.map(lesson => (
-                        <ContentItemRow
-                            key={`lesson-${lesson.id}`}
-                            title={lesson.title}
-                            instructor={lesson.course?.creatorName || ''}
-                            pathInfo={`${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
-                            thumbnail={lesson.thumbnailUrl}
-                            isAdded={isAlreadyAdded(lesson.id, 'lesson')}
-                            isSelected={isItemSelected(lesson.id, 'lesson')}
-                            onClick={() => handleToggleSelection(lesson.id, 'lesson')}
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'lesson', id: lesson.id }));
-                                e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                        />
-                    ))}
-
-                    {(activeTab === 'all' || activeTab === 'drill') && filteredDrills.map(drill => (
-                        <ContentItemRow
-                            key={`drill-${drill.id}`}
-                            title={drill.title}
-                            instructor={drill.creatorName || ''}
-                            pathInfo={`${drill.category} • ${drill.length || ''}`}
-                            thumbnail={drill.thumbnailUrl}
-                            isAdded={isAlreadyAdded(drill.id, 'drill')}
-                            isSelected={isItemSelected(drill.id, 'drill')}
-                            onClick={() => handleToggleSelection(drill.id, 'drill')}
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'drill', id: drill.id }));
-                                e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                        />
-                    ))}
-
-                    {((activeTab === 'all' && filteredLessons.length === 0 && filteredDrills.length === 0) ||
-                        (activeTab === 'lesson' && filteredLessons.length === 0) ||
-                        (activeTab === 'drill' && filteredDrills.length === 0)) && (
-                            <div className="text-center py-20 text-zinc-500">
-                                검색 결과가 없습니다.
+                        {/* Search & Categories */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="relative group">
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-violet-500 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="기술 제목 또는 강사 이름으로 검색 (예: 이바름)"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-zinc-50 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50 focus:bg-zinc-900 transition-all text-lg"
+                                />
                             </div>
-                        )}
+
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
+                                {categories.map(category => (
+                                    <button
+                                        key={category}
+                                        onClick={() => setActiveCategory(category)}
+                                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border ${activeCategory === category
+                                            ? 'bg-violet-600/10 text-violet-400 border-violet-500/50'
+                                            : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-700'
+                                            }`}
+                                    >
+                                        {category === 'All' ? '전체 카테고리' : category}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content List */}
+                    <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6 scrollbar-thin scrollbar-thumb-zinc-800 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {(activeTab === 'all' || activeTab === 'lesson') && filteredLessons.map(lesson => (
+                            <ContentItemRow
+                                key={`lesson-${lesson.id}`}
+                                title={lesson.title}
+                                instructor={lesson.course?.creatorName || ''}
+                                pathInfo={`${lesson.course?.title || 'Unknown Course'} • Lesson ${lesson.lessonNumber}`}
+                                thumbnail={lesson.thumbnailUrl}
+                                isAdded={isAlreadyAdded(lesson.id, 'lesson')}
+                                isSelected={isItemSelected(lesson.id, 'lesson')}
+                                onClick={() => handleToggleSelection(lesson.id, 'lesson')}
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'lesson', id: lesson.id }));
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                            />
+                        ))}
+
+                        {(activeTab === 'all' || activeTab === 'drill') && filteredDrills.map(drill => (
+                            <ContentItemRow
+                                key={`drill-${drill.id}`}
+                                title={drill.title}
+                                instructor={drill.creatorName || ''}
+                                pathInfo={`${drill.category} • ${drill.length || ''}`}
+                                thumbnail={drill.thumbnailUrl}
+                                isAdded={isAlreadyAdded(drill.id, 'drill')}
+                                isSelected={isItemSelected(drill.id, 'drill')}
+                                onClick={() => handleToggleSelection(drill.id, 'drill')}
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'drill', id: drill.id }));
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                            />
+                        ))}
+
+                        {((activeTab === 'all' && filteredLessons.length === 0 && filteredDrills.length === 0) ||
+                            (activeTab === 'lesson' && filteredLessons.length === 0) ||
+                            (activeTab === 'drill' && filteredDrills.length === 0)) && (
+                                <div className="col-span-full flex flex-col items-center justify-center py-32 text-zinc-600">
+                                    <Search className="w-12 h-12 mb-4 opacity-20" />
+                                    <div className="text-xl font-medium">검색 결과가 없습니다.</div>
+                                    <div className="mt-1">다른 검색어를 입력해 보세요.</div>
+                                </div>
+                            )}
+                    </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-zinc-800 flex items-center justify-between bg-zinc-900/50">
-                    <div className="text-sm font-bold text-zinc-400">
-                        <span className="text-violet-400">{selectedItems.length}</span>개 선택됨
+                <div className="p-6 md:p-8 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-violet-600/20 flex items-center justify-center text-violet-400 font-bold text-lg">
+                            {selectedItems.length}
+                        </div>
+                        <div>
+                            <div className="text-white font-bold text-lg">아이템 선택됨</div>
+                            <div className="text-zinc-500 text-sm">로드맵에 추가될 준비가 되었습니다.</div>
+                        </div>
                     </div>
-                    <div className="flex gap-3">
-                        <button onClick={onClose} className="px-6 py-2.5 bg-zinc-800 text-white rounded-xl hover:bg-zinc-700 transition-all font-bold">
-                            취소
+                    <div className="flex gap-3 w-full md:w-auto">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 md:flex-none px-8 py-4 bg-zinc-900 text-white rounded-2xl hover:bg-zinc-800 transition-all font-bold text-lg border border-zinc-800"
+                        >
+                            닫기
                         </button>
                         <button
                             onClick={handleAddSelected}
                             disabled={selectedItems.length === 0}
-                            className="px-8 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-violet-600/20"
+                            className="flex-[2] md:flex-none px-12 py-4 bg-violet-600 text-white rounded-2xl hover:bg-violet-500 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed font-bold text-lg shadow-[0_10px_30px_rgba(139,92,246,0.3)] active:scale-95"
                         >
-                            추가하기
+                            선택한 콘텐츠 추가하기
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </div>,
+        document.body
     );
 };
 
@@ -235,47 +292,61 @@ const ContentItemRow: React.FC<{
         onDragStart={onDragStart}
         onClick={() => !isAdded && onClick()}
         disabled={isAdded}
-        className={`w-full flex flex-row items-center bg-zinc-900/40 border rounded-2xl p-4 mb-3 transition-all text-left ${isAdded
-            ? 'border-zinc-800 opacity-50 cursor-not-allowed'
+        className={`w-full flex flex-row items-center bg-zinc-900/40 border rounded-[1.5rem] p-4 md:p-5 transition-all text-left group ${isAdded
+            ? 'border-zinc-800 opacity-40 cursor-not-allowed'
             : isSelected
-                ? 'border-violet-500/50 bg-violet-600/5 shadow-[0_4px_20px_rgba(124,58,237,0.1)]'
-                : 'border-zinc-800 hover:border-zinc-700 hover:translate-x-1 hover:shadow-[0_4px_20px_rgba(124,58,237,0.1)]'
+                ? 'border-violet-500 bg-violet-600/20 shadow-[0_10px_30px_rgba(139,92,246,0.2)]'
+                : 'border-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-900/60 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'
             }`}
     >
         {/* Left Visual */}
-        <div className="w-16 h-16 bg-zinc-800 rounded-xl flex-shrink-0 overflow-hidden">
+        <div className="relative w-20 h-20 md:w-24 md:h-24 bg-zinc-800 rounded-2xl flex-shrink-0 overflow-hidden shadow-inner">
             {thumbnail ? (
-                <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+                <img src={thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
             ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                    <GraduationCap className="w-8 h-8 text-zinc-600" />
+                    <GraduationCap className="w-10 h-10 text-zinc-700" />
+                </div>
+            )}
+            {isSelected && (
+                <div className="absolute inset-0 bg-violet-600/40 flex items-center justify-center backdrop-blur-[2px]">
+                    <Check className="w-10 h-10 text-white" />
                 </div>
             )}
         </div>
 
         {/* Center Info */}
-        <div className="flex-grow px-5">
-            <div className="text-zinc-50 text-lg font-bold truncate">{title}</div>
+        <div className="flex-1 px-5 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${pathInfo.toLowerCase().includes('lesson') ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    {pathInfo.toLowerCase().includes('lesson') ? 'LESSON' : 'DRILL'}
+                </span>
+            </div>
+            <div className={`text-zinc-50 text-xl font-bold truncate transition-colors ${isSelected ? 'text-violet-300' : 'group-hover:text-white'}`}>{title}</div>
             {instructor && (
-                <div className="text-violet-400 text-sm font-medium truncate">
+                <div className="text-zinc-400 text-sm font-medium mt-0.5 flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-violet-500" />
                     {instructor}
                 </div>
             )}
-            <div className="text-zinc-500 text-xs truncate">{pathInfo}</div>
+            <div className="text-zinc-600 text-xs mt-1 font-medium truncate">{pathInfo}</div>
         </div>
 
         {/* Right Action */}
-        {isAdded ? (
-            <span className="text-zinc-600 bg-zinc-800 px-3 py-1 rounded-lg text-xs font-bold">
-                Added
-            </span>
-        ) : (
-            <div className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${isSelected
-                ? 'bg-violet-600 text-white'
-                : 'bg-violet-600 hover:bg-violet-500 text-white'
-                }`}>
-                {isSelected ? '선택됨' : '추가'}
-            </div>
-        )}
+        <div className="flex-shrink-0 ml-2">
+            {isAdded ? (
+                <div className="flex flex-col items-center gap-1 opacity-50">
+                    <Check className="w-6 h-6 text-zinc-500" />
+                    <span className="text-[10px] font-bold text-zinc-500">ADDED</span>
+                </div>
+            ) : (
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isSelected
+                    ? 'bg-violet-600 text-white shadow-lg rotate-0'
+                    : 'bg-zinc-800 text-zinc-400 group-hover:bg-violet-600/20 group-hover:text-violet-400'
+                    }`}>
+                    {isSelected ? <Check className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+                </div>
+            )}
+        </div>
     </button>
 );
