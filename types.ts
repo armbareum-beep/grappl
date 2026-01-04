@@ -164,7 +164,7 @@ export interface TrainingLog {
   youtubeUrl?: string; // Legacy support
   mediaUrl?: string; // New: Direct video/image upload
   mediaType?: 'video' | 'image';
-  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'mastery';
+  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'mastery' | 'technique_chain';
   metadata?: Record<string, any>;
   likes?: number;
   comments?: number;
