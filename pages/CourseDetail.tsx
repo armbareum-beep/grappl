@@ -18,7 +18,7 @@ export const CourseDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, isSubscribed, isAdmin } = useAuth();
     const { success, error: toastError } = useToast();
     const [course, setCourse] = useState<Course | null>(null);
     const [creator, setCreator] = useState<Creator | null>(null);
@@ -188,7 +188,11 @@ export const CourseDetail: React.FC = () => {
         if (lesson.lessonNumber === 1) return true;
         if (ownsCourse) return true;
         // If subscription excluded, subscriber status doesn't grant access
-        if (user?.isSubscriber && !course?.isSubscriptionExcluded) return true;
+        if (isSubscribed && !course?.isSubscriptionExcluded) return true;
+
+        // Admin always has access
+        if (isAdmin) return true;
+
         return false;
     };
 
@@ -394,7 +398,13 @@ export const CourseDetail: React.FC = () => {
                                 {isFree ? '로그인하고 무료로 시청하세요.' : '이 클래스를 구매하거나 구독하여 시청하세요.'}
                             </p>
 
-                            {!user && (
+                            {user ? (
+                                <Link to="/pricing">
+                                    <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
+                                        구독/구매 안내 보기
+                                    </Button>
+                                </Link>
+                            ) : (
                                 <Link to="/login" state={{ from: location }}>
                                     <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
                                         로그인하기

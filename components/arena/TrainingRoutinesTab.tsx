@@ -10,6 +10,8 @@ import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
 import { supabase } from '../../lib/supabase';
 import { ErrorScreen } from '../ErrorScreen';
 import { Modal } from '../Modal';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { PromptModal } from '../common/PromptModal';
 
 
 export const TrainingRoutinesTab: React.FC = () => {
@@ -37,6 +39,21 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     // Premium Modal State for non-logged-in users
     const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+    // Custom Modal States
+    const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
 
     useEffect(() => {
         const loadSavedDrills = async () => {
@@ -120,7 +137,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
     };
 
-    const { success } = useToast();
+    const { success, error: toastError } = useToast();
 
     useEffect(() => {
         if (user) {
@@ -129,7 +146,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             // Load random sample routines for non-logged-in users
             const loadSampleRoutines = async () => {
                 setLoading(true);
-                const result = await getRandomSampleRoutines(3);
+                const result = await getRandomSampleRoutines(1);
                 if (result.data) {
                     setRoutines(result.data);
                 }
@@ -145,10 +162,21 @@ export const TrainingRoutinesTab: React.FC = () => {
             return;
         }
 
-        const routineName = prompt('새로운 루틴의 이름을 입력하세요:');
+        setIsCreatePromptOpen(true);
+    };
+
+    const handleCreateRoutineSubmit = (routineName: string) => {
+        setIsCreatePromptOpen(false);
         if (!routineName) return;
 
         const selectedDrillsList = savedDrills.filter(d => selectedDrills.has(d.id));
+
+        const totalDurationSeconds = selectedDrillsList.reduce((acc, drill) => {
+            const duration = drill.duration || '0:00';
+            const [min, sec] = duration.split(':').map(Number);
+            return acc + (isNaN(min) ? 0 : min) * 60 + (isNaN(sec) ? 0 : sec);
+        }, 0);
+        const totalDurationMinutes = Math.ceil(totalDurationSeconds / 60);
 
         const newRoutine: DrillRoutine = {
             id: `custom-${Date.now()}`,
@@ -164,7 +192,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             createdAt: new Date().toISOString(),
             difficulty: Difficulty.Intermediate,
             category: VideoCategory.Standing,
-            totalDurationMinutes: selectedDrillsList.length
+            totalDurationMinutes: totalDurationMinutes
         };
 
         const existingCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
@@ -189,7 +217,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             const currentDayRoutines = savedSchedule[selectedDayForPlacement] || [];
 
             if (currentDayRoutines.some((r: any) => r.id === routine.id)) {
-                alert('이미 해당 요일에 추가된 루틴입니다.');
+                toastError('이미 해당 요일에 추가된 루틴입니다.');
                 return;
             }
 
@@ -251,31 +279,39 @@ export const TrainingRoutinesTab: React.FC = () => {
         // Feedback handled in WeeklyRoutinePlanner or elsewhere
     };
 
-    const handleDeleteRoutine = async (e: React.MouseEvent, routineId: string) => {
+    const handleDeleteRoutine = (e: React.MouseEvent, routineId: string) => {
         e.stopPropagation();
 
-        if (!confirm('이 루틴을 삭제하시겠습니까?')) return;
+        setConfirmConfig({
+            isOpen: true,
+            variant: 'danger',
+            title: '루틴 삭제',
+            message: '이 루틴을 정말 삭제하시겠습니까? 삭제된 루틴은 복구할 수 없습니다.',
+            onConfirm: async () => {
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                if (routineId.startsWith('custom-')) {
+                    const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+                    const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
+                    localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
+                } else {
+                    if (user) {
+                        const { error } = await supabase
+                            .from('user_routines')
+                            .delete()
+                            .eq('user_id', user.id)
+                            .eq('routine_id', routineId);
 
-        if (routineId.startsWith('custom-')) {
-            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-            const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
-            localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
-        } else {
-            if (user) {
-                const { error } = await supabase
-                    .from('user_routines')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('routine_id', routineId);
-
-                if (error) {
-                    console.error('Error deleting routine:', error);
-                    alert('루틴 삭제에 실패했습니다.');
-                    return;
+                        if (error) {
+                            console.error('Error deleting routine:', error);
+                            toastError('루틴 삭제에 실패했습니다.');
+                            return;
+                        }
+                    }
                 }
+                setRoutines(prev => prev.filter(r => r.id !== routineId));
+                success('루틴이 삭제되었습니다.');
             }
-        }
-        setRoutines(prev => prev.filter(r => r.id !== routineId));
+        });
     };
 
     const ROUTINES_DISPLAY_LIMIT = 6;
@@ -416,24 +452,35 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     </>
                                 );
 
-                                const handleDeleteDrill = async (e: React.MouseEvent, drillId: string) => {
+                                const handleDeleteDrill = (e: React.MouseEvent, drillId: string) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
-                                        const updatedDrills = savedDrills.filter(d => d.id !== drillId);
-                                        setSavedDrills(updatedDrills);
-                                        localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
 
-                                        if (user) {
-                                            const { error } = await toggleDrillSave(user.id, drillId);
-                                            if (error) {
-                                                console.error('Error removing saved drill:', error);
-                                                alert('삭제에 실패했습니다.');
-                                                setSavedDrills(savedDrills);
-                                                localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
+                                    setConfirmConfig({
+                                        isOpen: true,
+                                        variant: 'danger',
+                                        title: '드릴 삭제',
+                                        message: '이 드릴을 저장 목록에서 삭제하시겠습니까?',
+                                        onConfirm: async () => {
+                                            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                            const updatedDrills = savedDrills.filter(d => d.id !== drillId);
+                                            const originalDrills = [...savedDrills];
+                                            setSavedDrills(updatedDrills);
+                                            localStorage.setItem('saved_drills', JSON.stringify(updatedDrills));
+
+                                            if (user) {
+                                                const { error } = await toggleDrillSave(user.id, drillId);
+                                                if (error) {
+                                                    console.error('Error removing saved drill:', error);
+                                                    toastError('삭제에 실패했습니다.');
+                                                    setSavedDrills(originalDrills);
+                                                    localStorage.setItem('saved_drills', JSON.stringify(originalDrills));
+                                                } else {
+                                                    success('저장된 드릴이 삭제되었습니다.');
+                                                }
                                             }
                                         }
-                                    }
+                                    });
                                 };
 
                                 return isSelectionMode ? (
@@ -557,8 +604,17 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     >
                                         <div className="flex items-center gap-3">
                                             {/* Icon */}
-                                            <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <Dumbbell className="w-6 h-6 text-zinc-600" />
+                                            <div className="w-16 h-20 bg-zinc-800 rounded-xl overflow-hidden flex-shrink-0 relative border border-zinc-800 shadow-sm">
+                                                {routine.thumbnailUrl ? (
+                                                    <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <PlaySquare className="w-6 h-6 text-zinc-700" />
+                                                    </div>
+                                                )}
+                                                {isCompleted && (
+                                                    <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-[1px]" />
+                                                )}
                                             </div>
 
                                             {/* Content */}
@@ -574,21 +630,32 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-zinc-400 mb-1">
+                                                <div className="flex items-center gap-3 text-xs text-zinc-400 mb-2">
                                                     <span className="flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        {routine.totalDurationMinutes}분
+                                                        <Clock className="w-3.5 h-3.5 text-violet-500" />
+                                                        {routine.totalDurationMinutes || 0}분
                                                     </span>
-                                                    <span>{routine.drillCount}개 드릴</span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Dumbbell className="w-3.5 h-3.5 text-zinc-500" />
+                                                        {routine.drillCount || 0}개 드릴
+                                                    </span>
                                                 </div>
                                                 {/* Creator Info */}
-                                                <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-white transition-colors">
-                                                    <img
-                                                        src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
-                                                        className="w-4 h-4 rounded-full"
-                                                        alt={routine.creatorName}
-                                                    />
-                                                    <span className="truncate">{routine.creatorName}</span>
+                                                <div className="flex items-center gap-2 group/creator">
+                                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700">
+                                                        {routine.creatorProfileImage ? (
+                                                            <img
+                                                                src={routine.creatorProfileImage}
+                                                                className="w-full h-full object-cover"
+                                                                alt={routine.creatorName}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                                                                {routine.creatorName?.charAt(0) || 'U'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[11px] font-medium text-zinc-500 group-hover/creator:text-zinc-300 transition-colors uppercase tracking-tight">{routine.creatorName}</span>
                                                 </div>
                                             </div>
 
@@ -658,8 +725,9 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         }`}
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                                    <Dumbbell className="w-8 h-8" />
+                                                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50">
+                                                    <PlaySquare className="w-10 h-10 text-zinc-800 mb-2" />
+                                                    <span className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest">No Thumbnail</span>
                                                 </div>
                                             )}
                                             <div className={`absolute inset-0 transition-colors ${isCompleted ? 'bg-black/40' : 'bg-black/20 group-hover:bg-black/0'
@@ -682,12 +750,20 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             </div>
                                             <div className="pt-3 border-t border-zinc-800/50 flex items-center justify-between group/creator">
                                                 <div className="flex items-center gap-2">
-                                                    <img
-                                                        src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}&background=random`}
-                                                        className="w-6 h-6 rounded-full ring-1 ring-zinc-800 group-hover/creator:ring-violet-500 transition-all"
-                                                        alt={routine.creatorName}
-                                                    />
-                                                    <span className="text-xs font-semibold text-zinc-400 group-hover/creator:text-white transition-colors">{routine.creatorName}</span>
+                                                    <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden ring-1 ring-zinc-800 group-hover/creator:ring-violet-500/50 transition-all shadow-sm">
+                                                        {routine.creatorProfileImage ? (
+                                                            <img
+                                                                src={routine.creatorProfileImage}
+                                                                className="w-full h-full object-cover"
+                                                                alt={routine.creatorName}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                                                                {routine.creatorName?.charAt(0) || 'U'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs font-bold text-zinc-400 group-hover/creator:text-zinc-100 transition-colors tracking-tight">{routine.creatorName}</span>
                                                 </div>
                                                 <span className="text-[10px] font-bold text-violet-500 bg-violet-500/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
                                             </div>
@@ -811,6 +887,27 @@ export const TrainingRoutinesTab: React.FC = () => {
                     </ul>
                 </div>
             </Modal>
+
+            {/* Routine Name Prompt Modal */}
+            <PromptModal
+                isOpen={isCreatePromptOpen}
+                onClose={() => setIsCreatePromptOpen(false)}
+                onConfirm={handleCreateRoutineSubmit}
+                title="새 루틴 만들기"
+                message="루틴의 이름을 입력해주세요."
+                placeholder="예: 월요일 오전 주짓수 드릴"
+                confirmText="루틴 생성"
+            />
+
+            {/* Common Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmConfig.onConfirm}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                variant={confirmConfig.variant}
+            />
         </div>
     );
 };

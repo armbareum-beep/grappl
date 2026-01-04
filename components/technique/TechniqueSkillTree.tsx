@@ -27,7 +27,7 @@ import {
     getUserSkillTree,
     transformUserSkillTree
 } from '../../lib/api-skill-tree';
-import { getLessons, getDrills, getUserSkills, createTrainingLog } from '../../lib/api';
+import { getLessons, getDrills, getUserSkills, createTrainingLog, checkCourseOwnership, checkDrillRoutineOwnership } from '../../lib/api';
 import { getUserTechniqueMastery } from '../../lib/api-technique-mastery';
 import { Lesson, Drill, SkillTreeNode, UserSkill, UserTechniqueMastery, UserSkillTree } from '../../types';
 import { TechniqueNode } from './TechniqueNode';
@@ -37,7 +37,7 @@ import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
 import {
     Plus, Trash2, Save, Share2, FolderOpen, X, FilePlus, Video,
-    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost
+    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost, Copy, GripVertical
 } from 'lucide-react';
 
 import { SaveModal, LoadModal, SaveData } from './SkillTreeModals';
@@ -72,7 +72,7 @@ const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> 
     const style = transform ? {
         transform: CSS.Translate.toString(transform),
         zIndex: 100,
-        transition: 'none' // Fixed: Disable transition during drag for smoothness
+        transition: 'none'
     } : undefined;
 
     const mastery = node.data.mastery;
@@ -133,53 +133,73 @@ const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> 
     );
 };
 
-const DroppableMenu: React.FC<{
+const DroppableGroup: React.FC<{
     group: any;
     children: React.ReactNode;
     onLabelChange: (id: string, label: string) => void;
     onDelete: (id: string) => void;
 }> = ({ group, children, onLabelChange, onDelete }) => {
-    const { isOver, setNodeRef } = useDroppable({
+    const { isOver, setNodeRef: setDropRef } = useDroppable({
         id: group.id,
     });
+    const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+        id: group.id
+    });
+
+    const style = transform ? {
+        transform: CSS.Translate.toString(transform),
+        zIndex: isDragging ? 100 : 1,
+        touchAction: 'none'
+    } : undefined;
 
     return (
         <div
-            ref={setNodeRef}
-            className={`p-4 rounded-2xl border transition-all mb-4 ${isOver ? 'bg-violet-600/20 border-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.3)]' : 'bg-slate-900/40 border-slate-800/50 backdrop-blur-sm'
-                }`}
+            ref={setDropRef}
+            className={`transition-all mb-4 ${isOver ? 'bg-violet-600/20 border-violet-500 shadow-[0_0_30px_rgba(139,92,246,0.3)]' : ''}`}
         >
-            <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2 flex-1">
-                    <FolderOpen className="w-4 h-4 text-violet-400 shrink-0" />
-                    <input
-                        className="bg-transparent text-white font-bold text-sm tracking-tight border-none focus:ring-1 focus:ring-violet-500/50 rounded px-1 w-full outline-none transition-all placeholder:text-zinc-600"
-                        value={group.data.label || ''}
-                        onChange={(e) => onLabelChange(group.id, e.target.value)}
-                        placeholder="메뉴 이름 입력"
-                    />
+            <div
+                ref={setDragRef}
+                style={style}
+                className={`p-4 rounded-2xl border transition-all ${isDragging ? 'bg-zinc-800 border-zinc-700 opacity-90 shadow-2xl scale-[1.02]' : 'bg-slate-900/40 border-slate-800/50 backdrop-blur-sm'
+                    }`}
+            >
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2 flex-1">
+                        <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400">
+                            <GripVertical className="w-4 h-4" />
+                        </div>
+                        <FolderOpen className="w-4 h-4 text-violet-400 shrink-0" />
+                        <input
+                            className="bg-transparent text-white font-bold text-sm tracking-tight border-none focus:ring-1 focus:ring-violet-500/50 rounded px-1 w-full outline-none transition-all placeholder:text-zinc-600"
+                            value={group.data.label || ''}
+                            onChange={(e) => onLabelChange(group.id, e.target.value)}
+                            placeholder="그룹 이름 입력"
+                            onKeyDown={e => e.stopPropagation()}
+                        />
+                    </div>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onDelete(group.id);
+                        }}
+                        className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                        title="그룹 삭제"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 </div>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onDelete(group.id);
-                    }}
-                    className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-                    title="메뉴 삭제"
-                >
-                    <Trash2 className="w-3.5 h-3.5" />
-                </button>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-                {children}
+                <div className="grid grid-cols-1 gap-2">
+                    {children}
+                </div>
             </div>
         </div>
     );
 };
 
+
 export const TechniqueSkillTree: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isSubscribed, isAdmin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -255,22 +275,19 @@ export const TechniqueSkillTree: React.FC = () => {
         });
 
         setEdges((eds) => {
-            // Need current nodes map to determine status
-            // We use the functional update's closure but we need access to latest 'nodes'.
-            // Since we depend on [mode, loading, nodes.length], 'nodes' in outer scope should be reasonably fresh.
-            // But to be safe, we might iterate 'nodes' from the state directly if possible, but here we use closure 'nodes'.
             const nodeStatus = new Map<string, string>();
             nodes.forEach(n => {
-                const { mastery, isCompleted } = n.data;
-                // If preview mode is ON, we mock everything as mastered OR in-progress
+                const { mastery, isCompleted, isInProgress } = n.data;
                 if (isPreviewMode) {
-                    // Alternate between mastered and in-progress for variety in preview
                     const isEven = parseInt(n.id.replace(/\D/g, '') || '0') % 2 === 0;
-                    nodeStatus.set(n.id, isEven ? 'mastered' : 'in-progress');
+                    const isThree = parseInt(n.id.replace(/\D/g, '') || '0') % 3 === 0;
+                    if (isEven) nodeStatus.set(n.id, 'mastered');
+                    else if (isThree) nodeStatus.set(n.id, 'in-progress');
+                    else nodeStatus.set(n.id, 'locked');
                 } else {
                     if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
                         nodeStatus.set(n.id, 'mastered');
-                    } else if (mastery && mastery.masteryLevel >= 2) {
+                    } else if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
                         nodeStatus.set(n.id, 'in-progress');
                     } else {
                         nodeStatus.set(n.id, 'locked');
@@ -279,36 +296,41 @@ export const TechniqueSkillTree: React.FC = () => {
             });
 
             return eds.map((e) => {
-                const isRoadmap = mode === 'roadmap';
-                if (!isRoadmap) {
-                    return {
-                        ...e,
-                        animated: false,
-                        style: { stroke: '#ffffff', strokeWidth: 2 },
-                        className: 'skill-tree-edge', // Added class
-                        data: { ...e.data, mode: 'skill-tree' }
-                    };
-                }
-
-                // Roadmap Logic
                 const status = nodeStatus.get(e.target);
                 let className = '';
-                let stroke = '#52525b'; // Default Locked (Zinc-600)
+                let stroke = '#ffffff'; // Default White
+                let strokeWidth = 2;
+                let strokeDasharray = 'none'; // Default solid for locked state
 
-                if (status === 'mastered') {
-                    className = 'roadmap-edge-glow';
-                    stroke = '#8b5cf6';
-                } else if (status === 'in-progress') {
-                    className = 'roadmap-edge-flow';
-                    stroke = '#a78bfa';
+                if (mode === 'skill-tree') {
+                    stroke = '#ffffff';
+                    strokeWidth = 2;
+                    className = 'skill-tree-edge';
+                    strokeDasharray = 'none'; // Skill tree is always solid
+                } else {
+                    // Roadmap mode
+                    if (status === 'mastered') {
+                        className = 'roadmap-edge-glow';
+                        stroke = '#8b5cf6'; // Dark Purple
+                        strokeWidth = 4;
+                        strokeDasharray = 'none'; // Solid line for completed
+                    } else if (status === 'in-progress') {
+                        className = 'roadmap-edge-flow';
+                        stroke = '#a78bfa'; // Light Purple
+                        strokeWidth = 3;
+                        strokeDasharray = '10 10'; // Animated dashed line
+                    } else {
+                        // locked state - solid white line
+                        strokeDasharray = 'none';
+                    }
                 }
 
                 return {
                     ...e,
-                    animated: false, // We use CSS animation for custom control
-                    style: { stroke, strokeWidth: status === 'mastered' ? 4 : 3 },
-                    className: `roadmap-edge ${className}`, // Added roadmap-edge base class
-                    data: { ...e.data, mode: 'roadmap' }
+                    animated: false,
+                    style: { stroke, strokeWidth, strokeDasharray },
+                    className: `${mode === 'roadmap' ? 'roadmap-edge' : ''} ${className}`,
+                    data: { ...e.data, mode }
                 };
             });
         });
@@ -475,6 +497,15 @@ export const TechniqueSkillTree: React.FC = () => {
                                 const contentId = node.contentId || '';
                                 const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
                                 const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+
+                                // Determine status (simplified for guest data reconstruction after login)
+                                const isCompleted = node.contentType === 'lesson'
+                                    ? skills.some(s => s.courseId === lesson?.courseId && s.status === 'mastered')
+                                    : false;
+                                const isInProgress = node.contentType === 'lesson'
+                                    ? skills.some(s => s.courseId === lesson?.courseId && s.status === 'learning')
+                                    : false;
+
                                 return {
                                     id: node.id,
                                     type: 'content',
@@ -483,7 +514,9 @@ export const TechniqueSkillTree: React.FC = () => {
                                         contentType: node.contentType || 'technique',
                                         contentId,
                                         lesson,
-                                        drill
+                                        drill,
+                                        isCompleted,
+                                        isInProgress
                                     }
                                 };
                             });
@@ -492,11 +525,11 @@ export const TechniqueSkillTree: React.FC = () => {
                                 source: edge.source,
                                 target: edge.target,
                                 type: 'default',
-                                animated: true,
+                                animated: false,
                                 sourceHandle: edge.sourceHandle,
                                 targetHandle: edge.targetHandle,
-                                style: { stroke: '#8b5cf6', strokeWidth: 3 },
-                                className: 'roadmap-edge-dash'
+                                style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
+                                className: ''
                             }));
                             setNodes(flowNodes);
                             setEdges(flowEdges);
@@ -630,6 +663,10 @@ export const TechniqueSkillTree: React.FC = () => {
                         ? skills.some(s => s.courseId === lesson?.courseId && s.status === 'mastered')
                         : false;
 
+                    const isInProgress = contentType === 'lesson'
+                        ? skills.some(s => s.courseId === lesson?.courseId && s.status === 'learning')
+                        : false;
+
                     const mastery = contentType === 'technique'
                         ? masteryRes.find((m: UserTechniqueMastery) => m.techniqueId === contentId)
                         : undefined;
@@ -644,7 +681,8 @@ export const TechniqueSkillTree: React.FC = () => {
                             lesson,
                             drill,
                             mastery,
-                            isCompleted
+                            isCompleted,
+                            isInProgress
                         }
                     };
                 });
@@ -654,11 +692,11 @@ export const TechniqueSkillTree: React.FC = () => {
                     source: edge.source as string,
                     target: edge.target as string,
                     type: 'default',
-                    animated: true,
+                    animated: false,
                     sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
-                    style: { stroke: '#8b5cf6', strokeWidth: 3 },
-                    className: 'roadmap-edge-dash'
+                    style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
+                    className: ''
                 }));
 
                 setNodes(flowNodes);
@@ -704,7 +742,9 @@ export const TechniqueSkillTree: React.FC = () => {
                                             contentType: node.contentType || 'technique',
                                             contentId,
                                             lesson,
-                                            drill
+                                            drill,
+                                            isCompleted: false, // Guest data doesn't have status yet
+                                            isInProgress: false
                                         }
                                     };
                                 });
@@ -713,10 +753,10 @@ export const TechniqueSkillTree: React.FC = () => {
                                     source: edge.source,
                                     target: edge.target,
                                     type: 'default',
-                                    animated: edge.type === 'animated',
+                                    animated: false,
                                     sourceHandle: edge.sourceHandle,
                                     targetHandle: edge.targetHandle,
-                                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                                    style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
                                 }));
                                 setNodes(flowNodes);
                                 setEdges(flowEdges);
@@ -772,7 +812,9 @@ export const TechniqueSkillTree: React.FC = () => {
                                                 contentType: node.contentType || 'technique',
                                                 contentId,
                                                 lesson,
-                                                drill
+                                                drill,
+                                                isCompleted: false,
+                                                isInProgress: false
                                             }
                                         };
                                     });
@@ -781,10 +823,10 @@ export const TechniqueSkillTree: React.FC = () => {
                                         source: edge.source,
                                         target: edge.target,
                                         type: 'default',
-                                        animated: edge.type === 'animated',
+                                        animated: false,
                                         sourceHandle: edge.sourceHandle,
                                         targetHandle: edge.targetHandle,
-                                        style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                                        style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
                                     }));
                                     setNodes(flowNodes);
                                     setEdges(flowEdges);
@@ -867,10 +909,11 @@ export const TechniqueSkillTree: React.FC = () => {
                             source: edge.source,
                             target: edge.target,
                             type: 'default',
-                            animated: edge.type === 'animated',
+                            animated: false,
                             sourceHandle: edge.sourceHandle,
                             targetHandle: edge.targetHandle,
-                            style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                            style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
+                            className: ''
                         }));
 
                         setNodes(flowNodes);
@@ -1095,8 +1138,24 @@ export const TechniqueSkillTree: React.FC = () => {
         const sourceNode = nodes.find(n => n.id === sourceId);
         if (!sourceNode) return;
 
-        // Prevent connecting node to its own parent group or vice versa
+        // Prevent connection if direct parent/child
         if (sourceNode.parentNode === targetNode.id || targetNode.parentNode === sourceId) {
+            return;
+        }
+
+        // Helper to check ancestor relationship
+        const isAncestor = (ancestorId: string, nodeId: string, allNodes: Node[]): boolean => {
+            let curr = allNodes.find(n => n.id === nodeId);
+            while (curr && curr.parentNode) {
+                if (curr.parentNode === ancestorId) return true;
+                const parentId = curr.parentNode;
+                curr = allNodes.find(n => n.id === parentId);
+            }
+            return false;
+        };
+
+        // Prevent Grandchild/Ancestor Connections (Implicit edges shouldn't be explicit)
+        if (isAncestor(sourceId, targetNode.id, nodes) || isAncestor(targetNode.id, sourceId, nodes)) {
             return;
         }
 
@@ -1119,8 +1178,33 @@ export const TechniqueSkillTree: React.FC = () => {
                 return eds;
             }
 
-            // Create new edge without arrows
+            // Create new edge - check target node status to apply correct style immediately
             const isGroupConnection = sourceNode.type === 'group' || targetNode.type === 'group';
+            const targetData = targetNode.data;
+            const { mastery, isCompleted, isInProgress } = targetData;
+
+            let stroke = '#ffffff';
+            let strokeWidth = isGroupConnection ? 3.5 : 2;
+            let strokeDasharray = 'none';
+            let className = mode === 'roadmap' ? 'roadmap-edge' : 'skill-tree-edge';
+
+            if (mode === 'roadmap') {
+                // Check target node status
+                if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
+                    // Mastered
+                    stroke = '#8b5cf6';
+                    strokeWidth = 4;
+                    strokeDasharray = 'none';
+                    className = 'roadmap-edge roadmap-edge-glow';
+                } else if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
+                    // In Progress
+                    stroke = '#a78bfa';
+                    strokeWidth = 3;
+                    strokeDasharray = '10 10';
+                    className = 'roadmap-edge roadmap-edge-flow';
+                }
+                // else: locked - keep white solid
+            }
 
             const newEdge: Edge = {
                 id: `edge-${sourceId}-${targetNode.id}-${Date.now()}`,
@@ -1129,8 +1213,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
                 type: 'default',
-                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
-                className: 'roadmap-edge-dash'
+                style: { stroke, strokeWidth, strokeDasharray },
+                className
             };
 
             return addEdge(newEdge, eds);
@@ -1150,8 +1234,10 @@ export const TechniqueSkillTree: React.FC = () => {
         setIsGroupSelectionMode(true);
         setGroupingInitialNodeId(initialNodeId);
         setSelectedForGrouping(new Set(initialNodeId ? [initialNodeId] : []));
+        // Clear standard selection to avoid double highlighting
+        setNodes(nds => nds.map(n => ({ ...n, selected: false })));
         setMenu(null);
-    }, []);
+    }, [setNodes]);
 
     const toggleNodeForGrouping = useCallback((nodeId: string) => {
         setSelectedForGrouping(prev => {
@@ -1166,85 +1252,108 @@ export const TechniqueSkillTree: React.FC = () => {
     }, []);
 
     const toggleGroupCollapse = useCallback((groupId: string) => {
-        // Use setNodes functional update to avoid relying on 'nodes' state in closure
         setNodes((currentNodes) => {
             const groupNode = currentNodes.find(n => n.id === groupId);
             if (!groupNode) return currentNodes;
 
             const isCurrentlyExpanded = groupNode.data.expanded !== false;
             const willExpand = !isCurrentlyExpanded;
-            const childrenIds = currentNodes.filter(n => n.parentNode === groupId).map(n => n.id);
 
-            // 1. Handle Edge Redirection in sync
-            setEdges((eds) => eds.map(edge => {
-                if (willExpand) {
-                    // Expanding: Restore original connections
-                    const newData = { ...edge.data };
-                    let newSource = edge.source;
-                    let newTarget = edge.target;
-                    let newSourceHandle = edge.sourceHandle;
-                    let newTargetHandle = edge.targetHandle;
-                    let updated = false;
+            // RECURSIVE: Find ALL descendants
+            const getDescendants = (parentId: string, nodeList: Node[]): string[] => {
+                let descendants: string[] = [];
+                const children = nodeList.filter(n => n.parentNode === parentId);
+                children.forEach(child => {
+                    descendants.push(child.id);
+                    if (child.type === 'group') {
+                        descendants = [...descendants, ...getDescendants(child.id, nodeList)];
+                    }
+                });
+                return descendants;
+            };
 
-                    if (edge.source === groupId && newData.originalSource) {
-                        newSource = newData.originalSource;
-                        newSourceHandle = newData.originalSourceHandle || edge.sourceHandle;
-                        delete newData.originalSource;
-                        delete newData.originalSourceHandle;
-                        updated = true;
+            const allDescendantIds = getDescendants(groupId, currentNodes);
+
+            // EDGE HANDLING with Proxy Logic for Nested Groups
+            setEdges((eds) => {
+                const findShadowingAncestor = (targetId: string): string | null => {
+                    let current = currentNodes.find(n => n.id === targetId);
+                    let shadowingId = null;
+
+                    while (current && current.parentNode) {
+                        const parent = currentNodes.find(n => n.id === current?.parentNode);
+                        if (!parent) break;
+
+                        const isParentCollapsed = parent.id === groupId ? !willExpand : (parent.data?.expanded === false);
+
+                        if (isParentCollapsed) {
+                            shadowingId = parent.id;
+                        }
+                        current = parent;
                     }
-                    if (edge.target === groupId && newData.originalTarget) {
-                        newTarget = newData.originalTarget;
-                        newTargetHandle = newData.originalTargetHandle || edge.targetHandle;
-                        delete newData.originalTarget;
-                        delete newData.originalTargetHandle;
-                        updated = true;
+                    return shadowingId;
+                };
+
+                return eds.map(edge => {
+                    const isSourceGenericDescendant = allDescendantIds.includes(edge.source) || edge.source === groupId;
+                    const isTargetGenericDescendant = allDescendantIds.includes(edge.target) || edge.target === groupId;
+
+                    // Optimization: Only process edges that touch the affected subtree
+                    if (!isSourceGenericDescendant && !isTargetGenericDescendant && edge.source !== groupId && edge.target !== groupId) {
+                        // Check if edge was previously redirected to this group?
+                        // If edge.source === groupId, it matches above check.
+                        return edge;
                     }
-                    return updated ? {
+
+                    // Recover original IDs or use current
+                    const originalSource = edge.data?.originalSource || edge.source;
+                    const originalTarget = edge.data?.originalTarget || edge.target;
+                    const originalSourceHandle = edge.data?.originalSourceHandle || edge.sourceHandle;
+                    const originalTargetHandle = edge.data?.originalTargetHandle || edge.targetHandle;
+
+                    // Calculate new visual endpoints
+                    const sourceShadow = findShadowingAncestor(originalSource);
+                    const targetShadow = findShadowingAncestor(originalTarget);
+
+                    const newSource = sourceShadow || originalSource;
+                    const newTarget = targetShadow || originalTarget;
+
+                    // If internal to the same shadow group (or same node), hide
+                    // This handles creating "internal" edges when collapsing
+                    if (newSource === newTarget) {
+                        return { ...edge, hidden: true };
+                    }
+
+                    // Determine handles
+                    let newSourceHandle = originalSourceHandle;
+                    let newTargetHandle = originalTargetHandle;
+
+                    if (newSource !== originalSource) {
+                        const group = currentNodes.find(n => n.id === newSource);
+                        if (group) newSourceHandle = mapToGroupHandle(group, originalSourceHandle || 'source-b');
+                    }
+                    if (newTarget !== originalTarget) {
+                        const group = currentNodes.find(n => n.id === newTarget);
+                        if (group) newTargetHandle = mapToGroupHandle(group, originalTargetHandle || 'target-t');
+                    }
+
+                    return {
                         ...edge,
                         source: newSource,
                         target: newTarget,
                         sourceHandle: newSourceHandle,
                         targetHandle: newTargetHandle,
-                        data: newData
-                    } : edge;
-                } else {
-                    // Collapsing: Redirect external edges to group
-                    if (childrenIds.includes(edge.source) && childrenIds.includes(edge.target)) return edge;
-
-                    const newData = { ...edge.data };
-                    let newSource = edge.source;
-                    let newTarget = edge.target;
-                    let newSourceHandle = edge.sourceHandle;
-                    let newTargetHandle = edge.targetHandle;
-                    let updated = false;
-
-                    if (childrenIds.includes(edge.source)) {
-                        newData.originalSource = edge.source;
-                        newData.originalSourceHandle = edge.sourceHandle;
-                        newSource = groupId;
-                        // For group nodes, we map to explicit simple ID
-                        newSourceHandle = mapToGroupHandle(groupNode, edge.sourceHandle || 'source-b');
-                        updated = true;
-                    }
-                    if (childrenIds.includes(edge.target)) {
-                        newData.originalTarget = edge.target;
-                        newData.originalTargetHandle = edge.targetHandle;
-                        newTarget = groupId;
-                        newTargetHandle = mapToGroupHandle(groupNode, edge.targetHandle || 'target-t');
-                        updated = true;
-                    }
-
-                    return updated ? {
-                        ...edge,
-                        source: newSource,
-                        target: newTarget,
-                        sourceHandle: newSourceHandle,
-                        targetHandle: newTargetHandle,
-                        data: newData
-                    } : edge;
-                }
-            }));
+                        hidden: false,
+                        data: {
+                            ...edge.data,
+                            originalSource: (newSource !== originalSource) ? originalSource : undefined,
+                            originalTarget: (newTarget !== originalTarget) ? originalTarget : undefined,
+                            originalSourceHandle: (newSource !== originalSource) ? originalSourceHandle : undefined,
+                            originalTargetHandle: (newTarget !== originalTarget) ? originalTargetHandle : undefined,
+                        }
+                    };
+                });
+            });
 
             // 2. Handle Node Visibility & Size
             let originalHeight = groupNode.data.originalHeight;
@@ -1272,10 +1381,25 @@ export const TechniqueSkillTree: React.FC = () => {
                         }
                     };
                 }
-                if (node.parentNode === groupId) {
-                    return { ...node, hidden: !willExpand };
-                }
-                return node;
+                // Hide ALL descendants recursively based on shadowing?
+                // Actually, simple hiding works: if parent is collapsed, child is hidden.
+                // But we need to update 'hidden' property based on the NEW state.
+
+                // If any ancestor is collapsed, node is hidden.
+                // We can reuse findShadowingAncestor logic but simpler:
+                const isHidden = (() => {
+                    let current = node;
+                    while (current && current.parentNode) {
+                        const parent = currentNodes.find(n => n.id === current.parentNode);
+                        if (!parent) break;
+                        const isParentCollapsed = parent.id === groupId ? !willExpand : (parent.data?.expanded === false);
+                        if (isParentCollapsed) return true;
+                        current = parent;
+                    }
+                    return false;
+                })();
+
+                return { ...node, hidden: isHidden };
             });
         });
     }, [setNodes, setEdges, mapToGroupHandle]);
@@ -1315,23 +1439,70 @@ export const TechniqueSkillTree: React.FC = () => {
 
         if (activeId === overId) return;
 
-        // If over a group, set as parent
+        const activeNode = nodes.find(n => n.id === activeId);
         const overNode = nodes.find(n => n.id === overId);
+
+        // 1. List View Reordering & Reparenting
+        if (viewMode === 'list') {
+            // Case A: Dragged a technique over a group -> Reparent
+            if (activeNode && activeNode.type !== 'group' && overNode && overNode.type === 'group') {
+                setNodes(nds => nds.map(n => {
+                    if (n.id === activeId) {
+                        return {
+                            ...n,
+                            parentNode: overId,
+                            extent: 'parent' as const,
+                            position: { x: 50, y: 50 },
+                            zIndex: 10
+                        };
+                    }
+                    return n;
+                }));
+                // Remove connections between node and its new parent group
+                setEdges(eds => eds.filter(e =>
+                    !((e.source === activeId && e.target === overId) ||
+                        (e.target === activeId && e.source === overId))
+                ));
+                return;
+            }
+
+            // Case B: Swapping positions/indices (Reordering)
+            setNodes((nds) => {
+                const oldIndex = nds.findIndex((n) => n.id === activeId);
+                const newIndex = nds.findIndex((n) => n.id === overId);
+
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    const newNodes = [...nds];
+                    const [movedNode] = newNodes.splice(oldIndex, 1);
+                    newNodes.splice(newIndex, 0, movedNode);
+                    return newNodes;
+                }
+                return nds;
+            });
+            return;
+        }
+
+        // 2. Map Canvas Logic (Reparenting via drag-and-drop)
         if (overNode && overNode.type === 'group') {
+            setEdges(eds => eds.filter(e =>
+                !((e.source === activeId && e.target === overId) ||
+                    (e.target === overId && e.source === activeId))
+            ));
+
             setNodes(nds => nds.map(n => {
                 if (n.id === activeId) {
                     return {
                         ...n,
                         parentNode: overId,
                         extent: 'parent' as const,
-                        position: { x: 50, y: 50 }, // Default relative position
+                        position: { x: 50, y: 50 },
                         zIndex: 10
                     };
                 }
                 return n;
             }));
         }
-    }, [nodes, setNodes]);
+    }, [nodes, setNodes, setEdges, viewMode]);
 
     const handleAddMenu = useCallback(() => {
         const groupNodeId = `group-${Date.now()}`;
@@ -1341,7 +1512,7 @@ export const TechniqueSkillTree: React.FC = () => {
             position: { x: 100, y: 100 },
             style: { width: 400, height: 300, zIndex: -10 },
             data: {
-                label: '새 메뉴',
+                label: '새 그룹',
                 expanded: true,
                 onLabelChange: onLabelChange,
                 onToggleCollapse: toggleGroupCollapse
@@ -1361,6 +1532,8 @@ export const TechniqueSkillTree: React.FC = () => {
             });
             return;
         }
+
+        const nodeIdsToGroup = nodesToGroup.map(n => n.id);
 
         // Check if there's exactly one group and other nodes
         const existingGroups = nodesToGroup.filter(n => n.type === 'group');
@@ -1405,6 +1578,16 @@ export const TechniqueSkillTree: React.FC = () => {
                 }
                 return node;
             }));
+
+            // CLEAN UP EDGES: 
+            // 1. Remove edges between grouped nodes (as requested by user)
+            // 2. Remove edges between moved nodes and target group
+            setEdges(eds => eds.filter(e => {
+                const isInternal = nodeIdsToGroup.includes(e.source) && nodeIdsToGroup.includes(e.target);
+                const isBetweenGroupAndMoved = (e.source === targetGroupId && otherNodes.some(n => n.id === e.target)) ||
+                    (e.target === targetGroupId && otherNodes.some(n => n.id === e.source));
+                return !isInternal && !isBetweenGroupAndMoved;
+            }));
         } else {
             // CREATE NEW GROUP
             const minX = Math.min(...nodesToGroup.map(n => n.position.x));
@@ -1445,8 +1628,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 parentNode: groupNodeId,
                 extent: 'parent' as const,
                 position: {
-                    x: node.position.x - (minX - padding),
-                    y: node.position.y - (minY - padding)
+                    x: node.position.x - minX + padding,
+                    y: node.position.y - minY + padding
                 },
                 data: {
                     ...node.data,
@@ -1457,14 +1640,24 @@ export const TechniqueSkillTree: React.FC = () => {
                 zIndex: 10
             }));
 
-            const nodesToKeep = nodes.filter(n => !nodesToGroup.some(g => g.id === n.id));
-            setNodes([...nodesToKeep, groupNode, ...updatedChildren] as Node[]);
+            setNodes(nds => {
+                const filtered = nds.filter(n => !nodesToGroup.some(sel => sel.id === n.id));
+                return [...filtered, groupNode, ...updatedChildren];
+            });
+
+            // CLEAN UP EDGES: Remove any connections BETWEEN the grouped nodes
+            setEdges(eds => eds.filter(e => {
+                const isInternal = nodeIdsToGroup.includes(e.source) && nodeIdsToGroup.includes(e.target);
+                const isToGroup = (e.source === groupNodeId || e.target === groupNodeId);
+                return !isInternal && !isToGroup;
+            }));
         }
 
+        // Reset Selection
         setIsGroupSelectionMode(false);
         setGroupingInitialNodeId(null);
         setSelectedForGrouping(new Set());
-    }, [selectedForGrouping, nodes, setNodes, toggleGroupCollapse]);
+    }, [nodes, setNodes, setEdges, selectedForGrouping, toggleGroupCollapse, setAlertConfig]);
 
     const cancelGroupSelection = useCallback(() => {
         setIsGroupSelectionMode(false);
@@ -1523,15 +1716,25 @@ export const TechniqueSkillTree: React.FC = () => {
         }));
 
         const otherNodes = nodes.filter(n => n.id !== groupId && n.parentNode !== groupId);
+        setNodes([...otherNodes, ...updatedChildren]);
 
-        setNodes([...otherNodes, ...updatedChildren] as Node[]);
+
+
     }, [nodes, setNodes, setEdges]);
 
     const deleteGroupAndContent = useCallback((groupId: string) => {
         if (confirm('그룹과 포함된 모든 내용을 삭제하시겠습니까?')) {
+            // Get children IDs first to use in edge filtering
             const childrenIds = nodes.filter(n => n.parentNode === groupId).map(n => n.id);
+
+            // Remove the group node and its children
             setNodes(nds => nds.filter(n => n.id !== groupId && n.parentNode !== groupId));
-            setEdges(eds => eds.filter(e => !childrenIds.includes(e.source) && !childrenIds.includes(e.target)));
+
+            // Remove edges connected to the deleted group or its children
+            setEdges(eds => eds.filter(e =>
+                e.source !== groupId && e.target !== groupId && // Remove edges directly connected to the group
+                !childrenIds.includes(e.source) && !childrenIds.includes(e.target) // Remove edges connected to children
+            ));
         }
     }, [nodes, setNodes, setEdges]);
 
@@ -1583,7 +1786,7 @@ export const TechniqueSkillTree: React.FC = () => {
     }, [nodes]);
 
     // Handle node double click (Delete or Edit)
-    const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+    const onNodeDoubleClick = useCallback(async (event: React.MouseEvent, node: Node) => {
         event.stopPropagation();
         // Text nodes handle double click internally for editing, so we skip here
         if (node.type === 'text') return;
@@ -1601,24 +1804,85 @@ export const TechniqueSkillTree: React.FC = () => {
         const d = node.data;
 
         if (isContent) {
-            // Find video URL from lesson or drill - Updated to match Context Menu logic (Step 109)
-            // Need to check vimeoUrl and technique properties as well
+            // Permission check for video preview
+            if (!user) {
+                setAlertConfig({
+                    title: '영상 재생 불가',
+                    message: '영상을 시청하려면 로그인이 필요합니다.',
+                    confirmText: '로그인 하러 가기',
+                    cancelText: '취소',
+                    onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
+                });
+                return;
+            }
+
+            // Find video URL from lesson or drill
             const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
                 d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
                 d?.technique?.videoUrl || d?.technique?.vimeoUrl;
 
-            const title = d?.label || d?.lesson?.title || d?.drill?.title || '미리보기';
+            // Only proceed if video exists
+            if (!videoUrl) return;
 
-            // Only open video modal if video exists
-            if (videoUrl) {
-                setVideoModal({
-                    isOpen: true,
-                    url: videoUrl,
-                    title: title
-                });
+            // Access Control Logic
+            let hasAccess = isAdmin || isSubscribed;
+
+            // 1. Check if first lesson (Free Preview)
+            if (!hasAccess && d.contentType === 'lesson' && d.lesson?.lessonNumber === 1) {
+                hasAccess = true;
             }
+
+            // 2. Check individual ownership if not subscribed
+            if (!hasAccess) {
+                if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                    hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
+                } else if (d.contentType === 'drill') {
+                    // Check if it's a free drill or owned routine item
+                    if (d.drill?.price === 0) {
+                        hasAccess = true;
+                    } else if (d.drill?.routineId) {
+                        hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
+                    }
+                }
+            }
+
+            // 3. Check if current user is the creator
+            if (!hasAccess) {
+                const creatorId = d.lesson?.creatorId || d.drill?.creatorId;
+                if (creatorId && creatorId === user.id) {
+                    hasAccess = true;
+                }
+            }
+
+            if (!hasAccess) {
+                setAlertConfig({
+                    title: '콘텐츠 잠김',
+                    message: '이 콘텐츠를 시청하려면 구독하거나 개별 구매가 필요합니다.',
+                    confirmText: '구매/구독 안내 보기',
+                    cancelText: '취소',
+                    variant: 'warning',
+                    onConfirm: () => {
+                        if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                            navigate(`/courses/${d.lesson.courseId}`);
+                        } else if (d.contentType === 'drill' && d.drill?.routineId) {
+                            navigate(`/my-routines/${d.drill.routineId}`);
+                        } else {
+                            navigate('/pricing');
+                        }
+                    }
+                });
+                return;
+            }
+
+            const title = d?.label || d?.lesson?.title || d?.drill?.title || d?.technique?.title || '미리보기';
+
+            setVideoModal({
+                isOpen: true,
+                url: videoUrl,
+                title: title
+            });
         }
-    }, [navigate, focusNodeOrGroup, toggleGroupCollapse, setVideoModal]);
+    }, [user, isAdmin, isSubscribed, navigate, focusNodeOrGroup, toggleGroupCollapse, setVideoModal]);
 
     // Handle canvas click (deselect)
     const handlePaneClick = useCallback(() => {
@@ -1701,13 +1965,13 @@ export const TechniqueSkillTree: React.FC = () => {
         // If in group selection mode, toggle node for grouping
         if (isGroupSelectionMode) {
             toggleNodeForGrouping(node.id);
+            // Disable standard selection immediately by updating node state
+            setNodes(nds => nds.map(n => n.id === node.id ? { ...n, selected: false } : n));
             return;
         }
 
         // --- Single selection / Connection Logic ---
         if (!isMultiSelect) {
-            // Find effective source
-            // IMPORTANT: prioritized explicit selectedNodeId, but fallback to any single selected node
             let sourceId = selectedNodeId;
             if (!sourceId) {
                 const selectedNodes = nodes.filter(n => n.selected);
@@ -1719,7 +1983,6 @@ export const TechniqueSkillTree: React.FC = () => {
             if (!sourceId) {
                 // First click: select
                 setSelectedNodeId(node.id);
-                // Ensure immediate visual feedback
                 setNodes((nds) => nds.map((n) => ({
                     ...n,
                     selected: n.id === node.id
@@ -1728,9 +1991,6 @@ export const TechniqueSkillTree: React.FC = () => {
             }
 
             if (sourceId === node.id) {
-                // Clicked same node: STAY SELECTED (ignore to avoid accidental de-select) 
-                // Or you can keep it as a toggle if you prefer. 
-                // Given the "short click turns off" complaint, let's make it stay selected.
                 return;
             }
 
@@ -1804,10 +2064,41 @@ export const TechniqueSkillTree: React.FC = () => {
         });
     }, [handleNodeDataChange, setNodes, setEdges]);
 
+    // Simplified duplicate function for groups
+    const duplicateGroup = useCallback((groupNode: Node) => {
+        const timestamp = Date.now();
+        const newGroupId = `group-${timestamp}-copy`;
+        const offset = 40;
+
+        const newGroup: Node = {
+            ...groupNode,
+            id: newGroupId,
+            position: { x: groupNode.position.x + offset, y: groupNode.position.y + offset },
+            selected: true,
+            data: { ...groupNode.data } // Copy data
+        };
+
+        const children = nodes.filter(n => n.parentNode === groupNode.id);
+        const newChildren = children.map((child, idx) => ({
+            ...child,
+            id: `node-${timestamp}-child-${idx}`,
+            parentNode: newGroupId,
+            selected: false,
+            data: { ...child.data }
+        }));
+
+        setNodes(nds => [...nds.map(n => ({ ...n, selected: false })), newGroup, ...newChildren]);
+
+    }, [nodes, setNodes]);
+
     // Backward compatibility for single node duplicate
     const duplicateNode = useCallback((node: Node) => {
-        duplicateNodes([node]);
-    }, [duplicateNodes]);
+        if (node.type === 'group') {
+            duplicateGroup(node);
+        } else {
+            duplicateNodes([node]);
+        }
+    }, [duplicateNodes, duplicateGroup]);
 
     // KEYBOARD SHORTCUTS
     useEffect(() => {
@@ -1922,6 +2213,10 @@ export const TechniqueSkillTree: React.FC = () => {
                 ? userSkills.some(s => s.courseId === lesson?.courseId && s.status === 'mastered')
                 : false;
 
+            const isInProgress = item.type === 'lesson'
+                ? userSkills.some(s => s.courseId === lesson?.courseId && s.status === 'learning')
+                : false;
+
             const mastery = item.type === 'technique'
                 ? masteries.find(m => m.techniqueId === item.id)
                 : undefined;
@@ -1957,7 +2252,8 @@ export const TechniqueSkillTree: React.FC = () => {
                     lesson,
                     drill,
                     mastery,
-                    isCompleted
+                    isCompleted,
+                    isInProgress
                 }
             });
 
@@ -2344,7 +2640,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 <div className={`flex items-center w-fit bg-zinc-900 rounded-full border border-zinc-800/50 shadow-xl ${isMobile ? 'p-0.5 gap-0.5' : 'p-1 gap-1'}`}>
                     <button
                         onClick={() => setViewMode('map')}
-                        className={`rounded-full font-bold transition-all flex items-center justify-center ${String(viewMode) === 'map'
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${((viewMode as string) === 'map')
                             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
                             : 'text-zinc-400 hover:text-white'
                             } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
@@ -2354,7 +2650,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setViewMode('list')}
-                        className={`rounded-full font-bold transition-all flex items-center justify-center ${String(viewMode) === 'list'
+                        className={`rounded-full font-bold transition-all flex items-center justify-center ${((viewMode as string) === 'list')
                             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
                             : 'text-zinc-400 hover:text-white'
                             } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
@@ -2413,7 +2709,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
 
             {/* Floating Adaptive Toolbar */}
-            {String(viewMode) === 'map' && (
+            {viewMode === 'map' && (
                 <>
                     {/* Desktop: Floating Vertical Toolbar */}
                     {!isMobile && (
@@ -2512,7 +2808,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                             };
                                             const encoded = encodeGuestData(guestData);
                                             if (encoded) {
-                                                const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                                const url = `${window.location.origin}${window.location.pathname}?data = ${encoded} `;
                                                 setCustomShareUrl(url);
                                                 setIsShareModalOpen(true);
                                             } else {
@@ -2584,7 +2880,10 @@ export const TechniqueSkillTree: React.FC = () => {
                             {/* FAB Main Button */}
                             <button
                                 onClick={() => setIsFabOpen(!isFabOpen)}
-                                className={`fixed ${viewMode === 'list' ? 'bottom-36' : 'bottom-24'} right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
+                                className={`fixed ${((viewMode as string) === 'list')
+                                    ? (isFullScreen ? 'bottom-20' : 'bottom-36')
+                                    : (isFullScreen ? 'bottom-8' : 'bottom-24')
+                                    } right-6 z-50 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full shadow-2xl shadow-violet-500/40 flex items-center justify-center transition-all ${isFabOpen ? 'rotate-45' : 'rotate-0'
                                     } ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Plus className="w-6 h-6 text-white" />
@@ -2592,7 +2891,10 @@ export const TechniqueSkillTree: React.FC = () => {
 
                             {/* FAB Grid Menu */}
                             {isFabOpen && (
-                                <div className={`fixed ${viewMode === 'list' ? 'bottom-52' : 'bottom-40'} right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in`}>
+                                <div className={`fixed ${((viewMode as string) === 'list')
+                                    ? (isFullScreen ? 'bottom-36' : 'bottom-52')
+                                    : (isFullScreen ? 'bottom-24' : 'bottom-40')
+                                    } right-4 z-40 animate-in slide-in-from-bottom-5 duration-200 fade-in`}>
                                     <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl">
                                         <div className="grid grid-cols-2 gap-2">
                                             {/* Row 1 */}
@@ -2685,7 +2987,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                         };
                                                         const encoded = encodeGuestData(guestData);
                                                         if (encoded) {
-                                                            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+                                                            const url = `${window.location.origin}${window.location.pathname}?data = ${encoded} `;
                                                             setCustomShareUrl(url);
                                                             setIsShareModalOpen(true);
                                                         }
@@ -2748,13 +3050,13 @@ export const TechniqueSkillTree: React.FC = () => {
                     <div ref={reactFlowWrapper} className="flex-1 w-full h-full overflow-hidden touch-none relative">
                         {isFullScreen && (
                             <style>{`
-                            nav, header, footer, .sidebar, .tab-bar, .bottom-nav {
-                                display: none !important;
-                            }
+        nav, header, footer, .sidebar, .tab-bar, .bottom-nav {
+            display: none!important;
+        }
                             body {
-                                overflow: hidden !important;
-                            }
-                        `}</style>
+            overflow: hidden!important;
+        }
+        `}</style>
                         )}
                         {/* Custom Arrow Markers */}
                         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -2770,22 +3072,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                 >
                                     <path
                                         d="M 0 0 L 10 5 L 0 10 L 3 5 z"
-                                        fill="#7c3aed"
-                                        stroke="none"
-                                    />
-                                </marker>
-                                <marker
-                                    id="arrow-start"
-                                    viewBox="0 0 10 10"
-                                    refX="1"
-                                    refY="5"
-                                    markerWidth="6"
-                                    markerHeight="6"
-                                    orient="auto-start-reverse"
-                                >
-                                    <path
-                                        d="M 10 0 L 0 5 L 10 10 L 7 5 z"
-                                        fill="#7c3aed"
+                                        fill="currentColor"
                                         stroke="none"
                                     />
                                 </marker>
@@ -2822,12 +3109,12 @@ export const TechniqueSkillTree: React.FC = () => {
                             snapGrid={[20, 20]}
                             defaultEdgeOptions={{
                                 type: 'default',
-                                style: { stroke: '#7c3aed', strokeWidth: 4, cursor: 'pointer' },
+                                style: { stroke: '#ffffff', strokeWidth: 2, cursor: 'pointer' },
                                 interactionWidth: 50,
                             }}
                             fitView
                             fitViewOptions={{ padding: 0.2 }}
-                            minZoom={isMobile ? 0.5 : 0.1}
+                            minZoom={isMobile ? 0.05 : 0.1}
                             maxZoom={isMobile ? 4.0 : 3.0}
                             className="bg-slate-950"
                             connectionMode={ConnectionMode.Loose}
@@ -2839,55 +3126,55 @@ export const TechniqueSkillTree: React.FC = () => {
                             proOptions={{ hideAttribution: true }}
                         >
                             <style>{`
-                             /* Scoped Roadmap Styles */
-                             .roadmap-edge-flow .react-flow__edge-path {
-                                stroke: #a78bfa !important;
-                                stroke-width: 3 !important;
-                                stroke-dasharray: 10 10;
-                                animation: flow 1s linear infinite;
-                            }
+            /* Scoped Roadmap Styles */
+            .roadmap-edge-flow.react-flow__edge-path {
+            stroke: #a78bfa!important;
+            stroke-width: 3!important;
+            stroke-dasharray: 10 10;
+            animation: flow 1s linear infinite;
+        }
 
-                            .roadmap-edge-glow .react-flow__edge-path {
-                                stroke: #8b5cf6 !important;
-                                stroke-width: 4 !important;
-                                filter: drop-shadow(0 0 4px #8b5cf6);
-                                stroke-dasharray: none;
-                                animation: none;
-                            }
+            .roadmap-edge-glow.react-flow__edge-path {
+            stroke: #8b5cf6 !important;
+    stroke-width: 4!important;
+    filter: drop-shadow(0 0 4px #8b5cf6);
+    stroke-dasharray: none;
+    animation: none;
+}
 
-                             .react-flow__edge-path {
-                                transition: all 0.5s ease;
-                            }
+            .react-flow__edge-path {
+    transition: all 0.5s ease;
+}
 
-                            /* Allow default styles for others */
+            /* Allow default styles for others */
 
-                            /* Remove crosshair and thread-pulling completely */
-                            .react-flow__handle {
-                                pointer-events: none !important;
-                                cursor: default !important;
-                            }
+            /* Remove crosshair and thread-pulling completely */
+            .react-flow__handle {
+    pointer-events: none!important;
+    cursor: default !important;
+}
 
-                            .react-flow__pane {
-                                cursor: grab !important;
-                            }
+            .react-flow__pane {
+    cursor: grab!important;
+}
 
-                            .react-flow__pane:active {
-                                cursor: grabbing !important;
-                            }
+            .react-flow__pane:active {
+    cursor: grabbing!important;
+}
 
-                            .react-flow__node, .react-flow__node * {
-                                cursor: pointer !important;
-                            }
+            .react-flow__node, .react-flow__node * {
+    cursor: pointer!important;
+}
 
-                            .react-flow__connection-path {
-                                display: none !important;
-                            }
+    .react-flow__connection-path {
+    display: none!important;
+}
 
-                            @keyframes flow {
-                                from { stroke-dashoffset: 100; } /* Adjusted for smoother short dash */
-                                to { stroke-dashoffset: 0; }
-                            }
-                        `}</style>
+@keyframes flow {
+                from { stroke-dashoffset: 100; } /* Adjusted for smoother short dash */
+                to { stroke-dashoffset: 0; }
+}
+`}</style>
 
 
 
@@ -2899,25 +3186,37 @@ export const TechniqueSkillTree: React.FC = () => {
                             />
                             <Controls
                                 className="bg-slate-800 border border-slate-700"
-                                style={isMobile ? { bottom: '80px', left: '16px' } : undefined}
+                                style={isMobile ? { bottom: isFullScreen ? '20px' : '80px', left: '16px' } : (isFullScreen ? { bottom: '20px', left: '16px', top: 'auto', right: 'auto' } : undefined)}
                             />
                             {!isMobile && (
                                 <MiniMap
                                     className="border border-slate-700/50 !w-32 !h-24 !bottom-4 !right-4 !bg-slate-900/80 backdrop-blur-sm"
                                     nodeColor={(node) => {
+                                        if (mode === 'skill-tree') return '#ffffff';
+
                                         const mastery = node.data.mastery;
                                         const isCompleted = node.data.isCompleted;
+                                        const isInProgress = node.data.isInProgress;
+                                        const isPreview = node.data.isPreview;
+
+                                        if (isPreview) {
+                                            const isEven = parseInt(node.id.replace(/\D/g, '') || '0') % 2 === 0;
+                                            const isThree = parseInt(node.id.replace(/\D/g, '') || '0') % 3 === 0;
+                                            if (isEven) return '#8b5cf6';
+                                            if (isThree) return '#a78bfa';
+                                            return '#ffffff';
+                                        }
 
                                         // Violet for Mastered/Completed
                                         if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
                                             return '#8b5cf6';
                                         }
                                         // Light Violet for In-progress
-                                        if (mastery && mastery.masteryLevel >= 2) {
+                                        if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
                                             return '#a78bfa';
                                         }
-                                        // Gray for not started (locked)
-                                        return '#52525b';
+                                        // White for not started
+                                        return '#ffffff';
                                     }}
                                     maskColor="rgba(15, 23, 42, 0.7)"
                                 />
@@ -2988,9 +3287,9 @@ export const TechniqueSkillTree: React.FC = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        {/* 1. Groups (Menus) */}
+                                        {/* 1. Groups */}
                                         {nodes.filter(n => n.type === 'group').map((group) => (
-                                            <DroppableMenu
+                                            <DroppableGroup
                                                 key={group.id}
                                                 group={group}
                                                 onLabelChange={onLabelChange}
@@ -3010,7 +3309,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                         />
                                                     ))
                                                 )}
-                                            </DroppableMenu>
+                                            </DroppableGroup>
                                         ))}
 
                                         {/* 2. Standalone Techniques (No Parent) */}
@@ -3039,17 +3338,17 @@ export const TechniqueSkillTree: React.FC = () => {
             }
 
 
-            {/* Guest Experience Overlay - Bottom Discovery Bar */}
+            {/* Guest Experience Overlay - Floating Bottom Vertical Card */}
             {
-                !user && String(viewMode) === 'map' && !hideGuestOverlay && (
+                !user && viewMode === 'map' && !hideGuestOverlay && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20, x: "-50%" }}
+                        initial={{ opacity: 0, y: 50, x: "-50%" }}
                         animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        className={`fixed ${isMobile ? 'bottom-32' : 'bottom-10'} left-1/2 z-[60] w-full max-w-sm px-4`}
+                        className={`fixed ${isMobile ? (isFullScreen ? 'bottom-20' : 'bottom-32') : 'bottom-10'} left-1/2 z-[60] w-full max-w-[320px] px-4 pointer-events-none`}
                     >
-                        <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 rounded-[2rem] w-full text-center overflow-hidden">
+                        <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 rounded-[2.5rem] w-full text-center overflow-hidden pointer-events-auto">
                             {/* Decorative Glow */}
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/20 blur-[40px] rounded-full -mr-12 -mt-12" />
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 blur-[40px] rounded-full -mr-12 -mt-12" />
 
                             {/* Close Button */}
                             <button
@@ -3059,19 +3358,19 @@ export const TechniqueSkillTree: React.FC = () => {
                                 <X className="w-4 h-4" />
                             </button>
 
-                            <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center border border-violet-500/20 mx-auto mb-5">
+                            <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center border border-violet-500/20 mx-auto mb-4 shadow-lg shadow-violet-500/10">
                                 <Network className="w-7 h-7 text-violet-500" />
                             </div>
 
-                            <h3 className="text-xl font-black text-white mb-2">나만의 기술 로드맵</h3>
-                            <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
-                                로그인하고 나만의 주짓수 커리큘럼을 설계하세요.<br />
-                                성장을 기록하고 커뮤니티와 공유할 수 있습니다!
+                            <h3 className="text-lg font-black text-white mb-2 leading-tight">나만의 기술 로드맵</h3>
+                            <p className="text-zinc-400 text-[11px] mb-6 leading-relaxed font-medium">
+                                로그인하고 나만의 로드맵을 저장하세요.<br />
+                                친구들에게 공유하고 함께 성장할 수 있습니다!
                             </p>
 
                             <button
                                 onClick={() => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })}
-                                className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-2xl transition-all shadow-xl shadow-violet-600/30 active:scale-95"
+                                className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-2xl transition-all shadow-xl shadow-violet-600/30 active:scale-95"
                             >
                                 무료로 시작하기
                             </button>
@@ -3102,16 +3401,81 @@ export const TechniqueSkillTree: React.FC = () => {
                                 <>
                                     {menu.data.type !== 'text' && (
                                         <button
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 const d = menu.data.data;
                                                 const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
                                                     d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
                                                     d?.technique?.videoUrl || d?.technique?.vimeoUrl;
+
                                                 if (videoUrl) {
+                                                    // Permission check
+                                                    if (!user) {
+                                                        setAlertConfig({
+                                                            title: '영상 재생 불가',
+                                                            message: '영상을 시청하려면 로그인이 필요합니다.',
+                                                            confirmText: '로그인 하러 가기',
+                                                            cancelText: '취소',
+                                                            onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
+                                                        });
+                                                        setMenu(null);
+                                                        return;
+                                                    }
+
+                                                    // Access Control Logic (Sync with onNodeDoubleClick)
+                                                    let hasAccess = isAdmin || isSubscribed;
+
+                                                    // 1. Check if first lesson (Free Preview)
+                                                    if (!hasAccess && d.contentType === 'lesson' && d.lesson?.lessonNumber === 1) {
+                                                        hasAccess = true;
+                                                    }
+
+                                                    // 2. Check individual ownership if not subscribed
+                                                    if (!hasAccess) {
+                                                        if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                                                            hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
+                                                        } else if (d.contentType === 'drill') {
+                                                            if (d.drill?.price === 0) {
+                                                                hasAccess = true;
+                                                            } else if (d.drill?.routineId) {
+                                                                hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 3. Check if creator
+                                                    if (!hasAccess) {
+                                                        const creatorId = d.lesson?.creatorId || d.drill?.creatorId;
+                                                        if (creatorId && creatorId === user.id) {
+                                                            hasAccess = true;
+                                                        }
+                                                    }
+
+                                                    if (!hasAccess) {
+                                                        setAlertConfig({
+                                                            title: '콘텐츠 잠김',
+                                                            message: '이 콘텐츠를 시청하려면 구독하거나 개별 구매가 필요합니다.',
+                                                            confirmText: '구매/구독 안내 보기',
+                                                            cancelText: '취소',
+                                                            variant: 'warning',
+                                                            onConfirm: () => {
+                                                                if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                                                                    navigate(`/courses/${d.lesson.courseId}`);
+                                                                } else if (d.contentType === 'drill' && d.drill?.routineId) {
+                                                                    navigate(`/my-routines/${d.drill.routineId}`);
+                                                                } else {
+                                                                    navigate('/pricing');
+                                                                }
+                                                            }
+                                                        });
+                                                        setMenu(null);
+                                                        return;
+                                                    }
+
+                                                    const title = d?.label || d?.lesson?.title || d?.drill?.title || d?.technique?.title || '미리보기';
                                                     setVideoModal({
                                                         isOpen: true,
                                                         url: videoUrl,
-                                                        title: menu.data.data.lesson?.title || menu.data.data.drill?.title || '영상 미리보기'
+                                                        title: title
                                                     });
                                                 } else {
                                                     alert('연결된 영상이 없습니다.');
@@ -3359,6 +3723,19 @@ export const TechniqueSkillTree: React.FC = () => {
                                         그룹 내 콘텐츠 추가
                                     </button>
 
+                                    <button
+                                        onClick={() => {
+                                            duplicateGroup(menu.data);
+                                            setMenu(null);
+                                        }}
+                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
+                                    >
+                                        <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center">
+                                            <Copy className="w-3.5 h-3.5" />
+                                        </div>
+                                        그룹 복제
+                                    </button>
+
                                     <div className="h-px bg-zinc-800/50 my-1 mx-2" />
 
                                     <button
@@ -3515,72 +3892,76 @@ export const TechniqueSkillTree: React.FC = () => {
                                         영상을 불러올 수 없습니다.
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    </div>
+                            </div >
+                        </div >
+                    </div >
                 )
             }
             {/* FAB for List Mode Only */}
-            {viewMode === 'list' && (
-                <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 bottom-24`}>
-                    <AnimatePresence>
-                        {isFabOpen && (
-                            <div className="flex flex-col items-end gap-3 mb-2">
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
-                                    onClick={() => {
-                                        setIsAddModalOpen(true);
-                                        setIsFabOpen(false);
-                                    }}
-                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
-                                >
-                                    <span className="text-[12px] font-bold">콘텐츠 추가하기</span>
-                                    <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-all">
-                                        <FilePlus className="w-4 h-4" />
-                                    </div>
-                                </motion.button>
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
-                                    transition={{ delay: 0.05 }}
-                                    onClick={() => {
-                                        handleAddMenu();
-                                        setIsFabOpen(false);
-                                    }}
-                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
-                                >
-                                    <span className="text-[12px] font-bold">메뉴 추가하기</span>
-                                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                        <Plus className="w-4 h-4" />
-                                    </div>
-                                </motion.button>
-                            </div>
-                        )}
-                    </AnimatePresence>
-                    <button
-                        onClick={() => setIsFabOpen(!isFabOpen)}
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ${isFabOpen ? 'bg-zinc-800 rotate-45' : 'bg-violet-600 hover:bg-violet-500 hover:scale-105 active:scale-95'
-                            }`}
-                    >
-                        <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
-                    </button>
-                </div>
-            )}
-            {alertConfig && (
-                <ConfirmModal
-                    isOpen={!!alertConfig}
-                    onClose={() => setAlertConfig(null)}
-                    onConfirm={alertConfig.onConfirm || (() => setAlertConfig(null))}
-                    title={alertConfig.title}
-                    message={alertConfig.message}
-                    confirmText={alertConfig.confirmText}
-                    cancelText={alertConfig.cancelText}
-                    variant={alertConfig.variant || 'warning'}
-                />
-            )}
-        </div>
+            {
+                viewMode === 'list' && (
+                    <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 ${isFullScreen ? 'bottom-8' : 'bottom-24'}`}>
+                        <AnimatePresence>
+                            {isFabOpen && (
+                                <div className="flex flex-col items-end gap-3 mb-2">
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                        onClick={() => {
+                                            setIsAddModalOpen(true);
+                                            setIsFabOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                    >
+                                        <span className="text-[12px] font-bold">콘텐츠 추가하기</span>
+                                        <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-all">
+                                            <FilePlus className="w-4 h-4" />
+                                        </div>
+                                    </motion.button>
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                        transition={{ delay: 0.05 }}
+                                        onClick={() => {
+                                            handleAddMenu();
+                                            setIsFabOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                    >
+                                        <span className="text-[12px] font-bold">새 그룹 생성</span>
+                                        <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                            <Plus className="w-4 h-4" />
+                                        </div>
+                                    </motion.button>
+                                </div>
+                            )}
+                        </AnimatePresence>
+                        <button
+                            onClick={() => setIsFabOpen(!isFabOpen)}
+                            className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ${isFabOpen ? 'bg-zinc-800 rotate-45' : 'bg-violet-600 hover:bg-violet-500 hover:scale-105 active:scale-95'
+                                }`}
+                        >
+                            <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
+                        </button>
+                    </div>
+                )
+            }
+            {
+                alertConfig && (
+                    <ConfirmModal
+                        isOpen={!!alertConfig}
+                        onClose={() => setAlertConfig(null)}
+                        onConfirm={alertConfig.onConfirm || (() => setAlertConfig(null))}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        confirmText={alertConfig.confirmText}
+                        cancelText={alertConfig.cancelText}
+                        variant={alertConfig.variant || 'warning'}
+                    />
+                )
+            }
+        </div >
     );
 };

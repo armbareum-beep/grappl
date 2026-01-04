@@ -67,10 +67,12 @@ function transformLesson(data: any): Lesson {
         category: data.category,
         lessonNumber: data.lesson_number,
         vimeoUrl: data.vimeo_url,
+        videoUrl: data.video_url,
         thumbnailUrl: data.thumbnail_url,
         length: data.length,
         difficulty: data.difficulty,
         createdAt: data.created_at,
+        isSubscriptionExcluded: data.is_subscription_excluded || false,
     };
 }
 
@@ -422,18 +424,26 @@ export async function getLessons(limit: number = 200): Promise<(Lesson & { cours
     // Fetch course titles & creator names
     const { data: courses } = await supabase
         .from('courses')
-        .select('id, title, creator:creators(name)')
+        .select('id, title, thumbnail_url, creator:creators(name)')
         .in('id', courseIds);
 
     const courseMap = new Map((courses || []).map((c: any) => [c.id, {
         title: c.title,
-        creatorName: c.creator?.name
+        creatorName: c.creator?.name,
+        thumbnailUrl: c.thumbnail_url
     }]));
 
-    return lessons.map(lesson => ({
-        ...lesson,
-        course: lesson.courseId ? courseMap.get(lesson.courseId) || { title: 'Unknown Course' } : undefined
-    }));
+    return lessons.map(lesson => {
+        const courseInfo = lesson.courseId ? courseMap.get(lesson.courseId) : undefined;
+        return {
+            ...lesson,
+            thumbnailUrl: lesson.thumbnailUrl || courseInfo?.thumbnailUrl,
+            course: courseInfo ? {
+                title: courseInfo.title,
+                creatorName: courseInfo.creatorName
+            } : undefined
+        };
+    });
 }
 
 export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]> {
@@ -2655,14 +2665,17 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
 
         const isInstructor = instructorSet.has(log.user_id);
 
+        const rawName = userMap[log.user_id] || 'User';
+        const displayName = rawName.includes('@') ? rawName.split('@')[0] : rawName;
+
         return {
             id: log.id,
             userId: log.user_id,
-            userName: userMap[log.user_id] || 'User',
+            userName: displayName,
             userAvatar: avatarMap[log.user_id],
             userBelt: beltMap[log.user_id],
             user: {
-                name: userMap[log.user_id] || 'User',
+                name: displayName,
                 email: '',
                 belt: beltMap[log.user_id],
                 profileImage: avatarMap[log.user_id],
@@ -4153,14 +4166,15 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
 
     return drills.map((drill: any) => {
         const creator = userMap[drill.creator_id];
-        const enrichedDrill = {
+        return {
             ...drill,
-            creator: creator ? {
-                name: creator.name,
-                profile_image: creator.avatar_url
-            } : null
+            thumbnailUrl: drill.thumbnail_url, // Ensure field is mapped for frontend
+            creatorName: creator?.name || 'Unknown',
+            creatorProfileImage: creator?.avatar_url,
+            durationMinutes: drill.duration_minutes || 0,
+            views: drill.views || 0,
+            createdAt: drill.created_at
         };
-        return transformDrill(enrichedDrill);
     });
 }
 
@@ -4516,30 +4530,60 @@ export async function getRoutines(creatorId?: string) {
  * Get a routine for the day (changes daily based on date)
  */
 export async function getDailyRoutine() {
-    // 1. Fetch all public routines (or a reasonable limit)
-    const { data, error } = await supabase
-        .from('routines')
-        .select('*')
-        .limit(50); // Fetch enough to rotate
+    try {
+        const { data, error } = await supabase
+            .from('routines')
+            .select('*')
+            .limit(20); // Sync with Landing Page limit
 
-    if (error) {
-        console.error('Error fetching routines for daily:', error);
+        if (error) {
+            console.error('Error fetching routines for daily:', error);
+            return { data: null, error };
+        }
+
+        if (!data || data.length === 0) {
+            console.log('[getDailyRoutine] No routines found in database');
+            return { data: null, error: null };
+        }
+
+        // 2. Select one based on date (Deterministic Seeded Random - matching Landing Page)
+        const today = new Date();
+        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        const x = Math.sin(seed) * 10000;
+        const index = Math.floor((x - Math.floor(x)) * data.length);
+
+        console.log(`[getDailyRoutine] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
+
+        const selectedRoutine = data[index];
+
+        // Fetch creator details from users table
+        let creatorInfo = null;
+        if (selectedRoutine.creator_id) {
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url')
+                .eq('id', selectedRoutine.creator_id)
+                .single();
+            if (userData) {
+                creatorInfo = {
+                    name: userData.name,
+                    profile_image: userData.avatar_url
+                };
+            }
+        }
+
+        return {
+            data: {
+                ...transformDrillRoutine(selectedRoutine),
+                creatorName: creatorInfo?.name || 'Grapplay Team',
+                creatorProfileImage: creatorInfo?.profile_image || undefined
+            },
+            error: null
+        };
+    } catch (error) {
+        console.error('Exception in getDailyRoutine:', error);
         return { data: null, error };
     }
-
-    if (!data || data.length === 0) {
-        return { data: null, error: null };
-    }
-
-    // 2. Select one based on date (Deterministic)
-    const today = new Date();
-    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
-
-    // Use dayOfYear to pick an index
-    const index = dayOfYear % data.length;
-    const selectedRoutine = data[index];
-
-    return { data: transformDrillRoutine(selectedRoutine), error: null };
 }
 
 /**
@@ -4555,15 +4599,18 @@ export async function getDailyFreeCourse() {
                 lessons:lessons(count)
             `)
             .eq('published', true)
-            .limit(100);
+            .limit(20);
 
         if (error) throw error;
         if (!data || data.length === 0) return { data: null, error: null };
 
-        // Deterministic selection based on date
+        // Deterministic selection based on date (Matching Landing Page)
         const today = new Date();
-        const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-        const index = dateSeed % data.length;
+        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        const x = Math.sin(seed) * 10000;
+        const index = Math.floor((x - Math.floor(x)) * data.length);
+
+        console.log(`[getDailyFreeCourse] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
         const course = data[index];
 
         return {
@@ -4587,46 +4634,46 @@ export async function getDailyFreeDrill() {
     try {
         const { data, error } = await supabase
             .from('drills')
-            .select(`
-                *,
-                creator:creators(name, profile_image)
-            `)
+            .select('*')
             .limit(100);
 
         if (error) throw error;
-        if (!data || data.length === 0) return { data: null, error: null };
+        if (!data || data.length === 0) {
+            console.log('[getDailyFreeDrill] No drills found in database');
+            return { data: null, error: null };
+        }
 
         // Deterministic selection based on date
         const today = new Date();
         const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
         const index = dateSeed % data.length;
+
+        console.log(`[getDailyFreeDrill] Found ${data.length} drills, selecting index ${index}`);
+
         const drill = data[index];
 
-        // Inline transformation to ensure safety if transformDrill is not available
-        const transformedDrill: Drill = {
-            id: drill.id,
-            title: drill.title,
-            description: drill.description,
-            creatorId: drill.creator_id,
-            creatorName: drill.creator?.name || 'Unknown',
-            category: drill.category,
-            difficulty: drill.difficulty,
-            thumbnailUrl: drill.thumbnail_url,
-            videoUrl: drill.video_url,
-            vimeoUrl: drill.vimeo_url,
-            descriptionVideoUrl: drill.description_video_url,
-            aspectRatio: '9:16',
-            views: drill.views || 0,
-            durationMinutes: drill.duration_minutes || 0,
-            length: drill.length || drill.duration,
-            tags: drill.tags || [],
-            likes: drill.likes || 0,
-            price: drill.price || 0,
-            createdAt: drill.created_at,
-        };
+        // Fetch creator details from users table
+        let creatorInfo = null;
+        if (drill.creator_id) {
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url')
+                .eq('id', drill.creator_id)
+                .single();
+            if (userData) {
+                creatorInfo = {
+                    name: userData.name,
+                    profile_image: userData.avatar_url
+                };
+            }
+        }
 
         return {
-            data: transformedDrill,
+            data: {
+                ...transformDrill(drill),
+                creatorName: creatorInfo?.name || 'Grapplay Instructor',
+                creatorProfileImage: creatorInfo?.profile_image || undefined,
+            } as Drill,
             error: null
         };
     } catch (error) {
@@ -4908,21 +4955,29 @@ export async function getUserRoutines(userId: string) {
 
         const purchased = purchasedData.map((item: any) => {
             const routine = item.routine;
+            const creator = creatorsMap[routine.creator_id];
             return {
                 ...transformDrillRoutine(routine),
-                creatorName: creatorsMap[routine.creator_id] || 'Unknown Creator',
+                creatorName: creator?.name || 'Unknown Creator',
+                creatorProfileImage: creator?.avatarUrl || undefined,
                 purchasedAt: item.purchased_at
             };
         });
         routines.push(...purchased);
     }
 
+    const { data: creatorData } = await supabase
+        .from('creators')
+        .select('name, profile_image')
+        .eq('id', userId)
+        .maybeSingle();
+
     // Add created routines
     if (createdData) {
         const created = createdData.map((routine: any) => ({
             ...transformDrillRoutine(routine),
-            creatorName: userData?.name || 'Me', // Use actual name if available
-            creatorProfileImage: userData?.avatar_url,
+            creatorName: creatorData?.name || userData?.name || 'Grapplay Instructor',
+            creatorProfileImage: creatorData?.profile_image || userData?.avatar_url || undefined,
             isOwned: true
         }));
         routines.push(...created);
@@ -4961,7 +5016,7 @@ export async function getUserCreatedRoutines(userId: string) {
 }
 
 // Get random sample routines for non-logged-in users
-export async function getRandomSampleRoutines(limit: number = 3) {
+export async function getRandomSampleRoutines(limit: number = 1) {
     try {
         const { data, error } = await supabase
             .from('routines')
@@ -4993,11 +5048,14 @@ export async function getRandomSampleRoutines(limit: number = 3) {
             }
         }
 
-        const routines = data.map((r: any) => ({
-            ...transformDrillRoutine(r),
-            creatorName: creatorsMap[r.creator_id]?.name || 'Grapplay Team',
-            creatorProfileImage: creatorsMap[r.creator_id]?.avatarUrl || null
-        }));
+        const routines = data.map((r: any) => {
+            const creator = creatorsMap[r.creator_id];
+            return {
+                ...transformDrillRoutine(r),
+                creatorName: creator?.name || 'Grapplay Team',
+                creatorProfileImage: creator?.avatarUrl || undefined
+            };
+        });
 
         return { data: routines as DrillRoutine[], error: null };
     } catch (error) {
@@ -5015,7 +5073,7 @@ function transformDrill(data: any): Drill {
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name || data.creator?.name || 'Unknown',
-        creatorProfileImage: data.creator?.profile_image || data.creator?.avatar_url || null,
+        creatorProfileImage: data.creator?.profile_image || data.creator?.avatar_url || undefined,
         category: data.category,
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
@@ -5038,22 +5096,23 @@ function transformDrill(data: any): Drill {
 
 // Helper for transforming routine data
 function transformDrillRoutine(data: any): DrillRoutine {
+    // Safety check for duration and drill count which are often missing or misnamed in DB
     return {
         id: data.id,
         title: data.title,
-        description: data.description,
+        description: data.description || '',
         creatorId: data.creator_id,
-        creatorName: data.creator?.name || 'Unknown',
-        creatorProfileImage: data.creator?.profile_image || data.creator?.avatar_url || null,
-        thumbnailUrl: data.thumbnail_url,
-        price: data.price,
+        creatorName: data.creator_name || data.creator?.name || 'Grapplay Team',
+        creatorProfileImage: data.creator?.profile_image || data.creator?.avatar_url || undefined,
+        thumbnailUrl: data.thumbnail_url || data.thumbnailUrl || '', // Support both snake and camel case
+        price: data.price || 0,
+        views: data.views || 0,
         difficulty: data.difficulty,
         category: data.category,
-        totalDurationMinutes: data.drill_count,
-        drillCount: data.drill_count,
-        drills: [], // Add empty drills array to prevent frontend errors
-        views: data.views || 0,
-        createdAt: data.created_at,
+        totalDurationMinutes: data.total_duration_minutes || data.duration_minutes || data.drill_count || 0,
+        drillCount: data.drill_count || 0,
+        drills: [],
+        createdAt: data.created_at
     };
 }
 
@@ -6194,24 +6253,47 @@ export async function fetchPublicFeedDrills(limit: number = 20) {
 }
 
 /**
- * Fetch creators by IDs
+ * Fetch creators by IDs (checking both users and creators tables)
  */
 export async function fetchCreatorsByIds(creatorIds: string[]) {
     if (!creatorIds || creatorIds.length === 0) return {};
 
     try {
         const uniqueIds = [...new Set(creatorIds)];
-        const { data: creators } = await supabase
-            .from('creators')
-            .select('id, name')
+
+        // 1. Fetch from users table (primary source for avatar and display name)
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url')
             .in('id', uniqueIds);
 
-        const creatorsMap: Record<string, string> = {};
-        if (creators) {
-            creators.forEach((c: any) => {
-                creatorsMap[c.id] = c.name;
-            });
-        }
+        // 2. Fetch from creators table (source for professional name and profile image)
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', uniqueIds);
+
+        const creatorsMap: Record<string, { name: string; avatarUrl: string | null }> = {};
+
+        // Initialize with default/unknown
+        uniqueIds.forEach(id => {
+            creatorsMap[id] = { name: 'Unknown Creator', avatarUrl: null };
+        });
+
+        // Fill with user data
+        users?.forEach(u => {
+            creatorsMap[u.id] = {
+                name: u.name || creatorsMap[u.id].name,
+                avatarUrl: u.avatar_url
+            };
+        });
+
+        // Override/fill with creator data (Creators table usually has specialized branding)
+        creators?.forEach(c => {
+            if (c.name) creatorsMap[c.id].name = c.name;
+            if (c.profile_image) creatorsMap[c.id].avatarUrl = c.profile_image;
+        });
+
         return creatorsMap;
     } catch (error) {
         console.warn('Error fetching creators:', error);

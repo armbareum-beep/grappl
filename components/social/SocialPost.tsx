@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle, Map, Signpost, BookOpen, Zap, Activity } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { cn } from '../../lib/utils';
 
 // Lazy load ShareModal - Moved to top to avoid scoping issues
 const ShareModal = React.lazy(() => import('./ShareModal'));
@@ -292,7 +293,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
     let displayText = (post.notes || '')
         .replace(/!\[Image\]\([\s\S]*?\)/g, '') // Remove standard markdown images
         .replace(/!\[Image\]/g, '') // Remove leftover labels
-        .replace(/[\(]?https:\/\/[a-zA-Z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\/[^\s)]+[\)]?/g, '') // Remove Supabase URLs with optional parens
+        .replace(/[\(]?https?:\/\/[a-zA-Z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\/[^\s)]+[\)]?/g, '') // Remove Supabase URLs
+        .replace(/[\(]?https?:\/\/(localhost|grapplay\.com|grapplay-.*\.vercel\.app)[^\s)]+[\)]?/g, '') // Remove app URLs (localhost and production)
         .trim();
 
     // Video handling
@@ -316,6 +318,80 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
     if (isDeleted) return null;
 
+    // Shared content card logic
+    const routineData = post.metadata?.sharedRoutine;
+    const routineId = post.metadata?.routineId;
+    const courseId = post.metadata?.courseId;
+    const lessonId = post.metadata?.lessonId;
+    const drillId = post.metadata?.drillId;
+    const treeId = post.metadata?.treeId;
+    const sparringId = post.metadata?.sparringId || post.metadata?.videoId;
+
+    let cardType: 'roadmap' | 'routine' | 'course' | 'lesson' | 'drill' | 'sparring' | null = null;
+    if (treeId || post.type === 'skill_roadmap' || post.location === '__FEED__skill_roadmap') cardType = 'roadmap';
+    else if (routineData || routineId || post.type === 'routine' || post.metadata?.type === 'routine') cardType = 'routine';
+    else if (courseId || post.metadata?.type === 'course' || post.type === 'course') cardType = 'course';
+    else if (lessonId || post.metadata?.type === 'lesson' || post.type === 'lesson') cardType = 'lesson';
+    else if (drillId || post.metadata?.type === 'drill' || post.type === 'drill') cardType = 'drill';
+    else if (sparringId || post.metadata?.type === 'sparring' || post.type === 'sparring') cardType = 'sparring';
+
+    let cardTitle = '';
+    let cardImage = '';
+    let cardLabel = '';
+    let cardIcon: React.ReactNode = null;
+    let cardSubtitle = '';
+    let cardNavigatePath = '';
+    let cardAccentColor = 'bg-violet-600/90';
+
+    if (cardType === 'roadmap') {
+        cardTitle = post.metadata?.treeTitle || '스킬 로드맵';
+        cardImage = images[0] || post.metadata?.sharedImage;
+        cardLabel = 'SKILL ROADMAP';
+        cardIcon = <Signpost className="w-3 h-3" />;
+        cardSubtitle = `${post.userName || 'Anonymous'}님의 기술 추천 경로`;
+        cardNavigatePath = `/technique-roadmap?id=${treeId || post.metadata?.treeId}`;
+    } else if (cardType === 'routine') {
+        cardTitle = routineData?.title || post.metadata?.sharedTitle || '드릴 루틴';
+        cardImage = routineData?.thumbnailUrl || post.metadata?.sharedImage || images[0];
+        cardLabel = 'DRILL ROUTINE';
+        cardIcon = <Zap className="w-3 h-3" />;
+        cardSubtitle = routineData?.creatorName ? `${routineData.creatorName} 인스트럭터의 루틴` : `${post.userName || 'Anonymous'}님이 완료한 훈련 루틴`;
+        cardNavigatePath = `/routines/${routineId || routineData?.id}`;
+        cardAccentColor = 'bg-zinc-800/90';
+    } else if (cardType === 'course') {
+        cardTitle = post.metadata?.courseTitle || post.metadata?.sharedTitle || '레슨 클래스';
+        cardImage = post.metadata?.sharedImage || images[0] || post.mediaUrl;
+        cardLabel = 'LESSON CLASS';
+        cardIcon = <BookOpen className="w-3 h-3" />;
+        cardSubtitle = `전문가와 함께하는 체계적인 가르침`;
+        cardNavigatePath = `/courses/${courseId}`;
+        cardAccentColor = 'bg-violet-600/90';
+    } else if (cardType === 'lesson') {
+        cardTitle = post.metadata?.lessonTitle || post.metadata?.sharedTitle || '레슨 상세';
+        cardImage = post.metadata?.sharedImage || images[0];
+        cardLabel = 'LESSON';
+        cardIcon = <Play className="w-3 h-3" />;
+        cardSubtitle = `기술의 핵심 원리를 배워보세요`;
+        cardNavigatePath = `/lessons/${lessonId}`;
+        cardAccentColor = 'bg-violet-500/90';
+    } else if (cardType === 'drill') {
+        cardTitle = post.metadata?.drillTitle || post.metadata?.sharedTitle || '드릴 트레이닝';
+        cardImage = post.metadata?.sharedImage || images[0];
+        cardLabel = 'DRILL';
+        cardIcon = <Zap className="w-3 h-3" />;
+        cardSubtitle = `반복 숙달을 위한 필수 트레이닝`;
+        cardNavigatePath = `/drills/${drillId}`;
+        cardAccentColor = 'bg-zinc-800/90';
+    } else if (cardType === 'sparring') {
+        cardTitle = post.metadata?.sparringTitle || post.metadata?.sharedTitle || '스파링 분석';
+        cardImage = post.metadata?.sharedImage || images[0] || (sparringId ? `https://vumbnail.com/${sparringId}.jpg` : '');
+        cardLabel = 'SPARRING';
+        cardIcon = <Activity className="w-3 h-3" />;
+        cardSubtitle = `실전 감각을 위한 스파링 리플레이`;
+        cardNavigatePath = `/sparring?id=${sparringId}`;
+        cardAccentColor = 'bg-zinc-800/90';
+    }
+
     return (
         <div className="border-b border-zinc-900 py-8 px-4 hover:bg-zinc-900/20 transition-all group/post">
             <div className="flex gap-4">
@@ -328,8 +404,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         {post.userAvatar ? (
                             <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-500 font-bold">
-                                {post.userName?.[0]}
+                            <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-950 flex items-center justify-center text-zinc-500 font-bold uppercase">
+                                {(post.userName?.includes('@') ? 'G' : post.userName?.[0]) || 'G'}
                             </div>
                         )}
                     </div>
@@ -343,7 +419,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                 onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.userId}`); }}
                                 className="font-bold text-zinc-100 text-[15px] hover:underline cursor-pointer"
                             >
-                                {post.userName}
+                                {post.userName?.includes('@') ? post.userName.split('@')[0] : (post.userName || 'User')}
                             </h3>
                             {post.user?.isInstructor && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 flex items-center gap-0.5">
@@ -471,26 +547,8 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         </div>
                     )}
 
-                    {/* Technique Tags */}
-                    {post.techniques && post.techniques.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {post.techniques.map((tech, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/search?q=${encodeURIComponent(tech)}`);
-                                    }}
-                                    className="text-violet-400 text-sm font-medium hover:underline"
-                                >
-                                    #{tech}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
                     {/* Media Content - Simplified for Premium Feel */}
-                    {(images.length > 0 || youtubeUrl || isVideo) && (
+                    {(images.length > 0 || youtubeUrl || isVideo) && !cardType && (
                         <div className="mb-4 rounded-xl overflow-hidden border border-zinc-800/50 bg-black relative shadow-lg">
                             {/* Reusing existing media logic within new wrapper */}
                             {images.length > 0 && !isVideo && !youtubeUrl && (
@@ -533,6 +591,91 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     )}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Shared Content Preview Card (Combined with Image) */}
+                    {cardType && (
+                        <div
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(cardNavigatePath);
+                            }}
+                            className="group/card relative my-6 cursor-pointer overflow-hidden rounded-[2rem] border border-zinc-900 bg-zinc-950/50 backdrop-blur-sm shadow-xl transition-all duration-500 hover:border-violet-500/30 hover:shadow-violet-500/5 active:scale-[0.99]"
+                        >
+                            {/* Premium Subtle Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/5 via-transparent to-zinc-900/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700" />
+
+                            <div className="flex flex-col sm:flex-row items-stretch relative z-10">
+                                {/* Thumbnail Section */}
+                                <div className="w-full sm:w-48 h-48 sm:h-auto relative overflow-hidden shrink-0 bg-zinc-900 group-hover/card:bg-zinc-800 transition-colors">
+                                    {cardImage ? (
+                                        <img
+                                            src={cardImage}
+                                            alt={cardTitle}
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <div className={cn("p-4 rounded-3xl bg-opacity-10", cardAccentColor)}>
+                                                {React.cloneElement(cardIcon as React.ReactElement, { className: "w-8 h-8 text-violet-400" })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Glassmorphic Type Badge */}
+                                    <div className="absolute top-4 left-4">
+                                        <div className={cn("flex items-center gap-2 px-3.5 py-2 rounded-full backdrop-blur-xl border border-white/10 text-[9px] font-black uppercase tracking-widest text-white shadow-2xl", cardAccentColor)}>
+                                            {cardType === 'roadmap' && <Signpost className="w-3 h-3" />}
+                                            {cardType === 'routine' && <Zap className="w-3 h-3" />}
+                                            {cardType === 'course' && <BookOpen className="w-3 h-3" />}
+                                            {cardType === 'lesson' && <Play className="w-3 h-3" />}
+                                            {cardType === 'drill' && <Zap className="w-3 h-3" />}
+                                            {cardLabel}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Content Section */}
+                                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-zinc-900 bg-gradient-to-br from-transparent to-zinc-900/30">
+                                    <h4 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2 group-hover/card:text-violet-400 transition-colors">
+                                        {cardTitle}
+                                    </h4>
+                                    <p className="text-zinc-500 text-sm font-medium mb-6 line-clamp-2 leading-relaxed italic opacity-90">
+                                        {cardSubtitle}
+                                    </p>
+
+                                    <div className="mt-auto flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 group-hover/card:text-zinc-400 transition-colors">
+                                            <span>더 알아보기</span>
+                                            <ChevronRight className="w-4 h-4 group-hover/card:translate-x-1 transition-transform" />
+                                        </div>
+
+                                        {/* Subtle Type Icon */}
+                                        <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-600 group-hover/card:border-violet-500/30 group-hover/card:text-violet-500 transition-all">
+                                            {cardType === 'roadmap' ? <Signpost className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Technique Tags */}
+                    {post.techniques && post.techniques.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {post.techniques.map((tech, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/search?q=${encodeURIComponent(tech)}`);
+                                    }}
+                                    className="text-violet-400 text-sm font-medium hover:underline"
+                                >
+                                    #{tech}
+                                </button>
+                            ))}
                         </div>
                     )}
 

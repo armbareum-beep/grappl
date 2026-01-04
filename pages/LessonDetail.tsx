@@ -1,31 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getLessonById, getCourseById } from '../lib/api';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { getLessonById, getCourseById, checkCourseOwnership } from '../lib/api';
+import { Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ArrowLeft, Calendar, Eye, Clock, BookOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 
 export const LessonDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { user, isSubscribed, isAdmin } = useAuth();
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [course, setCourse] = useState<Course | null>(null);
     const [loading, setLoading] = useState(true);
+    const [owns, setOwns] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
             if (!id) return;
+            setLoading(true);
+            setOwns(false);
 
             try {
                 const lessonData = await getLessonById(id);
                 setLesson(lessonData);
 
-                if (lessonData && lessonData.courseId) {
-                    const courseData = await getCourseById(lessonData.courseId);
-                    setCourse(courseData);
+                if (lessonData) {
+                    let courseData = null;
+                    if (lessonData.courseId) {
+                        courseData = await getCourseById(lessonData.courseId);
+                        setCourse(courseData);
+                    }
+
+                    const isCreator = user && courseData && courseData.creatorId === user.id;
+                    const isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
+
+                    // Core Permission Check
+                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
+
+                    // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
+                    if (!hasAccess && (lessonData.lessonNumber === 1 || (courseData && courseData.price === 0))) {
+                        hasAccess = true;
+                    }
+
+                    setOwns(hasAccess || false);
                 }
             } catch (error) {
                 console.error('Error fetching lesson details:', error);
@@ -34,10 +58,19 @@ export const LessonDetail: React.FC = () => {
             }
         }
         fetchData();
-    }, [id]);
+    }, [id, user, isSubscribed, isAdmin]);
 
     if (loading) {
         return <LoadingScreen message="레슨 정보를 불러오는 중..." />;
+    }
+
+    if (!user) {
+        return <ErrorScreen
+            title="로그인이 필요합니다"
+            error="레슨을 시청하려면 로그인이 필요합니다."
+            resetMessage="로그인 페이지로 이동합니다."
+            onReset={() => navigate('/login', { state: { from: location } })}
+        />;
     }
 
     if (!lesson) {
@@ -62,14 +95,23 @@ export const LessonDetail: React.FC = () => {
                         </div>
                         <span className="font-medium text-sm">뒤로 가기</span>
                     </button>
-                    {course && (
-                        <Link
-                            to={`/courses/${course.id}`}
-                            className="text-xs font-bold text-violet-400 uppercase tracking-wider hover:text-violet-300 transition-colors px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20"
+                    <div className="flex items-center gap-2">
+                        {course && (
+                            <Link
+                                to={`/courses/${course.id}`}
+                                className="text-xs font-bold text-violet-400 uppercase tracking-wider hover:text-violet-300 transition-colors px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20"
+                            >
+                                전체 클래스 보기
+                            </Link>
+                        )}
+                        <button
+                            onClick={() => setIsShareModalOpen(true)}
+                            className="p-2.5 rounded-full bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800"
+                            title="공유하기"
                         >
-                            전체 클래스 보기
-                        </Link>
-                    )}
+                            <Share2 className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -85,13 +127,40 @@ export const LessonDetail: React.FC = () => {
                             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 
                             <div className="relative h-full z-10">
-                                {lesson.videoUrl || lesson.vimeoUrl ? (
+                                {owns && (lesson.videoUrl || lesson.vimeoUrl) ? (
                                     <VideoPlayer
                                         vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                         title={lesson.title}
                                         onProgress={() => { }}
                                         onEnded={() => { }}
                                     />
+                                ) : !owns ? (
+                                    <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative">
+                                        {course?.thumbnailUrl && (
+                                            <img
+                                                src={course.thumbnailUrl}
+                                                alt={course?.title}
+                                                className="absolute inset-0 w-full h-full object-cover opacity-30"
+                                            />
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent"></div>
+
+                                        <div className="relative z-10 flex flex-col items-center p-4 md:p-8 text-center max-w-lg">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-zinc-800/80 backdrop-blur-md flex items-center justify-center mb-4 md:mb-6 border border-zinc-700 shadow-xl">
+                                                <Lock className="w-5 h-5 md:w-6 md:h-6 text-zinc-400" />
+                                            </div>
+                                            <h2 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3 tracking-tight px-4">잠겨있는 레슨입니다</h2>
+                                            <p className="text-zinc-400 text-sm md:text-lg mb-6 md:mb-8 px-4">
+                                                이 클래스를 구매하거나 구독하여 시청하세요.
+                                            </p>
+
+                                            <Link to="/pricing">
+                                                <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
+                                                    구독/구매 안내 보기
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
                                         <div className="w-16 h-16 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin mb-4"></div>
@@ -182,6 +251,29 @@ export const LessonDetail: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {isShareModalOpen && lesson && (
+                <React.Suspense fallback={null}>
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={lesson.title}
+                        text={lesson.description}
+                        url={window.location.href}
+                        imageUrl={lesson.thumbnailUrl || course?.thumbnailUrl}
+                        initialStep="write"
+                        activityType="general"
+                        metadata={{
+                            type: 'lesson',
+                            lessonId: lesson.id,
+                            lessonTitle: lesson.title
+                        }}
+                    />
+                </React.Suspense>
+            )}
         </div>
     );
 };
+
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../components/social/ShareModal'));

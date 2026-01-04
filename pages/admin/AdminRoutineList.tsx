@@ -130,8 +130,12 @@ export const AdminRoutineList: React.FC = () => {
                                     <tr key={routine.id} className="group hover:bg-zinc-800/20 transition-all">
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-5">
-                                                <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 group-hover:border-violet-500/30 group-hover:bg-violet-500/5 transition-all shadow-sm">
-                                                    <Activity className="h-7 w-7 group-hover:text-violet-400 transition-colors" />
+                                                <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex items-center justify-center text-zinc-400 group-hover:border-violet-500/30 group-hover:bg-violet-500/5 transition-all shadow-sm">
+                                                    {(routine as any).thumbnailUrl || (routine as any).thumbnail_url ? (
+                                                        <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} className="w-full h-full object-cover" alt="" />
+                                                    ) : (
+                                                        <Activity className="h-7 w-7 group-hover:text-violet-400 transition-colors" />
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <div className="text-base font-extrabold text-white group-hover:text-violet-300 transition-colors truncate max-w-[300px]">

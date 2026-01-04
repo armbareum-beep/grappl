@@ -86,10 +86,10 @@ export const NotificationDropdown: React.FC = () => {
             {isOpen && (
                 <>
                     <div
-                        className="fixed inset-0 z-10"
+                        className="fixed inset-0 z-[11001]"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-20 max-h-[500px] overflow-hidden flex flex-col">
+                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-[11002] max-h-[500px] overflow-hidden flex flex-col">
                         <div className="p-4 border-b border-slate-200 flex justify-between items-center">
                             <h3 className="font-bold text-slate-900">알림</h3>
                             {unreadCount > 0 && (

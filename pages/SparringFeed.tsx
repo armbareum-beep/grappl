@@ -335,7 +335,21 @@ const VideoItem: React.FC<{
                 </div>
                 <React.Suspense fallback={null}>
                     {isShareModalOpen && (
-                        <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={video.title} text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`} />
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={video.title}
+                            text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                            imageUrl={video.thumbnailUrl}
+                            url={`${window.location.origin}/sparring?id=${video.id}`}
+                            activityType="sparring"
+                            metadata={{
+                                type: 'sparring',
+                                sparringId: video.id,
+                                sparringTitle: video.title,
+                                sharedImage: video.thumbnailUrl
+                            }}
+                        />
                     )}
                 </React.Suspense>
             </div>

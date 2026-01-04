@@ -10,7 +10,7 @@ import { ClassShowcase } from '../components/ClassShowcase';
 import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
 import { DrillReelsSection } from '../components/DrillReelsSection';
 import { CommunityFeedSection } from '../components/CommunityFeedSection';
-import { TechniqueChainPreviewSection } from '../components/landing/TechniqueChainPreviewSection';
+
 
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
@@ -152,7 +152,7 @@ export const LandingPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
+        <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden break-keep">
             {/* Navigation Header */}
             <header className={cn(
                 "absolute top-0 left-0 w-full z-50 transition-all duration-300 h-20 flex items-center px-4 md:px-8",
@@ -203,7 +203,7 @@ export const LandingPage: React.FC = () => {
                 </h1>
 
                 {/* 4. Sub Copy */}
-                <p className="z-10 mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed">
+                <p className="z-10 mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed break-keep">
                     파편화된 영상은 이제 그만. <br className="hidden md:block" />
                     매트 위에서 실제로 작동하는 <span className="text-zinc-200 font-medium">단 1%의 디테일</span>을 경험하세요.
                 </p>
@@ -289,7 +289,7 @@ export const LandingPage: React.FC = () => {
             <RandomSparringShowcase />
 
             <CommunityFeedSection />
-            <TechniqueChainPreviewSection />
+
 
 
 
@@ -326,7 +326,7 @@ export const LandingPage: React.FC = () => {
                                 매트 위에서 시작된 <br className="md:hidden" />
                                 <span className="text-violet-400">놀라운 변화</span>
                             </h2>
-                            <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed">
+                            <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
                                 블랙벨트의 디테일을 경험한 수련생들의 생생한 목소리를 확인하세요.
                             </p>
                         </div>
@@ -370,7 +370,7 @@ export const LandingPage: React.FC = () => {
                         <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
                             성실함이 성장을 보장하던<br className="md:hidden" /> 시대는 끝났습니다.
                         </h2>
-                        <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed">
+                        <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed break-keep">
                             똑같은 시간 수련하고도 나만 뒤처지는 기분, 단순히 재능 탓일까요?<br className="hidden md:block" />
                             전략 없는 땀방울은 가장 느린 성장의 지름길입니다.
                         </p>

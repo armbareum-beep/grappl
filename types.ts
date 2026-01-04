@@ -66,6 +66,7 @@ export interface Lesson {
   videoUrl?: string; // Support for Vimeo or direct URLs
   views?: number; // Added for dashboard display
   createdAt: string;
+  isSubscriptionExcluded?: boolean;
 }
 
 // Keep Video interface for backward compatibility
@@ -84,6 +85,7 @@ export interface Video {
   price: number;
   views: number;
   createdAt: string;
+  isSubscriptionExcluded?: boolean;
 }
 
 export interface User {
@@ -164,7 +166,7 @@ export interface TrainingLog {
   youtubeUrl?: string; // Legacy support
   mediaUrl?: string; // New: Direct video/image upload
   mediaType?: 'video' | 'image';
-  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'mastery' | 'technique_chain' | 'skill_roadmap';
+  type?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'mastery' | 'technique_chain' | 'skill_roadmap' | 'course' | 'lesson' | 'drill';
   metadata?: Record<string, any>;
   likes?: number;
   comments?: number;
@@ -383,6 +385,7 @@ export interface Drill {
   tags?: string[]; // For hashtags
   likes?: number;
   views: number;
+  creatorProfileImage?: string;
   createdAt: string;
 }
 

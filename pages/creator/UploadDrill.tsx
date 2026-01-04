@@ -739,49 +739,50 @@ export const UploadDrill: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl mx-auto">
-                <button
-                    onClick={() => navigate('/creator')}
-                    className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    대시보드로 돌아가기
-                </button>
-
-                <div className="space-y-6">
+        <div className="min-h-screen bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-8">
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-full transition-all text-zinc-400 hover:text-white group"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent flex items-center gap-2">
                             {isEditMode ? '드릴 수정' : '새 드릴 만들기'}
-                            <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-[10px] rounded-full uppercase tracking-wider shadow-lg">
+                            <span className="px-2 py-1 bg-gradient-to-r from-violet-600 to-violet-500 text-white text-[10px] rounded-full uppercase tracking-wider shadow-lg">
                                 ⚡️ Super Speed
                             </span>
                         </h1>
-                        <p className="text-slate-400 mt-1">
-                            {isEditMode ? '드릴 정보를 수정합니다.' : '동작과 설명을 각각 업로드하여 드릴을 완성하세요.'}
+                        <p className="text-sm text-zinc-500 mt-1">
+                            {isEditMode ? '드릴 정보를 수정합니다' : '동작과 설명을 각각 업로드하여 드릴을 완성하세요'}
                         </p>
                     </div>
+                </div>
 
+                <div className="space-y-6">
                     {/* Metadata Form */}
-                    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4">
+                    <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 p-6 space-y-5 shadow-2xl">
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">드릴 제목</label>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">드릴 제목</label>
                             <input
                                 type="text"
                                 value={formData.title}
                                 onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
                                 placeholder="예: 암바 드릴"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">카테고리</label>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">카테고리</label>
                                 <select
                                     value={formData.category}
                                     onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })}
-                                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                 >
                                     {Object.values(VideoCategory).map(cat => (
                                         <option key={cat} value={cat}>{cat}</option>
@@ -789,11 +790,11 @@ export const UploadDrill: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">난이도</label>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">난이도</label>
                                 <select
                                     value={formData.difficulty}
                                     onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
-                                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                 >
                                     {Object.values(Difficulty).map(diff => (
                                         <option key={diff} value={diff}>{diff}</option>
@@ -803,68 +804,68 @@ export const UploadDrill: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">설명</label>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">설명</label>
                             <textarea
                                 rows={3}
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                                placeholder="드릴에 대한 간단한 설명을 적어주세요."
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none transition-all placeholder:text-zinc-700"
+                                placeholder="이 드릴에 대한 설명을 입력하세요"
                             />
                         </div>
                     </div>
 
-                    {/* Video Upload Area - Swipeable Tabs */}
-                    <div className="space-y-4">
-                        <div className="flex p-1 bg-slate-900 rounded-xl border border-slate-800">
+                    {/* Video Uploads */}
+                    <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl">
+                        {/* Tab Header */}
+                        <div className="flex border-b border-zinc-800">
                             <button
                                 onClick={() => setActiveTab('action')}
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'action'
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                className={`flex-1 py-4 px-6 font-bold transition-all ${activeTab === 'action'
+                                    ? 'bg-violet-600/10 text-violet-400 border-b-2 border-violet-500'
+                                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
                                     }`}
                             >
-                                1. 동작 영상
-                                {actionVideo.cuts && <CheckCircle className="w-3 h-3 inline ml-1.5 text-blue-200" />}
+                                동작 영상
                             </button>
                             <button
                                 onClick={() => setActiveTab('desc')}
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'desc'
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                className={`flex-1 py-4 px-6 font-bold transition-all ${activeTab === 'desc'
+                                    ? 'bg-violet-600/10 text-violet-400 border-b-2 border-violet-500'
+                                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
                                     }`}
                             >
-                                2. 설명 영상
-                                {descVideo.cuts && <CheckCircle className="w-3 h-3 inline ml-1.5 text-blue-200" />}
+                                설명 영상
                             </button>
                         </div>
 
-                        <div className="relative overflow-hidden min-h-[320px]">
-                            <div
-                                className="flex transition-transform duration-300 ease-in-out h-full"
-                                style={{ transform: `translateX(${activeTab === 'action' ? '0%' : '-100%'})` }}
-                            >
-                                <div className="w-full flex-shrink-0 px-1">
-                                    {renderVideoBox('action', actionVideo, '동작 영상')}
-                                </div>
-                                <div className="w-full flex-shrink-0 px-1">
-                                    {renderVideoBox('desc', descVideo, '설명 영상')}
-                                </div>
-                            </div>
+                        {/* Tab Content */}
+                        <div className="p-6">
+                            {activeTab === 'action' ? renderVideoBox('action', actionVideo, '동작 영상') : renderVideoBox('desc', descVideo, '설명 영상')}
                         </div>
                     </div>
 
                     {/* Submit Button */}
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={isEditMode ? !formData.title : (!actionVideo.cuts || !descVideo.cuts || !formData.title)}
-                        className="w-full py-4 text-lg font-bold shadow-xl shadow-blue-500/10"
-                    >
-                        {isEditMode ? '수정사항 저장' : '드릴 생성 완료'}
-                    </Button>
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            onClick={() => navigate('/creator')}
+                            className="px-6 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                        >
+                            취소
+                        </button>
+                        <button
+                            onClick={() => {
+                                handleEnableNoSleep();
+                                handleSubmit();
+                            }}
+                            disabled={!formData.title || (!isEditMode && (!actionVideo.cuts || !descVideo.cuts))}
+                            className="flex-1 px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                        >
+                            {isEditMode ? '수정사항 저장' : '드릴 생성하기'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
-

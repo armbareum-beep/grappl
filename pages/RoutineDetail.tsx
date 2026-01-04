@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createFeedPost, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
+import { getRoutineById, getDailyRoutine, checkDrillRoutineOwnership, getDrillById, createFeedPost, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
@@ -224,6 +224,14 @@ export const RoutineDetail: React.FC = () => {
                 finally { setLoading(false); }
             };
             const checkUser = async () => {
+                // First check if this is the daily free routine (accessible to everyone)
+                if (id) {
+                    const { data: dailyRoutine } = await getDailyRoutine();
+                    if (dailyRoutine && dailyRoutine.id === id) {
+                        setOwns(true);
+                    }
+                }
+
                 if (contextUser) {
                     setUser(contextUser);
                     const { data: userData } = await supabase.from('users').select('is_subscriber, subscription_tier').eq('id', contextUser.id).single();
@@ -233,7 +241,10 @@ export const RoutineDetail: React.FC = () => {
                     }
                     if (id) {
                         if (id.startsWith('custom-')) setOwns(true);
-                        else setOwns(await checkDrillRoutineOwnership(contextUser.id, id));
+                        else {
+                            const isOwned = await checkDrillRoutineOwnership(contextUser.id, id);
+                            if (isOwned) setOwns(true);
+                        }
                         await getCompletedRoutinesToday(contextUser.id);
                     }
                 }
@@ -420,9 +431,17 @@ export const RoutineDetail: React.FC = () => {
                 {viewMode === 'landing' ? (
                     <>
                         {/* Mobile Landing Header */}
-                        <div className="relative w-full pt-16 pb-8 flex flex-col items-center justify-center overflow-hidden">
+                        <div className="relative w-full pt-20 pb-12 flex flex-col items-center justify-center overflow-hidden">
+                            {/* Routine Thumbnail Background */}
+                            {routine.thumbnailUrl && (
+                                <div className="absolute inset-0 z-0 scale-110">
+                                    <img src={routine.thumbnailUrl} className="w-full h-full object-cover blur-2xl opacity-40" />
+                                    <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/20 via-zinc-950/80 to-zinc-950" />
+                                </div>
+                            )}
+
                             <button onClick={() => navigate(-1)} className="absolute top-4 left-4 z-50 p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"><ChevronLeft className="w-5 h-5" /></button>
-                            <h1 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[18vw] font-black uppercase tracking-tighter text-zinc-900/40 whitespace-nowrap select-none pointer-events-none z-0">DRILL</h1>
+                            <h1 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[18vw] font-black uppercase tracking-tighter text-white/5 whitespace-nowrap select-none pointer-events-none z-0">DRILL</h1>
                             <div className="relative z-10 flex flex-col items-center text-center gap-4 px-4">
                                 <h2 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-2xl leading-tight">{routine.title}</h2>
                                 <div className="flex items-center gap-2 bg-zinc-900/80 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800 shadow-xl text-xs">
@@ -584,7 +603,14 @@ export const RoutineDetail: React.FC = () => {
                         <button onClick={() => navigate(-1)} className="fixed top-24 left-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
                         {/* Hero Section */}
                         <div className="relative w-full pt-20 pb-16 flex flex-col items-center justify-center overflow-hidden">
-                            <h1 className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10vw] font-black uppercase tracking-tighter text-zinc-900/30 whitespace-nowrap select-none pointer-events-none z-0">DRILL ROUTINE</h1>
+                            {/* Routine Thumbnail Background */}
+                            {routine.thumbnailUrl && (
+                                <div className="absolute inset-0 z-0 scale-110">
+                                    <img src={routine.thumbnailUrl} className="w-full h-full object-cover blur-3xl opacity-30" />
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/60 to-zinc-950" />
+                                </div>
+                            )}
+                            <h1 className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10vw] font-black uppercase tracking-tighter text-white/5 whitespace-nowrap select-none pointer-events-none z-0">DRILL ROUTINE</h1>
                             <div className="relative z-10 flex flex-col items-center text-center gap-6 px-4">
                                 <h2 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-2xl max-w-5xl leading-tight mb-4">{routine.title}</h2>
                                 <div className="flex items-center gap-3 bg-zinc-900/80 backdrop-blur-md px-6 py-3 rounded-full border border-zinc-800 shadow-xl">
@@ -592,7 +618,7 @@ export const RoutineDetail: React.FC = () => {
                                     <div className="w-px h-4 bg-zinc-800" /><div className="flex items-center gap-2 text-violet-400"><Clock className="w-4 h-4" /><span className="font-bold">{totalDurationMinutes} Mins</span></div>
                                 </div>
                                 <div onClick={navigateToCreator} className="mt-6 flex items-center gap-3 bg-zinc-900/50 hover:bg-zinc-800/50 backdrop-blur-sm pr-6 pl-2 py-2 rounded-full border border-zinc-800/50 cursor-pointer transition-all">
-                                    <img src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`} className="w-10 h-10 rounded-full object-cover ring-2 ring-violet-500/20" />
+                                    <img src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`} className="w-10 h-10 rounded-full object-cover ring-2 ring-violet-500/20" />
                                     <span className="text-zinc-300 font-bold">{routine.creatorName}</span>
                                 </div>
                             </div>
@@ -742,7 +768,7 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-3">
                                         <img
-                                            src={(routine as any).creatorImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`}
+                                            src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`}
                                             className="w-10 h-10 rounded-full object-cover ring-2 ring-white/5"
                                         />
                                         <div>

@@ -53,36 +53,40 @@ const SortableLessonItem = ({ lesson, index, onEdit, onDelete }: {
         <div
             ref={setNodeRef}
             style={style}
-            className={`flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border transition-colors group ${isDragging ? 'border-blue-500 bg-slate-800 shadow-xl' : 'border-slate-800'
+            className={`flex items-center gap-4 p-4 bg-zinc-900/50 rounded-xl border transition-all duration-200 group ${isDragging
+                ? 'border-violet-500 bg-zinc-800 shadow-2xl scale-[1.02]'
+                : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50'
                 }`}
         >
             <div
                 {...attributes}
                 {...listeners}
-                className="text-slate-500 cursor-grab active:cursor-grabbing hover:text-slate-300 p-1"
+                className="text-zinc-500 cursor-grab active:cursor-grabbing hover:text-zinc-300 p-1 transition-colors"
             >
                 <GripVertical className="w-5 h-5" />
             </div>
-            <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-slate-600 font-bold text-slate-300 text-sm">
+            <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center border border-zinc-700 font-bold text-zinc-300 text-sm shadow-inner mt-0.5">
                 {index + 1}
             </div>
             <div className="flex-grow">
-                <h4 className="font-bold text-white">{lesson.title}</h4>
-                <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                    <span className="flex items-center gap-1"><Video className="w-3 h-3" /> {lesson.length}</span>
-                    <span>{lesson.difficulty}</span>
+                <h4 className="font-semibold text-zinc-100">{lesson.title}</h4>
+                <div className="flex items-center gap-3 text-xs text-zinc-500 mt-1">
+                    <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5 text-zinc-600" /> {lesson.length}</span>
+                    <span className="px-2 py-0.5 bg-zinc-800 rounded-full border border-zinc-700/50 text-zinc-400 capitalize">{lesson.difficulty}</span>
                 </div>
             </div>
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={() => onEdit(lesson)}
-                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg"
+                    className="p-2.5 text-zinc-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-xl transition-all"
+                    title="수정"
                 >
                     <Edit className="w-4 h-4" />
                 </button>
                 <button
                     onClick={() => onDelete(lesson.id)}
-                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
+                    className="p-2.5 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                    title="삭제"
                 >
                     <Trash2 className="w-4 h-4" />
                 </button>
@@ -118,7 +122,6 @@ export const CourseEditor: React.FC = () => {
     // Lessons State
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [editingLesson, setEditingLesson] = useState<Partial<Lesson> | null>(null);
-    const [uploadMode, setUploadMode] = useState<'upload' | 'url'>('upload');
 
     // Drills State
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
@@ -210,7 +213,7 @@ export const CourseEditor: React.FC = () => {
         if (!user) return;
         setLoadingDrills(true);
         try {
-            const { data } = await getDrills(user.id);
+            const data = await getDrills(user.id);
             if (data) {
                 setAvailableDrills(data);
             }
@@ -357,7 +360,7 @@ export const CourseEditor: React.FC = () => {
                 courseToSave.thumbnailUrl = firstLessonWithThumb.thumbnailUrl;
                 setCourseData(prev => ({ ...prev, thumbnailUrl: firstLessonWithThumb.thumbnailUrl }));
                 success('썸네일이 없어 레슨에서 자동으로 설정되었습니다.');
-            } 
+            }
             // Priority 2: Try to fetch from Vimeo (legacy/fallback)
             else if (lessons[0].vimeoUrl) {
                 try {
@@ -537,7 +540,6 @@ export const CourseEditor: React.FC = () => {
                 toastError('썸네일을 가져올 수 없습니다.');
             }
         } catch (error) {
-            console.error('Error fetching thumbnail:', error);
             toastError('썸네일을 가져오는 중 오류가 발생했습니다.');
         }
     };
@@ -571,207 +573,248 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-slate-400">로딩 중...</div>;
+    if (loading) return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-zinc-500">
+            <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+            <p className="font-medium animate-pulse">정보를 불러오는 중...</p>
+        </div>
+    );
 
     return (
-        <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/creator')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-                        <ArrowLeft className="w-6 h-6 text-slate-400" />
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-full transition-all text-zinc-400 hover:text-white group"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
                     </button>
-                    <h1 className="text-2xl font-bold text-white">
-                        {isNew ? '새 강좌 만들기' : '강좌 수정하기'}
-                    </h1>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+                            {isNew ? '새 강좌 만들기' : '강좌 수정하기'}
+                        </h1>
+                        <p className="text-sm text-zinc-500 mt-1">
+                            프리미엄 지식을 체계적으로 구성하여 전달하세요
+                        </p>
+                    </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3 w-full sm:w-auto">
                     <button
                         onClick={handleSaveCourse}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-violet-600 text-white px-8 py-2.5 rounded-xl hover:bg-violet-500 active:scale-95 transition-all font-semibold shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none"
                     >
-                        <Save className="w-4 h-4" />
-                        {saving ? '저장 중...' : (isNew ? '강좌 개설하기' : '저장하기')}
+                        {saving ? (
+                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Save className="w-4.5 h-4.5" />
+                        )}
+                        {saving ? '저장 중...' : (isNew ? '강좌 개설하기' : '변경사항 저장')}
                     </button>
                 </div>
             </div>
 
-            <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-sm overflow-hidden">
-                <div className="border-b border-slate-800 flex">
-                    <button
-                        onClick={() => setActiveTab('basic')}
-                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'basic'
-                            ? 'border-blue-500 text-blue-400'
-                            : 'border-transparent text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        기본 정보
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('curriculum')}
-                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'curriculum'
-                            ? 'border-blue-500 text-blue-400'
-                            : 'border-transparent text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        커리큘럼
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('drills')}
-                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'drills'
-                            ? 'border-blue-500 text-blue-400'
-                            : 'border-transparent text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        🎁 보너스 드릴
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('sparring')}
-                        className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${activeTab === 'sparring'
-                            ? 'border-blue-500 text-blue-400'
-                            : 'border-transparent text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        ⚔️ 관련 스파링
-                    </button>
+            <div className="bg-zinc-900/40 rounded-2xl border border-zinc-800/50 shadow-2xl overflow-hidden backdrop-blur-xl">
+                <div className="px-2 pt-2 border-b border-zinc-800/50 bg-zinc-900/60 flex flex-wrap gap-1">
+                    {[
+                        { id: 'basic', label: '기본 정보', icon: '📝' },
+                        { id: 'curriculum', label: '커리큘럼', icon: '📚' },
+                        { id: 'drills', label: '보너스 드릴', icon: '🎁' },
+                        { id: 'sparring', label: '관련 스파링', icon: '⚔️' }
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`px-6 py-3.5 font-semibold text-sm transition-all rounded-t-xl relative group flex items-center gap-2 ${activeTab === tab.id
+                                ? 'text-violet-400'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            <span className="text-lg leading-none opacity-80 group-hover:scale-110 transition-transform">{tab.icon}</span>
+                            {tab.label}
+                            {activeTab === tab.id && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 shadow-[0_-4px_12px_rgba(139,92,246,0.3)]" />
+                            )}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="p-6">
+                <div className="p-6 sm:p-8">
                     {activeTab === 'basic' ? (
-                        <div className="space-y-6 max-w-3xl">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">강좌 제목</label>
-                                <input
-                                    type="text"
-                                    value={courseData.title}
-                                    onChange={e => setCourseData({ ...courseData, title: e.target.value })}
-                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="예: 완벽한 암바 마스터 클래스"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
-                                <textarea
-                                    value={courseData.description}
-                                    onChange={e => setCourseData({ ...courseData, description: e.target.value })}
-                                    rows={4}
-                                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="강좌에 대한 설명을 입력하세요..."
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">카테고리</label>
-                                    <select
-                                        value={courseData.category}
-                                        onChange={e => setCourseData({ ...courseData, category: e.target.value as VideoCategory })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    >
-                                        {Object.values(VideoCategory).map(cat => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
-                                    <select
-                                        value={courseData.difficulty}
-                                        onChange={e => setCourseData({ ...courseData, difficulty: e.target.value as Difficulty })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    >
-                                        {Object.values(Difficulty).map(diff => (
-                                            <option key={diff} value={diff}>{diff}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">가격 (₩)</label>
-                                    <input
-                                        type="number"
-                                        value={courseData.price}
-                                        onChange={e => setCourseData({ ...courseData, price: Number(e.target.value) })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                    <div className="mt-3 flex items-start">
-                                        <div className="flex items-center h-5">
+                        <div className="space-y-10 max-w-4xl">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                <div className="lg:col-span-2 space-y-8">
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">강좌 제목</label>
                                             <input
-                                                type="checkbox"
-                                                id="subscriptionExcluded"
-                                                checked={courseData.isSubscriptionExcluded || false}
-                                                onChange={e => setCourseData({ ...courseData, isSubscriptionExcluded: e.target.checked })}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-slate-950"
+                                                type="text"
+                                                value={courseData.title}
+                                                onChange={e => setCourseData({ ...courseData, title: e.target.value })}
+                                                className="w-full px-5 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white placeholder:text-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none text-lg font-medium"
+                                                placeholder="예: 완벽한 암바 마스터 클래스"
                                             />
                                         </div>
-                                        <div className="ml-2 text-sm">
-                                            <label htmlFor="subscriptionExcluded" className="font-medium text-slate-300">구독 제외 상품 (단품 구매 전용)</label>
-                                            <p className="text-slate-500">체크하면 구독자도 무료로 볼 수 없으며, 반드시 따로 구매해야 합니다.</p>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">설명</label>
+                                            <textarea
+                                                value={courseData.description}
+                                                onChange={e => setCourseData({ ...courseData, description: e.target.value })}
+                                                rows={5}
+                                                className="w-full px-5 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white placeholder:text-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none text-base leading-relaxed"
+                                                placeholder="강좌에 대한 상세한 커리큘럼과 목표를 입력하세요..."
+                                            />
                                         </div>
                                     </div>
 
-                                    {/* Published Toggle */}
-                                    <div className="mt-4 flex items-start p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-                                        <div className="flex items-center h-5">
-                                            <input
-                                                type="checkbox"
-                                                id="published"
-                                                checked={courseData.published || false}
-                                                onChange={e => setCourseData({ ...courseData, published: e.target.checked })}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-slate-950"
-                                            />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div className="group">
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">카테고리</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={courseData.category}
+                                                    onChange={e => setCourseData({ ...courseData, category: e.target.value as VideoCategory })}
+                                                    className="w-full pl-5 pr-10 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none appearance-none"
+                                                >
+                                                    {Object.values(VideoCategory).map(cat => (
+                                                        <option key={cat} value={cat}>{cat}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-focus-within:text-violet-500 transition-colors">
+                                                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="19 9l-7 7-7-7" /></svg>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="ml-2 text-sm">
-                                            <label htmlFor="published" className="font-medium text-blue-400">강좌 공개 (Publish)</label>
-                                            <p className="text-slate-400 text-xs mt-0.5">
-                                                체크하면 '내 강좌' 목록과 추천 클래스에 노출됩니다. 준비가 완료되면 체크하세요.
-                                            </p>
+                                        <div className="group">
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">난이도</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={courseData.difficulty}
+                                                    onChange={e => setCourseData({ ...courseData, difficulty: e.target.value as Difficulty })}
+                                                    className="w-full pl-5 pr-10 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none appearance-none"
+                                                >
+                                                    {Object.values(Difficulty).map(diff => (
+                                                        <option key={diff} value={diff}>{diff}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-focus-within:text-violet-500 transition-colors">
+                                                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="19 9l-7 7-7-7" /></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 border-t border-zinc-800/50">
+                                        <div className="flex flex-col gap-6">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">판매 가격 (₩)</label>
+                                                <div className="relative group">
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-violet-500 transition-colors font-medium">₩</div>
+                                                    <input
+                                                        type="number"
+                                                        value={courseData.price}
+                                                        onChange={e => setCourseData({ ...courseData, price: Number(e.target.value) })}
+                                                        className="w-full pl-10 pr-5 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none text-lg font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer group">
+                                                    <div className="flex items-center h-5 mt-0.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={courseData.isSubscriptionExcluded || false}
+                                                            onChange={e => setCourseData({ ...courseData, isSubscriptionExcluded: e.target.checked })}
+                                                            className="h-5 w-5 text-violet-600 focus:ring-violet-500/20 border-zinc-700 rounded-md bg-zinc-900 transition-all cursor-pointer"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <span className="block font-semibold text-zinc-200 group-hover:text-white transition-colors">구독 제외 상품 (단품 구매 전용)</span>
+                                                        <span className="block text-sm text-zinc-500 mt-1 leading-relaxed">체크하면 구독권 사용자도 무료로 이용할 수 없으며, 별도의 단품 구매가 필요합니다.</span>
+                                                    </div>
+                                                </label>
+
+                                                <label className={`flex items-start gap-4 p-4 rounded-xl border transition-all cursor-pointer group animate-pulse-subtle ${courseData.published
+                                                    ? 'bg-violet-500/10 border-violet-500/30'
+                                                    : 'bg-zinc-950/30 border-zinc-800 hover:bg-zinc-800/20'
+                                                    }`}>
+                                                    <div className="flex items-center h-5 mt-0.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={courseData.published || false}
+                                                            onChange={e => setCourseData({ ...courseData, published: e.target.checked })}
+                                                            className="h-5 w-5 text-violet-600 focus:ring-violet-500/20 border-zinc-700 rounded-md bg-zinc-900 transition-all cursor-pointer"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <span className={`block font-semibold transition-colors ${courseData.published ? 'text-violet-400' : 'text-zinc-200 group-hover:text-white'}`}>강좌 전체 공개 (Publish)</span>
+                                                        <span className="block text-xs text-zinc-500 mt-1 leading-relaxed">체크 시 즉시 서비스에 노출됩니다. 콘텐츠 준비가 완벽히 끝난 후 활성화해주세요.</span>
+                                                    </div>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-sm font-medium text-slate-300">썸네일 이미지</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowThumbnailModal(true)}
-                                            disabled={lessons.length === 0}
-                                            className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed font-medium"
-                                        >
-                                            레슨에서 선택하기
-                                        </button>
-                                    </div>
-                                    <ImageUploader
-                                        currentImageUrl={courseData.thumbnailUrl}
-                                        onUploadComplete={(url) => setCourseData({ ...courseData, thumbnailUrl: url })}
-                                        onValidityChange={setIsThumbnailValid}
-                                    />
-                                    <div className="mt-3">
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            썸네일을 업로드하거나 레슨에서 선택하지 않으면 첫 번째 레슨 영상에서 자동으로 캡처됩니다
-                                        </p>
+
+                                <div className="space-y-6">
+                                    <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 shadow-inner">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <label className="text-sm font-semibold text-zinc-400 ml-1">대표 썸네일</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowThumbnailModal(true)}
+                                                disabled={lessons.length === 0}
+                                                className="text-xs text-violet-400 hover:text-violet-300 disabled:text-zinc-700 disabled:cursor-not-allowed font-semibold px-2 py-1 bg-violet-500/5 rounded-md transition-all active:scale-95"
+                                            >
+                                                레슨에서 추출
+                                            </button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <ImageUploader
+                                                currentImageUrl={courseData.thumbnailUrl}
+                                                onUploadComplete={(url) => setCourseData({ ...courseData, thumbnailUrl: url })}
+                                                onValidityChange={setIsThumbnailValid}
+                                            />
+                                            <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10">
+                                                <p className="text-xs text-violet-400/70 leading-relaxed font-medium">
+                                                    💡 미설정 시 첫 번째 레슨 영상에서 자동으로 캡처된 이미지가 사용됩니다.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : activeTab === 'curriculum' ? (
-                        <div>
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg text-white">레슨 목록</h3>
+                        <div className="animate-in fade-in duration-300">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                                <div>
+                                    <h3 className="font-bold text-xl text-white">커리큘럼 구성</h3>
+                                    <p className="text-sm text-zinc-500 mt-1">드래그하여 레슨 순서를 변경할 수 있습니다</p>
+                                </div>
 
-                                <button
-                                    onClick={handleOpenImportModal}
-                                    className="flex items-center gap-2 text-slate-300 hover:bg-slate-800 px-4 py-2 rounded-lg transition-colors font-medium border border-slate-700 ml-2"
-                                >
-                                    <BookOpen className="w-4 h-4" />
-                                    기존 레슨 가져오기
-                                </button>
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                    <button
+                                        onClick={handleOpenImportModal}
+                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl transition-all font-semibold border border-zinc-700 shadow-lg"
+                                    >
+                                        <BookOpen className="w-4.5 h-4.5" />
+                                        기존 레슨 가져오기
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty })}
+                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 px-5 py-2.5 rounded-xl transition-all font-semibold border border-violet-500/20 shadow-lg"
+                                    >
+                                        <Video className="w-4.5 h-4.5" />
+                                        새 레슨 추가
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="space-y-3 mb-8">
+                            <div className="space-y-4 mb-10">
                                 <DndContext
                                     sensors={sensors}
                                     collisionDetection={closestCenter}
@@ -782,95 +825,125 @@ export const CourseEditor: React.FC = () => {
                                         items={lessons.map(l => l.id)}
                                         strategy={verticalListSortingStrategy}
                                     >
-                                        {lessons.map((lesson, index) => (
-                                            <SortableLessonItem
-                                                key={lesson.id}
-                                                lesson={lesson}
-                                                index={index}
-                                                onEdit={setEditingLesson}
-                                                onDelete={handleDeleteLesson}
-                                            />
-                                        ))}
+                                        <div className="space-y-3">
+                                            {lessons.map((lesson, index) => (
+                                                <SortableLessonItem
+                                                    key={lesson.id}
+                                                    lesson={lesson}
+                                                    index={index}
+                                                    onEdit={setEditingLesson}
+                                                    onDelete={handleDeleteLesson}
+                                                />
+                                            ))}
+                                        </div>
                                     </SortableContext>
                                 </DndContext>
+
                                 {lessons.length === 0 && (
-                                    <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-                                        아직 등록된 레슨이 없습니다.
+                                    <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                                        <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-700">
+                                            <Video className="w-8 h-8" />
+                                        </div>
+                                        <p className="text-zinc-500 font-medium text-lg">아직 등록된 레슨이 없습니다</p>
+                                        <p className="text-zinc-600 text-sm mt-1">새 레슨을 추가하거나 기존 레슨을 가져오세요</p>
+                                        <button
+                                            onClick={() => setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty })}
+                                            className="mt-6 text-violet-400 hover:text-violet-300 font-semibold inline-flex items-center gap-2"
+                                        >
+                                            첫 번째 레슨 만들기 <ArrowLeft className="w-4 h-4 rotate-180" />
+                                        </button>
                                     </div>
                                 )}
                             </div>
 
+                            {/* Edit/Add Lesson Modal */}
                             {editingLesson && (
-                                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto border border-slate-800">
-                                        <h3 className="text-xl font-bold mb-4 text-white">{editingLesson.id ? '레슨 수정' : '새 레슨 추가'}</h3>
+                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                                    <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-xl w-full p-8 max-h-[90vh] overflow-y-auto border border-zinc-800 animate-in zoom-in-95 duration-200">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-2xl font-bold text-white">{editingLesson.id ? '레슨 상세 수정' : '새로운 레슨 제작'}</h3>
+                                            <button
+                                                onClick={() => setEditingLesson(null)}
+                                                className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
+                                            >
+                                                <X className="w-6 h-6" />
+                                            </button>
+                                        </div>
 
-                                        <div className="space-y-4">
-                                            <VideoUploader
-                                                compact
-                                                initialMetadata={{
-                                                    title: editingLesson.title,
-                                                    description: editingLesson.description,
-                                                    category: courseData.category,
-                                                    difficulty: courseData.difficulty,
-                                                }}
-                                                onUploadComplete={(vimeoId, duration) => {
-                                                    setEditingLesson({
-                                                        ...editingLesson,
-                                                        vimeoUrl: vimeoId,
-                                                        length: duration
-                                                    });
-                                                    success('업로드가 완료되었습니다! 내용을 확인하고 저장 버튼을 눌러주세요.');
-                                                }}
-                                            />
+                                        <div className="space-y-8">
+                                            <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800/50">
+                                                <VideoUploader
+                                                    compact
+                                                    initialMetadata={{
+                                                        title: editingLesson.title,
+                                                        description: editingLesson.description,
+                                                        category: courseData.category,
+                                                        difficulty: courseData.difficulty,
+                                                    }}
+                                                    onUploadComplete={(vimeoId, duration) => {
+                                                        setEditingLesson({
+                                                            ...editingLesson,
+                                                            vimeoUrl: vimeoId,
+                                                            length: duration
+                                                        });
+                                                        success('영상이 준비되었습니다! 정보를 입력하고 하단 버튼을 눌러주세요.');
+                                                    }}
+                                                />
+                                            </div>
 
                                             {editingLesson.vimeoUrl && (
-                                                <div className="bg-green-900/20 p-4 rounded-lg border border-green-500/30">
-                                                    <p className="text-sm text-green-400 font-medium flex items-center gap-2">
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        영상 준비 완료
-                                                    </p>
-                                                    <p className="text-xs text-green-500 mt-1">
-                                                        ID: {editingLesson.vimeoUrl} | 길이: {editingLesson.length}
-                                                    </p>
+                                                <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+                                                        <CheckCircle className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-emerald-400">영상 트랜스코딩 완료</p>
+                                                        <p className="text-xs text-emerald-500/70 mt-0.5">
+                                                            Vimeo ID: {editingLesson.vimeoUrl} | 재생 시간: {editingLesson.length}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
 
-                                            <form onSubmit={handleSaveLesson} className="space-y-4 pt-4 border-t border-slate-800">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-300 mb-1">제목</label>
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={editingLesson.title}
-                                                        onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
-                                                    <textarea
-                                                        value={editingLesson.description}
-                                                        onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white"
-                                                        rows={3}
-                                                    />
+                                            <form onSubmit={handleSaveLesson} className="space-y-6">
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">레슨 제목</label>
+                                                        <input
+                                                            type="text"
+                                                            required
+                                                            value={editingLesson.title}
+                                                            onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                                                            className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                                            placeholder="레슨 주제를 입력하세요"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">상세 설명 (선택)</label>
+                                                        <textarea
+                                                            value={editingLesson.description}
+                                                            onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                                                            className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all resize-none placeholder:text-zinc-700"
+                                                            rows={4}
+                                                            placeholder="배우게 될 핵심 테크닉을 설명하세요"
+                                                        />
+                                                    </div>
                                                 </div>
 
-                                                <div className="flex justify-end gap-3 mt-6">
+                                                <div className="flex gap-3 pt-4">
                                                     <button
                                                         type="button"
                                                         onClick={() => setEditingLesson(null)}
-                                                        className="px-4 py-2 text-slate-400 hover:bg-slate-800 rounded-lg"
+                                                        className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
                                                     >
                                                         취소
                                                     </button>
                                                     <button
                                                         type="submit"
-                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                                        className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
                                                         disabled={!editingLesson.vimeoUrl}
                                                     >
-                                                        저장
+                                                        {editingLesson.id ? '수정사항 저장' : '레슨 등록 완료'}
                                                     </button>
                                                 </div>
                                             </form>
@@ -881,21 +954,30 @@ export const CourseEditor: React.FC = () => {
 
                             {/* Import Lesson Modal */}
                             {showImportModal && (
-                                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-xl font-bold text-white">기존 레슨 가져오기</h3>
-                                            <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white">
+                                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                                    <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800 animate-in zoom-in-95 duration-200">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <div>
+                                                <h3 className="text-2xl font-bold text-white">기존 레슨 가져오기</h3>
+                                                <p className="text-zinc-500 text-sm mt-1">내가 만든 강좌의 레슨들을 재사용할 수 있습니다</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowImportModal(false)}
+                                                className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
+                                            >
                                                 <X className="w-6 h-6" />
                                             </button>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 space-y-2 pr-2">
+                                        <div className="flex-1 overflow-y-auto min-h-0 mb-6 space-y-3 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
                                             {creatorLessons.length === 0 ? (
-                                                <p className="text-slate-500 text-center py-8">가져올 수 있는 레슨이 없습니다.</p>
+                                                <div className="flex flex-col items-center justify-center py-20 bg-zinc-950/50 rounded-2xl border border-zinc-800/50">
+                                                    <BookOpen className="w-12 h-12 text-zinc-800 mb-4" />
+                                                    <p className="text-zinc-600 font-medium">재사용 가능한 레슨이 없습니다</p>
+                                                </div>
                                             ) : (
                                                 Array.from(new Map(creatorLessons.map(item => [item.vimeoUrl || item.title, item])).values())
-                                                    .filter(cl => !lessons.some(l => l.vimeoUrl === cl.vimeoUrl)) // Filter duplicates by Vimeo URL
+                                                    .filter(cl => !lessons.some(l => l.vimeoUrl === cl.vimeoUrl))
                                                     .map(lesson => (
                                                         <div
                                                             key={lesson.id}
@@ -908,21 +990,24 @@ export const CourseEditor: React.FC = () => {
                                                                 }
                                                                 setSelectedImportIds(newSelected);
                                                             }}
-                                                            className={`p-3 rounded-lg border cursor-pointer flex items-center gap-3 transition-colors ${selectedImportIds.has(lesson.id)
-                                                                ? 'bg-blue-900/30 border-blue-500'
-                                                                : 'bg-slate-950 border-slate-800 hover:border-slate-600'
+                                                            className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all group ${selectedImportIds.has(lesson.id)
+                                                                ? 'bg-violet-600/10 border-violet-500/50 shadow-lg shadow-violet-500/5'
+                                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                                                                 }`}
                                                         >
-                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedImportIds.has(lesson.id) ? 'border-blue-500 bg-blue-500' : 'border-slate-600'
+                                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedImportIds.has(lesson.id)
+                                                                ? 'border-violet-500 bg-violet-500 scale-110 shadow-lg'
+                                                                : 'border-zinc-700 group-hover:border-zinc-500'
                                                                 }`}>
-                                                                {selectedImportIds.has(lesson.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                                {selectedImportIds.has(lesson.id) && <CheckCircle className="w-4 h-4 text-white" />}
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <h4 className="text-white font-medium">{lesson.title}</h4>
-                                                                <div className="flex gap-2 text-xs text-slate-400">
-                                                                    <span>{lesson.length}</span>
-                                                                    <span>•</span>
-                                                                    <span>{lesson.difficulty}</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className={`font-bold transition-colors ${selectedImportIds.has(lesson.id) ? 'text-violet-400' : 'text-white'}`}>
+                                                                    {lesson.title}
+                                                                </h4>
+                                                                <div className="flex items-center gap-2 mt-1 px-1.5 py-0.5 bg-zinc-800/80 rounded-md w-fit">
+                                                                    <Video className="w-3 h-3 text-zinc-500" />
+                                                                    <span className="text-[10px] text-zinc-400 font-bold uppercase">{lesson.length} • {lesson.difficulty}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -930,19 +1015,20 @@ export const CourseEditor: React.FC = () => {
                                             )}
                                         </div>
 
-                                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                                        <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
                                             <button
                                                 onClick={() => setShowImportModal(false)}
-                                                className="px-4 py-2 text-slate-400 hover:bg-slate-800 rounded-lg"
+                                                className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
                                             >
                                                 취소
                                             </button>
                                             <button
                                                 onClick={handleImportLessons}
                                                 disabled={selectedImportIds.size === 0}
-                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
                                             >
-                                                {selectedImportIds.size}개 레슨 가져오기
+                                                {selectedImportIds.size > 0 && <span>{selectedImportIds.size}개의</span>}
+                                                레슨 일괄 가져오기
                                             </button>
                                         </div>
                                     </div>
@@ -950,23 +1036,38 @@ export const CourseEditor: React.FC = () => {
                             )}
                         </div>
                     ) : activeTab === 'drills' ? (
-                        <div>
-                            <div className="mb-6">
-                                <h3 className="font-bold text-lg text-white mb-2">보너스 드릴 설정</h3>
-                                <p className="text-sm text-slate-400">
-                                    이 강좌를 구매한 유저에게 자동으로 제공될 드릴을 선택하세요. 선택한 드릴은 무료로 지급됩니다.
-                                </p>
+                        <div className="animate-in fade-in duration-300 max-w-4xl">
+                            <div className="mb-10 bg-violet-600/5 border border-violet-500/10 p-6 rounded-2xl relative overflow-hidden group">
+                                <div className="relative z-10">
+                                    <h3 className="font-bold text-xl text-white mb-2 flex items-center gap-2">
+                                        보너스 드릴 설정 <span className="bg-violet-500/20 text-violet-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold">Bonus content</span>
+                                    </h3>
+                                    <p className="text-zinc-500 leading-relaxed">
+                                        이 강좌를 구매한 수강생들에게 자동으로 지급될 추가 드릴을 선택하세요.<br />
+                                        <span className="text-zinc-400 font-medium italic underline decoration-violet-500/30">잘 구성된 보너스 콘텐츠는 강좌의 가치를 높여줍니다.</span>
+                                    </p>
+                                </div>
+                                <div className="absolute -right-4 -bottom-4 text-violet-500/10 group-hover:scale-110 transition-transform">
+                                    <Plus className="w-32 h-32" />
+                                </div>
                             </div>
 
                             {bundledDrills.length > 0 && (
-                                <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-                                    <h4 className="text-sm font-medium text-blue-400 mb-2">✅ 연결된 드릴 ({bundledDrills.length}개)</h4>
-                                    <div className="space-y-2">
+                                <div className="mb-10 p-6 bg-zinc-950 border border-zinc-800 rounded-2xl animate-in slide-in-from-top-4 duration-300">
+                                    <h4 className="text-sm font-bold text-violet-400 mb-4 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-violet-400 rounded-full shadow-[0_0_8px_rgba(167,139,250,0.6)] animate-pulse" />
+                                        현재 연결된 드릴 ({bundledDrills.length})
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
                                         {bundledDrills.map(drill => (
-                                            <div key={drill.id} className="flex items-center gap-3 text-sm text-slate-300">
-                                                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                                                <span className="flex-1">{drill.title}</span>
-                                                <span className="text-xs text-slate-500">{drill.category}</span>
+                                            <div key={drill.id} className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg shadow-sm">
+                                                <span className="text-zinc-200 text-sm font-medium">{drill.title}</span>
+                                                <button
+                                                    onClick={() => toggleDrillBundle(drill)}
+                                                    className="text-zinc-600 hover:text-rose-400 transition-colors p-0.5 rounded"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -974,12 +1075,20 @@ export const CourseEditor: React.FC = () => {
                             )}
 
                             {loadingDrills ? (
-                                <div className="text-center py-12 text-slate-500">
-                                    로딩 중...
+                                <div className="flex flex-col items-center py-20 text-zinc-600 gap-3">
+                                    <div className="w-8 h-8 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+                                    <p className="font-medium">나의 드릴 목록을 불러오는 중...</p>
                                 </div>
                             ) : availableDrills.length === 0 ? (
-                                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-                                    등록된 드릴이 없습니다. 먼저 드릴을 만들어주세요.
+                                <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                                    <Plus className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
+                                    <p className="text-zinc-500 font-medium">사용 가능한 드릴이 없습니다</p>
+                                    <button
+                                        onClick={() => navigate('/creator')}
+                                        className="mt-4 text-violet-400 hover:underline font-semibold"
+                                    >
+                                        먼저 새 드릴을 등록하러 가기
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -989,41 +1098,41 @@ export const CourseEditor: React.FC = () => {
                                             <div
                                                 key={drill.id}
                                                 onClick={() => toggleDrillBundle(drill)}
-                                                className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${isBundled
-                                                    ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
-                                                    : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group relative overflow-hidden ${isBundled
+                                                    ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
+                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
                                                     }`}
                                             >
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${isBundled
-                                                    ? 'bg-blue-500 border-blue-500'
-                                                    : 'border-slate-600 bg-slate-800'
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isBundled
+                                                    ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
                                                     }`}>
-                                                    {isBundled && (
-                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
+                                                    {isBundled && <CheckCircle className="w-4 h-4 text-white" />}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-medium text-white truncate">{drill.title}</h4>
-                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{drill.description}</p>
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                <div className="flex-1 min-w-0 pr-16 bg">
+                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isBundled ? 'text-violet-400' : 'text-white'}`}>
+                                                        {drill.title}
+                                                    </h4>
+                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{drill.description}</p>
+                                                    <div className="flex items-center gap-2 mt-3 overflow-hidden">
+                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                             {drill.category}
                                                         </span>
                                                         {drill.duration && (
-                                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                                 {drill.duration}
                                                             </span>
                                                         )}
-                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                             {drill.difficulty}
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="w-16 h-16 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
-                                                    {drill.thumbnailUrl && (
-                                                        <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
+                                                    {drill.thumbnailUrl ? (
+                                                        <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-zinc-700"><Video className="w-6 h-6" /></div>
                                                     )}
                                                 </div>
                                             </div>
@@ -1033,22 +1142,33 @@ export const CourseEditor: React.FC = () => {
                             )}
                         </div>
                     ) : activeTab === 'sparring' ? (
-                        <div>
-                            <div className="mb-6">
-                                <h3 className="font-bold text-lg text-white mb-2">관련 스파링 설정</h3>
-                                <p className="text-sm text-slate-400">
-                                    이 강좌와 관련된 스파링 영상을 선택하세요. 선택한 영상은 강좌 상세 페이지에 노출됩니다.
+                        <div className="animate-in fade-in duration-300 max-w-4xl">
+                            <div className="mb-10 bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl">
+                                <h3 className="font-bold text-xl text-white mb-2 flex items-center gap-2">
+                                    실전 스파링 연동 <span className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold border border-zinc-700">Live sparring</span>
+                                </h3>
+                                <p className="text-zinc-500 leading-relaxed">
+                                    강좌에서 배운 테크닉이 실제로 어떻게 쓰이는지 보여주는 스파링 영상을 선택하세요.<br />
+                                    수강생들의 실전 응용력을 높여주는 최고의 시청각 자료가 됩니다.
                                 </p>
                             </div>
 
                             {bundledSparringVideos.length > 0 && (
-                                <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-                                    <h4 className="text-sm font-medium text-blue-400 mb-2">✅ 연결된 스파링 ({bundledSparringVideos.length}개)</h4>
-                                    <div className="space-y-2">
+                                <div className="mb-10 p-6 bg-zinc-950 border border-zinc-800 rounded-2xl animate-in slide-in-from-top-4 duration-300">
+                                    <h4 className="text-sm font-bold text-violet-400 mb-4 flex items-center gap-2">
+                                        연결된 스파링 목록 ({bundledSparringVideos.length})
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {bundledSparringVideos.map(video => (
-                                            <div key={video.id} className="flex items-center gap-3 text-sm text-slate-300">
-                                                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                                                <span className="flex-1">{video.title}</span>
+                                            <div key={video.id} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 p-3 rounded-xl shadow-sm group">
+                                                <div className="w-1.5 h-1.5 bg-violet-400 rounded-full" />
+                                                <span className="flex-1 text-zinc-200 text-sm font-medium truncate">{video.title}</span>
+                                                <button
+                                                    onClick={() => toggleSparringBundle(video)}
+                                                    className="text-zinc-600 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -1056,12 +1176,19 @@ export const CourseEditor: React.FC = () => {
                             )}
 
                             {loadingSparringVideos ? (
-                                <div className="text-center py-12 text-slate-500">
-                                    로딩 중...
+                                <div className="flex flex-col items-center py-20 text-zinc-600 gap-3">
+                                    <div className="w-8 h-8 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+                                    <p className="font-medium">나의 스파링 보관함을 여는 중...</p>
                                 </div>
                             ) : availableSparringVideos.length === 0 ? (
-                                <div className="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-                                    등록된 스파링 영상이 없습니다. 먼저 스파링 영상을 올려주세요.
+                                <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500">
+                                    <p className="font-medium">등록된 실전 영상이 없습니다</p>
+                                    <button
+                                        onClick={() => navigate('/creator/upload-sparring')}
+                                        className="mt-4 text-violet-400 hover:underline font-semibold"
+                                    >
+                                        첫 스파링 영상 올리기
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1071,33 +1198,33 @@ export const CourseEditor: React.FC = () => {
                                             <div
                                                 key={video.id}
                                                 onClick={() => toggleSparringBundle(video)}
-                                                className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all ${isBundled
-                                                    ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
-                                                    : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isBundled
+                                                    ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
+                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
                                                     }`}
                                             >
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${isBundled
-                                                    ? 'bg-blue-500 border-blue-500'
-                                                    : 'border-slate-600 bg-slate-800'
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 transition-all ${isBundled
+                                                    ? 'bg-violet-500 border-violet-500'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500'
                                                     }`}>
-                                                    {isBundled && (
-                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
+                                                    {isBundled && <CheckCircle className="w-4 h-4 text-white" />}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-medium text-white truncate">{video.title}</h4>
-                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{video.description}</p>
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
-                                                            {new Date(video.createdAt || '').toLocaleDateString()}
+                                                <div className="flex-1 min-w-0 pr-16 bg">
+                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isBundled ? 'text-violet-400' : 'text-white'}`}>
+                                                        {video.title}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-3">
+                                                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-zinc-900 text-zinc-500 rounded-lg border border-zinc-800">
+                                                            {video.category || 'NO CATEGORY'}
+                                                        </span>
+                                                        <span className="text-[10px] font-medium text-zinc-600">
+                                                            조회 {video.views?.toLocaleString()}회
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="w-24 h-14 rounded bg-slate-800 flex-shrink-0 overflow-hidden transform transition-transform border border-slate-700">
+                                                <div className="absolute right-4 top-4 w-16 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
                                                     {video.thumbnailUrl && (
-                                                        <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                        <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                     )}
                                                 </div>
                                             </div>
@@ -1110,46 +1237,66 @@ export const CourseEditor: React.FC = () => {
                 </div>
             </div>
 
-            {/* Thumbnail Selection Modal */}
+            {/* Combined Thumbnail Extract Modal */}
             {showThumbnailModal && (
-                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-white">레슨 썸네일 선택</h3>
-                            <button onClick={() => setShowThumbnailModal(false)} className="text-slate-400 hover:text-white">
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800/50 animate-in zoom-in-95 duration-300">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h3 className="text-3xl font-black text-white tracking-tight">강좌 썸네일 추출</h3>
+                                <p className="text-zinc-500 font-medium mt-1">커리큘럼 비디오 중 하나를 대표 이미지로 사용하세요</p>
+                            </div>
+                            <button
+                                onClick={() => setShowThumbnailModal(false)}
+                                className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-white transition-all shadow-lg active:scale-95"
+                            >
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 pr-2">
-                            {lessons.filter(l => l.thumbnailUrl).length === 0 ? (
-                                <div className="text-center py-12 text-slate-500">
-                                    <p>썸네일이 있는 레슨이 없습니다.</p>
-                                    <p className="text-xs mt-2">먼저 레슨 편집기에서 썸네일을 캡처해주세요.</p>
+                        <div className="flex-1 overflow-y-auto min-h-0 mb-8 scrollbar-none pr-1">
+                            {lessons.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+                                    <Video className="w-16 h-16 text-zinc-700 mb-4" />
+                                    <p className="text-zinc-600 font-bold">먼저 레슨을 하나 이상 등록해주세요</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {lessons.filter(l => l.thumbnailUrl).map((lesson) => (
+                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                                    {lessons.map((lesson) => (
                                         <div
                                             key={lesson.id}
-                                            onClick={() => {
-                                                setCourseData({ ...courseData, thumbnailUrl: lesson.thumbnailUrl });
-                                                setShowThumbnailModal(false);
-                                                success('강좌 썸네일이 설정되었습니다.');
+                                            onClick={async () => {
+                                                if (lesson.vimeoUrl) {
+                                                    try {
+                                                        const videoInfo = await getVimeoVideoInfo(lesson.vimeoUrl);
+                                                        if (videoInfo?.thumbnail) {
+                                                            setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
+                                                            setShowThumbnailModal(false);
+                                                            success('강좌 대표 썸네일이 변경되었습니다 ✨');
+                                                        }
+                                                    } catch (err) {
+                                                        toastError('썸네일을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
+                                                    }
+                                                }
                                             }}
-                                            className="group relative aspect-video bg-slate-800 rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-blue-500 transition-all shadow-lg"
+                                            className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
                                         >
-                                            <img
-                                                src={lesson.thumbnailUrl}
-                                                alt={lesson.title}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                                                <p className="text-[10px] text-white font-medium truncate">{lesson.title}</p>
+                                            <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
+                                            {lesson.vimeoUrl && (
+                                                <img
+                                                    src={`https://vumbnail.com/${lesson.vimeoUrl.split('/').pop()}.jpg`}
+                                                    alt={lesson.title}
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
+                                                    onLoad={(e) => (e.currentTarget.style.filter = 'none')}
+                                                />
+                                            )}
+                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                                <p className="text-xs font-black text-white truncate drop-shadow-lg">{lesson.title}</p>
+                                                <p className="text-[10px] font-bold text-violet-400 mt-0.5">{lesson.length} • 클릭하여 선택</p>
                                             </div>
-                                            {courseData.thumbnailUrl === lesson.thumbnailUrl && (
-                                                <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1 shadow-lg">
-                                                    <CheckCircle className="w-4 h-4 text-white" />
+                                            {courseData.thumbnailUrl?.includes(lesson.vimeoUrl!) && (
+                                                <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
+                                                    <CheckCircle className="w-5 h-5 text-white" />
                                                 </div>
                                             )}
                                         </div>
@@ -1158,12 +1305,18 @@ export const CourseEditor: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="flex justify-end pt-4 border-t border-slate-800">
+                        <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
+                            <button
+                                onClick={autoCaptureThumbnail}
+                                className="flex-1 py-4 bg-zinc-800 text-zinc-300 hover:text-white rounded-2xl font-black transition-all active:scale-95 shadow-lg border border-zinc-700"
+                            >
+                                첫 레슨에서 자동 추출
+                            </button>
                             <button
                                 onClick={() => setShowThumbnailModal(false)}
-                                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                                className="flex-1 py-4 bg-violet-600 text-white hover:bg-violet-500 rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-violet-500/20"
                             >
-                                닫기
+                                현재 썸네일 유지
                             </button>
                         </div>
                     </div>

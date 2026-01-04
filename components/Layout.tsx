@@ -57,6 +57,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Full screen pages (no header, no bottom nav)
+  const isFullScreenPage =
+    location.pathname.startsWith('/drills') || // Drill list AND detail
+    location.pathname.startsWith('/drill-routines/') || // Drill Routine detail
+    location.pathname === '/sparring' || // Sparring feed
+    location.pathname.startsWith('/routines/') || // Routine detail
+    location.pathname.startsWith('/my-routines/'); // My routine detail
+
+  if (isFullScreenPage) {
+    return <>{children}</>;
+  }
+
   // Sidebar is enabled only for specific "Full Screen" / Detail pages
   const isSidebarPage = ['/drills', '/sparring', '/routines', '/my-routines', '/drill-routines'].some(path => location.pathname.startsWith(path));
 
@@ -100,7 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Navigation */}
       <nav className={cn(
         "sticky top-0 w-full transition-all duration-300",
-        mobileMenuOpen ? "z-[99999]" : "z-[100]",
+        mobileMenuOpen ? "z-[99999]" : "z-[11000]",
         location.pathname === '/pricing'
           ? "bg-zinc-950"
           : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
@@ -196,7 +208,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
                       <div className="px-3 py-2 text-xs font-bold text-zinc-500 border-b border-zinc-800/50 mb-1 uppercase tracking-wider">
                         내 계정
                       </div>

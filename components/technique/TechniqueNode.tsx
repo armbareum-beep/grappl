@@ -17,6 +17,7 @@ interface ContentNodeProps {
         isGroupingInitial?: boolean;
         mode?: 'skill-tree' | 'roadmap';
         isPreview?: boolean;
+        isInProgress?: boolean;
     };
     selected?: boolean;
     isConnectable?: boolean;
@@ -33,25 +34,45 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
     }, [id, zoom, updateNodeInternals]);
 
     const getStatusStyle = () => {
+        // 1. Initial / Locked State (White/Zinc Theme)
         let style = {
             bgClass: 'bg-zinc-900/60',
-            borderClass: 'border-zinc-800',
+            borderClass: 'border-white',
             ringClass: 'ring-transparent',
             pulseClass: '',
-            textClass: 'text-zinc-100'
+            textClass: 'text-white'
         };
 
-        let isMastered = (mastery && mastery.masteryLevel >= 5) || isCompleted;
-        let isInProgress = mastery && mastery.masteryLevel >= 2;
+        const isMastered = (mastery && mastery.masteryLevel >= 5) || isCompleted;
+        const isInProgress = (mastery && mastery.masteryLevel >= 1) || data.isInProgress;
 
         // Apply Preview Overrides
         if (isPreview) {
             const isEven = parseInt(id.replace(/\D/g, '') || '0') % 2 === 0;
-            isMastered = isEven;
-            isInProgress = !isEven;
+            const isThree = parseInt(id.replace(/\D/g, '') || '0') % 3 === 0;
+            if (isEven) {
+                // Completed
+                style = {
+                    bgClass: 'bg-violet-600/20',
+                    borderClass: 'border-violet-500',
+                    ringClass: 'ring-violet-400',
+                    pulseClass: 'roadmap-node-glow',
+                    textClass: 'text-violet-100'
+                };
+            } else if (isThree) {
+                // In Progress
+                style = {
+                    bgClass: 'bg-violet-400/5',
+                    borderClass: 'border-violet-400/50',
+                    ringClass: 'ring-violet-400/20',
+                    pulseClass: 'roadmap-node-flow',
+                    textClass: 'text-violet-200'
+                };
+            }
+            return style;
         }
 
-        // 1. Determine Base Appearance based on Mastery
+        // 2. Determine Appearance based on Status
         if (isMastered) {
             style = {
                 bgClass: 'bg-violet-600/20',
@@ -62,15 +83,15 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
             };
         } else if (isInProgress) {
             style = {
-                bgClass: 'bg-zinc-900/90',
-                borderClass: 'border-zinc-700',
-                ringClass: 'ring-white/10',
+                bgClass: 'bg-violet-400/5',
+                borderClass: 'border-violet-400/50',
+                ringClass: 'ring-violet-400/20',
                 pulseClass: mode === 'roadmap' ? 'roadmap-node-flow' : '',
-                textClass: 'text-zinc-100'
+                textClass: 'text-violet-200'
             };
         }
 
-        // 2. Apply Grouping Overrides (Keep BG, change Border/Ring)
+        // 3. Apply Grouping Overrides (Keep BG, change Border/Ring)
         if (isGroupingSelected) {
             style.borderClass = 'border-white';
             style.textClass = 'text-white';
@@ -78,10 +99,9 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
                 ? 'ring-[3px] ring-white ring-offset-4 ring-offset-zinc-950 shadow-[0_0_30px_rgba(255,255,255,0.6)]'
                 : 'ring-2 ring-white';
             if (isGroupingInitial) style.pulseClass = 'animate-pulse';
-            // Note: We intentionally DO NOT change bgClass here to avoid the "white inside" look
         }
 
-        // 3. Mode Overrides (Skill Tree Mode)
+        // 4. Mode Overrides (Skill Tree Mode) - Always white
         if (mode === 'skill-tree') {
             style = {
                 bgClass: 'bg-zinc-900',
@@ -94,7 +114,6 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
 
         return style;
     };
-
     const style = getStatusStyle();
     const isMinimal = zoom < 0.3;
 

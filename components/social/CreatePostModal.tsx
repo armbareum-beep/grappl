@@ -245,15 +245,15 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                             {userAvatar ? (
                                 <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold bg-slate-800">
-                                    {user?.email?.[0].toUpperCase()}
+                                <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold bg-slate-800 uppercase">
+                                    {(user?.email?.[0]?.toUpperCase()) || 'G'}
                                 </div>
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <span className="text-white font-bold truncate">
-                                    {user?.user_metadata?.name || user?.email?.split('@')[0]}
+                                    {user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
                                 </span>
                                 {user?.user_metadata?.belt && (
                                     <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 uppercase tracking-wide">
@@ -266,8 +266,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                                 <button
                                     onClick={() => setIsPublic(!isPublic)}
                                     className={`px-2 py-0.5 rounded-full border flex items-center gap-1 transition-colors ${isPublic
-                                            ? 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
-                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                                        ? 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
+                                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
                                         }`}
                                 >
                                     {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}

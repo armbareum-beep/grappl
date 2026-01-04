@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
 import { VideoCategory, Difficulty, Drill } from '../../types';
 import { Button } from '../../components/Button';
-import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle } from 'lucide-react';
+import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
@@ -82,9 +82,9 @@ export const CreateRoutine: React.FC = () => {
 
     const loadDrills = async () => {
         if (!user) return;
-        const { data } = await getDrills(user.id);
-        if (data) {
-            setDrills(data);
+        const drillsData = await getDrills(user.id);
+        if (drillsData) {
+            setDrills(drillsData);
         }
     };
 
@@ -108,10 +108,13 @@ export const CreateRoutine: React.FC = () => {
             if (newSelection.length > 0 && !formData.thumbnailUrl) {
                 const firstDrill = drills.find(d => d.id === newSelection[0]);
                 if (firstDrill?.thumbnailUrl) {
-                    setFormData(prev => ({
-                        ...prev,
-                        thumbnailUrl: firstDrill.thumbnailUrl
-                    }));
+                    setFormData(prev => {
+                        // Only auto-fill if the current thumbnailUrl is empty
+                        if (!prev.thumbnailUrl) {
+                            return { ...prev, thumbnailUrl: firstDrill.thumbnailUrl };
+                        }
+                        return prev;
+                    });
                 }
             }
 
@@ -194,30 +197,57 @@ export const CreateRoutine: React.FC = () => {
         }
     };
 
+    if (loading) return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-zinc-500">
+            <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+            <p className="font-medium animate-pulse">루틴 정보를 불러오는 중...</p>
+        </div>
+    );
+
     return (
-        <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white">{isEditMode ? '루틴 수정하기' : '새로운 루틴 만들기'}</h1>
-                <p className="text-slate-400">여러 드릴을 묶어 체계적인 훈련 루틴을 {isEditMode ? '수정하세요' : '만드세요'}.</p>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-full transition-all text-zinc-400 hover:text-white group"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+                            {isEditMode ? '루틴 수정하기' : '새로운 루틴 만들기'}
+                        </h1>
+                        <p className="text-sm text-zinc-500 mt-1">
+                            여러 드릴을 묶어 체계적인 훈련 루틴을 {isEditMode ? '수정하세요' : '만드세요'}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Basic Info */}
-                <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-8 space-y-6">
-                    <h2 className="text-lg font-semibold text-white border-b border-slate-800 pb-4">기본 정보</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Basic Info Card */}
+                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl space-y-6">
+                    <div className="flex items-center gap-3 pb-5 border-b border-zinc-800/50">
+                        <div className="w-10 h-10 bg-violet-600/10 rounded-xl flex items-center justify-center">
+                            <Dumbbell className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <h2 className="text-xl font-bold text-white">기본 정보</h2>
+                    </div>
 
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">루틴 제목</label>
+                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">루틴 제목</label>
                         <div className="relative">
-                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
                             <input
                                 type="text"
                                 name="title"
                                 required
                                 value={formData.title}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
                                 placeholder="예: 가드 패스 마스터 클래스"
                             />
                         </div>
@@ -225,16 +255,16 @@ export const CreateRoutine: React.FC = () => {
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">설명</label>
+                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">설명</label>
                         <div className="relative">
-                            <AlignLeft className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+                            <AlignLeft className="absolute left-4 top-4 w-5 h-5 text-zinc-600" />
                             <textarea
                                 name="description"
                                 required
                                 value={formData.description}
                                 onChange={handleChange}
                                 rows={4}
-                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all resize-none placeholder:text-zinc-700"
                                 placeholder="이 루틴의 목표와 내용을 설명해주세요..."
                             />
                         </div>
@@ -243,12 +273,12 @@ export const CreateRoutine: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Category */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">대표 카테고리</label>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">대표 카테고리</label>
                             <select
                                 name="category"
                                 value={formData.category}
                                 onChange={handleChange}
-                                className="w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                             >
                                 {Object.values(VideoCategory).map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -258,12 +288,12 @@ export const CreateRoutine: React.FC = () => {
 
                         {/* Difficulty */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">난이도</label>
                             <select
                                 name="difficulty"
                                 value={formData.difficulty}
                                 onChange={handleChange}
-                                className="w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                             >
                                 {Object.values(Difficulty).map(diff => (
                                     <option key={diff} value={diff}>
@@ -275,19 +305,26 @@ export const CreateRoutine: React.FC = () => {
                     </div>
 
                     {/* Duration Display */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">총 소요 시간 (자동 계산)</label>
-                        <div className="text-white text-lg font-bold">
-                            {formData.totalDurationMinutes}분
+                    <div className="bg-violet-600/5 border border-violet-500/10 p-5 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-violet-500/10 rounded-lg flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-violet-400" />
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-sm font-semibold text-zinc-400">총 소요 시간 (자동 계산)</label>
+                                <div className="text-white text-2xl font-black mt-1">
+                                    {formData.totalDurationMinutes}분
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">선택한 드릴들의 시간 합계입니다.</p>
+                        <p className="text-xs text-zinc-500 mt-3 ml-13">선택한 드릴들의 시간 합계입니다.</p>
                     </div>
 
                     {/* Price */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">가격 (원)</label>
+                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">가격 (원)</label>
                         <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
                             <input
                                 type="number"
                                 name="price"
@@ -296,89 +333,111 @@ export const CreateRoutine: React.FC = () => {
                                 required
                                 value={formData.price}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
                                 placeholder="0"
                             />
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">0원으로 설정하면 무료로 공개됩니다.</p>
+                        <p className="text-xs text-zinc-500 mt-2 ml-1">0원으로 설정하면 무료로 공개됩니다.</p>
                     </div>
 
                     {/* Thumbnail URL */}
                     <div>
-                        <div className="flex items-center justify-between mb-1">
-                            <label className="block text-sm font-medium text-slate-300">썸네일 이미지 URL</label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-zinc-400 ml-1">썸네일 이미지 URL</label>
                             <button
                                 type="button"
                                 onClick={() => setShowThumbnailModal(true)}
                                 disabled={selectedDrillIds.length === 0}
-                                className="text-xs text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed font-medium"
+                                className="text-xs text-violet-400 hover:text-violet-300 disabled:text-zinc-600 disabled:cursor-not-allowed font-semibold transition-colors"
                             >
                                 드릴에서 선택하기
                             </button>
                         </div>
                         <div className="relative">
-                            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
                             <input
                                 type="url"
                                 name="thumbnailUrl"
                                 value={formData.thumbnailUrl}
                                 onChange={handleChange}
-                                className="pl-10 w-full rounded-lg bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500"
+                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
                                 placeholder="드릴을 선택하면 자동으로 채워집니다"
                             />
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
+                        <p className="text-xs text-zinc-500 mt-2 ml-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
                     </div>
                 </div>
 
-                {/* Drill Selection */}
-                <div className="bg-slate-900 rounded-xl shadow-sm border border-slate-800 p-8">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-                        <h2 className="text-lg font-semibold text-white">드릴 선택 ({selectedDrillIds.length}개 선택됨)</h2>
-                        <Button type="button" variant="outline" size="sm" onClick={() => loadDrills()} className="border-slate-700 text-slate-300 hover:bg-slate-800">
-                            목록 새로고침
-                        </Button>
+                {/* Drill Selection Card */}
+                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+                    <div className="flex items-center justify-between pb-5 border-b border-zinc-800/50 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-violet-600/10 rounded-xl flex items-center justify-center">
+                                <Dumbbell className="w-5 h-5 text-violet-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-white">드릴 선택</h2>
+                                <p className="text-sm text-zinc-500 mt-0.5">{selectedDrillIds.length}개 선택됨</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => loadDrills()}
+                            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-zinc-300 hover:text-white transition-all font-semibold"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            새로고침
+                        </button>
                     </div>
 
                     {drills.length === 0 ? (
-                        <div className="text-center py-10 text-slate-500">
-                            등록된 드릴이 없습니다. 먼저 드릴을 업로드해주세요.
+                        <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                            <Dumbbell className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
+                            <p className="text-zinc-500 font-medium">등록된 드릴이 없습니다</p>
+                            <p className="text-zinc-600 text-sm mt-1">먼저 드릴을 업로드해주세요</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
                             {drills.map(drill => (
                                 <div
                                     key={drill.id}
                                     onClick={() => toggleDrillSelection(drill.id)}
-                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedDrillIds.includes(drill.id)
-                                        ? 'border-blue-500 bg-blue-900/20 ring-1 ring-blue-500'
-                                        : 'border-slate-800 bg-slate-950 hover:border-slate-700 hover:bg-slate-900'
+                                    className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${selectedDrillIds.includes(drill.id)
+                                        ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
+                                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
                                         }`}
                                 >
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 flex-shrink-0 ${selectedDrillIds.includes(drill.id)
-                                        ? 'bg-blue-500 border-blue-500'
-                                        : 'border-slate-600 bg-slate-800'
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${selectedDrillIds.includes(drill.id)
+                                        ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
+                                        : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
                                         }`}>
                                         {selectedDrillIds.includes(drill.id) && (
-                                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                            </svg>
+                                            <CheckCircle className="w-4 h-4 text-white" />
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-white truncate">{drill.title}</h4>
-                                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{drill.description}</p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                    <div className="flex-1 min-w-0 pr-16">
+                                        <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
+                                            {drill.title}
+                                        </h4>
+                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
+                                        <div className="flex items-center gap-2 mt-3 overflow-hidden">
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                 {drill.category}
                                             </span>
-                                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                 {drill.difficulty}
                                             </span>
+                                            {drill.durationMinutes && (
+                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
+                                                    {drill.durationMinutes}분
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="w-16 h-16 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
-                                        <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                    <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
+                                        {drill.thumbnailUrl && (
+                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -386,53 +445,74 @@ export const CreateRoutine: React.FC = () => {
                     )}
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => navigate('/creator')} className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/creator')}
+                        className="px-6 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                    >
                         취소
-                    </Button>
-                    <Button type="submit" disabled={loading}>
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                    >
                         {loading ? '저장 중...' : (isEditMode ? '루틴 수정하기' : '루틴 생성하기')}
-                    </Button>
+                    </button>
                 </div>
             </form>
 
             {/* Thumbnail Selection Modal */}
             {showThumbnailModal && (
-                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] flex flex-col border border-slate-800">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-white">드릴 썸네일 선택</h3>
-                            <button onClick={() => setShowThumbnailModal(false)} className="text-slate-400 hover:text-white">
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800/50 animate-in zoom-in-95 duration-300">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h3 className="text-3xl font-black text-white tracking-tight">드릴 썸네일 선택</h3>
+                                <p className="text-zinc-500 font-medium mt-1">선택한 드릴 중 하나를 대표 이미지로 사용하세요</p>
+                            </div>
+                            <button
+                                onClick={() => setShowThumbnailModal(false)}
+                                className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-white transition-all shadow-lg active:scale-95"
+                            >
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto min-h-0 mb-4 pr-2">
+                        <div className="flex-1 overflow-y-auto min-h-0 mb-8 scrollbar-none pr-1">
                             {selectedDrillIds.length === 0 ? (
-                                <p className="text-slate-500 text-center py-8">선택된 드릴이 없습니다.</p>
+                                <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+                                    <Dumbbell className="w-16 h-16 text-zinc-700 mb-4" />
+                                    <p className="text-zinc-600 font-bold">선택된 드릴이 없습니다</p>
+                                </div>
                             ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
                                     {drills.filter(d => selectedDrillIds.includes(d.id)).map((drill) => (
                                         <div
                                             key={drill.id}
                                             onClick={() => {
                                                 setFormData({ ...formData, thumbnailUrl: drill.thumbnailUrl });
                                                 setShowThumbnailModal(false);
-                                                success('루틴 썸네일이 설정되었습니다.');
+                                                success('루틴 썸네일이 설정되었습니다 ✨');
                                             }}
-                                            className="group relative aspect-video bg-slate-800 rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-blue-500 transition-all shadow-lg"
+                                            className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
                                         >
+                                            <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
                                             <img
                                                 src={drill.thumbnailUrl}
                                                 alt={drill.title}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
+                                                onLoad={(e) => (e.currentTarget.style.filter = 'none')}
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                                                <p className="text-[10px] text-white font-medium truncate">{drill.title}</p>
+                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                                <p className="text-xs font-black text-white truncate drop-shadow-lg">{drill.title}</p>
+                                                <p className="text-[10px] font-bold text-violet-400 mt-0.5">클릭하여 선택</p>
                                             </div>
                                             {formData.thumbnailUrl === drill.thumbnailUrl && (
-                                                <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1 shadow-lg">
-                                                    <CheckCircle className="w-4 h-4 text-white" />
+                                                <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
+                                                    <CheckCircle className="w-5 h-5 text-white" />
                                                 </div>
                                             )}
                                         </div>
@@ -441,10 +521,10 @@ export const CreateRoutine: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="flex justify-end pt-4 border-t border-slate-800">
+                        <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
                             <button
                                 onClick={() => setShowThumbnailModal(false)}
-                                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                                className="flex-1 py-4 bg-violet-600 text-white hover:bg-violet-500 rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-violet-500/20"
                             >
                                 닫기
                             </button>

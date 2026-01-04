@@ -60,6 +60,16 @@ export const DrillRoutineDetail: React.FC = () => {
     };
 
     const checkUser = async () => {
+        // First check if this is the daily routine (accessible to everyone)
+        if (id) {
+            import('../lib/api').then(async ({ getDailyRoutine }) => {
+                const { data: dailyRoutine } = await getDailyRoutine();
+                if (dailyRoutine && dailyRoutine.id === id) {
+                    setOwns(true);
+                }
+            });
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             setUser(user);
@@ -78,7 +88,7 @@ export const DrillRoutineDetail: React.FC = () => {
             // Check ownership
             if (id) {
                 const ownership = await checkDrillRoutineOwnership(user.id, id);
-                setOwns(ownership);
+                if (ownership) setOwns(true);
             }
         }
     };
@@ -123,8 +133,9 @@ export const DrillRoutineDetail: React.FC = () => {
     const finalPrice = calculateRoutinePrice(routine.price, isSubscriber);
     const discount = isSubscriber ? Math.round(((routine.price - finalPrice) / routine.price) * 100) : 0;
     const totalDuration = routine.drills?.reduce((acc, drill) => {
-        const [min, sec] = drill.duration.split(':').map(Number);
-        return acc + min * 60 + sec;
+        const duration = drill.duration || '0:00';
+        const [min, sec] = duration.split(':').map(Number);
+        return acc + (isNaN(min) ? 0 : min) * 60 + (isNaN(sec) ? 0 : sec);
     }, 0) || 0;
     const totalMinutes = Math.floor(totalDuration / 60);
     const totalSeconds = totalDuration % 60;

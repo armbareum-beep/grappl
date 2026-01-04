@@ -75,7 +75,7 @@ export const AIScanningSection = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="text-lg md:text-xl text-zinc-400 mb-10 max-w-xl leading-relaxed"
+                        className="text-lg md:text-xl text-zinc-400 mb-10 max-w-xl leading-relaxed break-keep"
                     >
                         어제 적은 <span className="text-zinc-200 font-semibold">'패배의 기록'</span>을 내일의 <span className="text-zinc-200 font-semibold">'승리 공식'</span>으로.<br />
                         AI가 당신의 수련일지를 분석해 최적의 드릴을 설계합니다.

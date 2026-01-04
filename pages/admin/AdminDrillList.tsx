@@ -114,8 +114,12 @@ export const AdminDrillList: React.FC = () => {
                                         <tr key={drill.id} className="hover:bg-zinc-800/30 transition-colors group">
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-16 h-10 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center text-zinc-600 group-hover:text-violet-400 group-hover:border-violet-500/30 transition-all">
-                                                        <PlayCircle className="w-6 h-6" />
+                                                    <div className="w-16 h-10 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex items-center justify-center text-zinc-600 group-hover:border-violet-500/30 transition-all">
+                                                        {drill.thumbnailUrl ? (
+                                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <PlayCircle className="w-6 h-6" />
+                                                        )}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors truncate">{drill.title}</div>
@@ -131,8 +135,12 @@ export const AdminDrillList: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-5 text-sm text-zinc-400">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-500 border border-zinc-700">
-                                                        {drill.creatorName?.charAt(0) || 'U'}
+                                                    <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-500 border border-zinc-700 overflow-hidden">
+                                                        {drill.creatorProfileImage ? (
+                                                            <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                        ) : (
+                                                            drill.creatorName?.charAt(0) || 'U'
+                                                        )}
                                                     </div>
                                                     {drill.creatorName || '시스템'}
                                                 </div>

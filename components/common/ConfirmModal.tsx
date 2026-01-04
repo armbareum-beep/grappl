@@ -96,7 +96,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="text-zinc-500 text-sm leading-relaxed font-medium mb-10 px-4 whitespace-pre-wrap">
+                            <div className="text-zinc-500 text-center text-sm leading-relaxed font-medium mb-10 px-4 whitespace-pre-wrap">
                                 {message}
                             </div>
 

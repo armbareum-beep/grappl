@@ -11,12 +11,13 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const VideoDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAdmin, isSubscribed } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [creator, setCreator] = useState<Creator | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBeltUp, setShowBeltUp] = useState(false);
+  const [owns, setOwns] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const lastTickRef = useRef<number>(0);
@@ -35,7 +36,12 @@ export const VideoDetail: React.FC = () => {
           setCreator(creatorData);
 
           if (user) {
-            await checkVideoOwnership(user.id, id);
+            const isCreator = user.id === videoData.creatorId;
+            const isOwner = await checkVideoOwnership(user.id, id);
+            const canAccess = isAdmin || (isSubscribed && !videoData.isSubscriptionExcluded) || isOwner || isCreator;
+            setOwns(canAccess);
+          } else {
+            setOwns(videoData.price === 0);
           }
 
           const allVideos = await getVideos();
@@ -119,7 +125,7 @@ export const VideoDetail: React.FC = () => {
   return (
     <div className="bg-white min-h-screen pb-20">
       {/* Video Player */}
-      {video.vimeoUrl ? (
+      {owns && video.vimeoUrl ? (
         <div className="w-full bg-black">
           <VideoPlayer
             vimeoId={video.vimeoUrl}
@@ -135,12 +141,22 @@ export const VideoDetail: React.FC = () => {
             alt={video.title}
             className="w-full h-full object-cover opacity-50"
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 px-4 text-center">
             <div className="bg-white/20 p-6 rounded-full backdrop-blur-sm mb-4 cursor-pointer hover:bg-white/30 transition">
               <Lock className="w-10 h-10" />
             </div>
             <h2 className="text-2xl font-bold mb-2">이 영상을 시청하려면 구매하세요</h2>
-            <p className="text-slate-300">단품 구매 또는 월 구독으로 전체 영상을 시청할 수 있습니다.</p>
+            <p className="text-slate-300 max-w-md">단품 구매 또는 월 구독으로 전체 영상을 시청할 수 있습니다.</p>
+            {!user && (
+              <Link to="/login" className="mt-6">
+                <Button>로그인하여 시청하기</Button>
+              </Link>
+            )}
+            {user && (
+              <Link to="/pricing" className="mt-6">
+                <Button>구독/구매 옵션 보기</Button>
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -244,15 +260,7 @@ export const VideoDetail: React.FC = () => {
       </div>
 
 
-      {
-        showBeltUp && beltUpData && (
-          <BeltUpModal
-            oldLevel={beltUpData.old}
-            newLevel={beltUpData.new}
-            onClose={() => setShowBeltUp(false)}
-          />
-        )
-      }
+      {/* Quest complete / Belt up logic removed due to missing data */}
 
       <React.Suspense fallback={null}>
         {isShareModalOpen && video && (

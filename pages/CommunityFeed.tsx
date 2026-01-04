@@ -1,7 +1,5 @@
-```
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import {
     getPublicTrainingLogs
 } from '../lib/api';
@@ -23,6 +21,7 @@ export const CommunityFeed: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
 
     const loadUserAvatar = async () => {
@@ -127,13 +126,13 @@ export const CommunityFeed: React.FC = () => {
                             <span className={filter !== 'all' ? 'text-violet-400' : ''}>
                                 {getFilterLabel(filter)}
                             </span>
-                            <ChevronDown className={`w - 3.5 h - 3.5 text - zinc - 500 transition - transform duration - 300 ${ showFilterMenu ? 'rotate-180' : '' } `} />
+                            <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-300 ${showFilterMenu ? 'rotate-180' : ''}`} />
                         </button>
                     </div>
 
                     {/* Feed Dropdown */}
                     {showFilterMenu && (
-                        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-48 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 rounded-[24px] shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-48 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 rounded-[24px] shadow-2xl overflow-hidden py-2 flex flex-col animate-in fade-in slide-in-from-top-2 duration-300">
                             {[
                                 { id: 'all', label: '추천' },
                                 { id: 'following', label: '팔로잉' },
@@ -145,7 +144,7 @@ export const CommunityFeed: React.FC = () => {
                                 <button
                                     key={item.id}
                                     onClick={() => { setFilter(item.id); setShowFilterMenu(false); }}
-                                    className={`w - full text - center px - 5 py - 3 text - xs font - bold transition - all hover: bg - white / 5 ${ filter === item.id ? 'text-violet-400 bg-violet-500/5' : 'text-zinc-400' } `}
+                                    className={`w-full block text-center px-5 py-3 text-xs font-bold transition-all hover:bg-white/5 ${filter === item.id ? 'text-violet-400 bg-violet-500/5' : 'text-zinc-400'}`}
                                 >
                                     {item.label}
                                 </button>
@@ -187,7 +186,7 @@ export const CommunityFeed: React.FC = () => {
                     {loading && posts.length === 0 ? (
                         <div className="columns-1 gap-4 space-y-4">
                             {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="break-inside-avoid animate-pulse bg-zinc-900/40 rounded-2xl border border-zinc-900" style={{ height: `${ 200 + Math.random() * 200 } px` }} />
+                                <div key={i} className="break-inside-avoid animate-pulse bg-zinc-900/40 rounded-2xl border border-zinc-900" style={{ height: `${200 + Math.random() * 200}px` }} />
                             ))}
                         </div>
                     ) : filteredPosts.length === 0 ? (

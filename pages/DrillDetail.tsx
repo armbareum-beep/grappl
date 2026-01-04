@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -234,6 +234,27 @@ export const DrillDetail: React.FC = () => {
                 // Check if subscriber
                 else if (isSub) {
                     hasAccess = true;
+                }
+
+                // NEW: Check if owned individually or first in routine
+                if (!hasAccess && id) {
+                    try {
+                        const { getRoutineByDrillId } = await import('../lib/api');
+                        const { data: routineData } = await getRoutineByDrillId(id);
+
+                        if (routineData) {
+                            // 1. Check individual routine ownership
+                            const purchased = await checkDrillRoutineOwnership(contextUser.id, routineData.id);
+                            if (purchased) hasAccess = true;
+
+                            // 2. Check if first drill in routine (Free Preview)
+                            if (!hasAccess && routineData.drills && routineData.drills.length > 0 && routineData.drills[0].id === id) {
+                                hasAccess = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error checking routine ownership:', e);
+                    }
                 }
 
                 setOwns(hasAccess);
@@ -634,9 +655,9 @@ export const DrillDetail: React.FC = () => {
                         <div className="flex flex-col gap-3 items-center pr-4 md:pr-0">
                             <button
                                 onClick={toggleMute}
-                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
+                                className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                             >
-                                {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                                {muted ? <VolumeX className="w-5 h-5 md:w-7 md:h-7" /> : <Volume2 className="w-5 h-5 md:w-7 md:h-7" />}
                             </button>
                         </div>
 
@@ -646,9 +667,9 @@ export const DrillDetail: React.FC = () => {
                             <div className="flex flex-col items-center gap-0.5">
                                 <button
                                     onClick={handleLike}
-                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <Heart className={`w-5 h-5 md:w-7 md:h-7 ${liked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                    <Heart className={`w-5 h-5 md:w-9 md:h-9 ${liked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                 </button>
                                 <span className="text-[10px] font-medium text-zinc-200">{((drill?.likes || 0) + (liked ? 1 : 0)).toLocaleString()}</span>
                             </div>
@@ -657,9 +678,9 @@ export const DrillDetail: React.FC = () => {
                             {owns && associatedRoutineId && (
                                 <button
                                     onClick={() => navigate(`/routines/${associatedRoutineId}`)}
-                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
+                                    <ListVideo className="w-5 h-5 md:w-7 md:h-7" />
                                 </button>
                             )}
 
@@ -667,27 +688,27 @@ export const DrillDetail: React.FC = () => {
                             {owns && !associatedRoutineId && (
                                 <button
                                     onClick={() => setShowAddToRoutine(true)}
-                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                    className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 >
-                                    <MoreVertical className="w-5 h-5 md:w-6 md:h-6" />
+                                    <MoreVertical className="w-5 h-5 md:w-7 md:h-7" />
                                 </button>
                             )}
 
                             {/* Save */}
                             <button
                                 onClick={handleSave}
-                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                                 title="나만의 루틴에 저장"
                             >
-                                <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${saved ? 'fill-zinc-100' : ''}`} />
+                                <Bookmark className={`w-5 h-5 md:w-7 md:h-7 ${saved ? 'fill-zinc-100' : ''}`} />
                             </button>
 
                             {/* Share */}
                             <button
                                 onClick={handleShare}
-                                className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
+                                className="p-2.5 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90"
                             >
-                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                                <Share2 className="w-5 h-5 md:w-7 md:h-7" />
                             </button>
                         </div>
                     </div>

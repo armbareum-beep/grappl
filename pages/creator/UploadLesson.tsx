@@ -4,9 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Difficulty, VideoCategory } from '../../types';
 import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
 import { uploadThumbnail } from '../../lib/api';
-import { Button } from '../../components/Button';
 import { formatDuration } from '../../lib/vimeo';
-import { ArrowLeft, Upload, FileVideo, Scissors, Loader } from 'lucide-react';
+import { ArrowLeft, Upload, FileVideo, Scissors, Loader, Type, AlignLeft } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
@@ -234,11 +233,11 @@ export const UploadLesson: React.FC = () => {
 
     if (isSubmitting) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-                <div className="bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-800 text-center max-w-md w-full">
-                    <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
-                    <h2 className="text-xl font-bold text-white mb-2">{submissionProgress}</h2>
-                    <p className="text-slate-400">잠시만 기다려주세요.</p>
+            <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+                <div className="bg-zinc-900 p-10 rounded-3xl shadow-2xl border border-zinc-800 text-center max-w-md w-full animate-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full mx-auto mb-6 animate-spin"></div>
+                    <h2 className="text-2xl font-black text-white mb-2">{submissionProgress}</h2>
+                    <p className="text-zinc-500">잠시만 기다려주세요</p>
                 </div>
             </div>
         );
@@ -246,10 +245,10 @@ export const UploadLesson: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-                <div className="flex flex-col items-center">
-                    <Loader className="w-8 h-8 text-blue-500 animate-spin mb-4" />
-                    <p className="text-slate-400">레슨 정보를 불러오는 중...</p>
+            <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader className="w-10 h-10 text-violet-500 animate-spin" />
+                    <p className="text-zinc-500 font-medium">레슨 정보를 불러오는 중...</p>
                 </div>
             </div>
         );
@@ -257,11 +256,16 @@ export const UploadLesson: React.FC = () => {
 
     if (isVideoEditorOpen && videoState.previewUrl) {
         return (
-            <div className="min-h-screen bg-slate-950 p-4">
+            <div className="min-h-screen bg-zinc-950 p-4">
                 <div className="max-w-5xl mx-auto space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-white">레슨 영상 편집</h2>
-                        <Button variant="secondary" onClick={() => setIsVideoEditorOpen(false)}>취소</Button>
+                        <h2 className="text-2xl font-bold text-white">레슨 영상 편집</h2>
+                        <button
+                            onClick={() => setIsVideoEditorOpen(false)}
+                            className="px-6 py-2.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-semibold transition-all"
+                        >
+                            취소
+                        </button>
                     </div>
                     <VideoEditor
                         videoUrl={videoState.previewUrl}
@@ -274,57 +278,66 @@ export const UploadLesson: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto">
-                <button
-                    onClick={() => navigate('/creator')}
-                    className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    대시보드로 돌아가기
-                </button>
-
-                <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
-                    <div className="p-8 border-b border-slate-800">
-                        <h1 className="text-2xl font-bold text-white">
+        <div className="min-h-screen bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-8">
+                    <button
+                        onClick={() => navigate('/creator')}
+                        className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-full transition-all text-zinc-400 hover:text-white group"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
                             {isEditMode ? '레슨 수정' : '새 레슨 만들기'}
                         </h1>
-                        <p className="text-slate-400 mt-1">
-                            {isEditMode ? '레슨 정보를 수정합니다.' : '영상을 업로드하고 편집하여 코스에 추가하세요.'}
+                        <p className="text-sm text-zinc-500 mt-1">
+                            {isEditMode ? '레슨 정보를 수정합니다' : '영상을 업로드하고 편집하여 코스에 추가하세요'}
                         </p>
                     </div>
+                </div>
 
+                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Form Content */}
                     <div className="p-8 space-y-8">
                         {/* Metadata Form */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">레슨 제목</label>
-                                    <input
-                                        type="text"
-                                        value={formData.title}
-                                        onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="예: 가드 패스 기초"
-                                    />
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">레슨 제목</label>
+                                    <div className="relative">
+                                        <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                                        <input
+                                            type="text"
+                                            value={formData.title}
+                                            onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                            className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                            placeholder="예: 가드 패스 기초"
+                                        />
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">설명</label>
-                                    <textarea
-                                        rows={3}
-                                        value={formData.description}
-                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                                    />
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">설명</label>
+                                    <div className="relative">
+                                        <AlignLeft className="absolute left-4 top-4 w-5 h-5 text-zinc-600" />
+                                        <textarea
+                                            rows={3}
+                                            value={formData.description}
+                                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                            className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none transition-all placeholder:text-zinc-700"
+                                            placeholder="이 레슨에서 배울 내용을 설명하세요"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">카테고리</label>
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">카테고리</label>
                                     <select
                                         value={formData.category}
                                         onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                     >
                                         {Object.values(VideoCategory).map(cat => (
                                             <option key={cat} value={cat}>{cat}</option>
@@ -332,11 +345,11 @@ export const UploadLesson: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">난이도</label>
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">난이도</label>
                                     <select
                                         value={formData.difficulty}
                                         onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
-                                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                     >
                                         {Object.values(Difficulty).map(diff => (
                                             <option key={diff} value={diff}>{diff}</option>
@@ -347,60 +360,63 @@ export const UploadLesson: React.FC = () => {
                         </div>
 
                         {/* Video Upload Area */}
-                        <div className="border-t border-slate-800 pt-8">
-                            <label className="block text-sm font-medium text-slate-300 mb-4">
-                                레슨 영상 (편집 가능) <span className="text-red-500">*</span>
+                        <div className="border-t border-zinc-800/50 pt-8">
+                            <label className="block text-sm font-semibold text-zinc-400 mb-4 ml-1">
+                                레슨 영상 (편집 가능) <span className="text-rose-400">*</span>
                             </label>
 
                             {videoState.status === 'idle' || videoState.status === 'error' ? (
-                                <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center hover:border-blue-500 hover:bg-slate-800/50 transition-all cursor-pointer relative group">
+                                <div className="border-2 border-dashed border-zinc-800 rounded-2xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative group">
                                     <input
                                         type="file"
                                         accept="video/*"
                                         onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     />
-                                    <Upload className="w-12 h-12 mx-auto mb-4 text-slate-600 group-hover:text-slate-500" />
-                                    <p className="font-medium text-slate-300">영상 파일 선택</p>
-                                    <p className="text-sm text-slate-500 mt-2">MP4, MOV (최대 500MB)</p>
-                                    {videoState.error && <p className="text-red-500 mt-2">{videoState.error}</p>}
+                                    <Upload className="w-16 h-16 mx-auto mb-4 text-zinc-700 group-hover:text-violet-500 transition-colors" />
+                                    <p className="font-bold text-white text-lg">영상 파일 선택</p>
+                                    <p className="text-sm text-zinc-500 mt-2">MP4, MOV (최대 500MB)</p>
+                                    {videoState.error && <p className="text-rose-400 mt-3 font-semibold">{videoState.error}</p>}
                                 </div>
                             ) : videoState.status === 'uploading' || videoState.status === 'previewing' ? (
-                                <div className="border-2 border-slate-800 bg-slate-900 rounded-xl p-12 text-center">
+                                <div className="border-2 border-zinc-800 bg-zinc-900/50 rounded-2xl p-12 text-center">
                                     <div className="w-full max-w-md mx-auto space-y-4">
-                                        <div className="flex justify-between text-sm text-slate-400">
+                                        <div className="flex justify-between text-sm text-zinc-400 font-semibold">
                                             <span>{videoState.status === 'uploading' ? '업로드 중...' : '미리보기 생성 중...'}</span>
                                             <span>{videoState.progress}%</span>
                                         </div>
-                                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-blue-500 transition-all duration-300"
+                                                className="h-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-300"
                                                 style={{ width: `${videoState.progress}%` }}
                                             />
                                         </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="border-2 border-slate-700 bg-slate-800/50 rounded-xl p-6 flex items-center justify-between">
+                                <div className="border-2 border-zinc-700 bg-zinc-900/50 rounded-2xl p-6 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="bg-blue-500/10 p-3 rounded-lg">
-                                            <FileVideo className="w-6 h-6 text-blue-400" />
+                                        <div className="bg-violet-600/10 p-4 rounded-xl">
+                                            <FileVideo className="w-7 h-7 text-violet-400" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-white">{videoState.file?.name}</p>
-                                            <p className="text-sm text-slate-400">
+                                            <p className="font-bold text-white text-lg">{videoState.file?.name}</p>
+                                            <p className="text-sm text-zinc-500 mt-0.5">
                                                 {videoState.cuts ? `${videoState.cuts.length}개 구간 선택됨` : '편집 필요'}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex gap-3">
-                                        <Button variant="secondary" onClick={() => setIsVideoEditorOpen(true)}>
-                                            <Scissors className="w-4 h-4 mr-2" />
+                                        <button
+                                            onClick={() => setIsVideoEditorOpen(true)}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-500 transition-all shadow-lg shadow-violet-500/20"
+                                        >
+                                            <Scissors className="w-4 h-4" />
                                             {videoState.cuts ? '다시 편집' : '영상 편집'}
-                                        </Button>
+                                        </button>
                                         <button
                                             onClick={() => setVideoState(initialProcessingState)}
-                                            className="text-slate-400 hover:text-red-400 px-3"
+                                            className="text-zinc-400 hover:text-rose-400 px-4 font-semibold transition-colors"
                                         >
                                             삭제
                                         </button>
@@ -410,14 +426,20 @@ export const UploadLesson: React.FC = () => {
                         </div>
 
                         {/* Submit Button */}
-                        <div className="pt-8 border-t border-slate-800 flex justify-end">
-                            <Button
+                        <div className="pt-8 border-t border-zinc-800/50 flex justify-end gap-3">
+                            <button
+                                onClick={() => navigate('/creator')}
+                                className="px-6 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                            >
+                                취소
+                            </button>
+                            <button
                                 onClick={handleSubmit}
                                 disabled={!formData.title || (!isEditMode && !videoState.cuts) || (!!videoState.file && !videoState.cuts)}
-                                className="px-8 py-3 text-lg"
+                                className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
                             >
                                 {isEditMode ? '수정사항 저장' : '레슨 생성하기'}
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>

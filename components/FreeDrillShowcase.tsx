@@ -52,8 +52,30 @@ export const FreeDrillShowcase: React.FC = () => {
                     title: rd.drills.title,
                     thumbnail_url: rd.drills.thumbnail_url,
                     creator_id: rd.drills.creator_id,
-                    creator_name: '이바름'
+                    creator_name: 'Unknown'
                 }));
+
+            // Fetch actual creator names
+            const creatorIds = Array.from(new Set(drillsData.map(d => d.creator_id).filter(Boolean)));
+            if (creatorIds.length > 0) {
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('id, name')
+                    .in('id', creatorIds);
+
+                const { data: creators } = await supabase
+                    .from('creators')
+                    .select('id, name')
+                    .in('id', creatorIds);
+
+                const namesMap: Record<string, string> = {};
+                users?.forEach(u => { namesMap[u.id] = u.name; });
+                creators?.forEach(c => { if (c.name) namesMap[c.id] = c.name; });
+
+                drillsData.forEach(d => {
+                    if (namesMap[d.creator_id]) d.creator_name = namesMap[d.creator_id];
+                });
+            }
 
             // Remove duplicates (same drill might be first in multiple routines)
             const uniqueDrills = Array.from(
@@ -66,7 +88,6 @@ export const FreeDrillShowcase: React.FC = () => {
                 .slice(0, 4);
 
             setDrills(shuffled);
-            console.log('FreeDrillShowcase: Loaded', shuffled.length, 'drills');
             setLoading(false);
         } catch (error) {
             console.error('Error fetching free drills:', error);

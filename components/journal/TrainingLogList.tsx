@@ -57,16 +57,10 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
 
                             {/* Header Section */}
                             <div className="p-4 border-b border-zinc-800/50">
-                                <div className="flex items-center gap-2 text-zinc-400 text-sm mb-2">
+                                <div className="flex items-center gap-2 text-zinc-400 text-sm">
                                     <Calendar className="w-4 h-4 text-violet-500" />
                                     <span className="font-medium text-zinc-100">{log.date}</span>
                                 </div>
-                                {log.location && (
-                                    <div className="flex items-center gap-2 text-slate-500 text-xs">
-                                        <MapPin className="w-3 h-3" />
-                                        <span>{log.location}</span>
-                                    </div>
-                                )}
                             </div>
 
                             {/* Stats Section */}

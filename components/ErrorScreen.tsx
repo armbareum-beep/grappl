@@ -5,15 +5,22 @@ interface ErrorScreenProps {
     error?: string;
     resetMessage?: string;
     onRetry?: () => void | Promise<void>;
+    onReset?: () => void;
 }
 
 export const ErrorScreen: React.FC<ErrorScreenProps> = ({
     title = '앱 업데이트 필요',
     error = '오류가 발생했습니다.',
     resetMessage = '콘텐츠를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다.',
-    onRetry
+    onRetry,
+    onReset
 }) => {
     const handleReset = () => {
+        if (onReset) {
+            onReset();
+            return;
+        }
+
         if (window.confirm('캐시를 삭제하고 새로고침하시겠습니까?\n\n로그인 정보는 유지되며, 앱이 최신 버전으로 업데이트됩니다.')) {
             localStorage.clear();
             sessionStorage.clear();
