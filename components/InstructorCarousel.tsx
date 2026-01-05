@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import { Users, BookOpen, Dumbbell, ChevronLeft, ChevronRight, Shield, CheckCircle } from 'lucide-react';
+import { Users, BookOpen, Dumbbell, ChevronLeft, ChevronRight, Shield, CheckCircle, Video } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Creator {
@@ -148,21 +148,26 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-3 gap-2 py-4 border-t border-zinc-800/50 bg-zinc-900/30 rounded-xl">
+                                    <div className="grid grid-cols-4 gap-1 py-4 border-t border-zinc-800/50 bg-zinc-900/30 rounded-xl">
                                         <div className="flex flex-col items-center">
-                                            <BookOpen className="w-3.5 h-3.5 text-violet-500 mb-1" />
-                                            <span className="text-sm font-bold text-white">{creator.course_count}</span>
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider">클래스</span>
+                                            <Users className="w-3 h-3 text-violet-500 mb-1" />
+                                            <span className="text-xs font-bold text-white">{creator.subscriber_count > 999 ? '999+' : creator.subscriber_count}</span>
+                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">수련생</span>
                                         </div>
                                         <div className="flex flex-col items-center border-l border-zinc-800/50">
-                                            <Dumbbell className="w-3.5 h-3.5 text-violet-500 mb-1" />
-                                            <span className="text-sm font-bold text-white">{creator.routine_count}</span>
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider">루틴</span>
+                                            <BookOpen className="w-3 h-3 text-violet-500 mb-1" />
+                                            <span className="text-xs font-bold text-white">{creator.course_count}</span>
+                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">클래스</span>
                                         </div>
                                         <div className="flex flex-col items-center border-l border-zinc-800/50">
-                                            <Users className="w-3.5 h-3.5 text-violet-500 mb-1" />
-                                            <span className="text-sm font-bold text-white">{creator.subscriber_count > 999 ? '999+' : creator.subscriber_count}</span>
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider">수련생</span>
+                                            <Dumbbell className="w-3 h-3 text-violet-500 mb-1" />
+                                            <span className="text-xs font-bold text-white">{creator.routine_count}</span>
+                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">루틴</span>
+                                        </div>
+                                        <div className="flex flex-col items-center border-l border-zinc-800/50">
+                                            <Video className="w-3 h-3 text-violet-500 mb-1" />
+                                            <span className="text-xs font-bold text-white">{creator.sparring_count}</span>
+                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">스파링</span>
                                         </div>
                                     </div>
                                 </div>

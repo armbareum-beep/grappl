@@ -88,7 +88,7 @@ export const LessonDetail: React.FC = () => {
             {/* Floating Back Button */}
             <button
                 onClick={() => navigate(-1)}
-                className="absolute top-6 left-4 lg:left-8 z-50 w-12 h-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all shadow-xl"
+                className="fixed top-24 left-4 lg:left-8 z-[100] w-12 h-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all shadow-xl"
                 title="뒤로 가기"
             >
                 <ArrowLeft className="w-5 h-5" />

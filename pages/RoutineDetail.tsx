@@ -440,7 +440,7 @@ export const RoutineDetail: React.FC = () => {
                                 </div>
                             )}
 
-                            <button onClick={() => navigate(-1)} className="absolute top-4 left-4 z-50 p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"><ChevronLeft className="w-5 h-5" /></button>
+                            <button onClick={() => navigate(-1)} className="fixed top-6 left-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl"><ChevronLeft className="w-5 h-5" /></button>
                             <h1 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[18vw] font-black uppercase tracking-tighter text-white/5 whitespace-nowrap select-none pointer-events-none z-0">DRILL</h1>
                             <div className="relative z-10 flex flex-col items-center text-center gap-4 px-4">
                                 <h2 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-2xl leading-tight">{routine.title}</h2>
@@ -600,7 +600,7 @@ export const RoutineDetail: React.FC = () => {
             <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
-                        <button onClick={() => navigate(-1)} className="absolute top-6 left-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
+                        <button onClick={() => navigate(-1)} className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
                         {/* Hero Section */}
                         <div className="relative w-full pt-20 pb-16 flex flex-col items-center justify-center overflow-hidden">
                             {/* Routine Thumbnail Background */}

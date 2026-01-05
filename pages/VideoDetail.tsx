@@ -1,22 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getVideoById, getVideos, getCreatorById, recordWatchTime, checkVideoOwnership } from '../lib/api';
 import { Video, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoCard } from '../components/VideoCard';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { BeltUpModal } from '../components/BeltUpModal';
-import { Lock, Share2, Clock, Eye } from 'lucide-react';
+import { Lock, Share2, Clock, Eye, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const VideoDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, isAdmin, isSubscribed } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [creator, setCreator] = useState<Creator | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBeltUp, setShowBeltUp] = useState(false);
   const [owns, setOwns] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -123,7 +122,16 @@ export const VideoDetail: React.FC = () => {
   }).format(video.price);
 
   return (
-    <div className="bg-white min-h-screen pb-20">
+    <div className="bg-white min-h-screen pb-20 relative">
+      {/* Floating Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-24 left-4 lg:left-8 z-[100] w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white hover:border-blue-100 transition-all shadow-xl"
+        title="뒤로 가기"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+
       {/* Video Player */}
       {owns && video.vimeoUrl ? (
         <div className="w-full bg-black">

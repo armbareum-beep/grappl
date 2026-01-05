@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle } from 'lucide-react';
+import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
 import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
@@ -155,7 +155,15 @@ export const CreatorProfile: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20">
+        <div className="min-h-screen bg-black text-white pb-20 relative">
+            {/* Floating Back Button */}
+            <button
+                onClick={() => navigate(-1)}
+                className="fixed top-24 left-4 lg:left-8 z-[100] w-12 h-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all shadow-xl"
+                title="뒤로 가기"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
 
 
             {/* Creator Header */}

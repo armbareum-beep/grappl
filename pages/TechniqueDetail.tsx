@@ -7,7 +7,6 @@ import { MasteryRing } from '../components/technique/MasteryRing';
 import {
     ArrowLeft,
     TrendingUp,
-    Calendar,
     Target,
     BookOpen,
     Dumbbell,
@@ -141,13 +140,15 @@ export const TechniqueDetailPage: React.FC = () => {
         <div className="min-h-screen bg-slate-950 py-8 px-4">
             <div className="max-w-5xl mx-auto">
                 {/* Back Button */}
-                <button
-                    onClick={() => navigate('/technique-roadmap')}
-                    className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    로드맵으로 돌아가기
-                </button>
+                <div className="fixed top-24 left-4 lg:left-8 z-[100] pointer-events-none">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex items-center gap-2 text-slate-100 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/50 hover:bg-slate-800 transition-all pointer-events-auto shadow-xl"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        <span className="font-bold text-sm">뒤로 가기</span>
+                    </button>
+                </div>
 
                 {/* Header */}
                 <div className="bg-slate-900 rounded-3xl border border-slate-800 p-8 mb-6">
@@ -156,7 +157,7 @@ export const TechniqueDetailPage: React.FC = () => {
                             level={mastery.masteryLevel}
                             currentXp={mastery.masteryXp}
                             size="xl"
-                            animated={true}
+                            animateOnChange={true}
                             breathingAnimation={true}
                         />
 

@@ -146,13 +146,13 @@ export const DrillRoutineDetail: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Back Button */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="fixed top-6 left-4 lg:left-8 z-[100] pointer-events-none">
                 <button
-                    onClick={() => navigate('/drills')}
-                    className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-slate-100 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/50 hover:bg-slate-800 transition-all pointer-events-auto shadow-xl"
                 >
                     <ArrowLeft className="w-5 h-5" />
-                    <span>드릴 목록으로</span>
+                    <span className="font-bold text-sm">뒤로 가기</span>
                 </button>
             </div>
 

@@ -756,14 +756,17 @@ export const CourseDetail: React.FC = () => {
     return (
         <div className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30">
             {/* Header (Transparent Sticky) */}
-            <div className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900">
-                <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <Link to="/browse" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
-                        <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center group-hover:bg-zinc-800 transition-colors">
+            <div className="fixed top-20 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 px-4">
+                <div className="max-w-[1800px] mx-auto h-16 flex items-center justify-between">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center group-hover:bg-zinc-800 transition-colors border border-zinc-800">
                             <ArrowLeft className="w-4 h-4" />
                         </div>
-                        <span className="font-medium text-sm">라이브러리로 돌아가기</span>
-                    </Link>
+                        <span className="font-medium text-sm">뒤로 가기</span>
+                    </button>
                 </div>
             </div>
 
