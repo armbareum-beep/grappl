@@ -57,6 +57,20 @@ export const LessonDetail: React.FC = () => {
                     }
 
                     setOwns(hasAccess || false);
+
+                    // 2. Check if this belongs to the daily free course
+                    if (!hasAccess && lessonData.courseId) {
+                        try {
+                            const { getDailyFreeCourse } = await import('../lib/api');
+                            const { data: dailyCourse } = await getDailyFreeCourse();
+                            if (dailyCourse && dailyCourse.id === lessonData.courseId) {
+                                hasAccess = true;
+                                setOwns(true);
+                            }
+                        } catch (e) {
+                            console.warn('Failed to check daily free course access:', e);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching lesson details:', error);

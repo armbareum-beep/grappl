@@ -1,18 +1,18 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  Play, ChevronRight, Trophy,
+  Play, Trophy,
   Clock, Video, Zap,
 } from 'lucide-react';
 import { getUserProgress } from '../lib/api';
 import { getBeltInfo, getXPProgress } from '../lib/belt-system';
 import {
   getRecentActivity, getDailyRoutine, getDailyFreeCourse,
-  getTrainingLogs, getPublicSparringVideos,
-  searchContent, getDailyQuests
+  getTrainingLogs,
+  searchContent
 } from '../lib/api';
-import { Course, UserProgress, DrillRoutine, SparringVideo, DailyQuest, TrainingLog, VideoCategory, Difficulty } from '../types';
+import { Course, UserProgress, DrillRoutine, SparringVideo, TrainingLog, VideoCategory, Difficulty, DailyQuest } from '../types';
 import { getWeeklyFeaturedChain } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { supabase } from '../lib/supabase';
@@ -21,7 +21,7 @@ import { WeeklyFeaturedSection } from '../components/home/WeeklyFeaturedSection'
 import { QuickJournalWidget } from '../components/home/QuickJournalWidget';
 import { RecentActivitySection } from '../components/home/RecentActivitySection';
 import { ArenaStatsModal } from '../components/home/ArenaStatsModal';
-import { AICoachWidget } from '../components/AICoachWidget';
+import { TrainingStatsWidget } from '../components/home/TrainingStatsWidget';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ export const Home: React.FC = () => {
   // Modal states
   const [statsModalOpen, setStatsModalOpen] = useState(false);
   const [selectedStatType, setSelectedStatType] = useState<'streak' | 'belt' | 'badges' | null>(null);
-  const [quests, setQuests] = useState<DailyQuest[]>([]);
+
 
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -172,13 +172,13 @@ export const Home: React.FC = () => {
 
         // 3. SECONDARY DATA
         getRecentActivity(user.id).then(res => setRecentActivity(res)).catch(() => { });
-        getDailyQuests(user.id).then(res => setQuests(res || [])).catch(() => { });
         getTrainingLogs(user.id).then(res => { if (res.data) setLogs(res.data as any); }).catch(() => { });
         getWeeklyFeaturedChain().then(async res => {
           if (res.data?.title) {
             const results = await searchContent(res.data.title);
             if (results.courses.length > 0) setRecCourse(results.courses[0]);
             if (results.routines.length > 0) setRecRoutines([results.routines[0]]);
+            if (results.sparring.length > 0) setRecSparring(results.sparring[0]);
           }
         }).catch(() => { });
 
@@ -212,6 +212,54 @@ export const Home: React.FC = () => {
     ...(dailyRoutine ? [{ type: 'routine' as const, data: dailyRoutine }] : []),
     ...(freeCourse ? [{ type: 'course' as const, data: freeCourse }] : [])
   ];
+  const dailyQuests = useMemo(() => {
+    if (!user) return [];
+
+    // Use local date string for consistency, though ISO string is used in DB
+    const today = new Date().toISOString().split('T')[0];
+
+    const hasLog = logs.some(l => l.date && l.date.split('T')[0] === today && !['routine', 'mastery', 'lesson'].includes(l.type || ''));
+    const hasRoutine = logs.some(l => l.date && l.date.split('T')[0] === today && l.type === 'routine');
+    const hasSparring = logs.some(l => l.date && l.date.split('T')[0] === today && (l.sparringRounds > 0 || l.type === 'sparring'));
+
+    const quests: DailyQuest[] = [
+      {
+        id: 'q1',
+        userId: user.id,
+        questType: 'write_log',
+        targetCount: 1,
+        currentCount: hasLog ? 1 : 0,
+        xpReward: 50,
+        completed: hasLog,
+        questDate: today,
+        createdAt: today
+      },
+      {
+        id: 'q2',
+        userId: user.id,
+        questType: 'complete_routine',
+        targetCount: 1,
+        currentCount: hasRoutine ? 1 : 0,
+        xpReward: 30,
+        completed: hasRoutine,
+        questDate: today,
+        createdAt: today
+      },
+      {
+        id: 'q3',
+        userId: user.id,
+        questType: 'play_match',
+        targetCount: 1,
+        currentCount: hasSparring ? 1 : 0,
+        xpReward: 50,
+        completed: hasSparring,
+        questDate: today,
+        createdAt: today
+      }
+    ];
+
+    return quests;
+  }, [logs, user]);
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans pb-20">
@@ -329,11 +377,10 @@ export const Home: React.FC = () => {
 
       <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div onClick={() => navigate('/arena')} className="lg:col-span-7 bg-zinc-900/30 border border-white/5 p-6 md:p-8 rounded-[32px] hover:bg-zinc-900/50 transition-colors cursor-pointer group flex flex-col h-full relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="lg:col-span-7 bg-zinc-900/30 border border-white/5 p-6 md:p-8 rounded-[32px] flex flex-col h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] rounded-full pointer-events-none" />
             <div className="flex items-center justify-between mb-8 relative z-10">
               <h3 className="text-xl font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Arena Growth</h3>
-              <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10"><ChevronRight className="w-5 h-5 text-zinc-500" /></div>
             </div>
             <div className="mb-8 relative z-10">
               <div className="flex justify-between items-end mb-3">
@@ -359,14 +406,14 @@ export const Home: React.FC = () => {
               </div>
             </div>
           </div>
-          <AICoachWidget logs={logs} />
+          <TrainingStatsWidget logs={logs} />
         </div>
       </section>
 
       <QuickJournalWidget />
       <WeeklyFeaturedSection course={recCourse} routine={recRoutines[0] || null} sparring={recSparring} />
       <RecentActivitySection activities={recentActivity} />
-      <ArenaStatsModal isOpen={statsModalOpen} onClose={() => setStatsModalOpen(false)} type={selectedStatType} data={{ streak: userStats.streak, beltLevel: progress?.beltLevel || 0, xp: progress?.totalXp || 0, dailyQuests: quests }} />
+      <ArenaStatsModal isOpen={statsModalOpen} onClose={() => setStatsModalOpen(false)} type={selectedStatType} data={{ streak: userStats.streak, beltLevel: progress?.beltLevel || 0, xp: progress?.totalXp || 0, dailyQuests }} />
     </div>
   );
 };

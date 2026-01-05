@@ -1,0 +1,34 @@
+{
+    "project_name": "Grapplay",
+    "features": [
+        {
+            "name": "Payment System",
+            "description": "Integrated payment system using PayPal and Portone for subscriptions and content purchases.",
+            "requirements": [
+                "Support PayPal for international users",
+                "Support Portone for domestic Korean users",
+                "Update user subscription status in database after successful payment",
+                "Handle webhooks for payment confirmation"
+            ]
+        },
+        {
+            "name": "Video Content Management",
+            "description": "Video upload, processing, and delivery system integrated with Vimeo.",
+            "requirements": [
+                "Upload raw videos to Supabase storage",
+                "Process videos using backend FFmpeg service (cutting and joining)",
+                "Upload processed videos to Vimeo and update DB with Vimeo ID",
+                "Restrict video access based on user subscription/purchase status"
+            ]
+        },
+        {
+            "name": "Creator Dashboard",
+            "description": "Tools for creators to manage content and view earnings.",
+            "requirements": [
+                "Upload and edit drills/lessons",
+                "View revenue according to predefined share ratios (e.g., 8:2)",
+                "Submit payout requests"
+            ]
+        }
+    ]
+}

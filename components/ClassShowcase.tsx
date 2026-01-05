@@ -77,7 +77,7 @@ export const ClassShowcase: React.FC = () => {
     if (!featuredCourse) return null;
 
     return (
-        <section className="py-24 bg-zinc-950 relative overflow-hidden">
+        <section className="py-24 md:py-40 relative overflow-hidden">
             {/* Background Decoration */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/5 rounded-full blur-[100px] pointer-events-none"></div>
 

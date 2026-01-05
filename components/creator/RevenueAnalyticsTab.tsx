@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { calculateCreatorEarnings, getCreatorRevenueStats } from '../../lib/api';
-import { DollarSign, TrendingUp, Calendar, Download } from 'lucide-react';
+import { calculateCreatorEarnings, getCreatorRevenueStats, getCreatorBalance, submitPayout } from '../../lib/api';
+import { DollarSign, TrendingUp, Download, Wallet, ArrowRight } from 'lucide-react';
 import { Button } from '../Button';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MonthlyStat {
     period: string;
@@ -12,8 +13,11 @@ interface MonthlyStat {
 
 export const RevenueAnalyticsTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [loading, setLoading] = useState(true);
     const [totalRevenue, setTotalRevenue] = useState(0);
+    const [availableBalance, setAvailableBalance] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
     const [period, setPeriod] = useState<'all' | '6m' | '1y'>('6m');
 
@@ -33,7 +37,11 @@ export const RevenueAnalyticsTab: React.FC = () => {
                 setTotalRevenue(earnings.totalRevenue);
             }
 
-            // 2. Get Monthly Breakdown
+            // 2. Get Available Balance
+            const balance = await getCreatorBalance(user.id);
+            setAvailableBalance(balance);
+
+            // 3. Get Monthly Breakdown
             const { data: stats } = await getCreatorRevenueStats(user.id);
             if (stats) {
                 setMonthlyStats(stats);
@@ -42,6 +50,30 @@ export const RevenueAnalyticsTab: React.FC = () => {
             console.error('Error loading revenue data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePayoutRequest = async () => {
+        if (availableBalance < 10000) {
+            toastError('최소 정산 신청 금액은 10,000원입니다.');
+            return;
+        }
+
+        if (!window.confirm(`${formatCurrency(availableBalance)} 정산 신청을 하시겠습니까?`)) {
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const { error } = await submitPayout(availableBalance);
+            if (error) throw error;
+            success('정산 신청이 완료되었습니다. 검토 후 처리됩니다.');
+            loadData(); // Refresh balance
+        } catch (err: any) {
+            console.error('Payout request failed:', err);
+            toastError(err.message || '정산 신청 중 오류가 발생했습니다.');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -94,33 +126,44 @@ export const RevenueAnalyticsTab: React.FC = () => {
                     <p className="text-2xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
                     <div className="mt-2 flex items-center text-sm text-emerald-400">
                         <TrendingUp className="w-4 h-4 mr-1" />
-                        <span>지난달 대비 +12%</span>
+                        <span>전체 기간 합계</span>
                     </div>
                 </div>
 
                 <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-zinc-400">이번 달 정산 예정</h3>
-                        <div className="p-2 bg-purple-500/10 rounded-full text-purple-400">
-                            <Calendar className="w-5 h-5" />
+                        <h3 className="text-sm font-medium text-zinc-400">출금 가능 잔액</h3>
+                        <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-400">
+                            <Wallet className="w-5 h-5" />
                         </div>
                     </div>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(monthlyStats[0]?.amount || 0)}</p>
-                    <p className="text-sm text-zinc-500 mt-2">정산일: 매월 15일</p>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(availableBalance)}</p>
+                    <div className="mt-4">
+                        <Button
+                            onClick={handlePayoutRequest}
+                            disabled={submitting || availableBalance < 10000}
+                            size="sm"
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white border-none py-2"
+                        >
+                            {submitting ? '신청 중...' : '정산 신청하기'}
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-medium text-zinc-400">미지급 정산금</h3>
-                        <div className="p-2 bg-amber-500/10 rounded-full text-amber-400">
-                            <DollarSign className="w-5 h-5" />
+                        <h3 className="text-sm font-medium text-zinc-400">이번 달 예상 수익</h3>
+                        <div className="p-2 bg-blue-500/10 rounded-full text-blue-400">
+                            <TrendingUp className="w-5 h-5" />
                         </div>
                     </div>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(monthlyStats[0]?.amount || 0)}</p>
-                    <p className="text-sm text-zinc-500 mt-2">다음 정산일에 지급됩니다.</p>
+                    <p className="text-2xl font-bold text-white">
+                        {formatCurrency(monthlyStats.find(s => s.period === new Date().toISOString().slice(0, 7))?.amount || 0)}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-2">이달의 정산 예정액</p>
                 </div>
             </div>
-
             {/* Monthly Breakdown Table */}
             <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-zinc-800">

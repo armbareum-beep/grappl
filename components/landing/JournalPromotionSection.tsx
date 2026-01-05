@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
+import { LineChart as LineChartIcon } from 'lucide-react';
 
 // Mock data for the line chart (simulating growth/XP)
 const chartData = [
@@ -36,7 +37,7 @@ export const JournalPromotionSection: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
+        <section className="py-24 md:py-40 relative overflow-hidden border-t-0">
             {/* Background Elements */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[120px]"></div>
@@ -47,6 +48,12 @@ export const JournalPromotionSection: React.FC = () => {
 
                     {/* 1. Text Content (Left) */}
                     <div className="w-full md:w-1/2 text-left z-20">
+                        <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
+                            <LineChartIcon className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
+                                TRAINING JOURNAL
+                            </span>
+                        </div>
                         <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-white tracking-tight">
                             당신의 땀방울은 <br />
                             배신하지 않습니다. <br />

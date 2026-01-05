@@ -199,29 +199,53 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
 export async function searchContent(query: string) {
     try {
         const searchTerm = `%${query}%`;
+        const creatorsFilter: string[] = [];
+        const usersFilter: string[] = [];
 
-        // Parallel fetch - Courses, Routines, Drills, Feed, Sparring
-        const [coursesRes, routinesRes, drillsRes, feedsRes, sparringRes] = await Promise.all([
+        // 1. Find matching creators/users first for name search
+        const [creatorsRes, usersRes] = await Promise.all([
+            supabase.from('creators').select('id').ilike('name', searchTerm).limit(50),
+            supabase.from('users').select('id').ilike('name', searchTerm).limit(50)
+        ]);
+
+        if (creatorsRes.data && creatorsRes.data.length > 0) {
+            const ids = creatorsRes.data.map(c => c.id).join(',');
+            creatorsFilter.push(`creator_id.in.(${ids})`);
+        }
+
+        if (usersRes.data && usersRes.data.length > 0) {
+            const ids = usersRes.data.map(u => u.id).join(',');
+            usersFilter.push(`user_id.in.(${ids})`);
+        }
+
+        // Shared filters
+        const contentBaseFilter = `title.ilike.${searchTerm},description.ilike.${searchTerm}`;
+        const contentFilter = creatorsFilter.length > 0
+            ? `${contentBaseFilter},${creatorsFilter[0]}`
+            : contentBaseFilter;
+
+        const feedBaseFilter = `notes.ilike.${searchTerm}`;
+        const feedFilter = usersFilter.length > 0
+            ? `${feedBaseFilter},${usersFilter[0]}`
+            : feedBaseFilter;
+
+
+        // Parallel fetch - Courses, Routines, Sparring, Feed (Drills removed)
+        const [coursesRes, routinesRes, feedsRes, sparringRes] = await Promise.all([
             // 1. Courses
             supabase
                 .from('courses')
                 .select('*, creator:creators(*)')
-                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .or(contentFilter)
                 .eq('published', true)
                 .limit(20),
             // 2. Routines
             supabase
                 .from('routines')
                 .select('*, creator:creators(*)')
-                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .or(contentFilter)
                 .limit(20),
-            // 3. Drills
-            supabase
-                .from('drills')
-                .select(`*, creator:creators(*)`)
-                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
-                .limit(20),
-            // 4. Feeds (Public Training Logs)
+            // 3. Feeds (Public Training Logs)
             supabase
                 .from('training_logs')
                 .select(`
@@ -229,19 +253,18 @@ export async function searchContent(query: string) {
                     user:users(name, avatar_url)
                 `)
                 .eq('is_public', true)
-                .or(`notes.ilike.${searchTerm}`)
+                .or(feedFilter)
                 .limit(20),
-            // 5. Sparring Videos
+            // 4. Sparring Videos
             supabase
                 .from('sparring_videos')
                 .select('*')
-                .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+                .or(contentFilter)
                 .limit(20)
         ]);
 
         if (coursesRes.error) console.error('Search courses error:', coursesRes.error);
         if (routinesRes.error) console.error('Search routines error:', routinesRes.error);
-        if (drillsRes.error) console.error('Search drills error:', drillsRes.error);
         if (feedsRes.error) console.error('Search feeds error:', feedsRes.error);
         if (sparringRes.error) console.error('Search sparring error:', sparringRes.error);
 
@@ -262,23 +285,6 @@ export async function searchContent(query: string) {
         return {
             courses: (coursesRes.data || []).map(transformCourse),
             routines: (routinesRes.data || []).map(transformDrillRoutine),
-            drills: (drillsRes.data || []).map((d: any) => ({
-                id: d.id,
-                title: d.title,
-                description: d.description,
-                videoUrl: d.video_url,
-                thumbnailUrl: d.thumbnail_url,
-                category: d.category || 'Standing',
-                difficulty: d.difficulty || 'Beginner',
-                creatorId: d.creator_id,
-                creatorName: d.creator?.name || 'Unknown',
-                aspectRatio: '9:16' as '9:16',
-                durationMinutes: d.duration_minutes || 0,
-                price: d.price || 0,
-                views: d.views || 0,
-                tags: d.tags || [],
-                createdAt: d.created_at
-            })),
             feeds: (feedsRes.data || []).map((log: any) => {
                 let type = log.type;
                 if (!type && log.location && log.location.startsWith('__FEED__')) {
@@ -316,14 +322,17 @@ export async function searchContent(query: string) {
                         id: creator.id,
                         name: creator.name || 'Unknown',
                         profileImage: creator.avatar_url,
+                        bio: '',
+                        subscriberCount: 0
                     } : undefined,
                     createdAt: v.created_at
                 };
-            })
+            }),
+            arena: [] // Placeholder for Arena
         };
     } catch (error) {
         console.error('Error searching content:', error);
-        return { courses: [], routines: [], drills: [], feeds: [], sparring: [] };
+        return { courses: [], routines: [], feeds: [], sparring: [], arena: [] };
     }
 }
 
@@ -494,17 +503,31 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
 
 export async function getLessonById(id: string): Promise<Lesson | null> {
     const { data, error } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('id', id)
-        .single();
+        .rpc('get_lesson_content_v2', { p_lesson_id: id });
 
     if (error) {
-        console.error('Error fetching lesson:', error);
-        return null;
+        console.error('Error fetching secure lesson:', error);
+        // Fallback to direct fetch if RPC fails (e.g. not logged in)
+        const { data: directData } = await supabase.from('lessons').select('*').eq('id', id).single();
+        return directData ? transformLesson(directData) : null;
     }
 
-    return data ? transformLesson(data) : null;
+    const lesson = data?.[0];
+    if (!lesson) return null;
+
+    return {
+        id: lesson.id,
+        courseId: lesson.course_id,
+        title: lesson.title,
+        description: lesson.description,
+        lessonNumber: lesson.lesson_number,
+        vimeoUrl: lesson.vimeo_url,
+        length: lesson.length,
+        difficulty: lesson.difficulty,
+        createdAt: lesson.created_at,
+        isSubscriptionExcluded: lesson.is_subscription_excluded,
+        isPreview: lesson.is_preview
+    };
 }
 
 // Videos API (keep for backward compatibility)
@@ -1677,6 +1700,26 @@ export async function getPayoutSettings(creatorId: string) {
         },
         error: null
     };
+}
+
+/**
+ * Get creator current balance for payout
+ */
+export async function getCreatorBalance(creatorId: string): Promise<number> {
+    const { data, error } = await supabase.rpc('get_creator_balance', { p_creator_id: creatorId });
+    if (error) {
+        console.error('Error fetching creator balance:', error);
+        return 0;
+    }
+    return data || 0;
+}
+
+/**
+ * Submit a payout request
+ */
+export async function submitPayout(amount: number) {
+    const { data, error } = await supabase.rpc('submit_payout_request', { p_amount: amount });
+    return { data, error };
 }
 
 // ==================== ADMIN COURSE MANAGEMENT ====================
@@ -4534,6 +4577,7 @@ export async function getDailyRoutine() {
         const { data, error } = await supabase
             .from('routines')
             .select('*')
+            .order('id') // Added stable order
             .limit(20); // Sync with Landing Page limit
 
         if (error) {
@@ -4599,6 +4643,7 @@ export async function getDailyFreeCourse() {
                 lessons:lessons(count)
             `)
             .eq('published', true)
+            .order('id') // Added stable order
             .limit(20);
 
         if (error) throw error;

@@ -7,6 +7,7 @@ import { NotificationDropdown } from './NotificationDropdown';
 
 import { LevelUpModal } from './LevelUpModal';
 import { TitleEarnedModal } from './TitleEarnedModal';
+import { GlobalSearch } from '../pages/GlobalSearch';
 import { cn } from '../lib/utils';
 
 interface LayoutProps {
@@ -16,6 +17,7 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [searchModalOpen, setSearchModalOpen] = React.useState(false);
   const location = useLocation();
   const { user, signOut, isCreator, isAdmin } = useAuth();
 
@@ -130,9 +132,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
               {/* Mobile Search Icon */}
               <div className="md:hidden">
-                <Link to="/search" className="p-2 -ml-2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                <button onClick={() => setSearchModalOpen(true)} className="p-2 -ml-2 text-muted-foreground hover:text-foreground flex items-center justify-center">
                   <Search className="w-6 h-6" />
-                </Link>
+                </button>
               </div>
             </div>
 
@@ -165,6 +167,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 );
               })}
+
             </div>
 
             {/* Right side buttons */}
@@ -497,6 +500,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           })}
         </div>
       </div>
+
+      {/* Global Search Modal */}
+      <GlobalSearch isOpen={searchModalOpen} onClose={() => setSearchModalOpen(false)} />
 
     </div>
   );

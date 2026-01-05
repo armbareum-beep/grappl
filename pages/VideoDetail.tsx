@@ -116,10 +116,6 @@ export const VideoDetail: React.FC = () => {
     );
   }
 
-  const formattedPrice = new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-  }).format(video.price);
 
   return (
     <div className="bg-white min-h-screen pb-20 relative">
@@ -154,7 +150,7 @@ export const VideoDetail: React.FC = () => {
               <Lock className="w-10 h-10" />
             </div>
             <h2 className="text-2xl font-bold mb-2">이 영상을 시청하려면 구매하세요</h2>
-            <p className="text-slate-300 max-w-md">단품 구매 또는 월 구독으로 전체 영상을 시청할 수 있습니다.</p>
+            <p className="text-slate-300 max-w-md">해당 클래스 구매 또는 월 구독으로 전체 영상을 시청할 수 있습니다.</p>
             {!user && (
               <Link to="/login" className="mt-6">
                 <Button>로그인하여 시청하기</Button>
@@ -245,12 +241,10 @@ export const VideoDetail: React.FC = () => {
             <h3 className="text-lg font-bold text-slate-900 mb-4">구매 옵션</h3>
 
             <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-slate-600">단품 구매</span>
-                <span className="text-2xl font-bold text-slate-900">{formattedPrice}</span>
-              </div>
-              <Button className="w-full mb-2">이 영상만 구매하기</Button>
-              <p className="text-xs text-slate-400 text-center">평생 소장 및 무제한 시청</p>
+              <p className="text-slate-600 text-sm mb-4">이 영상은 클래스 또는 구독을 통해 시청하실 수 있습니다.</p>
+              <Link to="/pricing">
+                <Button className="w-full">구매 옵션 보기</Button>
+              </Link>
             </div>
 
             <div className="border-t border-slate-100 pt-6">

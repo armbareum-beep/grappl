@@ -32,7 +32,7 @@ export const RoutinePromotionSection: React.FC = () => {
     };
 
     return (
-        <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden text-white">
+        <section className="py-24 md:py-40 relative overflow-hidden text-white">
             {/* Background Elements */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/4"></div>
@@ -145,6 +145,12 @@ export const RoutinePromotionSection: React.FC = () => {
 
                     {/* 2. Text Content (Right) */}
                     <div className="w-full md:w-1/2 text-left md:pl-10">
+                        <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
+                            <Calendar className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
+                                TRAINING ROUTINE
+                            </span>
+                        </div>
                         <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight tracking-tight">
                             반복이 <br />
                             실력을 만듭니다. <br />

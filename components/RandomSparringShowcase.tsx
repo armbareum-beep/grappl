@@ -47,7 +47,7 @@ export function RandomSparringShowcase() {
     if (!vimeoId) return null;
 
     return (
-        <section className="py-24 bg-zinc-950 relative overflow-hidden">
+        <section className="py-24 relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 relative z-10">
                 <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
 

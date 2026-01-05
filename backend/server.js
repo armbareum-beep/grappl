@@ -110,9 +110,9 @@ app.get('/version', (req, res) => {
                     process.env.VITE_SUPABASE_ANON_KEY ? 'VITE_SUPABASE_ANON_KEY' : 'NONE'
         },
         vimeoCheck: {
-            hasClientId: !!process.env.VITE_VIMEO_CLIENT_ID,
-            hasSecret: !!process.env.VITE_VIMEO_CLIENT_SECRET,
-            hasToken: !!process.env.VITE_VIMEO_ACCESS_TOKEN
+            hasClientId: !!(process.env.VIMEO_CLIENT_ID || process.env.VITE_VIMEO_CLIENT_ID),
+            hasSecret: !!(process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET),
+            hasToken: !!(process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN)
         }
     });
 });
@@ -299,6 +299,92 @@ app.get('/status/:jobId', (req, res) => {
     }
 
     res.json(job);
+});
+
+// --- Secure Vimeo Proxy Endpoints ---
+
+// 1. Create Upload Link
+app.post('/api/vimeo/upload-link', async (req, res) => {
+    const { fileSize, name, description } = req.body;
+
+    const vimeoClientId = process.env.VIMEO_CLIENT_ID || process.env.VITE_VIMEO_CLIENT_ID;
+    const vimeoSecret = process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET;
+    const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+    if (!vimeoToken) {
+        return res.status(500).json({ error: 'Vimeo token not configured' });
+    }
+
+    try {
+        const response = await fetch('https://api.vimeo.com/me/videos', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${vimeoToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                upload: {
+                    approach: 'tus',
+                    size: fileSize
+                },
+                name,
+                description: description || 'Edited with Grappl Editor',
+                privacy: {
+                    view: 'unlisted',
+                    embed: 'public'
+                }
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Vimeo API error');
+
+        res.json(data);
+    } catch (error) {
+        console.error('Vimeo Upload Link Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 2. Get Video Info
+app.get('/api/vimeo/video/:videoId', async (req, res) => {
+    const { videoId } = req.params;
+    const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+    try {
+        const response = await fetch(`https://api.vimeo.com/videos/${videoId}`, {
+            headers: { 'Authorization': `Bearer ${vimeoToken}` }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Vimeo API error');
+
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 3. Delete Video
+app.delete('/api/vimeo/video/:videoId', async (req, res) => {
+    const { videoId } = req.params;
+    const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+    try {
+        const response = await fetch(`https://api.vimeo.com/videos/${videoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${vimeoToken}` }
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Vimeo API error');
+        }
+
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Serve static files from temp/processed for preview playback
@@ -504,9 +590,9 @@ app.post('/process', async (req, res) => {
             logToDB(processId, 'info', 'Step 4: Uploading to Vimeo');
 
             // Validate Vimeo credentials
-            const vimeoClientId = process.env.VITE_VIMEO_CLIENT_ID;
-            const vimeoSecret = process.env.VITE_VIMEO_CLIENT_SECRET;
-            const vimeoToken = process.env.VITE_VIMEO_ACCESS_TOKEN;
+            const vimeoClientId = process.env.VIMEO_CLIENT_ID || process.env.VITE_VIMEO_CLIENT_ID;
+            const vimeoSecret = process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET;
+            const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
 
             if (!vimeoClientId || !vimeoSecret || !vimeoToken) {
                 throw new Error('Missing Vimeo API credentials. Check environment variables.');

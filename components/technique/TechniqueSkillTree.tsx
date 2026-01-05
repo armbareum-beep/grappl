@@ -2395,7 +2395,7 @@ export const TechniqueSkillTree: React.FC = () => {
                         .getPublicUrl(fileName);
 
                     uploadedThumbnailUrl = publicUrlData.publicUrl;
-                    console.log('Thumbnail uploaded successfully:', uploadedThumbnailUrl);
+
                 } catch (thumbErr) {
                     console.error('Thumbnail upload failed:', thumbErr);
                     // Don't block save on thumbnail failure, but log it

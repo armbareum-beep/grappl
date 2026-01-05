@@ -119,9 +119,16 @@ Deno.serve(async (req) => {
                 price_paid: amountValue
             }, { onConflict: 'user_id,bundle_id' })
         } else if (mode === 'subscription') {
-            const tier = id?.includes('premium') || id?.includes('pro') ? 'premium' : 'basic'
+            const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2')
+            const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2')
+            const tier = isPro ? 'premium' : 'basic'
+
             const endDate = new Date()
-            endDate.setDate(endDate.getDate() + 30)
+            if (isYearly) {
+                endDate.setFullYear(endDate.getFullYear() + 1)
+            } else {
+                endDate.setMonth(endDate.getMonth() + 1)
+            }
 
             await supabaseClient
                 .from('users')
@@ -132,17 +139,42 @@ Deno.serve(async (req) => {
                 })
                 .eq('id', userId)
 
-            await supabaseClient
+            const { data: subData, error: subError } = await supabaseClient
                 .from('subscriptions')
                 .insert({
                     user_id: userId,
                     status: 'active',
                     subscription_tier: tier,
-                    plan_interval: 'month',
+                    plan_interval: isYearly ? 'year' : 'month',
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: paymentId
                 })
+                .select()
+                .single()
+
+            if (!subError && subData) {
+                // For annual subscriptions, recognition is split into 12 months in revenue_ledger
+                // Note: Subscription revenue split among creators is usually handled by a separate monthly job.
+                // For now, we record the platform-level revenue.
+                const months = isYearly ? 12 : 1
+                const monthlyAmount = Math.floor(amountValue / months)
+
+                for (let i = 0; i < months; i++) {
+                    const recognitionDate = new Date()
+                    recognitionDate.setMonth(recognitionDate.getMonth() + i)
+
+                    await supabaseClient.from('revenue_ledger').insert({
+                        subscription_id: subData.id,
+                        amount: monthlyAmount,
+                        platform_fee: monthlyAmount, // Initially platform fee until creator split implemented
+                        creator_revenue: 0,
+                        product_type: 'subscription',
+                        status: 'pending',
+                        recognition_date: recognitionDate.toISOString().split('T')[0]
+                    })
+                }
+            }
         } else if (mode === 'feedback') {
             // 1. Update request status
             await supabaseClient
@@ -150,27 +182,57 @@ Deno.serve(async (req) => {
                 .update({
                     payment_status: 'paid',
                     paid_at: new Date().toISOString(),
-                    status: 'pending' // ready for instructor review
+                    status: 'pending'
                 })
                 .eq('id', id);
 
             // 2. Create payment record for accounting (Platform Fee 20%)
-            // We need to fetch instructor_id first to be accurate, but it's optional for now if not available in params.
-            // Ideally we fetch the request first.
             const { data: request } = await supabaseClient.from('feedback_requests').select('instructor_id').eq('id', id).single();
 
             if (request) {
                 const platformFee = Math.floor(amountValue * 0.2);
+                const creatorRevenue = amountValue - platformFee;
+
+                // Record in central ledger
                 await supabaseClient
-                    .from('feedback_payments')
+                    .from('revenue_ledger')
                     .insert({
-                        request_id: id,
-                        student_id: userId,
-                        instructor_id: request.instructor_id,
+                        creator_id: request.instructor_id,
                         amount: amountValue,
                         platform_fee: platformFee,
-                        instructor_revenue: amountValue - platformFee,
-                        paid_at: new Date().toISOString()
+                        creator_revenue: creatorRevenue,
+                        product_type: 'feedback',
+                        product_id: id,
+                        status: 'processed',
+                        recognition_date: new Date().toISOString().split('T')[0]
+                    });
+            }
+        }
+
+        // 2.1 Course/Routine Revenue Splitting (8:2)
+        if (mode === 'course' || mode === 'routine') {
+            const tableName = mode === 'course' ? 'courses' : 'routines';
+            const { data: product } = await supabaseClient
+                .from(tableName)
+                .select('creator_id')
+                .eq('id', id)
+                .single();
+
+            if (product && product.creator_id) {
+                const platformFee = Math.floor(amountValue * 0.2);
+                const creatorRevenue = amountValue - platformFee;
+
+                await supabaseClient
+                    .from('revenue_ledger')
+                    .insert({
+                        creator_id: product.creator_id,
+                        amount: amountValue,
+                        platform_fee: platformFee,
+                        creator_revenue: creatorRevenue,
+                        product_type: mode,
+                        product_id: id,
+                        status: 'processed',
+                        recognition_date: new Date().toISOString().split('T')[0]
                     });
             }
         }

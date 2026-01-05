@@ -45,15 +45,15 @@ export const DailyFreeDrillSection: React.FC = () => {
     };
 
     return (
-        <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
+        <section className="py-24 md:py-40 relative overflow-hidden">
             {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-violet-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-violet-900/25 rounded-full blur-[120px] pointer-events-none"></div>
 
             <div className="max-w-7xl mx-auto px-4 relative z-10">
                 {/* 1. Header Section */}
                 <div className="text-center mb-16">
                     <div className="inline-block mb-4">
-                        <div className="bg-zinc-800/40 px-6 py-2 rounded-full inline-flex items-center gap-3 backdrop-blur-sm border border-zinc-800">
+                        <div className="bg-zinc-900/50 px-6 py-2 rounded-full inline-flex items-center gap-3 backdrop-blur-sm border border-zinc-800">
                             <Clock className="w-4 h-4 text-violet-500" />
                             <span className="text-zinc-400 font-mono text-sm tracking-wider">
                                 Next Refresh in: <span className="text-zinc-200">{timeLeft}</span>
@@ -84,6 +84,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                                         src={course.thumbnailUrl}
                                         alt={course.title}
                                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[0.2] group-hover:grayscale-0"
+                                        loading="lazy"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
                                 </div>
@@ -153,6 +154,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                                         src={routine.thumbnailUrl}
                                         alt={routine.title}
                                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[0.2] group-hover:grayscale-0"
+                                        loading="lazy"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
                                 </div>

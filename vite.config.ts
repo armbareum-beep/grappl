@@ -35,6 +35,25 @@ export default defineConfig({
             }
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    // React 관련 라이브러리
+                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    // Supabase 클라이언트
+                    'supabase': ['@supabase/supabase-js'],
+                    // 비디오 관련
+                    'video': ['@vimeo/player', 'tus-js-client'],
+                    // UI 라이브러리
+                    'ui': ['lucide-react', 'date-fns'],
+                    // 차트 및 시각화
+                    'charts': ['recharts'],
+                }
+            }
+        },
+        chunkSizeWarningLimit: 1000, // 경고 임계값 상향 (1MB)
+    },
     esbuild: {
         drop: ['console', 'debugger'],
     },
@@ -43,5 +62,7 @@ export default defineConfig({
         open: true
     }
 })
+
+// Touch to force reload
 
 // Touch to force reload

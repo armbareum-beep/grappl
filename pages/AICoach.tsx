@@ -120,7 +120,7 @@ export const AICoach: React.FC = () => {
 
             if (!user) return;
 
-            console.log('Fetching logs for user:', user.id);
+
             const { getTrainingLogs, getPublicSparringVideos } = await import('../lib/api');
             const { data: logsData, error: logsError } = await getTrainingLogs(user.id);
 

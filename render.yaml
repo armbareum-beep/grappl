@@ -8,9 +8,13 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: VITE_VIMEO_CLIENT_ID
+      - key: VIMEO_CLIENT_ID
         sync: false
-      - key: VITE_VIMEO_CLIENT_SECRET
+      - key: VIMEO_CLIENT_SECRET
         sync: false
-      - key: VITE_VIMEO_ACCESS_TOKEN
+      - key: VIMEO_ACCESS_TOKEN
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_URL
         sync: false

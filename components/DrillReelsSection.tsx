@@ -40,6 +40,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
                     isHovered ? "opacity-0" : "opacity-100"
                 )}
+                loading="lazy"
             />
 
             {/* Video layer - Only rendered/active if we have a videoUrl */}
@@ -98,9 +99,9 @@ export const DrillReelsSection: React.FC = () => {
     }, []);
 
     return (
-        <section className="py-24 bg-zinc-950 relative overflow-hidden text-left md:text-center">
+        <section className="py-24 relative overflow-hidden text-left md:text-center">
             {/* Background Elements: Subtle violet gradient mesh */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(76,29,149,0.1),transparent_70%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(76,29,149,0.25),transparent_70%)] pointer-events-none" />
 
             <div className="max-w-7xl mx-auto px-4 relative z-10">
                 {/* Header */}
@@ -140,9 +141,10 @@ export const DrillReelsSection: React.FC = () => {
                 <div className="mt-12 text-center">
                     <button
                         onClick={() => navigate('/drills')}
-                        className="bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300"
+                        className="relative group bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300 overflow-hidden"
                     >
-                        지금 바로 무료 기술 습득하기
+                        <span className="relative z-10">지금 바로 무료 기술 습득하기</span>
+                        <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">
                         1,000개 이상의 드릴을 손끝에서 만나보세요.

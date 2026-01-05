@@ -15,7 +15,7 @@ import { CommunityFeedSection } from '../components/CommunityFeedSection';
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
-import { AIScanningSection } from '../components/landing/AIScanningSection';
+
 import { JournalPromotionSection } from '../components/landing/JournalPromotionSection';
 import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
 import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
@@ -98,7 +98,7 @@ export const LandingPage: React.FC = () => {
             });
         } catch (error) {
             // Silent fail - prefetching is optional
-            console.log('Prefetch completed');
+
         }
     };
 
@@ -113,7 +113,7 @@ export const LandingPage: React.FC = () => {
                     id: '1',
                     name: '김민수',
                     belt: 'Blue Belt',
-                    comment: 'Marcus 인스트럭터의 가드 패스 강의 덕분에 3개월 만에 블루벨트를 땄습니다. 세계 챔피언한테 직접 배우는 느낌이 정말 좋아요!',
+                    comment: '가드 패스 강의 덕분에 시합에서 우승할 수 있었습니다. 챔피언한테 직접 배우는 느낌이 정말 좋아요!',
                     rating: 5,
                     createdAt: new Date().toISOString()
                 },
@@ -121,7 +121,7 @@ export const LandingPage: React.FC = () => {
                     id: '2',
                     name: '박지영',
                     belt: 'Purple Belt',
-                    comment: 'Ana 인스트럭터의 스파이더 가드 시리즈가 최고입니다. 실전에서 바로 써먹을 수 있는 디테일이 가득해요.',
+                    comment: '스파이더 가드 시리즈가 최고입니다. 실전에서 바로 써먹을 수 있는 디테일이 가득해요.',
                     rating: 5,
                     createdAt: new Date().toISOString()
                 },
@@ -129,7 +129,7 @@ export const LandingPage: React.FC = () => {
                     id: '3',
                     name: '이준호',
                     belt: 'White Belt',
-                    comment: '초보자도 쉽게 따라할 수 있어요. 7일 무료 체험으로 시작했는데 바로 1년 구독했습니다. 35% 할인 혜택도 좋았어요!',
+                    comment: '초보자도 쉽게 따라할 수 있어요. 무료 강의로 시작했는데 바로 1년 구독했습니다. 2달무료 혜택도 좋았어요!',
                     rating: 5,
                     createdAt: new Date().toISOString()
                 }
@@ -152,7 +152,14 @@ export const LandingPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden break-keep">
+        <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden break-keep relative">
+            {/* Global Continuous Background Pattern */}
+            <div className="absolute inset-0 opacity-[0.15] pointer-events-none z-0" style={{
+                backgroundImage: 'radial-gradient(circle at 2px 2px, #8b5cf6 1px, transparent 0)',
+                backgroundSize: '40px 40px',
+                maskImage: 'linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)'
+            }}></div>
+
             {/* Navigation Header */}
             <header className={cn(
                 "absolute top-0 left-0 w-full z-50 transition-all duration-300 h-20 flex items-center px-4 md:px-8",
@@ -199,7 +206,7 @@ export const LandingPage: React.FC = () => {
                 {/* 3. Main Copy */}
                 <h1 className="z-10 text-center text-4xl md:text-7xl font-bold tracking-tight text-white leading-[1.1]">
                     유튜브엔 없는 <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">블랙벨트의 진짜 디테일</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600">블랙벨트의 진짜 디테일</span>
                 </h1>
 
                 {/* 4. Sub Copy */}
@@ -211,27 +218,35 @@ export const LandingPage: React.FC = () => {
                 {/* 5. CTA Button */}
                 <div className="z-10 mt-12 flex flex-col sm:flex-row gap-4">
                     <button
-                        className="px-8 py-4 bg-zinc-100 hover:bg-white text-black font-bold rounded-full shadow-[0_0_25px_rgba(255,255,255,0.2)] transition-all transform hover:-translate-y-1"
+                        className="relative group bg-zinc-100 hover:bg-white text-black font-bold rounded-full px-8 py-4 transition-all transform hover:-translate-y-1 shadow-[0_0_25px_rgba(255,255,255,0.2)] overflow-hidden"
                         onClick={() => navigate('/courses')}
                     >
-                        독점 강의 지금 보기
+                        <span className="relative z-10">독점 강의 지금 보기</span>
+                        <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>
                     </button>
                 </div>
+
+                {/* Scroll Indicator */}
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 opacity-60 animate-bounce cursor-pointer" onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}>
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Scroll</span>
+                    <div className="w-5 h-8 border-2 border-zinc-600 rounded-full flex justify-center p-1">
+                        <div className="w-1 h-3 bg-zinc-400 rounded-full animate-scroll-down"></div>
+                    </div>
+                </div>
+
+                {/* Bottom Fade Mask for Seamless Transition */}
+                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black via-black/80 to-transparent z-0 pointer-events-none" />
             </section>
 
             {/* Daily Free Pass Section - 즉시 가치 제공으로 후킹 강화 */}
             <DailyFreeDrillSection />
 
-            {/* AI Scanning Section - 차별화 포인트 */}
-            <AIScanningSection />
+
 
             {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
-            <section id="instructors" className="py-24 md:py-40 bg-zinc-950 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-[0.15] pointer-events-none" style={{
-                    backgroundImage: 'radial-gradient(circle at 2px 2px, #8b5cf6 1px, transparent 0)',
-                    backgroundSize: '40px 40px',
-                    maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)'
-                }}></div>
+            <section id="instructors" className="py-24 md:py-40 relative overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[600px] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-4 relative z-10">
                     {/* Section Header */}
@@ -239,14 +254,14 @@ export const LandingPage: React.FC = () => {
                         <div className="text-left">
                             <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
                                 <Award className="w-3.5 h-3.5 text-violet-500 mr-2" />
-                                <span className="text-violet-400 text-[10px] font-bold uppercase tracking-[0.2em]">World Class Instructors</span>
+                                <span className="text-violet-400 text-[10px] font-bold uppercase tracking-[0.2em]">WORLD CLASS INSTRUCTORS</span>
                             </div>
                             <h2 className="text-3xl md:text-6xl font-black mb-6 leading-tight text-white">
                                 검증되지 않은 기술은 <br />
                                 <span className="text-violet-500">배우지 마세요</span>
                             </h2>
                             <p className="text-zinc-400 text-xl max-w-2xl leading-relaxed">
-                                IBJJF, ADCC 챔피언부터 현직 국가대표까지. <br className="hidden md:block" />
+                                IBJJF, ADCC 챔피언부터 전,현직 국가대표까지. <br className="hidden md:block" />
                                 최고들의 노하우만 담았습니다.
                             </p>
                         </div>
@@ -271,7 +286,7 @@ export const LandingPage: React.FC = () => {
 
                     <div className="mt-20 text-center">
                         <button
-                            className="px-10 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white font-bold rounded-full transition-all"
+                            className="px-10 py-4 bg-transparent border border-zinc-800 text-zinc-400 font-bold rounded-full transition-all hover:border-violet-500 hover:text-violet-400 hover:bg-violet-900/10 hover:shadow-[0_0_20px_rgba(124,58,237,0.2)]"
                             onClick={() => navigate('/instructors')}
                         >
                             전체 인스트럭터 보기
@@ -297,16 +312,9 @@ export const LandingPage: React.FC = () => {
             <CommunityFeedSection />
 
             {/* 7 & 8. Unified Social Proof & Final CTA Area */}
-            <div className="relative bg-zinc-950 overflow-hidden">
+            <div className="relative overflow-hidden">
                 {/* Massive Shared Background Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-violet-900/10 rounded-full blur-[160px] pointer-events-none"></div>
-
-                {/* Constant Dot Pattern for continuity */}
-                <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{
-                    backgroundImage: 'radial-gradient(circle at 2px 2px, #8b5cf6 1px, transparent 0)',
-                    backgroundSize: '40px 40px',
-                    maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
-                }}></div>
 
                 {/* 7. Social Proof Section */}
                 <section className="py-24 md:py-40 relative z-10">

@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
+import { GitBranch } from 'lucide-react';
+
 
 // Types for our node data
 interface NodeData {
@@ -27,10 +29,10 @@ export const CapsuleRoadmapSection: React.FC = () => {
     const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
     return (
-        <section className="py-24 md:py-40 bg-zinc-950 relative overflow-hidden">
+        <section className="py-24 md:py-40 relative overflow-hidden">
             {/* Background Radial Gradient */}
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-violet-900/10 rounded-full blur-[150px]"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-violet-900/25 rounded-full blur-[150px]"></div>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center">
@@ -43,9 +45,16 @@ export const CapsuleRoadmapSection: React.FC = () => {
                         viewport={{ once: true }}
                         className="text-4xl md:text-6xl font-black mb-6 leading-tight text-white tracking-tight break-keep"
                     >
+                        <div className="flex justify-center mb-6">
+                            <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
+                                <GitBranch className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                                <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
+                                    SKILL SYSTEM
+                                </span>
+                            </div>
+                        </div>
                         길을 잃지 않는 수련, <br className="md:hidden" />
-                        <span className="text-violet-500">당신의 다음 노드는 어디입니까?</span> <br />
-                        당신만의 시스템을 완성하세요.
+                        <span className="text-violet-500">당신의 다음 테크닉은 무엇입니까?</span>
                     </motion.h2>
 
                     <motion.p

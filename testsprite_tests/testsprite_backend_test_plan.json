@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "support paypal payment for international users",
+    "description": "Verify that the payment system correctly processes payments made through PayPal for international users, including successful subscription or content purchase and updating user subscription status in the database."
+  },
+  {
+    "id": "TC002",
+    "title": "support portone payment for domestic korean users",
+    "description": "Verify that the payment system correctly processes payments made through Portone for domestic Korean users, including successful subscription or content purchase and updating user subscription status in the database."
+  },
+  {
+    "id": "TC003",
+    "title": "handle payment confirmation webhooks",
+    "description": "Test the handling of payment confirmation webhooks from both PayPal and Portone to ensure the system updates the user subscription status accurately and timely after payment confirmation."
+  },
+  {
+    "id": "TC004",
+    "title": "upload raw videos to supabase storage",
+    "description": "Verify that raw video files can be uploaded successfully to Supabase storage and are accessible for further processing."
+  },
+  {
+    "id": "TC005",
+    "title": "process videos using backend ffmpeg service",
+    "description": "Test the backend FFmpeg service for video processing, including cutting and joining videos, ensuring the processed video output is correct and ready for upload."
+  },
+  {
+    "id": "TC006",
+    "title": "upload processed videos to vimeo and update database",
+    "description": "Verify that processed videos are uploaded to Vimeo successfully and the database is updated with the correct Vimeo video ID."
+  },
+  {
+    "id": "TC007",
+    "title": "restrict video access based on user subscription or purchase status",
+    "description": "Ensure that video content access is restricted properly based on the user's subscription or purchase status, preventing unauthorized access."
+  },
+  {
+    "id": "TC008",
+    "title": "upload and edit drills and lessons",
+    "description": "Test the creator dashboard functionality for uploading and editing drills and lessons, ensuring changes are saved and reflected correctly."
+  },
+  {
+    "id": "TC009",
+    "title": "view revenue according to predefined share ratios",
+    "description": "Verify that creators can view their revenue accurately calculated according to the predefined share ratios, such as 8:2."
+  },
+  {
+    "id": "TC010",
+    "title": "submit payout requests",
+    "description": "Test the payout request submission process from the creator dashboard, ensuring requests are recorded and processed correctly."
+  }
+]

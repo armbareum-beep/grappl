@@ -67,6 +67,7 @@ export interface Lesson {
   views?: number; // Added for dashboard display
   createdAt: string;
   isSubscriptionExcluded?: boolean;
+  isPreview?: boolean;
 }
 
 // Keep Video interface for backward compatibility

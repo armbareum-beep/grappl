@@ -97,7 +97,7 @@ export const DrillDetail: React.FC = () => {
         };
 
         if (drill && (!drill.vimeoUrl || drill.vimeoUrl.includes('placeholder'))) {
-            console.log('Processing detected, starting safe polling...');
+
             // Start the loop
             timeoutId = setTimeout(pollDrill, 5000);
         }
@@ -174,11 +174,7 @@ export const DrillDetail: React.FC = () => {
                     // await incrementDrillViews(id); // Temporarily disabled to prevent DB locks during high load
 
                     // Check ownership for database drills
-                    console.log('[DEBUG] Checking ownership:', {
-                        drillCreator: drillData.creatorId,
-                        userId: contextUser?.id,
-                        match: contextUser && drillData.creatorId === contextUser.id
-                    });
+
 
                     if (contextUser && drillData.creatorId === contextUser.id) {
                         setOwns(true);
@@ -229,10 +225,7 @@ export const DrillDetail: React.FC = () => {
                 // Check if creator (HIGHEST PRIORITY)
                 if (drill.creatorId === contextUser.id) {
                     hasAccess = true;
-                    console.log('[DEBUG] Creator access granted:', {
-                        drillCreator: drill.creatorId,
-                        userId: contextUser.id
-                    });
+
                 }
                 // Check if subscriber
                 else if (isSub) {

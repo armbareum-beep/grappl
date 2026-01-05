@@ -1,0 +1,20 @@
+🛡️ 1단계: 백엔드 & 인프라 기반 (Deep Dive)
+1.1 데이터베이스 보안 (Supabase RLS)
+ profiles 테이블: 유저가 자신의 프로필만 수정(UPDATE)할 수 있는지, 타인의 이메일 등을 볼 수 없게 되어 있는지.
+ drills, lessons 테이블: 유료 콘텐츠의 경우, 결제하지 않은 유저가 API를 통해 원본 동영상 주소(video_url)를 직접 따낼 수 있는지.
+ admin_ 관련 권한: 일반 유저가 isAdmin 플래그를 변조해서 관리자 페이지에 접근할 수 있는지 (DB Policy 레벨 확인).
+ 전체 테이블 RLS Enabled: 새로 만든 테이블 중 실수로 RLS를 끄고 public으로 열어둔 것이 없는지 (특히 comments, likes 등).
+1.2 서버 및 API 환경 (Environment Variables)
+ Production URL 대조: 
+
+.env.production
+ 파일 내의 VITE_SUPABASE_URL과 VITE_BACKEND_URL이 실제 라이브 서버 주소와 100% 일치하는지.
+ API Keys 노출: Client-side에 노출되면 안 되는 Secret Key(PayPal Secret, Vimeo Private Token 등)가 VITE_ 접두사로 잘못 선언되어 프론트엔드에 노출되고 있지 않은지.
+ CORS 설정: 백엔드 서버에서 grapplay.vercel.app 외의 도메인(악의적 도메인)의 요청을 차단하고 있는지.
+1.3 데이터 무결성 및 시스템 제약
+ Storage Bucket 권한: raw_videos, thumbnails 버켓이 public으로 열려있어 이미지는 잘 보이지만, 유료 영상은 권한 있는 사람만 다운로드 가능한지.
+ Nullable 체크: DB 테이블 필드 중 꼭 있어야 하는데 null이 허용되어 나중에 코드가 undefined로 터질 만한 곳이 없는지.
+ 트랜잭션 오류: 루틴 생성 시 제목이 없거나 데이터가 비어있을 때 DB 레벨에서 Constraint(제약조건)로 잘 막아주는지.
+1.4 트리거 및 엣지 함수 (Edge Functions)
+ 결제 웹훅(Webhook): PayPal이나 포트원에서 결제 완료 신호를 보냈을 때, DB에 반영하는 엣지 함수가 타임아웃 없이 정상 작동하는지.
+ 자동 카운팅 트리거: 조회수(views), 좋아요 수(likes_count) 등이 중복으로 올라가거나 음수가 되는 버그가 없는지.
