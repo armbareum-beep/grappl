@@ -128,83 +128,82 @@ const OAuthRedirectHandler: React.FC = () => {
 
 // Scroll Restoration Component
 const ScrollToTop: React.FC = () => {
-  const { pathname, search } = useLocation();
-  const currentPathKey = pathname + search;
-  const lastScrollPosRef = React.useRef<Record<string, number>>({});
-  const isRestoringRef = React.useRef(false);
+  const { key } = useLocation();
+  const isRestoring = React.useRef(false);
+  const scrollMap = React.useRef<Record<string, number>>({});
 
-  // 현재 페이지의 스크롤 위치를 실시간으로 기록 (디바운스/쓰로틀 없이 단순 기록)
+  // 1. 전역 설정: 브라우저 자동 스크롤 기능 강제 종료
+  React.useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // 2. 실시간 기록: 사용자가 스크롤할 때마다 메모리와 세션에 즉시 저장
   React.useEffect(() => {
     const handleScroll = () => {
-      if (!isRestoringRef.current) {
-        lastScrollPosRef.current[currentPathKey] = window.scrollY;
-      }
+      if (isRestoring.current) return;
+      const pos = window.scrollY;
+      scrollMap.current[key] = pos;
+
+      // 세션 저장 (디바운스 없이 즉시 - 뒤로가기 대응력 극대화)
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('grapplay_scroll_v3') || '{}');
+        saved[key] = pos;
+        sessionStorage.setItem('grapplay_scroll_v3', JSON.stringify(saved));
+      } catch (e) { }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [currentPathKey]);
+  }, [key]);
 
-  // 페이지 이동 시 스크롤 복원
+  // 3. 끈질긴 복원: 페이지가 다 그려질 때까지 반복해서 위치를 잡음
   React.useEffect(() => {
-    const SCROLL_KEY = 'grapplay_scroll_positions';
+    let targetPos = 0;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('grapplay_scroll_v3') || '{}');
+      targetPos = saved[key] || 0;
+    } catch (e) { }
 
-    // sessionStorage에서 전체 위치 데이터 로드/저장 유틸
-    const getSavedPositions = (): Record<string, number> => {
-      try {
-        const saved = sessionStorage.getItem(SCROLL_KEY);
-        return saved ? JSON.parse(saved) : {};
-      } catch { return {}; }
-    };
+    if (targetPos > 0) {
+      isRestoring.current = true;
 
-    const savePositions = (pos: Record<string, number>) => {
-      try {
-        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(pos));
-      } catch (e) { console.warn('Scroll save error:', e); }
-    };
+      // 즉시 이동 시도
+      window.scrollTo(0, targetPos);
 
-    // 1. 이전 페이지의 최종 위치를 sessionStorage에 영구 저장
-    // lastScrollPosRef.current에는 handleScroll에 의해 가장 최신 위치가 담겨 있음
-    const allPositions = { ...getSavedPositions(), ...lastScrollPosRef.current };
-    savePositions(allPositions);
-
-    // 2. 현재 페이지(새 페이지)의 위치 복원 시도
-    const savedPos = allPositions[currentPathKey];
-
-    if (savedPos !== undefined && savedPos > 0) {
-      isRestoringRef.current = true;
-
-      // 즉시 시도
-      window.scrollTo(0, savedPos);
-
-      // 콘텐츠가 늦게 로드되는 경우(랜딩페이지 등)를 위해 여러 번 시도
       let attempts = 0;
-      const maxAttempts = 5;
+      const checkAndScroll = setInterval(() => {
+        const currentHeight = document.documentElement.scrollHeight;
+        const viewportHeight = window.innerHeight;
 
-      const tryScroll = () => {
-        if (attempts >= maxAttempts) {
-          isRestoringRef.current = false;
-          return;
+        // 보던 위치가 화면에 나타날 수 있을 만큼 페이지가 길어졌는지 확인
+        if (currentHeight >= targetPos + (viewportHeight / 2)) {
+          window.scrollTo(0, targetPos);
+          // 안정을 위해 조금 더 확인 후 종료
+          if (attempts > 5) {
+            clearInterval(checkAndScroll);
+            isRestoring.current = false;
+          }
         }
 
-        // 현재 페이지의 최대 높이 확인
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-
-        if (maxScroll >= savedPos) {
-          window.scrollTo(0, savedPos);
-          isRestoringRef.current = false;
-        } else {
-          attempts++;
-          setTimeout(tryScroll, 100 * attempts); // 점진적으로 지연 시간 증가
+        // 너무 오래 걸리면(8초) 포기
+        if (attempts > 80) {
+          clearInterval(checkAndScroll);
+          isRestoring.current = false;
         }
+        attempts++;
+      }, 100);
+
+      return () => {
+        clearInterval(checkAndScroll);
+        isRestoring.current = false;
       };
-
-      setTimeout(tryScroll, 50);
     } else {
       window.scrollTo(0, 0);
-      isRestoringRef.current = false;
+      isRestoring.current = false;
     }
-  }, [currentPathKey]);
+  }, [key]);
 
   return null;
 };
