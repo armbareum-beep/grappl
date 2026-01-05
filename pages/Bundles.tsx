@@ -16,7 +16,7 @@ export const Bundles: React.FC = () => {
 
     const loadBundles = async () => {
         setLoading(true);
-        const { data, error } = await getBundles();
+        const { data } = await getBundles();
         if (data) {
             setBundles(data);
         }

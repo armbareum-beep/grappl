@@ -143,13 +143,13 @@ export const MyLibrary: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-zinc-950">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-4">로그인이 필요합니다</h2>
-          <p className="text-slate-400 mb-6">내 라이브러리를 보려면 로그인하세요.</p>
+          <p className="text-zinc-400 mb-6">내 라이브러리를 보려면 로그인하세요.</p>
           <Link
             to="/login"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block bg-violet-600 text-white px-6 py-3 rounded-lg hover:bg-violet-700 transition-colors"
           >
             로그인하기
           </Link>
@@ -159,8 +159,8 @@ export const MyLibrary: React.FC = () => {
   }
 
   return (
-    <div className="bg-slate-950 min-h-screen">
-      <div className="relative bg-gradient-to-b from-zinc-900 to-slate-950 text-white py-12 border-b border-zinc-800">
+    <div className="bg-zinc-950 min-h-screen">
+      <div className="relative bg-gradient-to-b from-zinc-900 to-zinc-950 text-white py-12 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
@@ -394,7 +394,7 @@ function ChainCard({ chain }: { chain: UserSkillTree }) {
     <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
       <Link
         to={`/arena?tab=skills&id=${chain.id}`}
-        className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-800 transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_15px_rgba(124,58,237,0.2)]"
+        className="relative aspect-video bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_15px_rgba(124,58,237,0.2)]"
       >
         {chain.thumbnailUrl ? (
           <img src={chain.thumbnailUrl} alt={chain.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -427,7 +427,7 @@ function ChainCard({ chain }: { chain: UserSkillTree }) {
             <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">Private</span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-medium">
           <span className="flex items-center gap-1">
             <Network className="w-3 h-3" />
             {chain.nodes?.length || 0} nodes
@@ -445,7 +445,7 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
     <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
       <Link
         to={`/my-routines/${routine.id}`}
-        className="relative aspect-[10/14] bg-slate-900 rounded-xl overflow-hidden border border-slate-800 transition-all"
+        className="relative aspect-[10/14] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all"
       >
         <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -467,7 +467,7 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
         <Link to={`/my-routines/${routine.id}`}>
           <h3 className="text-white font-bold text-sm md:text-base mb-1 line-clamp-1 group-hover:text-violet-400 transition-colors">{routine.title}</h3>
         </Link>
-        <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+        <div className="flex items-center justify-between text-[11px] text-zinc-500 font-medium">
           <span>{routine.creatorName}</span>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1">
