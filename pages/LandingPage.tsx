@@ -219,11 +219,11 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* AI Scanning Section */}
-            <AIScanningSection />
-
-            {/* Daily Free Pass Section */}
+            {/* Daily Free Pass Section - 즉시 가치 제공으로 후킹 강화 */}
             <DailyFreeDrillSection />
+
+            {/* AI Scanning Section - 차별화 포인트 */}
+            <AIScanningSection />
 
             {/* 2. Instructor Authority Section - Infinite Scroll Carousel */}
             <section id="instructors" className="py-24 md:py-40 bg-zinc-950 relative overflow-hidden">
@@ -281,24 +281,20 @@ export const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 3. Sparring Showcase Section */}
+            {/* 3. Class Showcase Section */}
             <ClassShowcase />
 
             <DrillReelsSection />
 
+            {/* 학습 시스템 블록 - 체계적인 성장 경로 제시 */}
+            <CapsuleRoadmapSection />
+            <RoutinePromotionSection />
+            <JournalPromotionSection />
+
+            {/* 실전 증거 블록 - 소셜 증거 준비 */}
             <RandomSparringShowcase />
 
             <CommunityFeedSection />
-
-
-
-
-            {/* 5. Daily Free Pass Section was here - removed */}
-
-            {/* 6. Journal Promotion Section */}
-            <JournalPromotionSection />
-            <RoutinePromotionSection />
-            <CapsuleRoadmapSection />
 
             {/* 7 & 8. Unified Social Proof & Final CTA Area */}
             <div className="relative bg-zinc-950 overflow-hidden">
