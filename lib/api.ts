@@ -2303,6 +2303,7 @@ export async function getTrainingLogs(userId: string) {
         youtubeUrl: log.youtube_url,
         mediaUrl: log.media_url,
         metadata: log.metadata,
+        type: log.type,
         createdAt: log.created_at
     }));
 
