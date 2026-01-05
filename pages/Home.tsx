@@ -9,10 +9,10 @@ import { getUserProgress } from '../lib/api';
 import { getBeltInfo, getXPProgress } from '../lib/belt-system';
 import {
   getRecentActivity, getDailyRoutine, getDailyFreeCourse,
-  getTrainingLogs,
+  getTrainingLogs, getSparringReviews,
   searchContent
 } from '../lib/api';
-import { Course, UserProgress, DrillRoutine, SparringVideo, TrainingLog, VideoCategory, Difficulty, DailyQuest } from '../types';
+import { Course, UserProgress, DrillRoutine, SparringVideo, TrainingLog, SparringReview, VideoCategory, Difficulty, DailyQuest } from '../types';
 import { getWeeklyFeaturedChain } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { supabase } from '../lib/supabase';
@@ -33,6 +33,7 @@ export const Home: React.FC = () => {
   const [dailyRoutine, setDailyRoutine] = useState<DrillRoutine | null>(null);
   const [freeCourse, setFreeCourse] = useState<Course | null>(null);
   const [logs, setLogs] = useState<TrainingLog[]>([]);
+  const [sparringReviews, setSparringReviews] = useState<SparringReview[]>([]);
 
   // Diverse Recommendation States
   const [recCourse, setRecCourse] = useState<Course | null>(null);
@@ -52,17 +53,52 @@ export const Home: React.FC = () => {
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Mock User Stats
+  // Calculate Streak from logs
+  const streak = useMemo(() => {
+    if (!logs || logs.length === 0) return 0;
+
+    const uniqueDates = Array.from(new Set(logs.map(log => log.date.split('T')[0]))).sort().reverse();
+    if (uniqueDates.length === 0) return 0;
+
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // Check if the user practiced today or yesterday to keep the streak alive
+    if (uniqueDates[0] !== today && uniqueDates[0] !== yesterday) return 0;
+
+    let currentStreak = 0;
+    let checkDate = new Date(uniqueDates[0]); // Start checking from the most recent practice date
+
+    // Iterate efficiently
+    for (const dateStr of uniqueDates) {
+      const currentDate = new Date(dateStr);
+      // Direct comparison of date strings is safer for equality
+      if (dateStr === checkDate.toISOString().split('T')[0]) {
+        currentStreak++;
+        checkDate.setDate(checkDate.getDate() - 1); // Move to previous day
+      } else {
+        break; // Gap found
+      }
+    }
+    return currentStreak;
+  }, [logs]);
+
+  // Mock User Stats (Badges still mocked)
   const userStats = {
-    streak: 3,
+    streak,
+    badges: ['First Step', 'Early Bird'] // Placeholder until badges table exists
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !user.id) {
       setLoading(false);
       navigate('/', { replace: true });
       return;
     }
+
+    // DEBUG: Check user ID
+    console.log('[Home] Current User:', user);
+    if (!user.id) console.error('[Home] User ID is missing!');
 
     const fetchData = async () => {
       try {
@@ -76,9 +112,38 @@ export const Home: React.FC = () => {
           if (userData?.avatar_url) setUserAvatar(userData.avatar_url);
           if (userData?.name) setUserName(userData.name);
 
-          const userProgress = await getUserProgress(user.id);
-          setProgress(userProgress);
-        } catch (e) { console.error('User info error:', e); }
+
+          try {
+            const userProgress = await getUserProgress(user.id);
+            setProgress(userProgress);
+          } catch (e) {
+            console.error('Error fetching user progress:', e);
+            // Fallback progress
+            setProgress({
+              userId: user.id,
+              beltLevel: 1,
+              currentXp: 0,
+              totalXp: 0,
+              lastQuestReset: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        } catch (e) {
+          console.error('User info error:', e);
+          // Ensure safe fallback if outer try fails
+          if (!progress) {
+            setProgress({
+              userId: user.id,
+              beltLevel: 1,
+              currentXp: 0,
+              totalXp: 0,
+              lastQuestReset: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
 
         // 2. FETCH DAILY CONTENT (Most Critical)
         const [routineRes, courseRes] = await Promise.all([
@@ -171,14 +236,30 @@ export const Home: React.FC = () => {
         }
 
         // 3. SECONDARY DATA
-        getRecentActivity(user.id).then(res => setRecentActivity(res)).catch(() => { });
-        getTrainingLogs(user.id).then(res => { if (res.data) setLogs(res.data as any); }).catch(() => { });
+        getRecentActivity(user.id).then(res => {
+          if (Array.isArray(res)) setRecentActivity(res);
+          else if (res && (res as any).data && Array.isArray((res as any).data)) setRecentActivity((res as any).data);
+          else setRecentActivity([]);
+        }).catch(() => setRecentActivity([]));
+
+        getTrainingLogs(user.id).then(res => {
+          if (res.data && Array.isArray(res.data)) setLogs(res.data as any);
+          else setLogs([]);
+        }).catch(() => setLogs([]));
+
+        // Fetch Sparring Reviews for 'Give Feedback' quest
+        getSparringReviews(user.id).then(res => {
+          if (res.data && Array.isArray(res.data)) setSparringReviews(res.data);
+          else setSparringReviews([]);
+        }).catch(() => setSparringReviews([]));
+
         getWeeklyFeaturedChain().then(async res => {
           if (res.data?.title) {
             const results = await searchContent(res.data.title);
-            if (results.courses.length > 0) setRecCourse(results.courses[0]);
-            if (results.routines.length > 0) setRecRoutines([results.routines[0]]);
-            if (results.sparring.length > 0) setRecSparring(results.sparring[0]);
+            // Ensure searchContent returns expected structure
+            if (results && Array.isArray(results.courses) && results.courses.length > 0) setRecCourse(results.courses[0]);
+            if (results && Array.isArray(results.routines) && results.routines.length > 0) setRecRoutines([results.routines[0]]);
+            if (results && Array.isArray(results.sparring) && results.sparring.length > 0) setRecSparring(results.sparring[0]);
           }
         }).catch(() => { });
 
@@ -201,17 +282,7 @@ export const Home: React.FC = () => {
     return () => clearInterval(timer);
   }, [dailyRoutine, freeCourse]);
 
-  if (loading) return <LoadingScreen message="홈 데이터 불러오는 중..." />;
-
-  const currentBelt = progress ? getBeltInfo(progress.beltLevel) : null;
-  const xpProgress = progress ? getXPProgress(progress.totalXp, progress.beltLevel) : 0;
-  const levelProgress = xpProgress * 100;
-  const displayName = userName || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Grappler';
-
-  const slides = [
-    ...(dailyRoutine ? [{ type: 'routine' as const, data: dailyRoutine }] : []),
-    ...(freeCourse ? [{ type: 'course' as const, data: freeCourse }] : [])
-  ];
+  // Move hooks to top level - prevent conditional hook errors
   const dailyQuests = useMemo(() => {
     if (!user) return [];
 
@@ -222,6 +293,10 @@ export const Home: React.FC = () => {
     const hasRoutine = logs.some(l => l.date && l.date.split('T')[0] === today && l.type === 'routine');
     const hasSparring = logs.some(l => l.date && l.date.split('T')[0] === today && (l.sparringRounds > 0 || l.type === 'sparring'));
 
+    // New Missions Logic
+    const hasWatchedLesson = recentActivity.some(a => a.type === 'lesson' && a.lastWatched && a.lastWatched.split('T')[0] === today);
+    const hasFeedback = sparringReviews.some(r => r.createdAt && r.createdAt.split('T')[0] === today);
+
     const quests: DailyQuest[] = [
       {
         id: 'q1',
@@ -229,7 +304,7 @@ export const Home: React.FC = () => {
         questType: 'write_log',
         targetCount: 1,
         currentCount: hasLog ? 1 : 0,
-        xpReward: 50,
+        xpReward: 15, // Reduced from 50 (Consistency reward)
         completed: hasLog,
         questDate: today,
         createdAt: today
@@ -240,7 +315,7 @@ export const Home: React.FC = () => {
         questType: 'complete_routine',
         targetCount: 1,
         currentCount: hasRoutine ? 1 : 0,
-        xpReward: 30,
+        xpReward: 30, // Main physical training
         completed: hasRoutine,
         questDate: today,
         createdAt: today
@@ -251,15 +326,51 @@ export const Home: React.FC = () => {
         questType: 'play_match',
         targetCount: 1,
         currentCount: hasSparring ? 1 : 0,
-        xpReward: 50,
+        xpReward: 50, // Hardest effort
         completed: hasSparring,
+        questDate: today,
+        createdAt: today
+      },
+      {
+        id: 'q4',
+        userId: user.id,
+        questType: 'watch_lesson',
+        targetCount: 1,
+        currentCount: hasWatchedLesson ? 1 : 0,
+        xpReward: 20, // Passive learning
+        completed: hasWatchedLesson,
+        questDate: today,
+        createdAt: today
+      },
+      {
+        id: 'q5',
+        userId: user.id,
+        questType: 'give_feedback',
+        targetCount: 1,
+        currentCount: hasFeedback ? 1 : 0,
+        xpReward: 15, // Community engagement
+        completed: hasFeedback,
         questDate: today,
         createdAt: today
       }
     ];
-
     return quests;
-  }, [logs, user]);
+  }, [logs, recentActivity, sparringReviews, user]);
+
+  if (loading) return <LoadingScreen message="홈 데이터 불러오는 중..." />;
+
+  const currentBelt = progress ? getBeltInfo(progress.beltLevel) : null;
+  const xpProgress = progress ? getXPProgress(progress.totalXp, progress.beltLevel) : 0;
+  const levelProgress = xpProgress * 100;
+
+  // Safe display name generation
+  const rawName = userName || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0];
+  const displayName = typeof rawName === 'string' ? rawName : 'Grappler';
+
+  const slides = [
+    ...(dailyRoutine ? [{ type: 'routine' as const, data: dailyRoutine }] : []),
+    ...(freeCourse ? [{ type: 'course' as const, data: freeCourse }] : [])
+  ];
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans pb-20">
@@ -278,6 +389,7 @@ export const Home: React.FC = () => {
           <>
             <div className="relative group overflow-hidden rounded-[32px] min-h-[340px] md:min-h-[380px]">
               {slides.map((slide, idx) => {
+                if (!slide || !slide.data) return null; // Safety check
                 if (slide.type === 'routine') {
                   const routine = slide.data as DrillRoutine;
                   return (
@@ -289,13 +401,13 @@ export const Home: React.FC = () => {
                               <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20">데일리 루틴</span>
                               <span className="text-zinc-400 text-xs font-medium flex items-center gap-1"><Clock className="w-3 h-3" /> {routine.totalDurationMinutes || 15} min</span>
                             </div>
-                            <h2 className="text-white text-3xl md:text-5xl font-black tracking-tight leading-tight">{routine.title}</h2>
+                            <h2 className="text-white text-3xl md:text-5xl font-black tracking-tight leading-tight">{typeof routine.title === 'string' ? routine.title : 'Routine'}</h2>
                             <div className="flex items-center gap-4 text-sm text-zinc-400">
                               <span>{routine.drillCount || 5}개의 드릴</span>
                               <span className="flex items-center gap-1 text-violet-300 font-bold"><Zap className="w-4 h-4 fill-current text-yellow-500" /> +50 XP</span>
                             </div>
                             <p className="text-sm text-zinc-400 flex items-center gap-2 font-medium">
-                              <span className="text-zinc-300 text-base">{routine.creatorName}</span>
+                              <span className="text-zinc-300 text-base">{typeof routine.creatorName === 'string' ? routine.creatorName : 'Grapplay Team'}</span>
                             </p>
                           </div>
                           <div className="flex-shrink-0 mt-6 md:mt-0 w-full md:w-auto">
@@ -323,13 +435,13 @@ export const Home: React.FC = () => {
                               <span className="px-3 py-1 bg-violet-600/90 text-white text-xs font-black rounded-full uppercase tracking-widest shadow-lg shadow-violet-900/20">데일리 클래스</span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1"><Video className="w-3 h-3 text-violet-400" /> 무료 시청</span>
                             </div>
-                            <h2 className="text-white text-3xl md:text-5xl font-black tracking-tighter leading-[1.1] group-hover:text-violet-300 transition-colors uppercase italic">{course.title}</h2>
+                            <h2 className="text-white text-3xl md:text-5xl font-black tracking-tighter leading-[1.1] group-hover:text-violet-300 transition-colors uppercase italic">{typeof course.title === 'string' ? course.title : 'Class'}</h2>
                             <div className="flex items-center gap-4 text-sm text-zinc-400">
                               <span className="flex items-center gap-1"><Play className="w-4 h-4" /> {course.lessonCount || 0} Lessons</span>
                               <span className="flex items-center gap-1 text-violet-300 font-bold"><Zap className="w-4 h-4 fill-current text-yellow-500" /> +30 XP</span>
                             </div>
                             <p className="text-sm text-zinc-400 flex items-center gap-2 font-medium">
-                              <span className="text-zinc-300 text-base">{course.creatorName}</span>
+                              <span className="text-zinc-300 text-base">{typeof course.creatorName === 'string' ? course.creatorName : 'Grapplay Team'}</span>
                             </p>
                           </div>
                           <div className="flex-shrink-0 mt-6 md:mt-0 w-full md:w-auto">
@@ -411,8 +523,11 @@ export const Home: React.FC = () => {
       </section>
 
       <QuickJournalWidget />
-      <WeeklyFeaturedSection course={recCourse} routine={recRoutines[0] || null} sparring={recSparring} />
-      <RecentActivitySection activities={recentActivity} />
+      {/* Safeguard WeeklyFeaturedSection */}
+      {(recCourse || recRoutines.length > 0 || recSparring) && (
+        <WeeklyFeaturedSection course={recCourse} routine={recRoutines[0] || null} sparring={recSparring} />
+      )}
+      <RecentActivitySection activities={recentActivity || []} />
       <ArenaStatsModal isOpen={statsModalOpen} onClose={() => setStatsModalOpen(false)} type={selectedStatType} data={{ streak: userStats.streak, beltLevel: progress?.beltLevel || 0, xp: progress?.totalXp || 0, dailyQuests }} />
     </div>
   );

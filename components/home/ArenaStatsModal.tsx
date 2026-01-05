@@ -34,8 +34,8 @@ const QUEST_LABELS: Record<QuestType, string> = {
     play_match: '스파링 하기',
     sparring_review: '스파링 복기',
     complete_routine: '훈련 루틴 완료',
-    give_feedback: '피드백(댓글) 남기기',
-    watch_lesson: '레슨 시청'
+    give_feedback: '피드백 주기',
+    watch_lesson: '강의 시청하기'
 };
 
 export const ArenaStatsModal: React.FC<ArenaStatsModalProps> = ({ isOpen, onClose, type, data }) => {

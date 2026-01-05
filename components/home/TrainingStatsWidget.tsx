@@ -16,6 +16,8 @@ interface Stats {
 
 export const TrainingStatsWidget: React.FC<TrainingStatsWidgetProps> = ({ logs }) => {
     const navigate = useNavigate();
+    const safeLogs = Array.isArray(logs) ? logs : [];
+
     const [stats, setStats] = useState<Stats>({
         totalMinutes: 0,
         trainingSessions: 0,
@@ -32,7 +34,7 @@ export const TrainingStatsWidget: React.FC<TrainingStatsWidgetProps> = ({ logs }
         // - Exclude durationMinutes === -1 (invalid logs)
         // - Exclude location starting with '__FEED__' (social feed posts)
         // - Exclude type === 'routine' or 'mastery' (online content)
-        const validLogs = logs.filter(log =>
+        const validLogs = safeLogs.filter(log =>
             new Date(log.date) >= thirtyDaysAgo &&
             log.durationMinutes !== -1 &&
             (!log.location || !log.location.startsWith('__FEED__')) &&
@@ -51,7 +53,7 @@ export const TrainingStatsWidget: React.FC<TrainingStatsWidgetProps> = ({ logs }
         };
 
         setStats(calculated);
-    }, [logs]);
+    }, [logs, safeLogs]);
 
     const formatTime = (minutes: number) => {
         const hours = Math.floor(minutes / 60);

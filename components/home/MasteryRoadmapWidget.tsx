@@ -47,7 +47,15 @@ export const MasteryRoadmapWidget: React.FC = () => {
         const fetchData = async () => {
             try {
                 // 1. Get Latest Skill Tree
-                const { data: tree } = await getLatestUserSkillTree(user.id);
+                let tree;
+                try {
+                    const res = await getLatestUserSkillTree(user.id);
+                    tree = res.data;
+                } catch (e) {
+                    console.error('Error fetching skill tree:', e);
+                    setLoading(false);
+                    return;
+                }
 
                 if (!tree || !tree.nodes || tree.nodes.length === 0) {
                     setLoading(false);

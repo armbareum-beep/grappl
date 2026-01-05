@@ -198,7 +198,11 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
 
 export async function searchContent(query: string) {
     try {
-        const searchTerm = `%${query}%`;
+        // Sanitize query to avoid PostgREST syntax errors (remove parens, commas, etc)
+        const safeQuery = query.replace(/[(),]/g, ' ').trim();
+        if (!safeQuery) return { courses: [], routines: [], sparring: [], instructors: [] };
+
+        const searchTerm = `%${safeQuery}%`;
         const creatorsFilter: string[] = [];
         const usersFilter: string[] = [];
 

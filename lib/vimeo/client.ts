@@ -3,7 +3,7 @@
  * 모든 민감한 호출은 백엔드 서버를 거쳐 처리됩니다.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3002' : 'https://grapplay-backend.onrender.com');
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3003' : 'https://grapplay-backend.onrender.com');
 
 /**
  * Vimeo API 설정 확인 (백엔드 URL 존재 여부 확인)
