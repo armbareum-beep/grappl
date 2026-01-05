@@ -129,80 +129,82 @@ const OAuthRedirectHandler: React.FC = () => {
 // Scroll Restoration Component
 const ScrollToTop: React.FC = () => {
   const { pathname, search } = useLocation();
-  const prevPathnameRef = React.useRef<string>(pathname + search);
-  const isNavigatingRef = React.useRef(false);
+  const currentPathKey = pathname + search;
+  const lastScrollPosRef = React.useRef<Record<string, number>>({});
+  const isRestoringRef = React.useRef(false);
 
+  // 현재 페이지의 스크롤 위치를 실시간으로 기록 (디바운스/쓰로틀 없이 단순 기록)
   React.useEffect(() => {
-    const currentPath = pathname + search;
+    const handleScroll = () => {
+      if (!isRestoringRef.current) {
+        lastScrollPosRef.current[currentPathKey] = window.scrollY;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [currentPathKey]);
+
+  // 페이지 이동 시 스크롤 복원
+  React.useEffect(() => {
     const SCROLL_KEY = 'grapplay_scroll_positions';
 
-    // sessionStorage에서 스크롤 위치 불러오기
-    const loadScrollPositions = (): Record<string, number> => {
+    // sessionStorage에서 전체 위치 데이터 로드/저장 유틸
+    const getSavedPositions = (): Record<string, number> => {
       try {
         const saved = sessionStorage.getItem(SCROLL_KEY);
         return saved ? JSON.parse(saved) : {};
-      } catch {
-        return {};
-      }
+      } catch { return {}; }
     };
 
-    // sessionStorage에 스크롤 위치 저장
-    const saveScrollPositions = (positions: Record<string, number>) => {
+    const savePositions = (pos: Record<string, number>) => {
       try {
-        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(positions));
-      } catch (e) {
-        console.warn('Failed to save scroll position:', e);
-      }
+        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(pos));
+      } catch (e) { console.warn('Scroll save error:', e); }
     };
 
-    // 이전 페이지의 스크롤 위치 저장
-    if (prevPathnameRef.current !== currentPath && !isNavigatingRef.current) {
-      const positions = loadScrollPositions();
-      positions[prevPathnameRef.current] = window.scrollY;
-      saveScrollPositions(positions);
-    }
+    // 1. 이전 페이지의 최종 위치를 sessionStorage에 영구 저장
+    // lastScrollPosRef.current에는 handleScroll에 의해 가장 최신 위치가 담겨 있음
+    const allPositions = { ...getSavedPositions(), ...lastScrollPosRef.current };
+    savePositions(allPositions);
 
-    // 현재 페이지로 이동 시 스크롤 위치 복원 또는 맨 위로 이동
-    if (prevPathnameRef.current !== currentPath) {
-      isNavigatingRef.current = true;
+    // 2. 현재 페이지(새 페이지)의 위치 복원 시도
+    const savedPos = allPositions[currentPathKey];
 
-      // 약간의 지연을 두어 DOM이 렌더링된 후 스크롤
-      requestAnimationFrame(() => {
-        const positions = loadScrollPositions();
-        const savedPosition = positions[currentPath];
+    if (savedPos !== undefined && savedPos > 0) {
+      isRestoringRef.current = true;
 
-        if (savedPosition !== undefined) {
-          // 저장된 위치로 복원 (뒤로가기)
-          window.scrollTo(0, savedPosition);
-        } else {
-          // 새로운 페이지는 맨 위로
-          window.scrollTo(0, 0);
+      // 즉시 시도
+      window.scrollTo(0, savedPos);
+
+      // 콘텐츠가 늦게 로드되는 경우(랜딩페이지 등)를 위해 여러 번 시도
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      const tryScroll = () => {
+        if (attempts >= maxAttempts) {
+          isRestoringRef.current = false;
+          return;
         }
 
-        isNavigatingRef.current = false;
-      });
+        // 현재 페이지의 최대 높이 확인
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
 
-      prevPathnameRef.current = currentPath;
+        if (maxScroll >= savedPos) {
+          window.scrollTo(0, savedPos);
+          isRestoringRef.current = false;
+        } else {
+          attempts++;
+          setTimeout(tryScroll, 100 * attempts); // 점진적으로 지연 시간 증가
+        }
+      };
+
+      setTimeout(tryScroll, 50);
+    } else {
+      window.scrollTo(0, 0);
+      isRestoringRef.current = false;
     }
-  }, [pathname, search]);
-
-  // 페이지 언로드 시 현재 스크롤 위치 저장
-  React.useEffect(() => {
-    const handleBeforeUnload = () => {
-      const SCROLL_KEY = 'grapplay_scroll_positions';
-      try {
-        const saved = sessionStorage.getItem(SCROLL_KEY);
-        const positions = saved ? JSON.parse(saved) : {};
-        positions[pathname + search] = window.scrollY;
-        sessionStorage.setItem(SCROLL_KEY, JSON.stringify(positions));
-      } catch (e) {
-        console.warn('Failed to save scroll position on unload:', e);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [pathname, search]);
+  }, [currentPathKey]);
 
   return null;
 };

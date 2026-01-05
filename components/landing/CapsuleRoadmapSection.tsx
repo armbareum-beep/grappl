@@ -73,10 +73,10 @@ export const CapsuleRoadmapSection: React.FC = () => {
                 </div>
 
                 {/* 2. Visual Identity: Capsule Roadmap */}
-                <div className="w-full overflow-x-auto pb-8 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                <div className="w-full pb-8">
                     <div
                         ref={containerRef}
-                        className="relative min-w-[800px] md:min-w-0 w-full max-w-4xl aspect-[2/1] bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-3xl p-8 shadow-2xl"
+                        className="relative w-full max-w-4xl aspect-[4/5] md:aspect-[2/1] bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden"
                     >
                         {/* Subtle Grid Background */}
                         <div className="absolute inset-0 opacity-[0.05]" style={{
@@ -97,7 +97,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                 transition={{ delay: 0.2 + (i * 0.1), type: "spring", stiffness: 200, damping: 20 }}
                             >
                                 <div className={`
-                    relative px-6 py-3 rounded-full border transition-all duration-300 flex items-center gap-3 cursor-pointer group hover:scale-105
+                    relative px-4 py-2 md:px-6 md:py-3 rounded-full border transition-all duration-300 flex items-center gap-2 md:gap-3 cursor-pointer group hover:scale-105
                     ${node.status === 'active'
                                         ? 'bg-violet-600 border-violet-400 shadow-[0_0_25px_rgba(124,58,237,0.6)]'
                                         : node.status === 'mastered'
@@ -110,7 +110,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                         <div className="absolute inset-0 rounded-full animate-ping bg-violet-500/30"></div>
                                     )}
 
-                                    <span className={`font-bold text-sm whitespace-nowrap ${node.status === 'active' ? 'text-white' : 'text-zinc-300'}`}>
+                                    <span className={`font-bold text-[10px] md:text-sm whitespace-nowrap ${node.status === 'active' ? 'text-white' : 'text-zinc-300'}`}>
                                         {node.label}
                                     </span>
 
@@ -119,7 +119,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                         {[1, 2, 3, 4, 5].map(dot => (
                                             <div
                                                 key={dot}
-                                                className={`w-1.5 h-1.5 rounded-full ${dot <= node.mastery
+                                                className={`w-1 md:w-1.5 h-1 md:h-1.5 rounded-full ${dot <= node.mastery
                                                     ? (node.status === 'active' ? 'bg-white' : 'bg-violet-500')
                                                     : 'bg-zinc-700'
                                                     }`}
