@@ -295,6 +295,40 @@ export const Checkout: React.FC = () => {
                                 신용카드, 카카오페이, 네이버페이 등 사용 가능
                             </p>
                         </div>
+
+                        {/* Terms of Service Section */}
+                        <div className="mt-12 pt-8 border-t border-slate-800">
+                            <h2 className="text-lg font-black text-zinc-50 mb-4">Grapplay 서비스 이용약관</h2>
+                            <div className="h-48 overflow-y-auto pr-4 bg-slate-950/30 rounded-lg p-4 border border-slate-800/50 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                                <div className="space-y-6 text-[10px] text-zinc-400 leading-relaxed">
+                                    <section>
+                                        <h3 className="font-bold text-zinc-300 mb-1">제1조 (목적)</h3>
+                                        <p>본 약관은 Grapplay가 제공하는 온라인 주짓수 교육 플랫폼 서비스의 이용과 관련하여 회사와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+                                    </section>
+
+                                    <section className="bg-violet-500/10 p-3 rounded-md border border-violet-500/20">
+                                        <h3 className="font-bold text-violet-400 mb-1">제6조 (유료 서비스 및 환불 정책)</h3>
+                                        <ul className="space-y-1">
+                                            <li>• 유료 서비스는 결제 시 명시된 이용 기간 또는 구독 주기에 따라 제공됩니다.</li>
+                                            <li>• <span className="text-violet-400 font-semibold underline underline-offset-2">강좌 구매 후 7일 이내, 수강 진도율 10% 미만인 경우 전액 환불</span>이 가능합니다.</li>
+                                            <li>• 구독 서비스는 결제일로부터 7일 이내 미사용 시 전액 환불됩니다.</li>
+                                            <li>• 구독 해지 시 해당 회차의 잔여 기간까지 이용 가능하며, 다음 결제일부터 자동 결제가 중단됩니다.</li>
+                                        </ul>
+                                    </section>
+
+                                    <section>
+                                        <h3 className="font-bold text-zinc-300 mb-1">제7조 (저작권)</h3>
+                                        <p>서비스 내 모든 콘텐츠의 저작권은 회사 또는 크리에이터에게 귀속되며, 무단 복제 및 전재를 금합니다.</p>
+                                    </section>
+
+                                    <section>
+                                        <h3 className="font-bold text-zinc-300 mb-1">제11조 (분쟁 해결)</h3>
+                                        <p>본 약관은 대한민국 법률에 따르며, 서비스 이용과 관련한 분쟁은 회사의 본사 소재지 관할 법원에서 해결합니다.</p>
+                                    </section>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-[10px] text-zinc-500 text-right italic">시행일자: 2025년 1월 1일</p>
+                        </div>
                     </div>
                 </div>
             </div>
