@@ -83,9 +83,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!createResponse.ok) {
-            const error = await createResponse.json();
-            console.error('[Vimeo] Create failed:', error);
-            throw new Error(`Vimeo create failed: ${error.error || createResponse.statusText}`);
+            const errorText = await createResponse.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { raw: errorText };
+            }
+
+            console.error('[Vimeo] Create failed:', {
+                status: createResponse.status,
+                statusText: createResponse.statusText,
+                error: errorData
+            });
+
+            throw new Error(`Vimeo create failed (${createResponse.status}): ${JSON.stringify(errorData)}`);
         }
 
         const createData = await createResponse.json();
