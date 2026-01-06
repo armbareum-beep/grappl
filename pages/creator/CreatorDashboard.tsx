@@ -197,18 +197,6 @@ export const CreatorDashboard: React.FC = () => {
 
         // Polling for processing items
         const intervalId = setInterval(() => {
-            // Check if we need to poll (if any active uploads or processing items exist)
-            // For now, simpler to just poll sparring and drills if they have missing URLs
-            // But to avoid slamming the server, we'll just re-fetch sparring and drills every 10s
-            // properly we should check state but state is inside closure of previous render, 
-            // so we rely on the fact that this effect runs once.
-            // Actually, we need to inspect the *current* state to decide to poll, 
-            // or just always poll every 10s while on this page. 
-            // Let's do a lightweight focused fetch every 5s if we detect "processing" items in the last fetch.
-
-            // To be safe and simple: just re-fetch sparring and drills every 10s while dashboard is active.
-            // A more optimized approach would be to only fetch if `sparringVideos.some(v => !v.videoUrl)`
-
             if (user) {
                 getSparringVideos(100, user.id).then(res => {
                     if (res.data) setSparringVideos(res.data);
@@ -216,6 +204,10 @@ export const CreatorDashboard: React.FC = () => {
                 getDrills(user.id).then(res => {
                     const data = Array.isArray(res) ? res : (res as any)?.data;
                     if (data) setDrills(data);
+                });
+                // Poll Lessons mainly to update processing status
+                getAllCreatorLessons(user.id).then(res => {
+                    setLessons(res || []);
                 });
             }
         }, 5000); // 5 seconds interval
