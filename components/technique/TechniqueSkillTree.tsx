@@ -53,6 +53,7 @@ import {
     useSensor,
     useSensors,
     PointerSensor,
+    TouchSensor,
     DragEndEvent
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -72,7 +73,8 @@ const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> 
     const style = transform ? {
         transform: CSS.Translate.toString(transform),
         zIndex: 100,
-        transition: 'none'
+        transition: 'none',
+        touchAction: 'none'
     } : undefined;
 
     const mastery = node.data.mastery;
@@ -478,7 +480,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             setAllDrills(drills);
 
                             const flowNodes: Node[] = parsed.nodes.map((node: any) => {
-                                const type = node.type === 'text' ? 'text' : 'content';
+                                const type = node.type === 'text' ? 'text' : (node.type === 'group' ? 'group' : 'content');
                                 if (type === 'text') {
                                     return {
                                         id: node.id,
@@ -634,7 +636,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 setIsPublic(tree.isPublic || false);
 
                 const flowNodes: Node[] = (tree.nodes || []).map((node: any) => {
-                    const type = node.type === 'text' ? 'text' : 'content';
+                    const type = node.type === 'text' ? 'text' : (node.type === 'group' ? 'group' : 'content');
                     const contentType = node.contentType || 'technique';
 
                     if (type === 'text') {
@@ -715,7 +717,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             if (parsed.nodes && parsed.nodes.length > 0) {
                                 // Restore guest session
                                 const flowNodes: Node[] = parsed.nodes.map((node: any) => {
-                                    const type = node.type === 'text' ? 'text' : 'content';
+                                    const type = node.type === 'text' ? 'text' : (node.type === 'group' ? 'group' : 'content');
                                     if (type === 'text') {
                                         return {
                                             id: node.id,
@@ -785,7 +787,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                 if (keepGuestData) {
                                     // Convert guest nodes to flow format
                                     const flowNodes: Node[] = parsed.nodes.map((node: any) => {
-                                        const type = node.type === 'text' ? 'text' : 'content';
+                                        const type = node.type === 'text' ? 'text' : node.type === 'group' ? 'group' : 'content';
                                         if (type === 'text') {
                                             return {
                                                 id: node.id,
@@ -873,7 +875,7 @@ export const TechniqueSkillTree: React.FC = () => {
                         setAllDrills(drills);
 
                         const flowNodes: Node[] = decoded.nodes.map((node: any) => {
-                            const type = node.type === 'text' ? 'text' : 'content';
+                            const type = node.type === 'text' ? 'text' : (node.type === 'group' ? 'group' : 'content');
                             if (type === 'text') {
                                 return {
                                     id: node.id,
@@ -1427,6 +1429,12 @@ export const TechniqueSkillTree: React.FC = () => {
         useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
             },
         })
     );
