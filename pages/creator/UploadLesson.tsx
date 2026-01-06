@@ -8,6 +8,7 @@ import { formatDuration } from '../../lib/vimeo';
 import { ArrowLeft, Upload, FileVideo, Scissors, Loader, Type, AlignLeft } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
+import { useToast } from '../../contexts/ToastContext';
 
 type ProcessingState = {
     file: File | null;
@@ -39,6 +40,7 @@ export const UploadLesson: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
     const { queueUpload } = useBackgroundUpload();
+    const { success, error: toastError } = useToast();
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -86,7 +88,6 @@ export const UploadLesson: React.FC = () => {
 
     // Overall Progress
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionProgress, setSubmissionProgress] = useState<string>('');
 
     const handleFileUpload = async (file: File) => {
         // 1. Instant Local Preview (like UploadDrill)
@@ -135,7 +136,6 @@ export const UploadLesson: React.FC = () => {
         // We assume ready if file exists.
 
         setIsSubmitting(true);
-        setSubmissionProgress('레슨 정보를 저장 중입니다...');
 
         try {
             let lessonId = id;
@@ -200,7 +200,7 @@ export const UploadLesson: React.FC = () => {
                     category: formData.category,
                     lessonNumber: 1,
                     vimeoUrl: '',
-                    length: formatDuration(totalSeconds), // Passing number, will be formatted inside API or I should format here if API expects string? API logic I wrote: length: String(data.length). So if I pass seconds, it becomes "300". 
+                    length: formatDuration(totalSeconds),
                     difficulty: formData.difficulty,
                     durationMinutes: durationMinutes,
                     thumbnailUrl: thumbnailUrl,
@@ -212,7 +212,6 @@ export const UploadLesson: React.FC = () => {
 
             // 2. Background Upload (Only if new file exists)
             if (videoState.file && lessonId) {
-                setSubmissionProgress('백그라운드 업로드 시작 중...');
                 // If creating, use generated ID. If editing, use generated ID for new video.
                 // We generated finalVideoId above if creating.
                 // If editing and new file, we usually generate a new videoId too.
@@ -230,26 +229,17 @@ export const UploadLesson: React.FC = () => {
             }
 
             // 3. Finish
+            success(isEditMode ? '레슨 정보가 수정되었습니다.' : '레슨이 생성되었습니다.');
             navigate('/creator?tab=materials'); // Go back to dashboard to see "Processing"
 
-        } catch (error: any) {
-            console.error('Submission error:', error);
-            alert(`오류가 발생했습니다: ${error.message}`);
+        } catch (err: any) {
+            console.error('Submission error:', err);
+            toastError(`오류가 발생했습니다: ${err.message}`);
             setIsSubmitting(false);
         }
     };
 
-    if (isSubmitting) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-                <div className="bg-zinc-900 p-10 rounded-3xl shadow-2xl border border-zinc-800 text-center max-w-md w-full animate-in zoom-in-95 duration-300">
-                    <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full mx-auto mb-6 animate-spin"></div>
-                    <h2 className="text-2xl font-black text-white mb-2">{submissionProgress}</h2>
-                    <p className="text-zinc-500">잠시만 기다려주세요</p>
-                </div>
-            </div>
-        );
-    }
+    // Removal of full-screen submission UI to allow background process visibility in GlobalUploadProgress
 
     if (isLoading) {
         return (
@@ -443,9 +433,10 @@ export const UploadLesson: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSubmit}
-                                disabled={!formData.title || (!isEditMode && !videoState.cuts) || (!!videoState.file && !videoState.cuts)}
-                                className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                                disabled={isSubmitting || !formData.title || (!isEditMode && !videoState.cuts) || (!!videoState.file && !videoState.cuts)}
+                                className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center gap-2"
                             >
+                                {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}
                                 {isEditMode ? '수정사항 저장' : '레슨 생성하기'}
                             </button>
                         </div>

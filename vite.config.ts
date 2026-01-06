@@ -8,6 +8,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+            injectRegister: 'auto',
             workbox: {
                 skipWaiting: true,
                 clientsClaim: true,
@@ -20,16 +21,20 @@ export default defineConfig({
                 description: '프리미엄 주짓수 기술 영상 플랫폼',
                 theme_color: '#09090b',
                 background_color: '#09090b',
+                display: 'standalone',
+                start_url: '/',
                 icons: [
                     {
                         src: 'pwa-192x192.png',
                         sizes: '192x192',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any maskable'
                     },
                     {
                         src: 'pwa-512x512.png',
                         sizes: '512x512',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any maskable'
                     }
                 ]
             }

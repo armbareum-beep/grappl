@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createSparringVideo, searchDrillsAndLessons } from '../../lib/api';
-import { ArrowLeft, Upload, Search, X, Plus, Scissors, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Upload, Search, X, Plus, Scissors, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
+import { useToast } from '../../contexts/ToastContext';
 import { SparringVideo } from '../../types';
 import { VideoEditor } from '../../components/VideoEditor';
 
@@ -11,6 +12,8 @@ export const UploadSparring: React.FC = () => {
     const { user, loading } = useAuth();
     const navigate = useNavigate();
     const { queueUpload } = useBackgroundUpload();
+    const { success, error: toastError } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -33,7 +36,6 @@ export const UploadSparring: React.FC = () => {
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -53,14 +55,11 @@ export const UploadSparring: React.FC = () => {
             return;
         }
 
-        setIsSearching(true);
         try {
             const { data } = await searchDrillsAndLessons(query);
             setSearchResults(data || []);
         } catch (err) {
             console.error(err);
-        } finally {
-            setIsSearching(false);
         }
     };
 
@@ -81,8 +80,9 @@ export const UploadSparring: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !file) return;
+        if (!user || !file || isSubmitting) return;
 
+        setIsSubmitting(true);
         try {
             // 1. Create DB Record
             const { data: video, error } = await createSparringVideo({
@@ -113,10 +113,12 @@ export const UploadSparring: React.FC = () => {
                 videoType: 'sparring'
             });
 
+            success('업로드가 시작되었습니다.');
             navigate('/creator?tab=materials');
-        } catch (err) {
+        } catch (err: any) {
             console.error('Upload failed:', err);
-            alert('업로드 중 오류가 발생했습니다.');
+            toastError('업로드 중 오류가 발생했습니다: ' + err.message);
+            setIsSubmitting(false);
         }
     };
 
@@ -351,10 +353,11 @@ export const UploadSparring: React.FC = () => {
 
                     <button
                         type="submit"
-                        disabled={!file || !title}
-                        className="w-full py-4 text-lg font-black bg-violet-600 text-white rounded-xl hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                        disabled={isSubmitting || !file || !title}
+                        className="w-full py-4 text-lg font-black bg-violet-600 text-white rounded-xl hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                        업로드 시작
+                        {isSubmitting && <Loader className="w-5 h-5 animate-spin" />}
+                        {isSubmitting ? '요청 처리 중...' : '업로드 시작'}
                     </button>
                 </form>
             </div>

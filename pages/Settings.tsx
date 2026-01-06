@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar } from 'lucide-react';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone } from 'lucide-react';
 import { updateUserProfile, uploadProfileImage, updateCreatorProfile, getCreatorById, updatePassword, getUserSubscription, cancelSubscription } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription';
+type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription' | 'app';
 
 export const Settings: React.FC = () => {
     const { user, isCreator, signOut } = useAuth();
@@ -242,6 +243,15 @@ export const Settings: React.FC = () => {
         }
     };
 
+    const { isInstallable, isInstalled, install } = usePWAInstall();
+
+    const handleInstall = async () => {
+        const success = await install();
+        if (success) {
+            setMessage({ type: 'success', text: '앱 설치가 시작되었습니다.' });
+        }
+    };
+
     const renderContent = () => {
         switch (activeSection) {
             case 'profile':
@@ -450,6 +460,79 @@ export const Settings: React.FC = () => {
                         )}
                     </div>
                 );
+            case 'app':
+                return (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div>
+                            <h3 className="text-xl font-bold text-white mb-1">앱 관리</h3>
+                            <p className="text-sm text-zinc-400">Grapplay를 앱으로 설치하여 더 편하게 이용하세요.</p>
+                        </div>
+
+                        <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-8">
+                            {isInstalled ? (
+                                <div className="text-center space-y-4">
+                                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
+                                        <Check className="w-8 h-8 text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-bold text-white mb-1">앱이 설치되어 있습니다</h4>
+                                        <p className="text-sm text-zinc-400">홈 화면이나 앱 목록에서 Grapplay를 실행할 수 있습니다.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col md:flex-row items-center gap-8">
+                                    <div className="w-32 h-32 rounded-3xl bg-zinc-800 flex items-center justify-center border border-zinc-700 shadow-2xl relative group overflow-hidden">
+                                        <img src="/pwa-192x192.png" alt="App Icon" className="w-20 h-20 rounded-2xl shadow-lg" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                                    </div>
+                                    <div className="flex-1 text-center md:text-left space-y-4">
+                                        <div>
+                                            <h4 className="text-lg font-bold text-white mb-1">Native App Experience</h4>
+                                            <p className="text-sm text-zinc-400 leading-relaxed">
+                                                앱으로 설치하면 브라우저 주소창 없이 더 넓은 화면에서<br />
+                                                빠르고 쾌적하게 Grapplay를 이용할 수 있습니다.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            onClick={handleInstall}
+                                            disabled={!isInstallable}
+                                            variant="primary"
+                                            size="lg"
+                                            className="w-full md:w-auto px-8"
+                                        >
+                                            <Smartphone className="w-4 h-4 mr-2" />
+                                            {isInstallable ? '앱 설치하기' : '브라우저 설정에서 설치 가능'}
+                                        </Button>
+                                        {!isInstallable && (
+                                            <p className="text-[10px] text-zinc-500 italic">
+                                                * 이미 설치되어 있거나, 브라우저가 PWA 설치를 지원하지 않을 수 있습니다.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-5 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                                <h5 className="text-xs font-bold text-zinc-300 mb-2 uppercase tracking-widest">설치 혜택</h5>
+                                <ul className="space-y-2 text-[11px] text-zinc-500 font-medium">
+                                    <li className="flex items-center gap-2"><Check className="w-3 h-3 text-violet-500" /> 홈 화면에 바로가기 생성</li>
+                                    <li className="flex items-center gap-2"><Check className="w-3 h-3 text-violet-500" /> 오프라인 모드 일부 지원</li>
+                                    <li className="flex items-center gap-2"><Check className="w-3 h-3 text-violet-500" /> 주소창 없는 전체 화면 모드</li>
+                                </ul>
+                            </div>
+                            <div className="p-5 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                                <h5 className="text-xs font-bold text-zinc-300 mb-2 uppercase tracking-widest">수동 설치 방법</h5>
+                                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                    iOS(iPhone)의 경우 <strong>'공유하기'</strong> 버튼 클릭 후 <strong>'홈 화면에 추가'</strong>를 눌러 직접 설치해주세요.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            default:
+                return null;
         }
     };
 
@@ -471,13 +554,14 @@ export const Settings: React.FC = () => {
                             { id: 'subscription', label: '멤버십 구독', icon: CreditCard },
                             { id: 'notifications', label: '알림 설정', icon: Bell },
                             { id: 'security', label: '보안', icon: Shield },
+                            { id: 'app', label: '앱 관리', icon: Smartphone },
                         ].map((item) => (
                             <button
                                 key={item.id}
                                 onClick={() => setActiveSection(item.id as SettingsSection)}
                                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeSection === item.id
-                                        ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20 translate-x-1'
-                                        : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20 translate-x-1'
+                                    : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
                                     }`}
                             >
                                 <item.icon className={`w-5 h-5 ${activeSection === item.id ? 'text-white' : 'text-zinc-500'}`} />
@@ -490,8 +574,8 @@ export const Settings: React.FC = () => {
                     <div className="flex-1 min-w-0">
                         {message && (
                             <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 border ${message.type === 'success'
-                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-red-500/10 text-red-400 border-red-500/20'
                                 } animate-in fade-in slide-in-from-top-2`}>
                                 {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                                 <span className="font-medium text-sm">{message.text}</span>

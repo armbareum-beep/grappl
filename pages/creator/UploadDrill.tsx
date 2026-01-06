@@ -5,9 +5,10 @@ import { VideoCategory, Difficulty, Drill } from '../../types';
 import { createDrill, getDrillById, updateDrill, uploadThumbnail } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, AlertCircle, CheckCircle, Scissors, FileVideo, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, AlertCircle, CheckCircle, Scissors, FileVideo, Trash2, Loader } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
+import { useToast } from '../../contexts/ToastContext';
 
 type ProcessingState = {
     file: File | null;
@@ -39,6 +40,7 @@ export const UploadDrill: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
+    const { success, error: toastError } = useToast();
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -54,13 +56,12 @@ export const UploadDrill: React.FC = () => {
 
     // 1. Hook must be at top level
     const { queueUpload, tasks, cancelUpload } = useBackgroundUpload();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 2. Tab State for "Swipe" view
     const [activeEditor, setActiveEditor] = useState<'action' | 'desc' | null>(null);
 
     // Overall Progress
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionProgress, setSubmissionProgress] = useState<string>('');
     const [createdDrillId, setCreatedDrillId] = useState<string | null>(null);
 
     // Tab State for "Swipe" view
@@ -329,7 +330,6 @@ export const UploadDrill: React.FC = () => {
         }
 
         setIsSubmitting(true);
-        setSubmissionProgress('드릴 정보를 등록 중입니다...');
 
         try {
             // 1. Create OR Update Drill Record
@@ -406,7 +406,6 @@ export const UploadDrill: React.FC = () => {
             }
 
             console.log('Drill record ensured:', drillId);
-            setSubmissionProgress('동기화 완료 중...');
 
             // 2. Queue Background Uploads (if not already started)
             if (actionVideo.file && !actionVideo.isBackgroundUploading && !actionVideo.videoId) {
@@ -445,12 +444,12 @@ export const UploadDrill: React.FC = () => {
             }
 
             // 3. Navigate Immediately to Dashboard (Materials Tab)
-            setSubmissionProgress('완료! 대시보드로 이동합니다.');
+            success(isEditMode ? '드릴 정보가 수정되었습니다.' : '드릴이 등록되었습니다.');
             navigate('/creator?tab=materials');
 
         } catch (err: any) {
             console.error(err);
-            alert('처리 중 오류가 발생했습니다: ' + err.message);
+            toastError('처리 중 오류가 발생했습니다: ' + err.message);
             setIsSubmitting(false);
         }
     };
@@ -635,81 +634,7 @@ export const UploadDrill: React.FC = () => {
         );
     };
 
-    if (isSubmitting) {
-        return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-                <div className="bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 text-center max-w-md w-full relative overflow-hidden">
-                    {/* Background Glow */}
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 animate-gradient"></div>
-
-                    <div className="mb-8 relative">
-                        <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                            <Upload className="w-10 h-10 text-blue-500" />
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-20 h-20 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
-                        </div>
-                    </div>
-
-                    <h2 className="text-xl font-bold text-white mb-3">{submissionProgress}</h2>
-
-                    <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left border border-blue-500/30">
-                        <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                            <span className="text-blue-400 font-bold block mb-1 text-lg">🚀 초고속 전송 모드 가동 중!</span>
-                            현재 가장 빠른 속도로 영상을 보내고 있습니다. (새로운 방식 적용됨)
-                        </p>
-
-                        {/* Explicit Progress Bars in Blocking Wait State */}
-                        <div className="space-y-3">
-                            {actionVideo.isBackgroundUploading && (
-                                <div>
-                                    <div className="flex justify-between text-xs text-blue-300 mb-1">
-                                        <span>동작 영상 전송 중...</span>
-                                        <span>{actionVideo.uploadProgress || 0}%</span>
-                                    </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                                        <div
-                                            className="bg-blue-500 h-full transition-all duration-300"
-                                            style={{ width: `${actionVideo.uploadProgress || 0}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                            {descVideo.isBackgroundUploading && (
-                                <div>
-                                    <div className="flex justify-between text-xs text-purple-300 mb-1">
-                                        <span>설명 영상 전송 중...</span>
-                                        <span>{descVideo.uploadProgress || 0}%</span>
-                                    </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                                        <div
-                                            className="bg-purple-500 h-full transition-all duration-300"
-                                            style={{ width: `${descVideo.uploadProgress || 0}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <p className="text-red-400 text-xs font-bold animate-pulse bg-red-400/10 py-2 rounded">
-                        ⚠️ 화면을 끄거나 창을 닫지 마세요!
-                    </p>
-
-                    {/* Hidden NoSleep Video */}
-                    <video
-                        ref={noSleepVideoRef}
-                        className="hidden"
-                        playsInline
-                        muted
-                        loop
-                        // Minimal 1s black MP4 (Base64)
-                        src="data:video/mp4;base64,AAAAHGZ0eXBNNEVAAAAAAAEAAQAAAAAAAAAAAAAAAgAAAAA="
-                    />
-                </div>
-            </div>
-        );
-    }
+    // Removal of full-screen submission UI to allow background process visibility in GlobalUploadProgress
 
     // Editor Mode
     if (activeEditor) {
@@ -858,9 +783,10 @@ export const UploadDrill: React.FC = () => {
                                 handleEnableNoSleep();
                                 handleSubmit();
                             }}
-                            disabled={!formData.title || (!isEditMode && (!actionVideo.cuts || !descVideo.cuts))}
-                            className="flex-1 px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                            disabled={isSubmitting || !formData.title || (!isEditMode && (!actionVideo.cuts || !descVideo.cuts))}
+                            className="flex-1 px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
+                            {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}
                             {isEditMode ? '수정사항 저장' : '드릴 생성하기'}
                         </button>
                     </div>
