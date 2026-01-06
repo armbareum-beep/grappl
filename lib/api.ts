@@ -4240,6 +4240,8 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
         return {
             ...drill,
             thumbnailUrl: drill.thumbnail_url, // Ensure field is mapped for frontend
+            vimeoUrl: drill.vimeo_url,
+            descriptionVideoUrl: drill.description_video_url,
             creatorName: creator?.name || 'Unknown',
             creatorProfileImage: creator?.avatar_url,
             durationMinutes: drill.duration_minutes || 0,
