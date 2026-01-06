@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const VIMEO_TOKEN = process.env.VITE_VIMEO_ACCESS_TOKEN!;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Support both VITE_ prefixed and non-prefixed env vars
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
+const VIMEO_TOKEN = process.env.VITE_VIMEO_ACCESS_TOKEN || process.env.VIMEO_ACCESS_TOKEN || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS headers
@@ -22,6 +21,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
+
+    // Debug: Check environment variables
+    console.log('[Vercel] Environment check:', {
+        hasSupabaseUrl: !!SUPABASE_URL,
+        hasSupabaseKey: !!SUPABASE_KEY,
+        hasVimeoToken: !!VIMEO_TOKEN,
+        vimeoTokenLength: VIMEO_TOKEN.length
+    });
+
+    if (!SUPABASE_URL || !SUPABASE_KEY || !VIMEO_TOKEN) {
+        return res.status(500).json({
+            error: 'Missing environment variables',
+            details: {
+                hasSupabaseUrl: !!SUPABASE_URL,
+                hasSupabaseKey: !!SUPABASE_KEY,
+                hasVimeoToken: !!VIMEO_TOKEN
+            }
+        });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     try {
         const { bucketName, filePath, title, description, contentType, contentId, videoType } = req.body;
