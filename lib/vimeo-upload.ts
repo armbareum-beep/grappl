@@ -1,117 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
+import * as tus from 'tus-js-client';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const VIMEO_TOKEN = import.meta.env.VITE_VIMEO_ACCESS_TOKEN;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-interface VimeoUploadParams {
-    file: File;
-    title: string;
-    description: string;
-    onProgress?: (progress: number) => void;
-}
-
-interface VimeoUploadResult {
+export interface VimeoUploadResult {
     vimeoId: string;
     vimeoUrl: string;
     thumbnailUrl: string;
 }
 
 /**
- * Vimeo에 직접 업로드 (TUS 프로토콜 사용)
- * 백엔드 없이 프론트엔드에서 직접 처리
- */
-export async function uploadToVimeo(params: VimeoUploadParams): Promise<VimeoUploadResult> {
-    const { file, title, description, onProgress } = params;
-
-    console.log('[Vimeo] Starting upload:', { title, size: file.size });
-
-    // 1. Vimeo에 업로드 링크 요청
-    const createResponse = await fetch('https://api.vimeo.com/me/videos', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${VIMEO_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-        },
-        body: JSON.stringify({
-            upload: {
-                approach: 'tus',
-                size: file.size
-            },
-            name: title,
-            description: description || 'Uploaded from Grapplay',
-            privacy: {
-                view: 'anybody',
-                embed: 'public'
-            }
-        })
-    });
-
-    if (!createResponse.ok) {
-        const error = await createResponse.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[Vimeo] Create failed:', {
-            status: createResponse.status,
-            statusText: createResponse.statusText,
-            error: error
-        });
-
-        const errorMessage = error.developer_message || error.error || error.message || createResponse.statusText;
-        throw new Error(`Vimeo 업로드 생성 실패 (${createResponse.status}): ${errorMessage}`);
-    }
-
-    const createData = await createResponse.json();
-    const uploadLink = createData.upload.upload_link;
-    const vimeoUri = createData.uri;
-    const vimeoId = vimeoUri.split('/').pop();
-
-    console.log('[Vimeo] Upload link created:', { vimeoId, uploadLink });
-
-    // 2. TUS 업로드
-    const tus = await import('tus-js-client');
-
-    return new Promise((resolve, reject) => {
-        const upload = new tus.Upload(file, {
-            endpoint: uploadLink,
-            uploadUrl: uploadLink,
-            retryDelays: [0, 1000, 3000, 5000],
-            metadata: {
-                filename: file.name,
-                filetype: file.type
-            },
-            onError: (error) => {
-                console.error('[Vimeo] Upload error:', error);
-                reject(new Error(`Vimeo upload failed: ${error.message}`));
-            },
-            onProgress: (bytesUploaded, bytesTotal) => {
-                const percentage = (bytesUploaded / bytesTotal) * 100;
-                if (onProgress) {
-                    onProgress(percentage);
-                }
-                console.log(`[Vimeo] Progress: ${percentage.toFixed(1)}%`);
-            },
-            onSuccess: () => {
-                console.log('[Vimeo] Upload complete:', vimeoId);
-                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
-
-                resolve({
-                    vimeoId,
-                    vimeoUrl: `https://vimeo.com/${vimeoId}`,
-                    thumbnailUrl
-                });
-            }
-        });
-
-        upload.start();
-    });
-}
-
-/**
- * Supabase Storage에서 파일 다운로드
+ * Supabase Storage에서 파일 다운로드 (Blob 반환)
  */
 export async function downloadFromSupabase(bucketName: string, filePath: string): Promise<Blob> {
+    console.log(`Downloading from Supabase: ${bucketName}/${filePath}`);
     const { data, error } = await supabase.storage
         .from(bucketName)
         .download(filePath);
@@ -124,8 +28,11 @@ export async function downloadFromSupabase(bucketName: string, filePath: string)
 }
 
 /**
- * 전체 프로세스: Supabase Storage → Vimeo 업로드 → DB 업데이트
- * Vercel Serverless Function을 통해 처리
+ * 스마트 하이브리드 업로드 프로세스:
+ * 1. 브라우저: Supabase 다운로드
+ * 2. Vercel API: Vimeo 업로드 링크 생성 (토큰 보호)
+ * 3. 브라우저: Vimeo 직접 업로드 (TUS) -> 타임아웃 없음
+ * 4. Vercel API: DB 업데이트 (완료 처리)
  */
 export async function processAndUploadVideo(params: {
     bucketName: string;
@@ -140,42 +47,93 @@ export async function processAndUploadVideo(params: {
     const { bucketName, filePath, title, description, contentType, contentId, videoType, onProgress } = params;
 
     try {
-        if (onProgress) onProgress('upload', 0);
-        console.log('[Process] Calling Vercel Function:', filePath);
+        // 1. Supabase에서 파일 다운로드 (브라우저 메모리)
+        if (onProgress) onProgress('upload', 10); // Start
+        console.log('[Process] Downloading from Supabase:', filePath);
 
-        // Call Vercel Serverless Function
-        const response = await fetch('/api/upload-to-vimeo', {
+        const blob = await downloadFromSupabase(bucketName, filePath);
+        const file = new File([blob], filePath, { type: blob.type });
+
+        if (onProgress) onProgress('upload', 30); // Downloaded
+
+        // 2. 서버에 업로드 링크 요청 (create_upload - 인증 처리)
+        if (onProgress) onProgress('upload', 35);
+        console.log('[Process] Requesting upload link...');
+
+        const initResponse = await fetch('/api/upload-to-vimeo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                action: 'create_upload',
                 bucketName,
                 filePath,
                 title,
-                description,
-                contentType,
+                description
+            })
+        });
+
+        if (!initResponse.ok) {
+            const err = await initResponse.json();
+            throw new Error(err.error || 'Failed to create upload link');
+        }
+
+        const { uploadLink, vimeoId } = await initResponse.json();
+        console.log('[Process] Upload link received:', vimeoId);
+
+        // 3. 브라우저에서 직접 Vimeo 업로드 (TUS - 대용량 전송)
+        // 타임아웃 문제 해결의 핵심: 브라우저가 직접 업로드합니다.
+        if (onProgress) onProgress('upload', 40);
+
+        await new Promise<void>((resolve, reject) => {
+            const upload = new tus.Upload(file, {
+                uploadUrl: uploadLink,
+                onError: (error) => reject(error),
+                onProgress: (bytesUploaded, bytesTotal) => {
+                    const percentage = 40 + ((bytesUploaded / bytesTotal) * 50); // 40-90% range
+                    if (onProgress) onProgress('upload', percentage);
+                },
+                onSuccess: () => resolve()
+            });
+            upload.start();
+        });
+
+        if (onProgress) onProgress('upload', 90);
+
+        // 4. 서버에 완료 알림 및 DB 업데이트 요청 (complete_upload)
+        console.log('[Process] Finalizing upload...');
+
+        const completeResponse = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'complete_upload',
+                vimeoId,
                 contentId,
+                contentType,
                 videoType
             })
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Upload failed');
+        if (!completeResponse.ok) {
+            const err = await completeResponse.json();
+            throw new Error(err.error || 'Failed to update database');
         }
 
-        const result = await response.json();
-
         if (onProgress) onProgress('upload', 100);
-        console.log('[Process] Complete!', result);
 
-        return result;
+        const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
+        console.log('[Process] All complete!', { vimeoId });
+
+        return {
+            vimeoId,
+            vimeoUrl: `https://vimeo.com/${vimeoId}`,
+            thumbnailUrl
+        };
 
     } catch (error: any) {
         console.error('[Process] Failed:', error);
 
-        // 에러 상태를 DB에 기록
+        // 에러 상태를 DB에 기록 (직접 수행하여 서버 의존성 줄임)
         const errorUpdate: any = contentType === 'sparring'
             ? { video_url: 'error', thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' }
             : { vimeo_url: 'error', thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' };
@@ -183,6 +141,8 @@ export async function processAndUploadVideo(params: {
         const tableName = contentType === 'lesson' ? 'lessons' :
             contentType === 'sparring' ? 'sparring_videos' : 'drills';
 
+        // Update directly or via API? API might be safer if RLS is strict, but creator should have access directly.
+        // Frontend has already access.
         await supabase
             .from(tableName)
             .update(errorUpdate)

@@ -6,6 +6,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
 const VIMEO_TOKEN = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN || '';
 
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -22,161 +24,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Debug: Check environment variables
-    console.log('[Vercel] Environment check:', {
-        hasSupabaseUrl: !!SUPABASE_URL,
-        hasSupabaseKey: !!SUPABASE_KEY,
-        hasVimeoToken: !!VIMEO_TOKEN,
-        vimeoTokenLength: VIMEO_TOKEN.length
-    });
-
-    if (!SUPABASE_URL || !SUPABASE_KEY || !VIMEO_TOKEN) {
-        return res.status(500).json({
-            error: 'Missing environment variables',
-            details: {
-                hasSupabaseUrl: !!SUPABASE_URL,
-                hasSupabaseKey: !!SUPABASE_KEY,
-                hasVimeoToken: !!VIMEO_TOKEN
-            }
-        });
-    }
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
     try {
-        const { bucketName, filePath, title, description, contentType, contentId, videoType } = req.body;
+        const { action, bucketName, filePath, title, description, contentType, contentId, videoType, vimeoId, thumbnailUrl } = req.body;
 
-        console.log('[Vercel] Processing video:', { filePath, contentType, contentId });
+        console.log('[Vercel] Action:', action);
 
-        // 1. Download from Supabase Storage
-        const { data: fileData, error: downloadError } = await supabase.storage
-            .from(bucketName)
-            .download(filePath);
+        // --- Action 1: Create Upload Link ---
+        if (action === 'create_upload') {
+            // 1. Get File Size from Supabase via List (Metadata)
+            // filePath example: 'user_id/filename.mp4'
+            const folderPath = filePath.split('/').slice(0, -1).join('/');
+            const fileName = filePath.split('/').pop();
 
-        if (downloadError) {
-            throw new Error(`Supabase download failed: ${downloadError.message}`);
-        }
-
-        // 2. Upload to Vimeo
-        const fileSize = fileData.size;
-
-        // Create Vimeo upload
-        const createResponse = await fetch('https://api.vimeo.com/me/videos', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-            },
-            body: JSON.stringify({
-                upload: {
-                    approach: 'tus',
-                    size: fileSize
-                },
-                name: title,
-                description: description || 'Uploaded from Grapplay',
-                privacy: {
-                    view: 'anybody',
-                    embed: 'public'
-                }
-            })
-        });
-
-        if (!createResponse.ok) {
-            const errorText = await createResponse.text();
-            let errorData;
-            try {
-                errorData = JSON.parse(errorText);
-            } catch {
-                errorData = { raw: errorText };
-            }
-
-            console.error('[Vimeo] Create failed:', {
-                status: createResponse.status,
-                statusText: createResponse.statusText,
-                error: errorData
-            });
-
-            throw new Error(`Vimeo create failed (${createResponse.status}): ${JSON.stringify(errorData)}`);
-        }
-
-        const createData = await createResponse.json();
-        const uploadLink = createData.upload.upload_link;
-        const vimeoUri = createData.uri;
-        const vimeoId = vimeoUri.split('/').pop();
-
-        // Convert blob to buffer for TUS upload
-        const arrayBuffer = await fileData.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
-
-        console.log('[Vercel] Starting background upload:', { vimeoId, contentId });
-
-        // Send immediate response
-        res.status(202).json({
-            success: true,
-            message: 'Upload started',
-            vimeoId,
-            vimeoUrl: `https://vimeo.com/${vimeoId}`,
-            thumbnailUrl
-        });
-
-        // Continue processing in background (non-blocking)
-        (async () => {
-            try {
-                // Upload using TUS protocol
-                const tusResponse = await fetch(uploadLink, {
-                    method: 'PATCH',
-                    headers: {
-                        'Tus-Resumable': '1.0.0',
-                        'Upload-Offset': '0',
-                        'Content-Type': 'application/offset+octet-stream'
-                    },
-                    body: buffer
+            const { data: listData, error: listError } = await supabase.storage
+                .from(bucketName)
+                .list(folderPath, {
+                    limit: 1,
+                    search: fileName
                 });
 
-                if (!tusResponse.ok) {
-                    throw new Error(`TUS upload failed: ${tusResponse.statusText}`);
-                }
+            // Default to a small size if metadata missing (TUS usually handles size in patch, but create needs estimate sometimes)
+            // Actually Vimeo create uses 'size' for quota check.
+            const fileSize = listData?.[0]?.metadata?.size || 0;
 
-                // Update database after successful upload
-                if (contentType === 'lesson') {
-                    await supabase
-                        .from('lessons')
-                        .update({
-                            vimeo_url: vimeoId,
-                            thumbnail_url: thumbnailUrl
-                        })
-                        .eq('id', contentId);
-                } else if (contentType === 'sparring') {
-                    await supabase
-                        .from('sparring_videos')
-                        .update({
-                            video_url: vimeoId,
-                            thumbnail_url: thumbnailUrl
-                        })
-                        .eq('id', contentId);
-                } else if (contentType === 'drill') {
-                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                    const updateData: any = {
-                        [columnToUpdate]: vimeoId
-                    };
+            console.log('[Vercel] Creating upload link for size:', fileSize);
 
-                    if (videoType === 'action') {
-                        updateData.thumbnail_url = thumbnailUrl;
+            // 2. Request Upload Link from Vimeo
+            const createResponse = await fetch('https://api.vimeo.com/me/videos', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                },
+                body: JSON.stringify({
+                    upload: {
+                        approach: 'tus',
+                        size: fileSize > 0 ? fileSize : undefined
+                    },
+                    name: title,
+                    description: description || 'Uploaded from Grapplay',
+                    privacy: {
+                        view: 'anybody',
+                        embed: 'public'
                     }
+                })
+            });
 
-                    await supabase
-                        .from('drills')
-                        .update(updateData)
-                        .eq('id', contentId);
-                }
-
-                console.log('[Vercel] Background processing complete:', { vimeoId, contentId });
-            } catch (bgError: any) {
-                console.error('[Vercel] Background processing error:', bgError);
+            if (!createResponse.ok) {
+                const errorText = await createResponse.text();
+                console.error('[Vimeo] Create Link Error:', errorText);
+                throw new Error(`Vimeo create failed: ${errorText}`);
             }
-        })();
+
+            const createData = await createResponse.json();
+
+            return res.status(200).json({
+                success: true,
+                uploadLink: createData.upload.upload_link,
+                vimeoUri: createData.uri,
+                vimeoId: createData.uri.split('/').pop()
+            });
+        }
+
+        // --- Action 2: Complete Upload (Update DB) ---
+        if (action === 'complete_upload') {
+            if (!vimeoId) throw new Error('vimeoId is required for completion');
+
+            const finalThumbnailUrl = thumbnailUrl || `https://vumbnail.com/${vimeoId}.jpg`;
+
+            if (contentType === 'lesson') {
+                await supabase.from('lessons').update({ vimeo_url: vimeoId, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
+            } else if (contentType === 'sparring') {
+                await supabase.from('sparring_videos').update({ video_url: vimeoId, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
+            } else if (contentType === 'drill') {
+                const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                const updateData: any = { [columnToUpdate]: vimeoId };
+                if (videoType === 'action') updateData.thumbnail_url = finalThumbnailUrl;
+                await supabase.from('drills').update(updateData).eq('id', contentId);
+            }
+
+            console.log('[Vercel] DB Updated:', { vimeoId, contentId });
+            return res.status(200).json({ success: true });
+        }
+
+        return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error: any) {
         console.error('[Vercel] Error:', error);
