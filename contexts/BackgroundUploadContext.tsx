@@ -125,6 +125,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                             task.processingParams.sparringId
                         )
                             .then(() => {
+                                console.log('✅ Vimeo processing completed for:', task.id);
                                 updateTaskStatus(task.id, 'completed');
                                 // Remove completed task after a delay
                                 setTimeout(() => {
@@ -132,10 +133,11 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 }, 5000);
                             })
                             .catch(err => {
-                                console.error('Processing Trigger Error:', err);
-                                updateTaskStatus(task.id, 'error', 'Processing failed: ' + err.message);
+                                console.error('❌ Vimeo Processing Trigger Error:', err);
+                                updateTaskStatus(task.id, 'error', 'Vimeo 처리 실패: ' + (err.message || '백엔드 서버 연결 오류'));
                             });
                     } else {
+                        console.warn('⚠️ No processing params, marking as completed without Vimeo processing');
                         updateTaskStatus(task.id, 'completed');
                     }
                 },
