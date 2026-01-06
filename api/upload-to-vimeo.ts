@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 // Support both VITE_ prefixed and non-prefixed env vars
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
-const VIMEO_TOKEN = process.env.VITE_VIMEO_ACCESS_TOKEN || process.env.VIMEO_ACCESS_TOKEN || '';
+const VIMEO_TOKEN = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS headers
