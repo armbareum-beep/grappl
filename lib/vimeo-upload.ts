@@ -51,8 +51,15 @@ export async function uploadToVimeo(params: VimeoUploadParams): Promise<VimeoUpl
     });
 
     if (!createResponse.ok) {
-        const error = await createResponse.json();
-        throw new Error(`Vimeo create failed: ${error.error || createResponse.statusText}`);
+        const error = await createResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[Vimeo] Create failed:', {
+            status: createResponse.status,
+            statusText: createResponse.statusText,
+            error: error
+        });
+
+        const errorMessage = error.developer_message || error.error || error.message || createResponse.statusText;
+        throw new Error(`Vimeo 업로드 생성 실패 (${createResponse.status}): ${errorMessage}`);
     }
 
     const createData = await createResponse.json();
@@ -118,6 +125,7 @@ export async function downloadFromSupabase(bucketName: string, filePath: string)
 
 /**
  * 전체 프로세스: Supabase Storage → Vimeo 업로드 → DB 업데이트
+ * Vercel Serverless Function을 통해 처리
  */
 export async function processAndUploadVideo(params: {
     bucketName: string;
@@ -132,73 +140,34 @@ export async function processAndUploadVideo(params: {
     const { bucketName, filePath, title, description, contentType, contentId, videoType, onProgress } = params;
 
     try {
-        // 1. Supabase에서 파일 다운로드
-        if (onProgress) onProgress('download', 0);
-        console.log('[Process] Downloading from Supabase:', filePath);
+        if (onProgress) onProgress('upload', 0);
+        console.log('[Process] Calling Vercel Function:', filePath);
 
-        const blob = await downloadFromSupabase(bucketName, filePath);
-        const file = new File([blob], filePath, { type: blob.type });
-
-        if (onProgress) onProgress('download', 100);
-
-        // 2. Vimeo 업로드
-        if (onProgress) onProgress('vimeo', 0);
-        console.log('[Process] Uploading to Vimeo...');
-
-        const result = await uploadToVimeo({
-            file,
-            title,
-            description,
-            onProgress: (progress) => {
-                if (onProgress) onProgress('vimeo', progress);
-            }
+        // Call Vercel Serverless Function
+        const response = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bucketName,
+                filePath,
+                title,
+                description,
+                contentType,
+                contentId,
+                videoType
+            })
         });
 
-        if (onProgress) onProgress('vimeo', 100);
-
-        // 3. DB 업데이트
-        if (onProgress) onProgress('database', 0);
-        console.log('[Process] Updating database...');
-
-        if (contentType === 'lesson') {
-            const { error } = await supabase
-                .from('lessons')
-                .update({
-                    vimeo_url: result.vimeoId,
-                    thumbnail_url: result.thumbnailUrl
-                })
-                .eq('id', contentId);
-
-            if (error) throw error;
-        } else if (contentType === 'sparring') {
-            const { error } = await supabase
-                .from('sparring_videos')
-                .update({
-                    video_url: result.vimeoId,
-                    thumbnail_url: result.thumbnailUrl
-                })
-                .eq('id', contentId);
-
-            if (error) throw error;
-        } else if (contentType === 'drill') {
-            const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-            const updateData: any = {
-                [columnToUpdate]: result.vimeoId
-            };
-
-            if (videoType === 'action') {
-                updateData.thumbnail_url = result.thumbnailUrl;
-            }
-
-            const { error } = await supabase
-                .from('drills')
-                .update(updateData)
-                .eq('id', contentId);
-
-            if (error) throw error;
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Upload failed');
         }
 
-        if (onProgress) onProgress('database', 100);
+        const result = await response.json();
+
+        if (onProgress) onProgress('upload', 100);
         console.log('[Process] Complete!', result);
 
         return result;
