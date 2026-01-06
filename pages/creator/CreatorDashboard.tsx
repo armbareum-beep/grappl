@@ -91,31 +91,71 @@ export const CreatorDashboard: React.FC = () => {
             if (!user) return;
             setLoading(true);
 
-            // Fetch data in parallel but handle errors individually to prevent waterfall failure
-            const fetchCourses = getCreatorCourses(user.id).catch(err => {
-                console.error('Failed to fetch courses:', err);
-                return [];
-            });
-            const fetchDrills = getDrills(user.id).catch(err => {
-                console.error('Failed to fetch drills:', err);
-                return { data: [], error: err };
-            });
-            const fetchLessons = getAllCreatorLessons(user.id).catch(err => {
-                console.error('Failed to fetch lessons:', err);
-                return [];
-            });
-            const fetchRoutines = getUserCreatedRoutines(user.id).catch(err => {
-                console.error('Failed to fetch routines:', err);
-                return { data: [], error: err };
-            });
-            const fetchSparring = getSparringVideos(100, user.id).catch(err => {
-                console.error('Failed to fetch sparring:', err);
-                return { data: [], error: err };
-            });
-            const fetchEarnings = calculateCreatorEarnings(user.id).catch(err => {
-                console.error('Failed to fetch earnings:', err);
-                return { error: err };
-            });
+            // Helper: Add timeout to any promise
+            const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
+                return Promise.race([
+                    promise,
+                    new Promise<T>((resolve) => setTimeout(() => {
+                        console.warn('API call timed out, using fallback');
+                        resolve(fallback);
+                    }, timeoutMs))
+                ]);
+            };
+
+            // Fetch data in parallel with timeout protection
+            const fetchCourses = withTimeout(
+                getCreatorCourses(user.id).catch(err => {
+                    console.error('Failed to fetch courses:', err);
+                    return [];
+                }),
+                10000,
+                []
+            );
+
+            const fetchDrills = withTimeout(
+                getDrills(user.id).catch(err => {
+                    console.error('Failed to fetch drills:', err);
+                    return { data: [], error: err };
+                }),
+                10000,
+                { data: [], error: null }
+            );
+
+            const fetchLessons = withTimeout(
+                getAllCreatorLessons(user.id).catch(err => {
+                    console.error('Failed to fetch lessons:', err);
+                    return [];
+                }),
+                10000,
+                []
+            );
+
+            const fetchRoutines = withTimeout(
+                getUserCreatedRoutines(user.id).catch(err => {
+                    console.error('Failed to fetch routines:', err);
+                    return { data: [], error: err };
+                }),
+                10000,
+                { data: [], error: null }
+            );
+
+            const fetchSparring = withTimeout(
+                getSparringVideos(100, user.id).catch(err => {
+                    console.error('Failed to fetch sparring:', err);
+                    return { data: [], error: err };
+                }),
+                10000,
+                { data: [], error: null }
+            );
+
+            const fetchEarnings = withTimeout(
+                calculateCreatorEarnings(user.id).catch(err => {
+                    console.error('Failed to fetch earnings:', err);
+                    return { error: err };
+                }),
+                10000,
+                { error: null }
+            );
 
             try {
                 const [coursesData, drillsData, lessonsData, routinesData, sparringData, earningsData] = await Promise.all([
