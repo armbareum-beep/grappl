@@ -75,6 +75,7 @@ export const RoutineDetail: React.FC = () => {
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
+    const [isDailyFree, setIsDailyFree] = useState(false);
     const [muted, setMuted] = useState(true);
 
     const toggleMute = () => setMuted(prev => !prev);
@@ -226,7 +227,7 @@ export const RoutineDetail: React.FC = () => {
                     try {
                         const { data: dailyRoutine } = await getDailyRoutine();
                         if (dailyRoutine && dailyRoutine.id === id) {
-                            setOwns(true);
+                            setIsDailyFree(true);
                             return; // If daily routine, no need to check other ownership
                         }
                     } catch (e) {
@@ -417,7 +418,7 @@ export const RoutineDetail: React.FC = () => {
     const isVimeo = !!extractVimeoId(effectiveUrl);
     const vimeoId = extractVimeoId(effectiveUrl);
     const directVideoUrl = !isVimeo ? effectiveUrl : undefined;
-    const hasFullAccess = owns || isSubscribed || routine?.price === 0;
+    const hasFullAccess = owns || isSubscribed || routine?.price === 0 || isDailyFree;
     const hasAccess = hasFullAccess || currentDrillIndex === 0;
 
 
@@ -484,10 +485,10 @@ export const RoutineDetail: React.FC = () => {
                                     <span className="text-2xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                 </div>
                                 <button
-                                    onClick={owns || isSubscribed || routine.price === 0 ? handleStartRoutine : handlePurchase}
+                                    onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
                                     className="flex-1 bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
                                 >
-                                    {hasFullAccess ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>}
+                                    {isDailyFree ? <><Play className="w-5 h-5 fill-current" /> 오늘의 무료 루틴</> : (hasFullAccess ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>)}
                                 </button>
                             </div>
                         </div>
@@ -681,7 +682,7 @@ export const RoutineDetail: React.FC = () => {
                                                 onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
                                                 className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-lg shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
                                             >
-                                                {hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> UNLOCK ACCESS</>}
+                                                {isDailyFree ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> 오늘의 무료 루틴</> : (hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> UNLOCK ACCESS</>)}
                                             </button>
                                             <p className="text-center text-xs text-zinc-500">Includes lifetime access & updates</p>
                                         </div>

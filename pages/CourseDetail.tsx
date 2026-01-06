@@ -139,7 +139,6 @@ export const CourseDetail: React.FC = () => {
                         const { data: dailyCourse } = await getDailyFreeCourse();
                         if (dailyCourse && dailyCourse.id === id) {
                             setIsDailyFree(true);
-                            setOwnsCourse(true);
                         }
                     } catch (e) {
                         console.warn('Failed to check daily free course:', e);
@@ -580,6 +579,11 @@ export const CourseDetail: React.FC = () => {
                         <CheckCircle className="w-5 h-5 mr-2 text-violet-500" />
                         {isFree ? '라이브러리에 있음' : '구매 완료'}
                     </Button>
+                ) : isDailyFree ? (
+                    <Button className="w-full h-14 rounded-full bg-violet-600/20 text-violet-400 border border-violet-500/30 font-bold text-base cursor-default" disabled>
+                        <Clock className="w-5 h-5 mr-2" />
+                        오늘의 무료 클래스
+                    </Button>
                 ) : (
                     <Button
                         onClick={handlePurchase}
@@ -587,8 +591,7 @@ export const CourseDetail: React.FC = () => {
                         className="w-full h-14 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-bold text-base shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)] transition-all duration-300"
                     >
                         {purchasing ? 'Processing...' :
-                            isDailyFree ? '오늘의 무료 클래스 시청 중' :
-                                course?.price === 0 ? 'Start Watching (Free)' : 'Buy Now'}
+                            course?.price === 0 ? 'Start Watching (Free)' : 'Buy Now'}
                     </Button>
                 )}
 
