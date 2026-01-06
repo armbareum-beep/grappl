@@ -129,13 +129,13 @@ export const CreatorDashboard: React.FC = () => {
 
                 console.log('Dashboard Data Loaded:', {
                     courses: coursesData?.length,
-                    drills: drillsData?.data?.length,
+                    drills: Array.isArray(drillsData) ? drillsData.length : (drillsData as any)?.data?.length,
                     sparring: sparringData?.data?.length,
                     earnings: earningsData
                 });
 
                 setCourses(coursesData || []);
-                setDrills(drillsData?.data || []);
+                setDrills(Array.isArray(drillsData) ? drillsData : (drillsData as any)?.data || []);
                 setLessons(lessonsData || []);
                 setRoutines(routinesData?.data || []);
                 setSparringVideos(sparringData?.data || []);
@@ -174,7 +174,8 @@ export const CreatorDashboard: React.FC = () => {
                     if (res.data) setSparringVideos(res.data);
                 });
                 getDrills(user.id).then(res => {
-                    if (res.data) setDrills(res.data);
+                    const data = Array.isArray(res) ? res : (res as any)?.data;
+                    if (data) setDrills(data);
                 });
             }
         }, 5000); // 5 seconds interval
@@ -605,14 +606,19 @@ export const CreatorDashboard: React.FC = () => {
                                     {drillControls.paginatedData.map((drill) => (
                                         <div key={drill.id} className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-colors group">
                                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0 text-zinc-500 group-hover:text-violet-400 transition-colors">
-                                                    <Grid className="w-5 h-5" />
+                                                <div className="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0 text-zinc-500 group-hover:text-violet-400 transition-colors overflow-hidden">
+                                                    {drill.thumbnailUrl ? (
+                                                        <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Grid className="w-5 h-5" />
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h3 className="font-medium text-white truncate group-hover:text-violet-400 transition-colors">{drill.title}</h3>
                                                     <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                                        <span>{new Date(drill.createdAt).toLocaleDateString()}</span>
+                                                        <span>{drill.createdAt ? new Date(drill.createdAt).toLocaleDateString() : ''}</span>
                                                         <span>• {drill.views.toLocaleString()} 조회</span>
+                                                        {!drill.vimeoUrl && <span className="text-amber-500 font-medium">• 처리 중</span>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -690,7 +696,7 @@ export const CreatorDashboard: React.FC = () => {
                                                 <div className="p-3">
                                                     <h3 className="text-sm font-medium text-white truncate" title={video.title}>{video.title}</h3>
                                                     <div className="flex justify-between items-center mt-2 text-xs text-zinc-500">
-                                                        <span>{new Date(video.createdAt).toLocaleDateString()}</span>
+                                                        <span>{video.createdAt ? new Date(video.createdAt).toLocaleDateString() : ''}</span>
                                                         <span>{video.views?.toLocaleString()} 조회</span>
                                                     </div>
                                                 </div>
