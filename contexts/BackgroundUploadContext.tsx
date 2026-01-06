@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
-import { videoProcessingApi } from '../lib/api-video-processing';
 import { supabase } from '../lib/supabase';
 
 // Types
@@ -111,31 +110,45 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     console.log('Upload Complete, starting processing...', task.id);
                     updateTaskStatus(task.id, 'processing');
 
-                    // Trigger Backend Processing
+                    // Trigger Direct Vimeo Upload (No Backend!)
                     if (task.processingParams) {
-                        videoProcessingApi.processVideo(
-                            task.processingParams.videoId,
-                            task.processingParams.filename,
-                            task.processingParams.cuts,
-                            task.processingParams.title,
-                            task.processingParams.description,
-                            task.processingParams.drillId,
-                            task.processingParams.lessonId,
-                            task.processingParams.videoType,
-                            task.processingParams.sparringId
-                        )
-                            .then(() => {
-                                console.log('✅ Vimeo processing completed for:', task.id);
-                                updateTaskStatus(task.id, 'completed');
-                                // Remove completed task after a delay
-                                setTimeout(() => {
-                                    setTasks(prev => prev.filter(t => t.id !== task.id));
-                                }, 5000);
+                        import('../lib/vimeo-upload').then(({ processAndUploadVideo }) => {
+                            const contentType = task.processingParams!.videoType === 'sparring' ? 'sparring' :
+                                task.processingParams!.lessonId ? 'lesson' : 'drill';
+
+                            const contentId = task.processingParams!.sparringId ||
+                                task.processingParams!.lessonId ||
+                                task.processingParams!.drillId || '';
+
+                            processAndUploadVideo({
+                                bucketName: 'raw_videos_v2',
+                                filePath: task.processingParams!.filename,
+                                title: task.processingParams!.title,
+                                description: task.processingParams!.description,
+                                contentType: contentType as 'lesson' | 'drill' | 'sparring',
+                                contentId: contentId,
+                                videoType: task.processingParams!.videoType as 'action' | 'desc' | undefined,
+                                onProgress: (stage, progress) => {
+                                    console.log(`[${task.id}] ${stage}: ${progress}%`);
+                                    // Update task progress based on stage
+                                    if (stage === 'vimeo') {
+                                        updateTaskProgress(task.id, progress);
+                                    }
+                                }
                             })
-                            .catch(err => {
-                                console.error('❌ Vimeo Processing Trigger Error:', err);
-                                updateTaskStatus(task.id, 'error', 'Vimeo 처리 실패: ' + (err.message || '백엔드 서버 연결 오류'));
-                            });
+                                .then(() => {
+                                    console.log('✅ Vimeo processing completed for:', task.id);
+                                    updateTaskStatus(task.id, 'completed');
+                                    // Remove completed task after a delay
+                                    setTimeout(() => {
+                                        setTasks(prev => prev.filter(t => t.id !== task.id));
+                                    }, 5000);
+                                })
+                                .catch(err => {
+                                    console.error('❌ Vimeo Processing Error:', err);
+                                    updateTaskStatus(task.id, 'error', 'Vimeo 업로드 실패: ' + (err.message || '알 수 없는 오류'));
+                                });
+                        });
                     } else {
                         console.warn('⚠️ No processing params, marking as completed without Vimeo processing');
                         updateTaskStatus(task.id, 'completed');

@@ -158,42 +158,65 @@ export const videoProcessingApi = {
         sparringId?: string
     ): Promise<ProcessResponse> => {
         const requestId = crypto.randomUUID();
+        const maxRetries = 2;
+        let lastError: Error | null = null;
 
-        try {
-            const response = await fetch(`${BACKEND_URL}/process`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-request-id': requestId
-                },
-                body: JSON.stringify({
-                    videoId,
-                    filename,
-                    cuts,
-                    title,
-                    description,
-                    drillId,
-                    lessonId,
-                    videoType,
-                    sparringId
-                })
-            });
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                console.log(`[processVideo] Attempt ${attempt + 1}/${maxRetries}`, { requestId, drillId, videoType });
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                const errorMessage = errData.error || `Processing failed with status ${response.status}`;
-                console.error('Backend processing error:', errorMessage, { requestId, drillId, videoType });
-                throw new Error(errorMessage);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+                const response = await fetch(`${BACKEND_URL}/process`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-request-id': requestId
+                    },
+                    body: JSON.stringify({
+                        videoId,
+                        filename,
+                        cuts,
+                        title,
+                        description,
+                        drillId,
+                        lessonId,
+                        videoType,
+                        sparringId
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    const errorMessage = errData.error || `Processing failed with status ${response.status}`;
+                    throw new Error(errorMessage);
+                }
+
+                const result = await response.json();
+                console.log('✅ Processing started successfully:', { requestId, processId: result.processId, drillId });
+                return result;
+
+            } catch (err: any) {
+                lastError = err;
+                console.error(`❌ Attempt ${attempt + 1} failed:`, err.message, { requestId, drillId });
+
+                // If this is the last attempt, throw the error
+                if (attempt === maxRetries - 1) {
+                    throw new Error(`백엔드 서버 연결 실패 (${maxRetries}회 시도): ${err.message}`);
+                }
+
+                // Wait before retrying (exponential backoff)
+                const waitTime = Math.min(1000 * Math.pow(2, attempt), 5000);
+                console.log(`⏳ Retrying in ${waitTime}ms...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
             }
-
-            const result = await response.json();
-            console.log('Processing started successfully:', { requestId, processId: result.processId, drillId });
-            return result;
-
-        } catch (err: any) {
-            console.error('Failed to start video processing:', err.message, { requestId, drillId });
-            throw err;
         }
+
+        throw lastError || new Error('Unknown error in processVideo');
     },
 
     getPreviewUrl: (path: string) => {
