@@ -4,7 +4,6 @@ import { getRoutineById, getDailyRoutine, checkDrillRoutineOwnership, getDrillBy
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
-import { supabase } from '../lib/supabase';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
@@ -66,7 +65,7 @@ export const RoutineDetail: React.FC = () => {
     const [searchParams] = useSearchParams();
     const playlistParam = searchParams.get('playlist');
     const playlist = useMemo(() => playlistParam ? playlistParam.split(',') : [], [playlistParam]);
-    const { user: contextUser, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, isSubscribed } = useAuth();
 
     // Playback Refs
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -76,8 +75,6 @@ export const RoutineDetail: React.FC = () => {
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
-    const [isSubscriber, setIsSubscriber] = useState(false);
-    const [user, setUser] = useState<any>(null);
     const [muted, setMuted] = useState(true);
 
     const toggleMute = () => setMuted(prev => !prev);
@@ -145,11 +142,11 @@ export const RoutineDetail: React.FC = () => {
 
     const handleFollow = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!contextUser) { navigate('/login'); return; }
+        if (!user) { navigate('/login'); return; }
         if (!routine?.creatorId) return;
         try {
             const { toggleCreatorFollow } = await import('../lib/api');
-            const { followed } = await toggleCreatorFollow(contextUser.id, routine.creatorId);
+            const { followed } = await toggleCreatorFollow(user.id, routine.creatorId);
             setIsFollowing(followed);
         } catch (error) { console.error('Error toggling follow:', error); }
     };
@@ -174,7 +171,7 @@ export const RoutineDetail: React.FC = () => {
     const accumulatedTimeRef = useRef<number>(0);
 
     const handleProgress = async () => {
-        if (!user || owns || !isSubscriber || !currentDrill) return;
+        if (!user || owns || !isSubscribed || !currentDrill) return;
         const now = Date.now();
         if (lastTickRef.current === 0) { lastTickRef.current = now; return; }
         const elapsed = (now - lastTickRef.current) / 1000;
@@ -226,33 +223,32 @@ export const RoutineDetail: React.FC = () => {
             const checkUser = async () => {
                 // First check if this is the daily free routine (accessible to everyone)
                 if (id) {
-                    const { data: dailyRoutine } = await getDailyRoutine();
-                    if (dailyRoutine && dailyRoutine.id === id) {
-                        setOwns(true);
+                    try {
+                        const { data: dailyRoutine } = await getDailyRoutine();
+                        if (dailyRoutine && dailyRoutine.id === id) {
+                            setOwns(true);
+                            return; // If daily routine, no need to check other ownership
+                        }
+                    } catch (e) {
+                        console.warn('Failed to check daily routine:', e);
                     }
                 }
 
-                if (contextUser) {
-                    setUser(contextUser);
-                    const { data: userData } = await supabase.from('users').select('is_subscriber, subscription_tier').eq('id', contextUser.id).single();
-                    if (userData) {
-                        setIsSubscriber(userData.is_subscriber);
-                        setUser((prev: any) => ({ ...prev, subscription_tier: userData.subscription_tier }));
-                    }
+                if (user) {
                     if (id) {
                         if (id.startsWith('custom-')) setOwns(true);
                         else {
-                            const isOwned = await checkDrillRoutineOwnership(contextUser.id, id);
+                            const isOwned = await checkDrillRoutineOwnership(user.id, id);
                             if (isOwned) setOwns(true);
                         }
-                        await getCompletedRoutinesToday(contextUser.id);
+                        await getCompletedRoutinesToday(user.id);
                     }
                 }
             };
             fetchRoutine();
             checkUser();
         }
-    }, [id, authLoading, contextUser]);
+    }, [id, authLoading, user]);
 
     useEffect(() => {
         const loadUserInteractions = async () => {
@@ -295,13 +291,13 @@ export const RoutineDetail: React.FC = () => {
 
     useEffect(() => {
         const checkFollow = async () => {
-            if (contextUser && routine?.creatorId) {
+            if (user && routine?.creatorId) {
                 const { checkCreatorFollowStatus } = await import('../lib/api');
-                setIsFollowing(await checkCreatorFollowStatus(contextUser.id, routine.creatorId));
+                setIsFollowing(await checkCreatorFollowStatus(user.id, routine.creatorId));
             }
         };
         checkFollow();
-    }, [contextUser, routine?.creatorId]);
+    }, [user, routine?.creatorId]);
 
     const handlePurchase = () => {
         if (!user) { navigate('/login'); return; }
@@ -390,7 +386,13 @@ export const RoutineDetail: React.FC = () => {
         setIsShareModalOpen(true);
     };
 
-    const handleDrillSelect = (index: number) => setCurrentDrillIndex(index);
+    const handleDrillSelect = (index: number) => {
+        if (hasFullAccess || index === 0) {
+            setCurrentDrillIndex(index);
+        } else {
+            handlePurchase();
+        }
+    };
 
     const handleStartRoutine = () => {
         if (hasAccess && routine?.drills?.length) {
@@ -415,7 +417,8 @@ export const RoutineDetail: React.FC = () => {
     const isVimeo = !!extractVimeoId(effectiveUrl);
     const vimeoId = extractVimeoId(effectiveUrl);
     const directVideoUrl = !isVimeo ? effectiveUrl : undefined;
-    const hasAccess = owns || (isSubscriber && user?.subscription_tier === 'premium') || routine?.price === 0 || currentDrillIndex === 0;
+    const hasFullAccess = owns || isSubscribed || routine?.price === 0;
+    const hasAccess = hasFullAccess || currentDrillIndex === 0;
 
 
     const formatTime = (seconds: number) => {
@@ -458,10 +461,10 @@ export const RoutineDetail: React.FC = () => {
                                 {routine.drills?.map((drill, idx) => {
                                     const d = typeof drill === 'string' ? null : drill;
                                     return (
-                                        <div key={idx} onClick={() => { if (hasAccess) { setCurrentDrillIndex(idx); setViewMode('player'); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors">
+                                        <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { setCurrentDrillIndex(idx); setViewMode('player'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors">
                                             <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-zinc-800/50">
                                                 {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover" />}
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{hasAccess ? <PlayCircle className="w-5 h-5 text-white/80" /> : <Lock className="w-4 h-4 text-zinc-500" />}</div>
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{(hasFullAccess || idx === 0) ? <PlayCircle className="w-5 h-5 text-white/80" /> : <Lock className="w-4 h-4 text-zinc-500" />}</div>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="text-sm font-bold text-zinc-200 truncate">{d?.title || `Drill ${idx + 1}`}</h4>
@@ -481,10 +484,10 @@ export const RoutineDetail: React.FC = () => {
                                     <span className="text-2xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                 </div>
                                 <button
-                                    onClick={owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? handleStartRoutine : handlePurchase}
+                                    onClick={owns || isSubscribed || routine.price === 0 ? handleStartRoutine : handlePurchase}
                                     className="flex-1 bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
                                 >
-                                    {owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>}
+                                    {hasFullAccess ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>}
                                 </button>
                             </div>
                         </div>
@@ -523,9 +526,24 @@ export const RoutineDetail: React.FC = () => {
                         <div className="relative w-full h-full bg-black flex flex-col">
                             {/* Video Layer */}
                             <div className="absolute inset-0 z-0" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                                {isVimeo ? <div className="w-full h-full scale-[1.35]"><VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill.id} videoType={videoType} muted={muted} /></div> : <video key={`${currentDrill.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onClick={() => setIsPlaying(!isPlaying)} />}
-                                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90" />
-                                {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><PlayCircle className="w-20 h-20 text-white/80" /></div>}
+                                {hasAccess ? (
+                                    <>
+                                        {isVimeo ? <div className="w-full h-full scale-[1.35]"><VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill.id} videoType={videoType} muted={muted} /></div> : <video key={`${currentDrill.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onClick={() => setIsPlaying(!isPlaying)} />}
+                                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90" />
+                                        {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><PlayCircle className="w-20 h-20 text-white/80" /></div>}
+                                    </>
+                                ) : (
+                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 border border-white/20">
+                                            <Lock className="w-8 h-8 text-white" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white mb-2">루틴 구매가 필요합니다</h3>
+                                        <p className="text-zinc-400 text-sm mb-6">전체 드릴을 시청하려면 루틴을 해제하세요.</p>
+                                        <Button onClick={handlePurchase} className="bg-violet-600 hover:bg-violet-500 text-white rounded-xl px-6 py-3 font-bold">
+                                            ₩{routine.price.toLocaleString()}에 해제하기
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Right Side Actions - Unified Container (Top: Mute/List, Bottom: Like/Save/Share) */}
@@ -582,10 +600,14 @@ export const RoutineDetail: React.FC = () => {
                                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {routine?.drills?.map((d: any, idx) => (
-                                            <div key={idx} onClick={() => { handleDrillSelect(idx); setShowMobileList(false); }} className={`p-3 rounded-xl flex items-center gap-4 transition-all ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
-                                                <div className="w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0"><img src={d.thumbnailUrl} className="w-full h-full object-cover" /></div>
+                                            <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { handleDrillSelect(idx); setShowMobileList(false); } else { handlePurchase(); } }} className={`p-3 rounded-xl flex items-center gap-4 transition-all ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
+                                                <div className="w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
+                                                    <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
+                                                    {!(hasFullAccess || idx === 0) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
+                                                </div>
                                                 <span className={`text-sm font-bold truncate ${idx === currentDrillIndex ? 'text-violet-400' : 'text-zinc-400'}`}>{d.title}</span>
                                                 {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto shrink-0" />}
+                                                {!(hasFullAccess || idx === 0) && <Lock className="w-3.5 h-3.5 text-zinc-600 ml-1" />}
                                             </div>
                                         ))}
                                     </div>
@@ -632,10 +654,10 @@ export const RoutineDetail: React.FC = () => {
                                         {routine.drills?.map((drill, idx) => {
                                             const d = typeof drill === 'string' ? null : drill;
                                             return (
-                                                <div key={idx} onClick={() => { if (hasAccess) { setCurrentDrillIndex(idx); setViewMode('player'); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
+                                                <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { setCurrentDrillIndex(idx); setViewMode('player'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
                                                     <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-zinc-800">
                                                         {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-all" />}
-                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{hasAccess ? <PlayCircle className="w-6 h-6 text-white/80" /> : <Lock className="w-5 h-5 text-zinc-500" />}</div>
+                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{(hasFullAccess || idx === 0) ? <PlayCircle className="w-6 h-6 text-white/80" /> : <Lock className="w-5 h-5 text-zinc-500" />}</div>
                                                     </div>
                                                     <div className="flex-1 py-1">
                                                         <h4 className="text-lg font-bold text-zinc-100">{d?.title || `Drill ${idx + 1}`}</h4>
@@ -656,10 +678,10 @@ export const RoutineDetail: React.FC = () => {
                                         </div>
                                         <div className="space-y-3">
                                             <button
-                                                onClick={owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? handleStartRoutine : handlePurchase}
+                                                onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
                                                 className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-lg shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
                                             >
-                                                {owns || (isSubscriber && user?.subscription_tier === 'premium') || routine.price === 0 ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> UNLOCK ACCESS</>}
+                                                {hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> UNLOCK ACCESS</>}
                                             </button>
                                             <p className="text-center text-xs text-zinc-500">Includes lifetime access & updates</p>
                                         </div>
@@ -675,8 +697,23 @@ export const RoutineDetail: React.FC = () => {
                             <div className="relative h-full flex">
                                 {/* Video */}
                                 <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
-                                    {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} muted={muted} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
-                                    {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
+                                    {hasAccess ? (
+                                        <>
+                                            {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} muted={muted} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
+                                            {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
+                                        </>
+                                    ) : (
+                                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-8 text-center">
+                                            <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-white/20">
+                                                <Lock className="w-10 h-10 text-white" />
+                                            </div>
+                                            <h3 className="text-2xl font-bold text-white mb-3">루틴 구매가 필요합니다</h3>
+                                            <p className="text-zinc-400 mb-8 max-w-xs">전체 루틴을 시청하고 훈련에 활용하려면 구매가 필요합니다.</p>
+                                            <Button onClick={handlePurchase} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-10 py-4 text-lg font-bold">
+                                                ₩{routine.price.toLocaleString()}에 구매하기
+                                            </Button>
+                                        </div>
+                                    )}
 
                                     {/* Back Button & Video Type Toggle - Inside Video */}
                                     <div className="absolute top-6 left-6 z-[100] pointer-events-none">
@@ -786,10 +823,16 @@ export const RoutineDetail: React.FC = () => {
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 space-y-2">
                                 {routine.drills?.map((d: any, idx) => (
-                                    <button key={idx} onClick={() => handleDrillSelect(idx)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
-                                        <div className="w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0"><img src={d.thumbnailUrl} className="w-full h-full object-cover" /></div>
+                                    <button key={idx} onClick={() => handleDrillSelect(idx)} className={`group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
+                                        <div className="relative w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0">
+                                            <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
+                                            {!(hasFullAccess || idx === 0) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
+                                        </div>
                                         <div className="text-left font-bold text-sm text-zinc-200 truncate">{d.title}</div>
-                                        {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
+                                        <div className="ml-auto flex items-center gap-2">
+                                            {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500" />}
+                                            {!(hasFullAccess || idx === 0) && <Lock className="w-3.5 h-3.5 text-zinc-600" />}
+                                        </div>
                                     </button>
                                 ))}
                             </div>

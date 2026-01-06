@@ -154,7 +154,7 @@ export async function getUserSkillTree(treeId: string) {
         .from('user_skill_trees')
         .select('*')
         .eq('id', treeId)
-        .single();
+        .maybeSingle();
 
     if (error) return { data: null, error };
     return { data: transformUserSkillTree(data), error: null };
@@ -286,7 +286,7 @@ export async function copyChainToMyLibrary(userId: string, chainId: string) {
             .from('user_skill_trees')
             .select('*')
             .eq('id', chainId)
-            .single();
+            .maybeSingle();
 
         if (fetchError || !originalChain) {
             return { data: null, error: fetchError || new Error('Chain not found') };
@@ -302,7 +302,7 @@ export async function copyChainToMyLibrary(userId: string, chainId: string) {
                 is_public: false // User's copy is private by default
             })
             .select()
-            .single();
+            .maybeSingle();
 
         if (createError) {
             return { data: null, error: createError };

@@ -112,7 +112,13 @@ export const UploadLesson: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!user) {
+            alert('로그인이 필요합니다.');
+            return;
+        }
+
         // Validation
+
         if (!formData.title) {
             alert('제목을 입력해주세요.');
             return;
@@ -188,6 +194,7 @@ export const UploadLesson: React.FC = () => {
 
                 const { data: newLesson, error } = await createLesson({
                     courseId: null,
+                    creatorId: user.id,
                     title: formData.title,
                     description: formData.description,
                     category: formData.category,
@@ -198,6 +205,7 @@ export const UploadLesson: React.FC = () => {
                     durationMinutes: durationMinutes,
                     thumbnailUrl: thumbnailUrl,
                 });
+
                 if (error || !newLesson) throw error || new Error('Failed to create lesson');
                 lessonId = newLesson.id;
             }

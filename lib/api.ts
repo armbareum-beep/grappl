@@ -62,6 +62,7 @@ function transformLesson(data: any): Lesson {
     return {
         id: data.id,
         courseId: data.course_id,
+        creatorId: data.creator_id,
         title: data.title,
         description: data.description,
         category: data.category,
@@ -75,6 +76,7 @@ function transformLesson(data: any): Lesson {
         isSubscriptionExcluded: data.is_subscription_excluded || false,
     };
 }
+
 
 
 // Platform Statistics
@@ -350,7 +352,7 @@ export async function getCourseById(id: string): Promise<Course | null> {
       preview_lessons:lessons(vimeo_url, lesson_number)
     `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error fetching course:', error);
@@ -468,14 +470,9 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
 
     const courseIds = courses?.map(c => c.id) || [];
 
-    // Get lessons from two sources:
-    // 1. Lessons belonging to creator's courses
-    // 2. Standalone lessons (course_id is null) - we need to add creator_id to lessons table for this
-    // For now, we'll just get all standalone lessons and filter client-side
-
     const queries = [];
 
-    // Get lessons from creator's courses
+    // 1. Get lessons from creator's courses
     if (courseIds.length > 0) {
         queries.push(
             supabase
@@ -485,12 +482,12 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
         );
     }
 
-    // Get standalone lessons (course_id is null)
-    // TODO: Add creator_id column to lessons table for better filtering
+    // 2. Get standalone lessons owned by this creator
     queries.push(
         supabase
             .from('lessons')
             .select('*')
+            .eq('creator_id', creatorId)
             .is('course_id', null)
     );
 
@@ -498,12 +495,35 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
     const allLessons = results.flatMap(r => r.data || []);
 
     // Remove duplicates and sort by created_at
-    const uniqueLessons = Array.from(
-        new Map(allLessons.map(lesson => [lesson.id, lesson])).values()
-    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // We deduplicate by ID first, then by vimeoUrl to handle existing duplicates in DB
+    const deduplicatedByUrl = new Map<string, any>();
+
+    // Sort so that lessons with course_id come first, then newer ones
+    const sortedAll = [...allLessons].sort((a, b) => {
+        if (a.course_id && !b.course_id) return -1;
+        if (!a.course_id && b.course_id) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    sortedAll.forEach(lesson => {
+        // Use ID as primary key, but if vimeo_url exists, use it as a secondary de-dupe key
+        const key = lesson.id;
+        const vimeoKey = lesson.vimeo_url ? `vimeo-${lesson.vimeo_url}` : null;
+
+        if (!deduplicatedByUrl.has(key)) {
+            if (!vimeoKey || !Array.from(deduplicatedByUrl.values()).some(l => l.vimeo_url === lesson.vimeo_url)) {
+                deduplicatedByUrl.set(key, lesson);
+            }
+        }
+    });
+
+    const uniqueLessons = Array.from(deduplicatedByUrl.values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
 
     return uniqueLessons.map(transformLesson);
 }
+
 
 export async function getLessonById(id: string): Promise<Lesson | null> {
     const { data, error } = await supabase
@@ -512,7 +532,7 @@ export async function getLessonById(id: string): Promise<Lesson | null> {
     if (error) {
         console.error('Error fetching secure lesson:', error);
         // Fallback to direct fetch if RPC fails (e.g. not logged in)
-        const { data: directData } = await supabase.from('lessons').select('*').eq('id', id).single();
+        const { data: directData } = await supabase.from('lessons').select('*').eq('id', id).maybeSingle();
         return directData ? transformLesson(directData) : null;
     }
 
@@ -570,7 +590,7 @@ export async function getVideoById(id: string): Promise<Video | null> {
       creator:creators(name)
     `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error fetching video:', error);
@@ -898,7 +918,7 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
         .select('*')
         .eq('user_id', userId)
         .eq('course_id', courseId)
-        .single();
+        .maybeSingle();
 
     if (error) {
         return false;
@@ -1290,6 +1310,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
 export async function createLesson(lessonData: Partial<Lesson>) {
     const dbData = {
         course_id: lessonData.courseId,
+        creator_id: lessonData.creatorId,
         title: lessonData.title,
         description: lessonData.description,
         lesson_number: lessonData.lessonNumber,
@@ -1301,6 +1322,7 @@ export async function createLesson(lessonData: Partial<Lesson>) {
     const { data, error } = await supabase
         .from('lessons')
         .insert(dbData)
+
         .select()
         .single();
 
@@ -1421,7 +1443,7 @@ export async function checkAdminStatus(userId: string): Promise<boolean> {
         .from('users')
         .select('is_admin')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     if (error || !data) return false;
     return data.is_admin === true;
@@ -1460,7 +1482,7 @@ export async function getUserEmail(userId: string) {
         .from('users')
         .select('email')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     return { data: data?.email || null, error };
 }
@@ -1558,7 +1580,7 @@ export async function updateUserProfile(userId: string, updates: {
         .update(dbData)
         .eq('id', userId)
         .select()
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error updating user profile:', error);
@@ -1693,9 +1715,10 @@ export async function getPayoutSettings(creatorId: string) {
         .from('creators')
         .select('stripe_account_id, payout_settings')
         .eq('id', creatorId)
-        .single();
+        .maybeSingle();
 
     if (error) return { data: null, error };
+    if (!data) return { data: null, error: null };
 
     return {
         data: {
@@ -1807,7 +1830,7 @@ export async function checkSubscriptionStatus(userId: string, creatorId: string)
         .select('id')
         .eq('user_id', userId)
         .eq('creator_id', creatorId)
-        .single();
+        .maybeSingle();
 
     if (error) return false;
     return !!data;
@@ -2234,7 +2257,7 @@ export async function enrollInCourse(userId: string, courseId: string) {
         .select('id')
         .eq('user_id', userId)
         .eq('course_id', courseId)
-        .single();
+        .maybeSingle();
 
     if (existing) {
         return { error: null }; // Already enrolled
@@ -2819,7 +2842,7 @@ export async function createLogFeedback(logId: string, userId: string, content: 
             *,
             user:users(name, avatar_url)
         `)
-        .single();
+        .maybeSingle();
 
     return { data, error };
 }
@@ -2888,7 +2911,7 @@ export async function checkVideoOwnership(userId: string, videoId: string) {
         .select('id')
         .eq('user_id', userId)
         .eq('video_id', videoId)
-        .single();
+        .maybeSingle();
 
     if (error) return false;
     return !!data;
@@ -3058,7 +3081,7 @@ export async function createBundle(bundle: {
             thumbnail_url: bundle.thumbnailUrl
         })
         .select()
-        .single();
+        .maybeSingle();
 
     if (bundleError) return { error: bundleError };
 
@@ -3176,7 +3199,7 @@ export async function validateCoupon(code: string) {
         .from('coupons')
         .select('*')
         .eq('code', code.toUpperCase())
-        .single();
+        .maybeSingle();
 
     if (error) return { data: null, error };
 
@@ -3300,7 +3323,7 @@ export async function getFeedbackSettings(instructorId: string) {
         .from('feedback_settings')
         .select('*')
         .eq('instructor_id', instructorId)
-        .single();
+        .maybeSingle();
 
     if (error && error.code !== 'PGRST116') return { data: null, error };
 
@@ -3367,7 +3390,7 @@ export async function createFeedbackRequest(request: {
             status: 'pending'
         })
         .select()
-        .single();
+        .maybeSingle();
 
     return { data, error };
 }
@@ -3421,7 +3444,7 @@ export async function getFeedbackRequest(requestId: string) {
             instructor:creators!instructor_id(name)
         `)
         .eq('id', requestId)
-        .single();
+        .maybeSingle();
 
     if (error) return { data: null, error };
 
@@ -3784,10 +3807,10 @@ export async function getUserProgress(userId: string): Promise<UserProgress | nu
         .from('user_progress')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
     // If no progress exists, create it
-    if (error && error.code === 'PGRST116') {
+    if (!data && !error) {
         const { data: newProgress, error: insertError } = await supabase
             .from('user_progress')
             .insert({
@@ -4162,7 +4185,7 @@ export async function getLoginStreak(userId: string) {
         .from('user_login_streak')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
         console.error('Error fetching login streak:', error);
@@ -4461,7 +4484,7 @@ export async function getSparringVideoById(id: string) {
         .from('sparring_videos')
         .select('*, profiles(*)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error fetching sparring video:', error);
@@ -4612,7 +4635,7 @@ export async function getDailyRoutine() {
                 .from('users')
                 .select('name, avatar_url')
                 .eq('id', selectedRoutine.creator_id)
-                .single();
+                .maybeSingle();
             if (userData) {
                 creatorInfo = {
                     name: userData.name,
@@ -4709,7 +4732,7 @@ export async function getDailyFreeDrill() {
                 .from('users')
                 .select('name, avatar_url')
                 .eq('id', drill.creator_id)
-                .single();
+                .maybeSingle();
             if (userData) {
                 creatorInfo = {
                     name: userData.name,
@@ -4749,7 +4772,7 @@ export async function getRoutineById(id: string) {
             )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('[getRoutineById] Error fetching routine:', {
@@ -4783,7 +4806,7 @@ export async function getRoutineById(id: string) {
                 .from('users')
                 .select('name, avatar_url')
                 .eq('id', data.creator_id)
-                .single();
+                .maybeSingle();
 
             if (userData) {
                 creatorName = userData.name || 'Unknown';
@@ -4796,7 +4819,7 @@ export async function getRoutineById(id: string) {
                     .from('creators')
                     .select('name, profile_image')
                     .eq('id', data.creator_id)
-                    .single();
+                    .maybeSingle();
 
                 if (creatorData) {
                     if (creatorName === 'Unknown') creatorName = creatorData.name;
@@ -4831,7 +4854,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
             .from('drills')
             .select('thumbnail_url')
             .eq('id', drillIds[0])
-            .single();
+            .maybeSingle();
 
         if (firstDrill?.thumbnail_url) {
             thumbnailUrl = firstDrill.thumbnail_url;
@@ -4853,7 +4876,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         .from('routines')
         .insert(dbData)
         .select()
-        .single();
+        .maybeSingle();
 
     if (routineError) {
         console.error('Error creating routine:', routineError);
@@ -4893,7 +4916,7 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
         .update(dbData)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
     if (routineError) {
         console.error('Error updating routine:', routineError);
@@ -4995,7 +5018,7 @@ export async function getUserRoutines(userId: string) {
         .from('users')
         .select('name, avatar_url')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     // Add purchased routines
     if (purchasedData) {
@@ -5053,7 +5076,7 @@ export async function getUserCreatedRoutines(userId: string) {
         .from('users')
         .select('name, avatar_url')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     const routines = data.map((routine: any) => ({
         ...transformDrillRoutine(routine),
@@ -5213,7 +5236,7 @@ export async function getDrillById(id: string) {
                 .from('users')
                 .select('id, name, avatar_url')
                 .eq('id', drill.creator_id)
-                .single();
+                .maybeSingle();
             creator = user;
         }
 

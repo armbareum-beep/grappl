@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 // Extend Supabase User type to include our custom properties
 interface User extends SupabaseUser {
     isSubscriber?: boolean;
+    subscription_tier?: string;
 }
 
 interface AuthContextType {
@@ -53,8 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('is_admin, is_subscriber, subscription_tier').eq('id', userId).single(),
-                supabase.from('creators').select('approved').eq('id', userId).single()
+                supabase.from('users').select('is_admin, is_subscriber, subscription_tier').eq('id', userId).maybeSingle(),
+                supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
             const userData = userResult.data;
@@ -63,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newStatus = {
                 isAdmin: userData?.is_admin === true,
                 isSubscribed: userData?.is_subscriber === true,
+                subscriptionTier: userData?.subscription_tier,
                 isCreator: creatorData?.approved === true
             };
 
@@ -74,15 +76,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Update cache
             localStorage.setItem(cacheKey, JSON.stringify(newStatus));
 
-            return newStatus.isSubscribed;
+            return { isSubscribed: newStatus.isSubscribed, subscriptionTier: newStatus.subscriptionTier };
         } catch (error) {
             console.error('Error checking user status:', error);
             // If network fails but we had cache, keep using cache
             if (cached) {
                 const parsed = JSON.parse(cached);
-                return parsed.isSubscribed;
+                return { isSubscribed: parsed.isSubscribed, subscriptionTier: parsed.subscriptionTier };
             }
-            return false;
+            return { isSubscribed: false, subscriptionTier: undefined };
         }
     };
 
@@ -119,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
-                            setUser({ ...baseUser, isSubscriber: parsed.isSubscribed });
+                            setUser({ ...baseUser, isSubscriber: parsed.isSubscribed, subscription_tier: parsed.subscriptionTier });
                             // Set loading false immediately if we have cache
                             setLoading(false);
                         } catch (e) {
@@ -127,9 +129,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         }
                     }
 
-                    const subscribed = await checkUserStatus(baseUser.id);
+                    const { isSubscribed: subscribed, subscriptionTier } = await checkUserStatus(baseUser.id);
                     if (mounted) {
-                        setUser({ ...baseUser, isSubscriber: subscribed });
+                        setUser({ ...baseUser, isSubscriber: subscribed, subscription_tier: subscriptionTier });
                     }
                 } else {
                     if (mounted) {
@@ -159,9 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const subscribed = await checkUserStatus(baseUser.id);
+                    const { isSubscribed: subscribed, subscriptionTier } = await checkUserStatus(baseUser.id);
                     if (mounted) {
-                        setUser({ ...baseUser, isSubscriber: subscribed });
+                        setUser({ ...baseUser, isSubscriber: subscribed, subscription_tier: subscriptionTier });
                         setLoading(false);
                     }
                 }
@@ -183,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({
-            email,
+            email: email.trim(),
             password,
         });
         return { error };
@@ -191,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signUp = async (email: string, password: string) => {
         const { error } = await supabase.auth.signUp({
-            email,
+            email: email.trim(),
             password,
         });
         return { error };

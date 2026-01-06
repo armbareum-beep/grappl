@@ -6,6 +6,7 @@ import { Lesson, Difficulty, VideoCategory } from '../types';
 
 export async function createLesson(lessonData: {
     courseId?: string | null;
+    creatorId?: string;
     title: string;
     description: string;
     category?: VideoCategory;
@@ -20,16 +21,18 @@ export async function createLesson(lessonData: {
         .from('lessons')
         .insert([{
             course_id: lessonData.courseId || null,
+            creator_id: lessonData.creatorId || null,
             title: lessonData.title,
             description: lessonData.description,
             category: lessonData.category || null,
             lesson_number: lessonData.lessonNumber,
             vimeo_url: lessonData.vimeoUrl,
-            length: String(lessonData.length), // Ensure string if DB expects it, or number. Types says string.
+            length: String(lessonData.length),
             difficulty: lessonData.difficulty,
             duration_minutes: lessonData.durationMinutes,
             thumbnail_url: lessonData.thumbnailUrl,
         }])
+
         .select()
         .single();
 

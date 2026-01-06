@@ -99,7 +99,7 @@ export async function getTechniqueById(id: string) {
         .from('techniques')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error fetching technique:', error);
@@ -149,7 +149,7 @@ export async function getUserTechniqueMasteryById(userId: string, techniqueId: s
         `)
         .eq('user_id', userId)
         .eq('technique_id', techniqueId)
-        .single();
+        .maybeSingle();
 
     if (error) {
         if (error.code === 'PGRST116') {

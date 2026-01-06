@@ -141,8 +141,7 @@ export const JournalTab: React.FC = () => {
             if (logsResult.data) {
                 const validLogs = logsResult.data.filter(log =>
                     log.durationMinutes !== -1 &&
-                    (!log.location || !log.location.startsWith('__FEED__')) &&
-                    !['routine', 'mastery'].includes((log as any).type)
+                    (!log.location || !log.location.startsWith('__FEED__'))
                 );
                 items.push(...validLogs.map(log => ({ type: 'log' as const, data: log })));
             }

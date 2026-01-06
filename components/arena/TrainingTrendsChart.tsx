@@ -40,7 +40,7 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
         }
 
         const days = eachDayOfInterval({ start, end });
-        const hasData = items.length > 0;
+        // const hasData = items.length > 0; // Removed unused variable
 
         return days.map(day => {
             const dayItems = items.filter(item => isSameDay(parseISO(item.data.date), day));
@@ -69,13 +69,8 @@ export const TrainingTrendsChart: React.FC<TrainingTrendsChartProps> = ({ items,
                 }
             });
 
-            // Add placeholder wave pattern for empty data
-            if (!hasData) {
-                const waveValue = Math.sin((days.indexOf(day)) * 0.3) * 0.5 + 1;
-                count = waveValue;
-                duration = waveValue * 60;
-                rounds = Math.floor(waveValue * 2);
-            }
+            // Removed placeholder wave pattern to avoid user confusion
+            // If hasData is false, count/duration/rounds remain 0
 
             return {
                 date: format(day, range === '1W' ? 'EEEE' : 'd일', { locale: ko }),

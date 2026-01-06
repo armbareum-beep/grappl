@@ -51,6 +51,9 @@ export const VersionChecker: React.FC = () => {
                         }
                     }
 
+                    // IMPORTANT: Set the reload timestamp AFTER clearing storage so the next load knows we just reloaded
+                    localStorage.setItem('version_reload_timestamp', Date.now().toString());
+
                     // Reload immediately with cache busting
                     // We don't store the version here because we want the new app to re-establish its state from scratch
                     // But to prevent loops if clearing fails, we might want to?

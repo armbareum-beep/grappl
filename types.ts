@@ -54,6 +54,7 @@ export interface Course {
 export interface Lesson {
   id: string;
   courseId: string;
+  creatorId?: string; // Optional for compatibility with legacy data
   title: string;
   description: string;
   category?: VideoCategory; // Added for categorization
@@ -69,6 +70,7 @@ export interface Lesson {
   isSubscriptionExcluded?: boolean;
   isPreview?: boolean;
 }
+
 
 // Keep Video interface for backward compatibility
 export interface Video {

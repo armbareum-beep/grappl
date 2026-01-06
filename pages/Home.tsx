@@ -108,7 +108,7 @@ export const Home: React.FC = () => {
             .from('users')
             .select('avatar_url, name')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
           if (userData?.avatar_url) setUserAvatar(userData.avatar_url);
           if (userData?.name) setUserName(userData.name);
 
