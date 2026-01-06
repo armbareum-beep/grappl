@@ -108,71 +108,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Convert blob to buffer for TUS upload
         const arrayBuffer = await fileData.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-
-        // Upload using TUS protocol
-        const tusResponse = await fetch(uploadLink, {
-            method: 'PATCH',
-            headers: {
-                'Tus-Resumable': '1.0.0',
-                'Upload-Offset': '0',
-                'Content-Type': 'application/offset+octet-stream'
-            },
-            body: buffer
-        });
-
-        if (!tusResponse.ok) {
-            throw new Error(`TUS upload failed: ${tusResponse.statusText}`);
-        }
-
         const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
 
-        // 3. Update database
-        if (contentType === 'lesson') {
-            const { error } = await supabase
-                .from('lessons')
-                .update({
-                    vimeo_url: vimeoId,
-                    thumbnail_url: thumbnailUrl
-                })
-                .eq('id', contentId);
+        console.log('[Vercel] Starting background upload:', { vimeoId, contentId });
 
-            if (error) throw error;
-        } else if (contentType === 'sparring') {
-            const { error } = await supabase
-                .from('sparring_videos')
-                .update({
-                    video_url: vimeoId,
-                    thumbnail_url: thumbnailUrl
-                })
-                .eq('id', contentId);
-
-            if (error) throw error;
-        } else if (contentType === 'drill') {
-            const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-            const updateData: any = {
-                [columnToUpdate]: vimeoId
-            };
-
-            if (videoType === 'action') {
-                updateData.thumbnail_url = thumbnailUrl;
-            }
-
-            const { error } = await supabase
-                .from('drills')
-                .update(updateData)
-                .eq('id', contentId);
-
-            if (error) throw error;
-        }
-
-        console.log('[Vercel] Success:', { vimeoId, contentId });
-
-        return res.status(200).json({
+        // Send immediate response
+        res.status(202).json({
             success: true,
+            message: 'Upload started',
             vimeoId,
             vimeoUrl: `https://vimeo.com/${vimeoId}`,
             thumbnailUrl
         });
+
+        // Continue processing in background (non-blocking)
+        (async () => {
+            try {
+                // Upload using TUS protocol
+                const tusResponse = await fetch(uploadLink, {
+                    method: 'PATCH',
+                    headers: {
+                        'Tus-Resumable': '1.0.0',
+                        'Upload-Offset': '0',
+                        'Content-Type': 'application/offset+octet-stream'
+                    },
+                    body: buffer
+                });
+
+                if (!tusResponse.ok) {
+                    throw new Error(`TUS upload failed: ${tusResponse.statusText}`);
+                }
+
+                // Update database after successful upload
+                if (contentType === 'lesson') {
+                    await supabase
+                        .from('lessons')
+                        .update({
+                            vimeo_url: vimeoId,
+                            thumbnail_url: thumbnailUrl
+                        })
+                        .eq('id', contentId);
+                } else if (contentType === 'sparring') {
+                    await supabase
+                        .from('sparring_videos')
+                        .update({
+                            video_url: vimeoId,
+                            thumbnail_url: thumbnailUrl
+                        })
+                        .eq('id', contentId);
+                } else if (contentType === 'drill') {
+                    const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                    const updateData: any = {
+                        [columnToUpdate]: vimeoId
+                    };
+
+                    if (videoType === 'action') {
+                        updateData.thumbnail_url = thumbnailUrl;
+                    }
+
+                    await supabase
+                        .from('drills')
+                        .update(updateData)
+                        .eq('id', contentId);
+                }
+
+                console.log('[Vercel] Background processing complete:', { vimeoId, contentId });
+            } catch (bgError: any) {
+                console.error('[Vercel] Background processing error:', bgError);
+            }
+        })();
 
     } catch (error: any) {
         console.error('[Vercel] Error:', error);
