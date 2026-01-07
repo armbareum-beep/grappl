@@ -13,11 +13,10 @@ import { UploadDrill } from './pages/creator/UploadDrill';
 import { UploadLesson } from './pages/creator/UploadLesson';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
 import { UploadSparring } from './pages/creator/UploadSparring';
-import { SparringFeed } from './pages/SparringFeed';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
-import { CommunityFeed } from './pages/CommunityFeed';
+// import { CommunityFeed } from './pages/CommunityFeed';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
 import { AdminCourseList } from './pages/admin/AdminCourseList';
@@ -41,13 +40,17 @@ import { UploadVideo } from './pages/UploadVideo';
 import { NotFound } from './pages/NotFound';
 import { PaymentComplete } from './pages/PaymentComplete';
 import { Checkout } from './pages/Checkout';
-import { Drills } from './pages/Drills';
+import { Routines } from './pages/Routines';
+import { Library } from './pages/Library';
+import { Agora } from './pages/Agora';
+import { Watch } from './pages/Watch';
+import { MyRoutines } from './pages/MyRoutines';
 import { DrillDetail } from './pages/DrillDetail';
 import { RoutineDetail } from './pages/RoutineDetail';
 import { DrillRoutineDetail } from './pages/DrillRoutineDetail';
-import { Arena } from './pages/Arena';
+// Arena removed
 import { AICoach } from './pages/AICoach';
-import { TechniqueRoadmapDashboard } from './components/technique/TechniqueRoadmapDashboard';
+import { TechniqueSkillTree } from './components/technique/TechniqueSkillTree';
 import { TechniqueDetailPage } from './pages/TechniqueDetail';
 import { LessonDetail } from './pages/LessonDetail';
 import { Instructors } from './pages/Instructors';
@@ -55,9 +58,10 @@ import { Bundles } from './pages/Bundles';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { Contact } from './pages/Contact';
-import { GlobalSearch } from './pages/GlobalSearch';
+// import { GlobalSearch } from './pages/GlobalSearch';
 import UserProfile from './pages/UserProfile';
 import MyRoutineSchedule from './pages/MyRoutineSchedule';
+import { DrillReels } from './pages/DrillReels';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -252,23 +256,29 @@ const App: React.FC = () => {
                 <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
                 <Route path="/become-creator" element={<BecomeCreator />} />
                 <Route path="/creator/:id" element={<CreatorProfile />} />
-                <Route path="/library" element={<MyLibrary />} />
-                <Route path="/journal" element={<CommunityFeed />} />
-                <Route path="/drills" element={<Drills />} />
+                <Route path="/library" element={<Library />} />
+                <Route path="/agora" element={<Agora />} />
+                <Route path="/my-library" element={<MyLibrary />} />
+                <Route path="/watch-test" element={<div className="h-screen w-full bg-green-500 flex items-center justify-center text-white text-4xl">WATCH TEST ROUTE WORKS</div>} />
+                <Route path="/watch" element={<Watch />} />
+                <Route path="/training-routines" element={<MyRoutines />} />
+
+                {/* Legacy / Direct Links */}
+                <Route path="/saved" element={<Navigate to="/my-library" replace />} />
+                <Route path="/drills" element={<DrillReels />} />
                 <Route path="/drills/:id" element={<DrillDetail />} />
+                <Route path="/routines" element={<Routines />} />
                 <Route path="/routines/:id" element={<RoutineDetail />} />
                 <Route path="/my-routines/:id" element={<RoutineDetail />} />
                 <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
-                <Route path="/arena" element={<Arena />} />
+                <Route path="/sparring" element={<Navigate to="/watch" replace />} />
                 <Route path="/ai-coach" element={
                   <ProtectedRoute>
                     <AICoach />
                   </ProtectedRoute>
                 } />
-                <Route path="/technique-roadmap" element={<TechniqueRoadmapDashboard />} />
-
-                <Route path="/sparring" element={<SparringFeed />} />
+                <Route path="/skill-tree" element={<TechniqueSkillTree />} />
                 <Route path="/creator/sparring/new" element={<UploadSparring />} />
 
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
@@ -279,7 +289,7 @@ const App: React.FC = () => {
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/search" element={<GlobalSearch />} />
+                {/* <Route path="/search" element={<GlobalSearch />} /> */}
 
                 {/* Admin Routes */}
                 <Route path="/admin/dashboard" element={

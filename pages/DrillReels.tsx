@@ -1,0 +1,121 @@
+import { useState, useEffect } from 'react';
+import { Zap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+
+export function DrillReels() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(true);
+    const [drills, setDrills] = useState<any[]>([]);
+
+    // Load Drill Content
+    useEffect(() => {
+        loadDrillContent();
+    }, []);
+
+    const loadDrillContent = async () => {
+        try {
+            setLoading(true);
+
+            const { fetchCreatorsByIds } = await import('../lib/api');
+
+            // Get drills only
+            const { data: allDrills, error: drillError } = await supabase
+                .from('drills')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (drillError) throw drillError;
+
+            const allCreatorIds = allDrills?.map((d: any) => d.creator_id).filter(Boolean) || [];
+            const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
+
+            const processedDrills = (allDrills || []).map((d: any) => ({
+                id: d.id,
+                title: d.title,
+                description: d.description,
+                creatorId: d.creator_id,
+                creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
+                creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
+                category: d.category,
+                difficulty: d.difficulty,
+                thumbnailUrl: d.thumbnail_url,
+                videoUrl: d.video_url,
+                vimeoUrl: d.vimeo_url,
+                descriptionVideoUrl: d.description_video_url,
+                aspectRatio: '9:16' as const,
+                views: d.views || 0,
+                durationMinutes: d.duration_minutes || 0,
+                length: d.length || d.duration,
+                tags: d.tags || [],
+                likes: d.likes || 0,
+                price: d.price || 0,
+                createdAt: d.created_at,
+            }));
+
+            // Shuffle
+            for (let i = processedDrills.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [processedDrills[i], processedDrills[j]] = [processedDrills[j], processedDrills[i]];
+            }
+
+            setDrills(processedDrills);
+            setLoading(false);
+
+        } catch (error) {
+            console.error("Failed to load drill content", error);
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden">
+            {/* Simple Left Sub-Navigation Sidebar */}
+            <div className="hidden sm:flex w-20 md:w-24 flex-col items-center py-8 gap-8 border-r border-zinc-900 bg-zinc-950/20 backdrop-blur-sm z-50">
+                <div className="flex flex-col gap-6">
+                    <button className="group flex flex-col items-center gap-1.5 transition-all outline-none opacity-100 scale-110">
+                        <div className="p-3 rounded-2xl transition-all duration-300 bg-zinc-800 shadow-lg shadow-white/5 ring-1 ring-white/10">
+                            <Zap className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <span className="text-[10px] font-bold tracking-tight text-white uppercase">
+                            Drills
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile Top Header */}
+            <div className="sm:hidden absolute top-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
+                <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-full px-5 py-2.5 flex items-center pointer-events-auto shadow-2xl">
+                    <Zap className="w-4 h-4 text-indigo-400 mr-2" />
+                    <span className="text-xs font-black uppercase tracking-widest text-white">Daily Drills</span>
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 h-full relative">
+                <div className="w-full h-full">
+                    {loading ? (
+                        <LoadingScreen message="드릴을 준비하고 있습니다..." />
+                    ) : drills.length > 0 ? (
+                        <DrillReelsFeed
+                            drills={drills}
+                            onChangeView={() => navigate('/browse?tab=drills')}
+                        />
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-zinc-500">
+                            <p>표시할 드릴이 없습니다</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default DrillReels;

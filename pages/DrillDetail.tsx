@@ -776,14 +776,6 @@ export const DrillDetail: React.FC = () => {
                         text={drill.description || `Check out this drill: ${drill.title}`}
                         url={`${window.location.origin}/drills/${drill.id}`}
                         imageUrl={drill.thumbnailUrl}
-                        initialStep="write"
-                        activityType="drill_reel"
-                        metadata={{
-                            type: 'drill',
-                            drillId: drill.id,
-                            drillTitle: drill.title,
-                            sharedDrill: drill
-                        }}
                     />
                 )}
             </React.Suspense>

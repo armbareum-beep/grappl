@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, Share2, Medal } from 'lucide-react';
-import { ShareToFeedModal } from './social/ShareToFeedModal';
-import { useAuth } from '../contexts/AuthContext';
-import { createFeedPost } from '../lib/api';
+import { ShareModal } from './social/ShareModal';
+
 
 interface TitleEarnedModalProps {
     isOpen: boolean;
@@ -21,20 +20,9 @@ export const TitleEarnedModal: React.FC<TitleEarnedModalProps> = ({
     description = "새로운 칭호를 획득했습니다!",
     rarity = 'common'
 }) => {
-    const { user } = useAuth();
     const [showShareModal, setShowShareModal] = useState(false);
 
-    const handleShareToFeed = async (comment: string) => {
-        if (!user) return;
-        await createFeedPost({
-            userId: user.id,
-            content: comment,
-            type: 'title_earned',
-            metadata: { titleName, rarity, description }
-        });
-        setShowShareModal(false);
-        onClose();
-    };
+
 
     const getRarityStyles = (r: string) => {
         switch (r) {
@@ -174,13 +162,11 @@ export const TitleEarnedModal: React.FC<TitleEarnedModalProps> = ({
                     </motion.div>
 
                     {showShareModal && (
-                        <ShareToFeedModal
+                        <ShareModal
                             isOpen={showShareModal}
                             onClose={() => setShowShareModal(false)}
-                            onShare={handleShareToFeed}
-                            activityType="title_earned"
-                            defaultContent={`🏆 새로운 칭호 획득!\n\n[${titleName}]\n${description}\n\n#Grappl #주짓수 #칭호획득`}
-                            metadata={{ titleName, rarity, description }}
+                            title="칭호 획득 공유"
+                            text={`🏆 새로운 칭호 획득!\n\n[${titleName}]\n${description}\n\n#Grappl #주짓수 #칭호획득`}
                         />
                     )}
                 </div>

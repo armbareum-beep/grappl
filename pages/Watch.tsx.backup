@@ -1,0 +1,207 @@
+import React, { useState, useEffect } from 'react';
+import { Shuffle, PlayCircle, Zap, Swords } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { Drills } from './Drills';
+import { SparringFeed } from './SparringFeed';
+import { LessonReels } from './LessonReels';
+import { MixedReelsFeed, MixedItem } from '../components/reels/MixedReelsFeed';
+import { cn } from '../lib/utils';
+
+type WatchTab = 'mix' | 'classes' | 'drills' | 'sparring';
+
+export const Watch: React.FC = () => {
+    console.log('🎬 [Watch] Component rendering');
+
+    const [activeTab, setActiveTab] = useState<WatchTab>('mix');
+    const { user } = useAuth();
+    const [loadingMix, setLoadingMix] = useState(false);
+    const [mixedItems, setMixedItems] = useState<MixedItem[]>([]);
+
+    const tabs = [
+        { id: 'mix' as const, label: '믹스', icon: Shuffle, color: 'text-pink-500' },
+        { id: 'classes' as const, label: '클래스', icon: PlayCircle, color: 'text-blue-400' },
+        { id: 'drills' as const, label: '드릴', icon: Zap, color: 'text-yellow-400' },
+        { id: 'sparring' as const, label: '스파링', icon: Swords, color: 'text-violet-400' },
+    ];
+
+    // Load Mix Data
+    useEffect(() => {
+        console.log('🎬 [Watch] useEffect triggered, activeTab:', activeTab);
+        if (activeTab === 'mix' && mixedItems.length === 0) {
+            console.log('🎬 [Watch] Loading mix content...');
+            loadMixedContent();
+        }
+    }, [activeTab, mixedItems.length]);
+
+    const loadMixedContent = async () => {
+        console.log('🔥 [Watch] loadMixedContent CALLED');
+        try {
+            setLoadingMix(true);
+
+            const { getAccessibleDrills, getAccessibleLessons, getAccessibleSparring } = await import('../lib/api-accessible-content');
+            const { fetchCreatorsByIds, transformLesson } = await import('../lib/api');
+            const userId = user?.id || null;
+            console.log('🔥 [Watch] User ID:', userId);
+
+            const [drillsRes, sparringRes, lessonsRes] = await Promise.all([
+                getAccessibleDrills(userId, 50),
+                getAccessibleSparring(userId, 20),
+                getAccessibleLessons(userId, 50)
+            ]);
+
+            console.log('🔥 [Watch] Data fetched:', {
+                drills: drillsRes.data?.length,
+                sparring: sparringRes.data?.length,
+                lessons: lessonsRes.data?.length
+            });
+
+            let items: MixedItem[] = [];
+
+            // Process Drills
+            if (drillsRes.data && drillsRes.data.length > 0) {
+                const creatorIds = drillsRes.data.map((d: any) => d.creator_id);
+                const creatorsMap = await fetchCreatorsByIds(creatorIds);
+
+                const drills: MixedItem[] = drillsRes.data.map((d: any) => ({
+                    type: 'drill' as const,
+                    data: {
+                        id: d.id,
+                        title: d.title,
+                        description: d.description,
+                        creatorId: d.creator_id,
+                        creatorName: creatorsMap[d.creator_id]?.name || 'Unknown',
+                        creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
+                        category: d.category,
+                        difficulty: d.difficulty,
+                        thumbnailUrl: d.thumbnail_url,
+                        videoUrl: d.video_url,
+                        vimeoUrl: d.vimeo_url,
+                        descriptionVideoUrl: d.description_video_url,
+                        aspectRatio: '9:16' as const,
+                        views: d.views || 0,
+                        durationMinutes: d.duration_minutes || 0,
+                        length: d.length || d.duration,
+                        tags: d.tags || [],
+                        likes: d.likes || 0,
+                        price: d.price || 0,
+                        createdAt: d.created_at,
+                    }
+                }));
+                items = [...items, ...drills];
+            }
+
+            // Process Sparring
+            if (sparringRes.data && sparringRes.data.length > 0) {
+                const sparring: MixedItem[] = sparringRes.data.map((s: any) => ({
+                    type: 'sparring' as const,
+                    data: s
+                }));
+                items = [...items, ...sparring];
+            }
+
+            // Process Lessons
+            if (lessonsRes.data && lessonsRes.data.length > 0) {
+                const lessons: MixedItem[] = lessonsRes.data.map((l: any) => ({
+                    type: 'lesson' as const,
+                    data: transformLesson(l)
+                }));
+                items = [...items, ...lessons];
+            }
+
+            // Shuffle
+            for (let i = items.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [items[i], items[j]] = [items[j], items[i]];
+            }
+
+            console.log('🔥 [Watch] Total items after processing:', items.length);
+            setMixedItems(items);
+            setLoadingMix(false);
+
+        } catch (error) {
+            console.error("Failed to load mixed content", error);
+            setLoadingMix(false);
+        }
+    };
+
+    return (
+        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden">
+            {/* Left Sub-Navigation Sidebar */}
+            <div className="hidden sm:flex w-20 md:w-24 flex-col items-center py-8 gap-8 border-r border-zinc-900 bg-zinc-950/20 backdrop-blur-sm z-50">
+                <div className="flex flex-col gap-6">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={cn(
+                                    "group flex flex-col items-center gap-1.5 transition-all outline-none",
+                                    isActive ? "opacity-100 scale-110" : "opacity-40 hover:opacity-100"
+                                )}
+                            >
+                                <div className={cn(
+                                    "p-3 rounded-2xl transition-all duration-300",
+                                    isActive ? "bg-zinc-800 shadow-lg shadow-white/5 ring-1 ring-white/10" : "bg-transparent group-hover:bg-zinc-900"
+                                )}>
+                                    <Icon className={cn("w-5 h-5", isActive ? tab.color : "text-zinc-400")} />
+                                </div>
+                                <span className={cn(
+                                    "text-[10px] font-bold tracking-tight transition-colors",
+                                    isActive ? "text-white" : "text-zinc-500"
+                                )}>
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Mobile Top Tab Picker */}
+            <div className="sm:hidden absolute top-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
+                <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center pointer-events-auto shadow-2xl">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap",
+                                    isActive ? "bg-zinc-800 text-white shadow-lg" : "text-zinc-500 hover:text-white"
+                                )}
+                            >
+                                <Icon className={cn("w-3.5 h-3.5", isActive ? tab.color : "text-zinc-600")} />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 h-full relative">
+                {activeTab === 'mix' && (
+                    <div className="w-full h-full">
+                        {loadingMix ? (
+                            <LoadingScreen message="영상을 섞고 있습니다..." />
+                        ) : mixedItems.length > 0 ? (
+                            <MixedReelsFeed items={mixedItems} />
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-zinc-500">
+                                <p>표시할 콘텐츠가 없습니다</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'classes' && <LessonReels />}
+                {activeTab === 'drills' && <Drills />}
+                {activeTab === 'sparring' && <SparringFeed forceViewMode="reels" />}
+            </div>
+        </div>
+    );
+};

@@ -164,8 +164,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     }
 
     return (
-        <>
-            <div
+        <div
                 className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
                 style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
                 onTouchStart={handleTouchStart}
@@ -294,7 +293,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onChangeView(); }}
-                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl"
+                                        className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl"
                                     >
                                         <Grid className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
@@ -343,10 +342,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 )}
 
                 {/* Content & Info - Bottom (Attached to Video) */}
-                <div className="absolute left-0 right-0 w-full bottom-28 px-6 z-40 pointer-events-none">
+                <div className="absolute left-0 right-0 w-full bottom-24 px-6 z-40 pointer-events-none">
                     <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
                         {/* Info - Always inside video */}
                         <div className="flex-1 pr-16">
+                            <div className="inline-block px-2 py-0.5 bg-yellow-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">DRILL</div>
                             <div className="flex items-center gap-3 mb-3">
                                 <Link
                                     to={`/creator/${drill.creatorId}`}
@@ -402,6 +402,5 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     />
                 </div>
             </div>
-        </>
     );
 };

@@ -69,6 +69,9 @@ export interface Lesson {
   createdAt: string;
   isSubscriptionExcluded?: boolean;
   isPreview?: boolean;
+  courseTitle?: string;
+  creatorName?: string; // Added for reel display
+  creatorProfileImage?: string; // Added for reel display
 }
 
 
@@ -200,8 +203,10 @@ export interface SparringVideo {
   creator?: Creator; // Joined creator profile
   creatorProfileImage?: string; // Add for consistent access
   createdAt?: string; // Standardized to camelCase
-  category?: 'Sparring' | 'Competition'; // Competition vs Regular Sparring
+  category?: VideoCategory | 'Sparring' | 'Competition'; // Competition vs Regular Sparring vs Technical Categories
   uniformType?: 'Gi' | 'No-Gi'; // Gi vs No-Gi
+  difficulty?: Difficulty;
+  price: number; // Price in cents (0 = free)
 }
 
 export interface LogFeedback {
@@ -737,3 +742,23 @@ export interface Testimonial {
 
 
 
+
+export interface WeeklySchedule {
+  [key: string]: DrillRoutine[];
+}
+
+export interface WeeklyRoutinePlan {
+  id: string;
+  userId: string;
+  title: string;
+  schedule: WeeklySchedule;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  thumbnailUrl?: string;
+  description?: string;
+  tags?: string[];
+  view_count?: number;
+  creatorName?: string;
+  creatorAvatar?: string;
+}

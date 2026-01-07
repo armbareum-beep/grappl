@@ -911,9 +911,6 @@ export const JournalTab: React.FC = () => {
                     title={shareTitle}
                     text={shareText}
                     imageUrl={shareImage}
-                    initialStep="select"
-                    activityType="general"
-                    metadata={{ type: 'stats_share' }}
                 />
             )}
 

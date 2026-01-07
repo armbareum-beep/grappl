@@ -52,7 +52,7 @@ export const LessonDetail: React.FC = () => {
                     let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
-                    if (!hasAccess && (lessonData.lessonNumber === 1 || (courseData && courseData.price === 0))) {
+                    if (!hasAccess && (courseData && courseData.price === 0)) {
                         hasAccess = true;
                     }
 
@@ -276,13 +276,6 @@ export const LessonDetail: React.FC = () => {
                         text={lesson.description}
                         url={window.location.href}
                         imageUrl={lesson.thumbnailUrl || course?.thumbnailUrl}
-                        initialStep="write"
-                        activityType="general"
-                        metadata={{
-                            type: 'lesson',
-                            lessonId: lesson.id,
-                            lessonTitle: lesson.title
-                        }}
                     />
                 </React.Suspense>
             )}

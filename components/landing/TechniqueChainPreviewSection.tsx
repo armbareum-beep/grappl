@@ -121,7 +121,7 @@ export const TechniqueChainPreviewSection = () => {
                     {/* CTA Button Overlay */}
                     <div className="absolute bottom-0 inset-x-0 flex items-end justify-center pb-8 z-30 pointer-events-none">
                         <button
-                            onClick={() => navigate('/journal?tab=library')}
+                            onClick={() => navigate('/agora?tab=roadmaps')}
                             className="pointer-events-auto bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm px-6 py-3 rounded-full shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:scale-105 transition-all flex items-center gap-2"
                         >
                             <Network className="w-4 h-4" /> 전체 라이브러리 보기

@@ -3,7 +3,7 @@ import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, Chevr
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getUserRoutines, getCompletedRoutinesToday, getUserSavedDrills, toggleDrillSave, getRandomSampleRoutines } from '../../lib/api';
+import { getUserRoutines, getUserSavedDrills, toggleDrillSave } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
@@ -23,7 +23,7 @@ export const TrainingRoutinesTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
-    const [completedRoutineIds, setCompletedRoutineIds] = useState<Set<string>>(new Set());
+
 
     // Custom Routine Creation State
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -131,8 +131,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                 setRoutines(customRoutines);
             }
 
-            const completedIds = await getCompletedRoutinesToday(user.id);
-            setCompletedRoutineIds(new Set(completedIds));
+
         } catch (err: any) {
             console.error('Error loading routines:', err);
             setError(err.message || '훈련 루틴을 불러오는 중 오류가 발생했습니다.');
@@ -147,16 +146,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         if (user) {
             loadRoutines();
         } else {
-            // Load random sample routines for non-logged-in users
-            const loadSampleRoutines = async () => {
-                setLoading(true);
-                const result = await getRandomSampleRoutines(1);
-                if (result.data) {
-                    setRoutines(result.data);
-                }
-                setLoading(false);
-            };
-            loadSampleRoutines();
+            setLoading(false);
         }
     }, [user]);
 
@@ -545,13 +535,7 @@ export const TrainingRoutinesTab: React.FC = () => {
 
             {/* My Routines Section */}
             <section>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-zinc-50 flex items-center gap-2">
-                        <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800">
-                            <PlaySquare className="w-5 h-5 text-violet-500" />
-                        </div>
-                        {user ? '나의 훈련 루틴' : '오늘의 샘플 루틴'}
-                    </h2>
+                <div className="flex items-center justify-end mb-6">
                     <div className="flex flex-wrap items-center gap-3">
                         {user && (
                             <Button
@@ -589,7 +573,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                         {/* Mobile List View */}
                         <div className="md:hidden space-y-3">
                             {displayedRoutines.map((routine) => {
-                                const isCompleted = completedRoutineIds.has(routine.id);
+
                                 const isSelected = selectedRoutineForPlacement?.id === routine.id;
 
                                 return (
@@ -688,7 +672,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                         {/* Desktop Card View */}
                         <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {displayedRoutines.map((routine) => {
-                                const isCompleted = completedRoutineIds.has(routine.id);
+
                                 const isSelected = selectedRoutineForPlacement?.id === routine.id;
 
                                 return (
@@ -806,10 +790,10 @@ export const TrainingRoutinesTab: React.FC = () => {
                         <h3 className="text-zinc-200 font-bold text-lg mb-2">아직 생성된 루틴이 없습니다.</h3>
                         <p className="text-sm text-zinc-500 mb-8 max-w-sm">드릴을 선택하고 조합하여 나만의 최적화된 훈련 루틴을 계획해보세요!</p>
                         <Button
-                            onClick={() => navigate('/drills')}
+                            onClick={() => navigate('/library?tab=routines')}
                             className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-8 py-3 shadow-lg shadow-violet-900/30 border-none"
                         >
-                            드릴 탐색하러 가기
+                            루틴 찾아보기
                         </Button>
                     </div>
                 )}
@@ -934,14 +918,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                         text={routineToShare.description || `Check out this routine: ${routineToShare.title}`}
                         url={`${window.location.origin}/routines/${routineToShare.id}`}
                         imageUrl={routineToShare.thumbnailUrl}
-                        initialStep="write"
-                        activityType="routine"
-                        metadata={{
-                            type: 'routine',
-                            routineId: routineToShare.id,
-                            routineTitle: routineToShare.title,
-                            sharedRoutine: routineToShare
-                        }}
                     />
                 )}
             </React.Suspense>

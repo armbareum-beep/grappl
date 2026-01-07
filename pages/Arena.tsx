@@ -72,7 +72,7 @@ export const Arena: React.FC = () => {
                     {ARENA_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
-                        const isLocked = !user && tab.id === 'sparring';
+                        const isLocked = !user && (tab.id === 'routines' || tab.id === 'journal');
 
                         return (
                             <div key={tab.id} className="relative group">

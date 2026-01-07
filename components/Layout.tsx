@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Zap, Trophy, Users, Clapperboard, HelpCircle, Search } from 'lucide-react';
+import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Globe } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -44,14 +44,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const navigation = [
-    { name: '클래스', href: '/browse', icon: BookOpen },
-    { name: '드릴 & 루틴', href: '/drills', icon: Zap },
-    { name: '스파링', href: '/sparring', icon: Clapperboard },
-    { name: '피드', href: '/journal', icon: Users },
-    { name: '아레나', href: '/arena', icon: Trophy },
+    { name: '라이브러리', href: '/library', icon: BookOpen },
+    { name: '워치', href: '/watch', icon: Clapperboard },
+    { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
+    { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
+    // { name: '아고라', href: '/agora', icon: Globe },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    const searchParams = new URLSearchParams(location.search);
+    const hrefPath = path.split('?')[0];
+    const hrefTab = new URLSearchParams(path.split('?')[1]).get('tab');
+
+    if (hrefTab) {
+      return location.pathname === hrefPath && searchParams.get('tab') === hrefTab;
+    }
+    if (hrefPath === '/library') {
+      return location.pathname === hrefPath && (!searchParams.get('tab') || searchParams.get('tab') === 'classes');
+    }
+    return location.pathname === hrefPath || (hrefPath !== '/' && location.pathname.startsWith(hrefPath));
+  };
 
   const isLandingPage = location.pathname === '/';
 
@@ -59,24 +71,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Full screen pages (no header, no bottom nav)
-  const isFullScreenPage =
-    location.pathname.startsWith('/drills') || // Drill list AND detail
-    location.pathname.startsWith('/drill-routines/') || // Drill Routine detail
-    location.pathname === '/sparring' || // Sparring feed
-    location.pathname.startsWith('/routines/') || // Routine detail
-    location.pathname.startsWith('/my-routines/'); // My routine detail
+  // Define which pages hide the top header and mobile bottom nav
+  const isFullScreenMode = [
+    '/watch',
+    // '/skill-tree',
+    '/drills',
+    '/sparring',
+    '/routines/',
+    '/my-routines/'
+  ].some(path => location.pathname.startsWith(path));
 
-  if (isFullScreenPage) {
-    return <>{children}</>;
-  }
+  // Pages that need fixed viewport (no window scroll, internal scroll or canvas)
+  const isFixedLayout = [
+    '/skill-tree'
+  ].some(path => location.pathname.startsWith(path));
 
-  // Sidebar is enabled only for specific "Full Screen" / Detail pages
-  const isSidebarPage = ['/drills', '/sparring', '/routines', '/my-routines', '/drill-routines'].some(path => location.pathname.startsWith(path));
+  // Define which pages show the sidebar
+  const isSidebarPage = [
+    '/watch'
+  ].some(path => location.pathname.startsWith(path));
+
+  // If it's a "classic" full screen (like a detail page with no sidebar needed either)
+  // we might still want to keep it simple. But user wants Sidebar on /watch and /skill-tree.
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
-
+    <div className={cn(
+      "flex flex-col bg-background text-foreground font-sans",
+      isFixedLayout ? "h-screen overflow-hidden" : "min-h-screen"
+    )}>
       {/* ========================================================================================= */}
       {/* FLOATING SIDEBAR ICONS - Visible only on MD+ AND specific pages */}
       {/* ========================================================================================= */}
@@ -112,167 +134,245 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Navigation */}
-      <nav className={cn(
-        "sticky top-0 w-full transition-all duration-300",
-        mobileMenuOpen ? "z-[99999]" : "z-[11000]",
-        location.pathname === '/pricing'
-          ? "bg-zinc-950"
-          : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
-      )}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20 relative">
-            {/* Left Section: Desktop Logo OR Mobile Search */}
-            <div className="flex items-center">
-              {/* Desktop Logo */}
-              <Link to="/" className="hidden md:flex items-center group transition-transform hover:scale-105">
-                <span className="text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
-                  Grapplay
-                </span>
-              </Link>
+      {!isFullScreenMode && (
+        <nav className={cn(
+          "sticky top-0 w-full transition-all duration-300",
+          mobileMenuOpen ? "z-[99999]" : "z-[11000]",
+          location.pathname === '/pricing'
+            ? "bg-zinc-950"
+            : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
+        )}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-20 relative">
+              {/* Left Section: Desktop Logo OR Mobile Search */}
+              <div className="flex items-center">
+                {/* Desktop Logo */}
+                <Link to="/" className="hidden md:flex items-center group transition-transform hover:scale-105">
+                  <span className="text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
+                    Grapplay
+                  </span>
+                </Link>
 
-              {/* Mobile Search Icon */}
-              <div className="md:hidden">
-                <button onClick={() => setSearchModalOpen(true)} className="p-2 -ml-2 text-muted-foreground hover:text-foreground flex items-center justify-center">
-                  <Search className="w-6 h-6" />
+                {/* Mobile Search Icon */}
+                <div className="md:hidden">
+                  <button onClick={() => setSearchModalOpen(true)} className="p-2 -ml-2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                    <Search className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Center Section: Mobile Logo */}
+              <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Link to="/" className="flex items-center pointer-events-auto">
+                  <span className="text-xl font-black text-white tracking-tighter">
+                    Grapplay
+                  </span>
+                </Link>
+              </div>
+
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center space-x-1">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={cn(
+                        "px-3 lg:px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-1.5 lg:space-x-2 whitespace-nowrap",
+                        isActive(item.href)
+                          ? "bg-violet-600/20 text-violet-400 shadow-lg shadow-violet-900/20 border border-violet-500/30" // Active State
+                          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent" // Inactive State
+                      )}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+
+              </div>
+
+              {/* Right side buttons */}
+              <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
+                {user && <NotificationDropdown />}
+                {user && isAdmin && (
+                  <>
+                    <Link to="/admin/dashboard">
+                      <Button variant="outline" size="sm" className="flex items-center space-x-2 border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-400/50 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl font-bold transition-all duration-300">
+                        <Settings className="w-4 h-4 flex-shrink-0" />
+                        <span className="hidden lg:inline">관리자</span>
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                {user && !isCreator && (
+                  <Link to="/become-creator">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
+                      <Upload className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden lg:inline">인스트럭터 신청</span>
+                    </Button>
+                  </Link>
+                )}
+                {user && isCreator && (
+                  <Link to="/creator">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
+                      <Upload className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden lg:inline">대시보드</span>
+                    </Button>
+                  </Link>
+                )}
+
+                {user ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
+                    >
+                      <User className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden lg:inline">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
+                    </button>
+
+                    {userMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-3 py-2 text-xs font-bold text-zinc-500 border-b border-zinc-800/50 mb-1 uppercase tracking-wider">
+                          내 계정
+                        </div>
+                        <Link
+                          to="/my-library"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          <span>내 라이브러리</span>
+                        </Link>
+                        <Link
+                          to="/settings"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>설정</span>
+                        </Link>
+                        <div className="h-px bg-zinc-800/50 my-2 mx-2" />
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setUserMenuOpen(false);
+                          }}
+                          className="relative flex w-full cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-red-500/10 text-red-400 hover:text-red-300 mx-2 font-medium"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          <span>로그아웃</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link to="/login" className="text-zinc-400 hover:text-white text-sm font-bold transition-all duration-300 px-4 py-2 rounded-xl hover:bg-zinc-800/50">
+                    로그인
+                  </Link>
+                )}
+              </div>
+
+              {/* Mobile menu button */}
+              <div className="md:hidden flex items-center">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="text-muted-foreground hover:text-foreground p-2"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                 </button>
               </div>
             </div>
-
-            {/* Center Section: Mobile Logo */}
-            <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none">
-              <Link to="/" className="flex items-center pointer-events-auto">
-                <span className="text-xl font-black text-white tracking-tighter">
-                  Grapplay
-                </span>
-              </Link>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={cn(
-                      "px-3 lg:px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-1.5 lg:space-x-2 whitespace-nowrap",
-                      isActive(item.href)
-                        ? "bg-violet-600/20 text-violet-400 shadow-lg shadow-violet-900/20 border border-violet-500/30" // Active State
-                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent" // Inactive State
-                    )}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-
-            </div>
-
-            {/* Right side buttons */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
-              {user && <NotificationDropdown />}
-              {user && isAdmin && (
-                <>
-                  <Link to="/admin/dashboard">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-400/50 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl font-bold transition-all duration-300">
-                      <Settings className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden lg:inline">관리자</span>
-                    </Button>
-                  </Link>
-                </>
-              )}
-              {user && !isCreator && (
-                <Link to="/become-creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
-                    <Upload className="w-4 h-4 flex-shrink-0" />
-                    <span className="hidden lg:inline">인스트럭터 신청</span>
-                  </Button>
-                </Link>
-              )}
-              {user && isCreator && (
-                <Link to="/creator">
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
-                    <Upload className="w-4 h-4 flex-shrink-0" />
-                    <span className="hidden lg:inline">대시보드</span>
-                  </Button>
-                </Link>
-              )}
-
-              {user ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
-                  >
-                    <User className="w-4 h-4 flex-shrink-0" />
-                    <span className="hidden lg:inline">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
-                      <div className="px-3 py-2 text-xs font-bold text-zinc-500 border-b border-zinc-800/50 mb-1 uppercase tracking-wider">
-                        내 계정
-                      </div>
-                      <Link
-                        to="/library"
-                        className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        <span>내 라이브러리</span>
-                      </Link>
-                      <Link
-                        to="/settings"
-                        className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>설정</span>
-                      </Link>
-                      <div className="h-px bg-zinc-800/50 my-2 mx-2" />
-                      <button
-                        onClick={() => {
-                          signOut();
-                          setUserMenuOpen(false);
-                        }}
-                        className="relative flex w-full cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-red-500/10 text-red-400 hover:text-red-300 mx-2 font-medium"
-                      >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>로그아웃</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link to="/login" className="text-zinc-400 hover:text-white text-sm font-bold transition-all duration-300 px-4 py-2 rounded-xl hover:bg-zinc-800/50">
-                  로그인
-                </Link>
-              )}
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-muted-foreground hover:text-foreground p-2"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
           </div>
-        </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-5 duration-200">
-            <div className="px-4 pt-4 pb-6 space-y-2">
-              {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-5 duration-200">
+              <div className="px-4 pt-4 pb-6 space-y-2">
+                {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
 
-              {user ? (
-                <>
-                  {!isCreator && (
+                {user ? (
+                  <>
+                    {!isCreator && (
+                      <Link
+                        to="/become-creator"
+                        className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Upload className="w-5 h-5" />
+                        <span>인스트럭터 신청</span>
+                      </Link>
+                    )}
+
+                    {isCreator && (
+                      <Link
+                        to="/creator"
+                        className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Upload className="w-5 h-5" />
+                        <span>대시보드</span>
+                      </Link>
+                    )}
+
+                    <Link
+                      to="/contact"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <HelpCircle className="w-5 h-5" />
+                      <span>문의하기</span>
+                    </Link>
+
+                    <Link
+                      to="/pricing"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      <span>요금제</span>
+                    </Link>
+
+                    <Link
+                      to="/settings"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Settings className="w-5 h-5" />
+                      <span>설정</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-md text-base font-medium text-destructive hover:bg-destructive/10 flex items-center space-x-3"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span>로그아웃</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/pricing"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      <span>요금제</span>
+                    </Link>
+                    <Link
+                      to="/contact"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <HelpCircle className="w-5 h-5" />
+                      <span>문의하기</span>
+                    </Link>
                     <Link
                       to="/become-creator"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
@@ -281,109 +381,37 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <Upload className="w-5 h-5" />
                       <span>인스트럭터 신청</span>
                     </Link>
-                  )}
-
-                  {isCreator && (
-                    <Link
-                      to="/creator"
-                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Upload className="w-5 h-5" />
-                      <span>대시보드</span>
-                    </Link>
-                  )}
-
-                  <Link
-                    to="/contact"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <HelpCircle className="w-5 h-5" />
-                    <span>문의하기</span>
-                  </Link>
-
-                  <Link
-                    to="/pricing"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    <span>요금제</span>
-                  </Link>
-
-                  <Link
-                    to="/settings"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span>설정</span>
-                  </Link>
-
-                  <button
-                    onClick={() => {
-                      signOut();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 rounded-md text-base font-medium text-destructive hover:bg-destructive/10 flex items-center space-x-3"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    <span>로그아웃</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/pricing"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    <span>요금제</span>
-                  </Link>
-                  <Link
-                    to="/contact"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <HelpCircle className="w-5 h-5" />
-                    <span>문의하기</span>
-                  </Link>
-                  <Link
-                    to="/become-creator"
-                    className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Upload className="w-5 h-5" />
-                    <span>인스트럭터 신청</span>
-                  </Link>
-                  <div className="pt-2">
-                    <Link
-                      to="/login"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block w-full py-3 text-center rounded-xl border border-zinc-800 text-zinc-100 font-bold hover:bg-zinc-900 transition-colors"
-                    >
-                      로그인
-                    </Link>
-                  </div>
-                </>
-              )}
+                    <div className="pt-2">
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full py-3 text-center rounded-xl border border-zinc-800 text-zinc-100 font-bold hover:bg-zinc-900 transition-colors"
+                      >
+                        로그인
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </nav>
+          )}
+        </nav>
+      )}
 
       {/* Main Content */}
-      <main className={`flex-grow ${isLandingPage ? 'bg-black' : 'bg-background'}`}>
+      <main className={cn(
+        "flex-grow",
+        isLandingPage ? "bg-black" : "bg-background",
+        isFixedLayout && "flex flex-col h-full overflow-hidden"
+      )}>
         {children}
       </main>
 
       {/* Footer */}
-      {!['/drills', '/arena', '/sparring', '/journal', '/browse'].some(path => location.pathname.startsWith(path)) &&
+      {!['/drills', '/training-routines', '/sparring', '/browse', '/skill-tree'].some(path => location.pathname.startsWith(path)) &&
         !location.pathname.startsWith('/course') &&
         !location.pathname.startsWith('/routines') && (
-          <footer className={`bg-zinc-950 border-t border-zinc-900 mt-auto ${location.pathname === '/arena' ? 'hidden md:block' : ''}`}>
+          <footer className="bg-zinc-950 border-t border-zinc-900 mt-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
               <div className="grid md:grid-cols-4 gap-12 md:gap-8">
                 <div className="col-span-1 md:col-span-2 space-y-6">
@@ -454,52 +482,65 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay below modals */}
-      <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[40] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
-        <div className="grid grid-cols-5 h-full items-center relative">
-          {[
-            { name: '클래스', href: '/browse', icon: BookOpen },
-            { name: '드릴', href: '/drills', icon: Zap },
-            { name: '스파링', href: '/sparring', icon: Clapperboard },
-            { name: '피드', href: '/journal', icon: Users },
-            { name: '아레나', href: '/arena', icon: Trophy },
-          ].map((item) => {
-            const Icon = item.icon;
-            // Handle multiple paths for same tab
-            let isActive = location.pathname.startsWith(item.href);
-            if (item.href === '/browse' && (location.pathname.startsWith('/courses') || location.pathname.startsWith('/course'))) isActive = true;
+      {!isFullScreenMode && (
+        <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[40] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
+          <div className="grid grid-cols-4 h-full items-center relative">
+            {[
+              { name: '라이브러리', href: '/library', icon: BookOpen },
+              { name: '워치', href: '/watch', icon: Clapperboard },
+              { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
+              { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
+            ].map((item) => {
+              const Icon = item.icon;
+              const searchParams = new URLSearchParams(location.search);
+              const hrefPath = item.href.split('?')[0];
+              const hrefTab = new URLSearchParams(item.href.split('?')[1]).get('tab');
 
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
-                  isActive
-                    ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
-                    : "text-zinc-500 active:text-zinc-300"
-                )}
-              >
-                <Icon className={cn(
-                  "w-5 h-5 transition-all duration-300",
-                  isActive ? "scale-110" : "scale-100"
-                )} />
+              let isActive = location.pathname === hrefPath;
 
-                <span className={cn(
-                  "text-[10px] mt-1 font-medium transition-all duration-300",
-                  isActive ? "opacity-100" : "opacity-80"
-                )}>
-                  {item.name}
-                </span>
+              if (hrefTab) {
+                isActive = isActive && searchParams.get('tab') === hrefTab;
+                if (location.pathname.startsWith('/routines') || location.pathname.startsWith('/my-routines')) isActive = true;
+              } else if (hrefPath === '/library') {
+                isActive = isActive && (!searchParams.get('tab') || searchParams.get('tab') === 'classes');
+                if (location.pathname.startsWith('/browse') || location.pathname.startsWith('/course')) isActive = true;
+              }
 
-                {/* Active Indicator Dot */}
-                {isActive && (
-                  <div className="absolute bottom-1.5 w-1 h-1 bg-violet-400 rounded-full shadow-[0_0_8px_rgba(167,139,250,0.6)] animate-in zoom-in duration-300" />
-                )}
-              </Link>
-            );
-          })}
+              if (item.href === '/watch' && (location.pathname.startsWith('/drills'))) isActive = true;
+
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
+                    isActive
+                      ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
+                      : "text-zinc-500 active:text-zinc-300"
+                  )}
+                >
+                  <Icon className={cn(
+                    "w-5 h-5 transition-all duration-300",
+                    isActive ? "scale-110" : "scale-100"
+                  )} />
+
+                  <span className={cn(
+                    "text-[10px] mt-1 font-medium transition-all duration-300",
+                    isActive ? "opacity-100" : "opacity-80"
+                  )}>
+                    {item.name}
+                  </span>
+
+                  {/* Active Indicator Dot */}
+                  {isActive && (
+                    <div className="absolute bottom-1.5 w-1 h-1 bg-violet-400 rounded-full shadow-[0_0_8px_rgba(167,139,250,0.6)] animate-in zoom-in duration-300" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Global Search Modal */}
       <GlobalSearch isOpen={searchModalOpen} onClose={() => setSearchModalOpen(false)} />

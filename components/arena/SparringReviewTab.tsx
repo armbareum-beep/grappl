@@ -766,13 +766,6 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                         title="스파링 복기 공유"
                         text={shareModalData.defaultContent}
                         imageUrl={undefined} // No specific image for sparring review yet
-                        initialStep="write"
-                        activityType="sparring"
-                        metadata={{
-                            ...shareModalData.metadata,
-                            videoUrl: shareModalData.videoUrl,
-                            youtubeUrl: getYouTubeEmbedUrl(shareModalData.videoUrl || '') || undefined
-                        }}
                     />
                 )}
             </React.Suspense>

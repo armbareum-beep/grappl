@@ -273,8 +273,6 @@ export const VideoDetail: React.FC = () => {
             text={video.description}
             url={window.location.href}
             imageUrl={video.thumbnailUrl}
-            initialStep="write"
-            activityType="general"
           />
         )}
       </React.Suspense>

@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Link2, Facebook, Twitter, Instagram, Repeat, Share } from 'lucide-react';
+import { X, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { ShareToFeedModal } from './ShareToFeedModal';
-import { useAuth } from '../../contexts/AuthContext';
-import { createTrainingLog } from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
 
 const KakaoIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -27,96 +23,18 @@ interface ShareModalProps {
     text: string;
     url?: string;
     imageUrl?: string;
-    onFeedShare?: () => void;
-    initialStep?: 'write' | 'select';
-    activityType?: 'routine' | 'sparring' | 'level_up' | 'title_earned' | 'technique' | 'general' | 'repost' | 'drill_reel';
-    metadata?: Record<string, any>;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
     isOpen,
     onClose,
     title,
-    text: initialText,
+    text,
     url,
     imageUrl,
-    onFeedShare,
-    initialStep = 'select',
-    activityType = 'general',
-    metadata: initialMetadata
 }) => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const location = useLocation();
     const shareUrl = url || window.location.href;
     const [copied, setCopied] = useState(false);
-    const [showFeedModal, setShowFeedModal] = useState(initialStep === 'write' || false);
-    const [customText, setCustomText] = useState<string | null>(null);
-    const [hasAlreadySharedToFeed, setHasAlreadySharedToFeed] = useState(false);
-
-    const activeText = customText || initialText;
-
-    if (showFeedModal) {
-        return (
-            <ShareToFeedModal
-                isOpen={showFeedModal}
-                onClose={() => {
-                    if (initialStep === 'write') {
-                        // If we started with write and user cancels/closes, close the whole share flow
-                        onClose();
-                    } else {
-                        // Otherwise just go back to selection
-                        setShowFeedModal(false);
-                    }
-                }}
-                onShare={async (comment) => {
-                    if (!user) return;
-
-                    // Create the feed post
-                    await createTrainingLog({
-                        userId: user.id,
-                        date: new Date().toISOString().split('T')[0],
-                        durationMinutes: 0,
-                        techniques: [],
-                        sparringRounds: 0,
-                        notes: comment,
-                        isPublic: true,
-                        location: '__FEED__',
-                        type: activityType as any,
-                        metadata: {
-                            type: 'share_link',
-                            sharedTitle: title,
-                            sharedUrl: shareUrl,
-                            sharedImage: imageUrl,
-                            images: imageUrl ? [imageUrl] : [],
-                            ...initialMetadata
-                        }
-                    });
-
-                    setCustomText(comment);
-                    setHasAlreadySharedToFeed(true);
-
-                    if (initialStep === 'write') {
-                        // Transition to destination selection
-                        setShowFeedModal(false);
-                    } else {
-                        // Close if we came from destination selection
-                        setShowFeedModal(false);
-                        onClose();
-                    }
-                }}
-                activityType={activityType}
-                defaultContent={customText || `${title}\n${shareUrl}`}
-                metadata={{
-                    userName: user?.user_metadata?.name || 'User',
-                    userAvatar: user?.user_metadata?.avatar_url,
-                    images: imageUrl ? [imageUrl] : [],
-                    notes: initialText,
-                    ...initialMetadata
-                }}
-            />
-        );
-    }
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareUrl);
@@ -127,57 +45,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const handleShare = async (platform: string) => {
         let openUrl = '';
         const encodedUrl = encodeURIComponent(shareUrl);
-        const encodedText = encodeURIComponent(activeText);
+        const encodedText = encodeURIComponent(text);
 
         switch (platform) {
-            case 'feed':
-                if (!user) {
-                    onClose();
-                    navigate('/login', { state: { from: location } });
-                    return;
-                }
-
-                if (hasAlreadySharedToFeed) {
-                    alert('이미 피드에 공유되었습니다.');
-                    return;
-                }
-
-                if (onFeedShare) {
-                    onFeedShare();
-                    return;
-                }
-
-                setShowFeedModal(true);
-                return;
-            case 'system':
-                if (navigator.share && imageUrl) {
-                    try {
-                        const blob = await (await fetch(imageUrl)).blob();
-                        const file = new File([blob], "share.png", { type: blob.type });
-                        await navigator.share({
-                            title: title,
-                            text: activeText,
-                            url: shareUrl,
-                            files: [file]
-                        });
-                    } catch (err) {
-                        console.error('System share failed:', err);
-                    }
-                } else if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: title,
-                            text: activeText,
-                            url: shareUrl
-                        });
-                    } catch (err) {
-                        console.error('System share failed:', err);
-                    }
-                } else {
-                    handleCopy();
-                    alert('이기기에서는 공유 기능을 지원하지 않습니다. 링크가 복사되었습니다.');
-                }
-                return;
             case 'kakao':
                 handleCopy();
                 alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
@@ -226,7 +96,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                             <div className="flex items-center justify-between mb-8">
                                 <div>
                                     <h3 className="text-2xl font-black text-white leading-tight tracking-tight">공유하기</h3>
-                                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Share with followers</p>
+                                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Share with friends</p>
                                 </div>
                                 <button
                                     onClick={onClose}
@@ -258,21 +128,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                     onClick={handleCopy}
                                     color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/50"
                                     active={copied}
-                                />
-
-                                <ShareButton
-                                    icon={<Repeat className="w-5 h-5" />}
-                                    label={hasAlreadySharedToFeed ? "공유됨" : "피드 공유"}
-                                    onClick={() => handleShare('feed')}
-                                    color={hasAlreadySharedToFeed ? "bg-zinc-800 text-zinc-500" : "bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-900/40"}
-                                    active={hasAlreadySharedToFeed}
-                                />
-
-                                <ShareButton
-                                    icon={<Share className="w-5 h-5" />}
-                                    label="다른 앱"
-                                    onClick={() => handleShare('system')}
-                                    color="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/50"
                                 />
 
                                 <ShareButton
@@ -348,4 +203,3 @@ const ShareButton: React.FC<{
 );
 
 export default ShareModal;
-

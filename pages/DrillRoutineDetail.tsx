@@ -328,14 +328,6 @@ export const DrillRoutineDetail: React.FC = () => {
                         text={routine.description || `Check out this routine: ${routine.title}`}
                         url={`${window.location.origin}/routines/${routine.id}`}
                         imageUrl={routine.thumbnailUrl}
-                        initialStep="write"
-                        activityType="routine"
-                        metadata={{
-                            type: 'routine',
-                            routineId: routine.id,
-                            routineTitle: routine.title,
-                            sharedRoutine: routine // Pass full routine object for advanced card rendering
-                        }}
                     />
                 )}
             </React.Suspense>

@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
-import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone, Bookmark } from 'lucide-react';
 import { updateUserProfile, uploadProfileImage, updateCreatorProfile, getCreatorById, updatePassword, getUserSubscription, cancelSubscription } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription' | 'app';
+type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription' | 'app' | 'library';
 
 export const Settings: React.FC = () => {
     const { user, isCreator, signOut } = useAuth();
+    const navigate = useNavigate();
     const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -531,6 +533,73 @@ export const Settings: React.FC = () => {
                         </div>
                     </div>
                 );
+            case 'library':
+                return (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div>
+                            <h3 className="text-xl font-bold text-white mb-1">나의 라이브러리</h3>
+                            <p className="text-sm text-zinc-400">저장한 콘텐츠를 한눈에 관리하세요.</p>
+                        </div>
+
+                        <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 p-6 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-6">
+                                <div className="px-3 py-1 rounded-full text-xs font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                    저장된 콘텐츠
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-5 mb-8">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                                    <Bookmark className="w-7 h-7 text-white" />
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-bold text-white mb-1">라이브러리 접근</h4>
+                                    <p className="text-sm text-zinc-400 mb-4">저장한 클래스, 레슨, 루틴, 드릴, 스파링 영상을 한곳에서 관리할 수 있습니다.</p>
+                                    <Button
+                                        onClick={() => navigate('/saved')}
+                                        variant="primary"
+                                    >
+                                        라이브러리로 이동
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 pt-8 border-t border-zinc-800">
+                                <h5 className="text-sm font-bold text-zinc-300 mb-4 uppercase tracking-widest">기능</h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex items-start gap-3 p-4 bg-zinc-800/20 rounded-lg border border-zinc-700/30">
+                                        <div className="w-2 h-2 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-white">클래스 저장</p>
+                                            <p className="text-xs text-zinc-400">원하는 클래스를 저장하고 언제든 다시 보기</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-4 bg-zinc-800/20 rounded-lg border border-zinc-700/30">
+                                        <div className="w-2 h-2 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-white">루틴 저장</p>
+                                            <p className="text-xs text-zinc-400">훈련 루틴도 라이브러리에서 관리</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-4 bg-zinc-800/20 rounded-lg border border-zinc-700/30">
+                                        <div className="w-2 h-2 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-white">드릴 저장</p>
+                                            <p className="text-xs text-zinc-400">개별 드릴을 저장해 연습 준비</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-4 bg-zinc-800/20 rounded-lg border border-zinc-700/30">
+                                        <div className="w-2 h-2 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-white">스파링 영상</p>
+                                            <p className="text-xs text-zinc-400">관심 스파링 영상을 모아보기</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
             default:
                 return null;
         }
@@ -551,6 +620,7 @@ export const Settings: React.FC = () => {
                     <nav className="w-full lg:w-64 flex-shrink-0 space-y-2">
                         {[
                             { id: 'profile', label: '프로필 설정', icon: User },
+                            { id: 'library', label: '나의 라이브러리', icon: Bookmark },
                             { id: 'subscription', label: '멤버십 구독', icon: CreditCard },
                             { id: 'notifications', label: '알림 설정', icon: Bell },
                             { id: 'security', label: '보안', icon: Shield },

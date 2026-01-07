@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, Share2, GitBranch, Zap, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // Mock Data for Technique Chains
 const FEATURED_CHAINS = [
@@ -81,7 +81,7 @@ export const TechniqueChainLibrarySection = () => {
                     </ul>
 
                     <button
-                        onClick={() => navigate('/arena')}
+                        onClick={() => navigate('/agora?tab=roadmaps')}
                         className="group flex items-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold transition-all hover:bg-violet-500 hover:text-white"
                     >
                         체인 라이브러리 탐색

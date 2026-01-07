@@ -9,16 +9,12 @@ import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { ClassShowcase } from '../components/ClassShowcase';
 import { DailyFreeDrillSection } from '../components/DailyFreeDrillSection';
 import { DrillReelsSection } from '../components/DrillReelsSection';
-import { CommunityFeedSection } from '../components/CommunityFeedSection';
-
+import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
+import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
 
 import { getTestimonials, getRoutines, getPublicSparringVideos, getSparringVideos } from '../lib/api';
 import { Testimonial } from '../types';
 import { cn } from '../lib/utils';
-
-import { JournalPromotionSection } from '../components/landing/JournalPromotionSection';
-import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
-import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
 
 export const LandingPage: React.FC = () => {
     // Force redeploy check
@@ -304,12 +300,9 @@ export const LandingPage: React.FC = () => {
             {/* 학습 시스템 블록 - 체계적인 성장 경로 제시 */}
             <CapsuleRoadmapSection />
             <RoutinePromotionSection />
-            <JournalPromotionSection />
 
             {/* 실전 증거 블록 - 소셜 증거 준비 */}
             <RandomSparringShowcase />
-
-            <CommunityFeedSection />
 
             {/* 7 & 8. Unified Social Proof & Final CTA Area */}
             <div className="relative overflow-hidden">

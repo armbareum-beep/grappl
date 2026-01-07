@@ -224,13 +224,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         text={currentDrill.description || `Check out this drill: ${currentDrill.title}`}
                         url={`${window.location.origin}/drills/${currentDrill.id}`}
                         imageUrl={currentDrill.thumbnailUrl}
-                        initialStep="write"
-                        activityType="drill_reel"
-                        metadata={{
-                            type: 'drill',
-                            drillId: currentDrill.id,
-                            drillTitle: currentDrill.title
-                        }}
                     />
                 )}
             </React.Suspense>

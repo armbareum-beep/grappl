@@ -6,6 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 interface User extends SupabaseUser {
     isSubscriber?: boolean;
     subscription_tier?: string;
+    ownedVideoIds?: string[];
 }
 
 interface AuthContextType {
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('is_admin, is_subscriber, subscription_tier').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -65,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isAdmin: userData?.is_admin === true,
                 isSubscribed: userData?.is_subscriber === true,
                 subscriptionTier: userData?.subscription_tier,
+                ownedVideoIds: userData?.owned_video_ids || [],
                 isCreator: creatorData?.approved === true
             };
 
@@ -76,15 +78,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Update cache
             localStorage.setItem(cacheKey, JSON.stringify(newStatus));
 
-            return { isSubscribed: newStatus.isSubscribed, subscriptionTier: newStatus.subscriptionTier };
+            return {
+                isSubscribed: newStatus.isSubscribed,
+                subscriptionTier: newStatus.subscriptionTier,
+                ownedVideoIds: newStatus.ownedVideoIds
+            };
         } catch (error) {
             console.error('Error checking user status:', error);
             // If network fails but we had cache, keep using cache
             if (cached) {
                 const parsed = JSON.parse(cached);
-                return { isSubscribed: parsed.isSubscribed, subscriptionTier: parsed.subscriptionTier };
+                return {
+                    isSubscribed: parsed.isSubscribed,
+                    subscriptionTier: parsed.subscriptionTier,
+                    ownedVideoIds: parsed.ownedVideoIds
+                };
             }
-            return { isSubscribed: false, subscriptionTier: undefined };
+            return { isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
         }
     };
 
@@ -121,7 +131,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
-                            setUser({ ...baseUser, isSubscriber: parsed.isSubscribed, subscription_tier: parsed.subscriptionTier });
+                            setUser({
+                                ...baseUser,
+                                isSubscriber: parsed.isSubscribed,
+                                subscription_tier: parsed.subscriptionTier,
+                                ownedVideoIds: parsed.ownedVideoIds
+                            });
                             // Set loading false immediately if we have cache
                             setLoading(false);
                         } catch (e) {
@@ -129,9 +144,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         }
                     }
 
-                    const { isSubscribed: subscribed, subscriptionTier } = await checkUserStatus(baseUser.id);
+                    const { isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
-                        setUser({ ...baseUser, isSubscriber: subscribed, subscription_tier: subscriptionTier });
+                        setUser({
+                            ...baseUser,
+                            isSubscriber: subscribed,
+                            subscription_tier: subscriptionTier,
+                            ownedVideoIds
+                        });
                     }
                 } else {
                     if (mounted) {
@@ -161,9 +181,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isSubscribed: subscribed, subscriptionTier } = await checkUserStatus(baseUser.id);
+                    const { isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
-                        setUser({ ...baseUser, isSubscriber: subscribed, subscription_tier: subscriptionTier });
+                        setUser({
+                            ...baseUser,
+                            isSubscriber: subscribed,
+                            subscription_tier: subscriptionTier,
+                            ownedVideoIds
+                        });
                         setLoading(false);
                     }
                 }

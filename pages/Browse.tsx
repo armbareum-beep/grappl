@@ -5,17 +5,31 @@ import { Search, ChevronDown } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { cn } from '../lib/utils';
+import { LibraryTabs } from '../components/library/LibraryTabs';
+import { useAuth } from '../contexts/AuthContext';
 
-export const Browse: React.FC = () => {
+export const Browse: React.FC<{
+  isEmbedded?: boolean;
+  activeTab?: 'classes' | 'routines' | 'sparring';
+  onTabChange?: (tab: 'classes' | 'routines' | 'sparring') => void;
+}> = ({ isEmbedded, activeTab, onTabChange }) => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [internalSearchTerm, setInternalSearchTerm] = useState('');
+  const [internalCategory, setInternalCategory] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [selectedUniform, setSelectedUniform] = useState<string>('All');
-  const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | null>(null);
+  const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
+  const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | null>(null);
+
+  const searchTerm = internalSearchTerm;
+  const selectedCategory = internalCategory;
+  const setCategory = setInternalCategory;
+  const setSearchTerm = setInternalSearchTerm;
 
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
+  const ownershipOptions = ['All', 'Purchased', 'Not Purchased'];
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -35,7 +49,8 @@ export const Browse: React.FC = () => {
 
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchTerm.toLowerCase());
+      course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.creatorName.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Category mapping
     let matchesCategory = selectedCategory === 'All';
@@ -49,7 +64,15 @@ export const Browse: React.FC = () => {
 
     const matchesDifficulty = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;
-    return matchesSearch && (matchesCategory || selectedCategory === 'All') && matchesDifficulty && matchesUniform;
+
+    let matchesOwnership = true;
+    if (selectedOwnership === 'Purchased') {
+      matchesOwnership = user?.ownedVideoIds?.includes(course.id) || false;
+    } else if (selectedOwnership === 'Not Purchased') {
+      matchesOwnership = !(user?.ownedVideoIds?.includes(course.id));
+    }
+
+    return matchesSearch && (matchesCategory || selectedCategory === 'All') && matchesDifficulty && matchesUniform && matchesOwnership;
   });
   const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
   const uniforms = ['All', 'Gi', 'No-Gi'];
@@ -59,16 +82,26 @@ export const Browse: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:pl-28 pt-8 pb-20 px-6 md:px-10">
+    <div className={cn(
+      "min-h-screen bg-zinc-950 text-zinc-100 flex flex-col",
+      !isEmbedded && "md:pl-28 pt-8 pb-20 px-6 md:px-10"
+    )}>
 
 
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:pt-0 md:px-12 md:pb-8 overflow-y-auto">
+      <main className={cn(
+        "flex-1 p-4 md:px-12 md:pb-8 overflow-y-auto",
+        !isEmbedded && "md:pt-0"
+      )}>
         <div className="max-w-[1600px] mx-auto">
+          {isEmbedded && activeTab && onTabChange && (
+            <LibraryTabs activeTab={activeTab} onTabChange={onTabChange} />
+          )}
 
           {/* Header & Filter System */}
           <div className="flex flex-col gap-8 mb-12">
+            {!isEmbedded && <h1 className="text-3xl font-bold text-white mb-2">클래스</h1>}
 
             {/* Search & Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
@@ -98,7 +131,7 @@ export const Browse: React.FC = () => {
                   {categories.map(cat => (
                     <button
                       key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => setCategory(cat)}
                       className={cn(
                         "h-10 px-5 rounded-full text-xs transition-all duration-200 whitespace-nowrap border flex items-center justify-center",
                         selectedCategory === cat
@@ -160,7 +193,7 @@ export const Browse: React.FC = () => {
                       selectedDifficulty !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
                     )}
                   >
-                    <span className="whitespace-nowrap">Difficulty: {selectedDifficulty}</span>
+                    <span className="whitespace-nowrap">Level: {selectedDifficulty}</span>
                     <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'difficulty' && "rotate-180")} />
                   </button>
 
@@ -188,13 +221,51 @@ export const Browse: React.FC = () => {
                   )}
                 </div>
 
-                {(selectedCategory !== 'All' || selectedDifficulty !== 'All' || selectedUniform !== 'All' || searchTerm !== '') && (
+                {/* Ownership Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'ownership' ? null : 'ownership')}
+                    className={cn(
+                      "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
+                      selectedOwnership !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                    )}
+                  >
+                    <span className="whitespace-nowrap">Status: {selectedOwnership}</span>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'ownership' && "rotate-180")} />
+                  </button>
+
+                  {openDropdown === 'ownership' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+                      <div className="absolute top-12 left-0 w-40 bg-zinc-900/80 backdrop-blur-xl border border-zinc-700 rounded-2xl p-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        {ownershipOptions.map(option => (
+                          <button
+                            key={option}
+                            onClick={() => {
+                              setSelectedOwnership(option);
+                              setOpenDropdown(null);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-xl text-xs transition-colors duration-200",
+                              selectedOwnership === option ? "bg-violet-600 text-white" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            )}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {(selectedCategory !== 'All' || selectedDifficulty !== 'All' || selectedUniform !== 'All' || selectedOwnership !== 'All' || searchTerm !== '') && (
                   <button
                     onClick={() => {
-                      setSelectedCategory('All');
+                      setCategory('All');
                       setSelectedDifficulty('All');
                       setSelectedUniform('All');
-                      setSearchTerm('');
+                      setSelectedOwnership('All');
+                      setInternalSearchTerm('');
                     }}
                     className="h-10 px-4 text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
                   >
@@ -222,7 +293,7 @@ export const Browse: React.FC = () => {
               <h3 className="text-2xl font-bold text-zinc-200 mb-3">검색 결과가 없습니다</h3>
               <p className="text-zinc-500 max-w-xs mx-auto mb-8">다른 검색어나 필터를 시도해보세요.</p>
               <button
-                onClick={() => { setSearchTerm(''); setSelectedCategory('All'); setSelectedDifficulty('All'); setSelectedUniform('All'); }}
+                onClick={() => { setSearchTerm(''); setCategory('All'); setSelectedDifficulty('All'); setSelectedUniform('All'); setSelectedOwnership('All'); }}
                 className="px-8 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-bold rounded-2xl transition-all hover:scale-105"
               >
                 필터 초기화

@@ -37,7 +37,7 @@ import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
 import {
     Plus, Trash2, Save, Share2, FolderOpen, X, FilePlus, Video,
-    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost, Copy, GripVertical
+    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost, Copy, GripVertical, Download
 } from 'lucide-react';
 
 import { SaveModal, LoadModal, SaveData } from './SkillTreeModals';
@@ -65,7 +65,12 @@ const nodeTypes: NodeTypes = {
     group: GroupNode as any
 };
 
-const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> = ({ node, index, navigate }) => {
+const DraggableTechnique: React.FC<{
+    node: any;
+    index: number;
+    navigate: any;
+    onVideoClick: (node: any) => void;
+}> = ({ node, index, navigate, onVideoClick }) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: node.id,
     });
@@ -80,54 +85,85 @@ const DraggableTechnique: React.FC<{ node: any; index: number; navigate: any }> 
     const mastery = node.data.mastery;
     const isCompleted = node.data.isCompleted;
 
+    const hasVideo = node.data.lesson?.videoUrl || node.data.lesson?.vimeoUrl ||
+        node.data.drill?.videoUrl || node.data.drill?.vimeoUrl;
+
     return (
         <div
             ref={setNodeRef}
             style={style}
-            {...listeners}
             {...attributes}
-            className={`relative p-3 rounded-xl border cursor-pointer ${isDragging ? 'opacity-50' : 'transition-all'} ${isCompleted || (mastery && mastery.masteryLevel >= 5)
+            className={`group relative p-3 rounded-xl border transition-all ${isDragging ? 'opacity-50 z-50' : ''} ${isCompleted || (mastery && mastery.masteryLevel >= 5)
                 ? 'bg-violet-500/10 border-violet-500/30'
                 : mastery && mastery.masteryLevel >= 2
                     ? 'bg-violet-400/5 border-violet-400/20'
                     : 'bg-zinc-800/40 border-zinc-700/50'
                 }`}
-            onClick={() => {
-                if (node.data.contentType === 'lesson' && node.data.lesson) {
-                    navigate(`/lessons/${node.data.lesson.id}`);
-                } else if (node.data.contentType === 'drill' && node.data.drill) {
-                    navigate(`/drills/${node.data.drill.id}`);
-                }
-            }}
         >
-            <div className="flex items-start gap-3">
+            <div className="flex items-center gap-3">
+                {/* Drag Handle */}
+                <div
+                    {...listeners}
+                    className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400"
+                >
+                    <GripVertical className="w-4 h-4" />
+                </div>
+
+                {/* Index & Status */}
                 <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${isCompleted || (mastery && mastery.masteryLevel >= 5)
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-zinc-700 text-zinc-400'
+                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
+                    : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
                     }`}>
                     {index + 1}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-bold text-[12px] truncate">
-                        {node.data.label || node.data.lesson?.title || node.data.drill?.title || '콘텐츠'}
+
+                {/* Content Info */}
+                <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => {
+                        if (node.data.contentType === 'lesson' && node.data.lesson) {
+                            navigate(`/lessons/${node.data.lesson.id}`);
+                        } else if (node.data.contentType === 'drill' && node.data.drill) {
+                            navigate(`/drills/${node.data.drill.id}`);
+                        }
+                    }}
+                >
+                    <h3 className="text-white font-bold text-[13px] truncate group-hover:text-violet-400 transition-colors">
+                        {node.data.label || node.data.lesson?.title || node.data.drill?.title || '기술 콘텐츠'}
                     </h3>
                     {mastery && (
-                        <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1.5 mt-1">
                             <div className="flex gap-0.5">
                                 {[1, 2, 3, 4, 5].map((level) => (
                                     <div
                                         key={level}
-                                        className={`w-3 h-1 rounded-full ${level <= mastery.masteryLevel
-                                            ? 'bg-violet-500'
-                                            : 'bg-zinc-700'
+                                        className={`w-2.5 h-1 rounded-full ${level <= mastery.masteryLevel
+                                            ? 'bg-violet-500 shadow-[0_0_5px_rgba(139,92,246,0.5)]'
+                                            : 'bg-zinc-800'
                                             }`}
                                     />
                                 ))}
                             </div>
-                            <span className="text-[9px] text-zinc-500 ml-1 font-bold">
+                            <span className="text-[10px] text-zinc-500 font-bold tracking-tighter uppercase">
                                 Lv.{mastery.masteryLevel}
                             </span>
                         </div>
+                    )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1">
+                    {hasVideo && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onVideoClick(node);
+                            }}
+                            className="p-2 rounded-lg bg-violet-600/20 text-violet-400 hover:bg-violet-600 hover:text-white transition-all shadow-lg"
+                            title="영상 보기"
+                        >
+                            <PlayCircle className="w-4 h-4" />
+                        </button>
                     )}
                 </div>
             </div>
@@ -410,6 +446,32 @@ export const TechniqueSkillTree: React.FC = () => {
             setThumbnailPreview(dataUrl);
         } catch (err) {
             console.error('Snapshot failed', err);
+        }
+    }, [reactFlowWrapper]);
+
+    // Download Image
+    const handleDownloadImage = useCallback(async () => {
+        if (!reactFlowWrapper.current) return;
+        try {
+            const dataUrl = await toPng(reactFlowWrapper.current, {
+                cacheBust: true,
+                filter: (node) => !node.classList?.contains('react-flow__controls') && !node.classList?.contains('react-flow__minimap'),
+                backgroundColor: '#18181b', // zinc-900
+                width: reactFlowWrapper.current.offsetWidth,
+                height: reactFlowWrapper.current.offsetHeight,
+                skipFonts: true,
+                fontEmbedCSS: '',
+                style: {
+                    width: `${reactFlowWrapper.current.offsetWidth}px`,
+                    height: `${reactFlowWrapper.current.offsetHeight}px`,
+                }
+            });
+            const link = document.createElement('a');
+            link.download = `skill-tree-${new Date().toISOString().slice(0, 10)}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Download failed', err);
         }
     }, [reactFlowWrapper]);
 
@@ -1407,6 +1469,86 @@ export const TechniqueSkillTree: React.FC = () => {
         });
     }, [setNodes, setEdges, mapToGroupHandle]);
 
+    // Unified Video Access Check
+    const handleVideoClick = useCallback(async (nodeToPlay: any) => {
+        const d = nodeToPlay.data;
+        const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
+            d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
+            d?.technique?.videoUrl || d?.technique?.vimeoUrl;
+
+        if (videoUrl) {
+            // Permission check
+            if (!user) {
+                setAlertConfig({
+                    title: '영상 재생 불가',
+                    message: '영상을 시청하려면 로그인이 필요합니다.',
+                    confirmText: '로그인 하러 가기',
+                    cancelText: '취소',
+                    onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
+                });
+                return;
+            }
+
+            // Access Control Logic
+            let hasAccess = isAdmin || isSubscribed;
+
+            // 1. Check if first lesson (Free Preview)
+            if (!hasAccess && d.contentType === 'lesson' && d.lesson?.lessonNumber === 1) {
+                hasAccess = true;
+            }
+
+            // 2. Check individual ownership if not subscribed
+            if (!hasAccess) {
+                if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                    hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
+                } else if (d.contentType === 'drill') {
+                    if (d.drill?.price === 0) {
+                        hasAccess = true;
+                    } else if (d.drill?.routineId) {
+                        hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
+                    }
+                }
+            }
+
+            // 3. Check if creator
+            if (!hasAccess) {
+                const creatorId = d.lesson?.creatorId || d.drill?.creatorId;
+                if (creatorId && creatorId === user.id) {
+                    hasAccess = true;
+                }
+            }
+
+            if (!hasAccess) {
+                setAlertConfig({
+                    title: '콘텐츠 잠김',
+                    message: '이 콘텐츠를 시청하려면 구독하거나 개별 구매가 필요합니다.',
+                    confirmText: '구매/구독 안내 보기',
+                    cancelText: '취소',
+                    variant: 'warning',
+                    onConfirm: () => {
+                        if (d.contentType === 'lesson' && d.lesson?.courseId) {
+                            navigate(`/courses/${d.lesson.courseId}`);
+                        } else if (d.contentType === 'drill' && d.drill?.routineId) {
+                            navigate(`/my-routines/${d.drill.routineId}`);
+                        } else {
+                            navigate('/pricing');
+                        }
+                    }
+                });
+                return;
+            }
+
+            const title = d?.label || d?.lesson?.title || d?.drill?.title || d?.technique?.title || '영상 미리보기';
+            setVideoModal({
+                isOpen: true,
+                url: videoUrl,
+                title: title
+            });
+        } else {
+            alert('연결된 영상이 없습니다.');
+        }
+    }, [user, isAdmin, isSubscribed, navigate]);
+
     // Ensure all group nodes have the latest collapse/label handlers
     useEffect(() => {
         setNodes(nds => nds.map(node => {
@@ -1810,88 +1952,11 @@ export const TechniqueSkillTree: React.FC = () => {
         }
 
         const isContent = node.type === 'content';
-        const d = node.data;
 
         if (isContent) {
-            // Permission check for video preview
-            if (!user) {
-                setAlertConfig({
-                    title: '영상 재생 불가',
-                    message: '영상을 시청하려면 로그인이 필요합니다.',
-                    confirmText: '로그인 하러 가기',
-                    cancelText: '취소',
-                    onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
-                });
-                return;
-            }
-
-            // Find video URL from lesson or drill
-            const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
-                d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
-                d?.technique?.videoUrl || d?.technique?.vimeoUrl;
-
-            // Only proceed if video exists
-            if (!videoUrl) return;
-
-            // Access Control Logic
-            let hasAccess = isAdmin || isSubscribed;
-
-            // 1. Check if first lesson (Free Preview)
-            if (!hasAccess && d.contentType === 'lesson' && d.lesson?.lessonNumber === 1) {
-                hasAccess = true;
-            }
-
-            // 2. Check individual ownership if not subscribed
-            if (!hasAccess) {
-                if (d.contentType === 'lesson' && d.lesson?.courseId) {
-                    hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
-                } else if (d.contentType === 'drill') {
-                    // Check if it's a free drill or owned routine item
-                    if (d.drill?.price === 0) {
-                        hasAccess = true;
-                    } else if (d.drill?.routineId) {
-                        hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
-                    }
-                }
-            }
-
-            // 3. Check if current user is the creator
-            if (!hasAccess) {
-                const creatorId = d.lesson?.creatorId || d.drill?.creatorId;
-                if (creatorId && creatorId === user.id) {
-                    hasAccess = true;
-                }
-            }
-
-            if (!hasAccess) {
-                setAlertConfig({
-                    title: '콘텐츠 잠김',
-                    message: '이 콘텐츠를 시청하려면 구독하거나 개별 구매가 필요합니다.',
-                    confirmText: '구매/구독 안내 보기',
-                    cancelText: '취소',
-                    variant: 'warning',
-                    onConfirm: () => {
-                        if (d.contentType === 'lesson' && d.lesson?.courseId) {
-                            navigate(`/courses/${d.lesson.courseId}`);
-                        } else if (d.contentType === 'drill' && d.drill?.routineId) {
-                            navigate(`/my-routines/${d.drill.routineId}`);
-                        } else {
-                            navigate('/pricing');
-                        }
-                    }
-                });
-                return;
-            }
-
-            const title = d?.label || d?.lesson?.title || d?.drill?.title || d?.technique?.title || '미리보기';
-
-            setVideoModal({
-                isOpen: true,
-                url: videoUrl,
-                title: title
-            });
+            await handleVideoClick(node);
         }
-    }, [user, isAdmin, isSubscribed, navigate, focusNodeOrGroup, toggleGroupCollapse, setVideoModal]);
+    }, [focusNodeOrGroup, toggleGroupCollapse, handleVideoClick]);
 
     // Handle canvas click (deselect)
     const handlePaneClick = useCallback(() => {
@@ -2871,6 +2936,17 @@ export const TechniqueSkillTree: React.FC = () => {
                                 <div className="h-px bg-zinc-800/50 my-1" />
 
                                 <button
+                                    onClick={handleDownloadImage}
+                                    className="flex items-center justify-center xl:justify-start gap-2 p-2 xl:px-3 xl:py-2 bg-zinc-900/60 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-all border border-zinc-800/50 hover:border-zinc-700"
+                                    title="이미지 저장"
+                                >
+                                    <Download className="w-4 h-4 flex-shrink-0" />
+                                    <span className="hidden xl:inline text-xs font-medium">이미지 저장</span>
+                                </button>
+
+                                <div className="h-px bg-zinc-800/50 my-1" />
+
+                                <button
                                     onClick={() => {
                                         if (isMobile) {
                                             setIsFullScreen(!isFullScreen);
@@ -3324,6 +3400,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                             node={node}
                                                             index={nodeIdx}
                                                             navigate={navigate}
+                                                            onVideoClick={handleVideoClick}
                                                         />
                                                     ))
                                                 )}
@@ -3344,6 +3421,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                     node={node}
                                                     index={nodeIdx}
                                                     navigate={navigate}
+                                                    onVideoClick={handleVideoClick}
                                                 />
                                             ))}
                                         </div>
@@ -3420,84 +3498,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                     {menu.data.type !== 'text' && (
                                         <button
                                             onClick={async () => {
-                                                const d = menu.data.data;
-                                                const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
-                                                    d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
-                                                    d?.technique?.videoUrl || d?.technique?.vimeoUrl;
-
-                                                if (videoUrl) {
-                                                    // Permission check
-                                                    if (!user) {
-                                                        setAlertConfig({
-                                                            title: '영상 재생 불가',
-                                                            message: '영상을 시청하려면 로그인이 필요합니다.',
-                                                            confirmText: '로그인 하러 가기',
-                                                            cancelText: '취소',
-                                                            onConfirm: () => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })
-                                                        });
-                                                        setMenu(null);
-                                                        return;
-                                                    }
-
-                                                    // Access Control Logic (Sync with onNodeDoubleClick)
-                                                    let hasAccess = isAdmin || isSubscribed;
-
-                                                    // 1. Check if first lesson (Free Preview)
-                                                    if (!hasAccess && d.contentType === 'lesson' && d.lesson?.lessonNumber === 1) {
-                                                        hasAccess = true;
-                                                    }
-
-                                                    // 2. Check individual ownership if not subscribed
-                                                    if (!hasAccess) {
-                                                        if (d.contentType === 'lesson' && d.lesson?.courseId) {
-                                                            hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
-                                                        } else if (d.contentType === 'drill') {
-                                                            if (d.drill?.price === 0) {
-                                                                hasAccess = true;
-                                                            } else if (d.drill?.routineId) {
-                                                                hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // 3. Check if creator
-                                                    if (!hasAccess) {
-                                                        const creatorId = d.lesson?.creatorId || d.drill?.creatorId;
-                                                        if (creatorId && creatorId === user.id) {
-                                                            hasAccess = true;
-                                                        }
-                                                    }
-
-                                                    if (!hasAccess) {
-                                                        setAlertConfig({
-                                                            title: '콘텐츠 잠김',
-                                                            message: '이 콘텐츠를 시청하려면 구독하거나 개별 구매가 필요합니다.',
-                                                            confirmText: '구매/구독 안내 보기',
-                                                            cancelText: '취소',
-                                                            variant: 'warning',
-                                                            onConfirm: () => {
-                                                                if (d.contentType === 'lesson' && d.lesson?.courseId) {
-                                                                    navigate(`/courses/${d.lesson.courseId}`);
-                                                                } else if (d.contentType === 'drill' && d.drill?.routineId) {
-                                                                    navigate(`/my-routines/${d.drill.routineId}`);
-                                                                } else {
-                                                                    navigate('/pricing');
-                                                                }
-                                                            }
-                                                        });
-                                                        setMenu(null);
-                                                        return;
-                                                    }
-
-                                                    const title = d?.label || d?.lesson?.title || d?.drill?.title || d?.technique?.title || '미리보기';
-                                                    setVideoModal({
-                                                        isOpen: true,
-                                                        url: videoUrl,
-                                                        title: title
-                                                    });
-                                                } else {
-                                                    alert('연결된 영상이 없습니다.');
-                                                }
+                                                await handleVideoClick(menu.data);
                                                 setMenu(null);
                                             }}
                                             className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all font-bold text-xs"
@@ -3877,7 +3878,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                             // 1. YouTube Handling
                                             const ytRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
                                             const ytMatch = url.match(ytRegExp);
-                                            if (ytMatch && ytMatch[2].length === 11) {
+                                            if (ytMatch && ytMatch[2] && ytMatch[2].length === 11) {
                                                 return `https://www.youtube.com/embed/${ytMatch[2]}?autoplay=1&rel=0`;
                                             }
 
@@ -3886,7 +3887,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                             const vimeoRegExp = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/|manage\/videos\/|(?:\/))([0-9]+)(?:\/)?([a-z0-9]+)?/;
                                             const vimeoMatch = url.match(vimeoRegExp);
 
-                                            if (vimeoMatch) {
+                                            if (vimeoMatch && vimeoMatch[1]) {
                                                 const videoId = vimeoMatch[1];
                                                 const hash = vimeoMatch[2];
                                                 let embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=1&badge=0&autopause=0`;
@@ -3911,76 +3912,62 @@ export const TechniqueSkillTree: React.FC = () => {
                                         영상을 불러올 수 없습니다.
                                     </div>
                                 )}
-                            </div >
-                        </div >
-                    </div >
-                )
-            }
-            {/* FAB for List Mode Only */}
-            {
-                viewMode === 'list' && (
-                    <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 ${isFullScreen ? 'bottom-8' : 'bottom-24'}`}>
-                        <AnimatePresence>
-                            {isFabOpen && (
-                                <div className="flex flex-col items-end gap-3 mb-2">
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.5, x: 20 }}
-                                        onClick={() => {
-                                            setIsAddModalOpen(true);
-                                            setIsFabOpen(false);
-                                        }}
-                                        className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
-                                    >
-                                        <span className="text-[12px] font-bold">콘텐츠 추가하기</span>
-                                        <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-all">
-                                            <FilePlus className="w-4 h-4" />
-                                        </div>
-                                    </motion.button>
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.5, x: 20 }}
-                                        transition={{ delay: 0.05 }}
-                                        onClick={() => {
-                                            handleAddMenu();
-                                            setIsFabOpen(false);
-                                        }}
-                                        className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
-                                    >
-                                        <span className="text-[12px] font-bold">새 그룹 생성</span>
-                                        <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                            <Plus className="w-4 h-4" />
-                                        </div>
-                                    </motion.button>
-                                </div>
-                            )}
-                        </AnimatePresence>
-                        <button
-                            onClick={() => setIsFabOpen(!isFabOpen)}
-                            className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ${isFabOpen ? 'bg-zinc-800 rotate-45' : 'bg-violet-600 hover:bg-violet-500 hover:scale-105 active:scale-95'
-                                }`}
-                        >
-                            <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
-                        </button>
+                            </div>
+                        </div>
                     </div>
                 )
             }
-            {
-                alertConfig && (
-                    <ConfirmModal
-                        isOpen={!!alertConfig}
-                        onClose={() => setAlertConfig(null)}
-                        onConfirm={alertConfig.onConfirm || (() => setAlertConfig(null))}
-                        title={alertConfig.title}
-                        message={alertConfig.message}
-                        confirmText={alertConfig.confirmText}
-                        cancelText={alertConfig.cancelText}
-                        variant={alertConfig.variant || 'warning'}
-                    />
-                )
-            }
-        </div >
+
+            {/* FAB for List Mode Only */}
+            {viewMode === 'list' && (
+                <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 ${isFullScreen ? 'bottom-8' : 'bottom-24'}`}>
+                    <AnimatePresence>
+                        {isFabOpen && (
+                            <div className="flex flex-col items-end gap-3 mb-2">
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    onClick={() => {
+                                        setIsAddModalOpen(true);
+                                        setIsFabOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                >
+                                    <span className="text-[12px] font-bold">콘텐츠 추가하기</span>
+                                    <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-all">
+                                        <FilePlus className="w-4 h-4" />
+                                    </div>
+                                </motion.button>
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, x: 20 }}
+                                    transition={{ delay: 0.05 }}
+                                    onClick={() => {
+                                        handleAddMenu();
+                                        setIsFabOpen(false);
+                                    }}
+                                    className="flex items-center gap-3 px-5 py-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl text-zinc-300 hover:text-white shadow-2xl hover:bg-zinc-800 transition-all group"
+                                >
+                                    <span className="text-[12px] font-bold">새 그룹 생성</span>
+                                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <Plus className="w-4 h-4" />
+                                    </div>
+                                </motion.button>
+                            </div>
+                        )}
+                    </AnimatePresence>
+                    <button
+                        onClick={() => setIsFabOpen(!isFabOpen)}
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ${isFabOpen ? 'bg-zinc-800 rotate-45' : 'bg-violet-600 hover:bg-violet-500 hover:scale-105 active:scale-95'
+                            }`}
+                    >
+                        <Plus className={`w-8 h-8 text-white transition-transform ${isFabOpen ? 'rotate-0' : 'rotate-0'}`} />
+                    </button>
+                </div>
+            )}
+
+        </div>
     );
 };

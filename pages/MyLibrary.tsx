@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getUserCourses, getCourseProgress, getUserRoutines, getSavedSparringVideos, getUserReposts } from '../lib/api';
+import {
+  getUserCourses,
+  getCourseProgress,
+  getUserRoutines,
+  getSavedSparringVideos,
+  getUserSavedDrills,
+  getUserSavedCourses,
+  getUserSavedRoutines,
+  getUserSavedLessons
+} from '../lib/api';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
-import { Course, DrillRoutine, SparringVideo, UserSkillTree } from '../types';
+import { Course, DrillRoutine, SparringVideo, UserSkillTree, Drill, Lesson } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, PlayCircle, Dumbbell, Clock, PlaySquare, Play, Repeat, MessageCircle, Heart, Share2, Network } from 'lucide-react';
+import { BookOpen, PlayCircle, Dumbbell, Clock, Play, Network } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { formatDistanceToNow } from 'date-fns';
@@ -19,7 +28,7 @@ interface CourseWithProgress extends Course {
 
 export const MyLibrary: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'courses' | 'routines' | 'sparring' | 'feed' | 'chains'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'lessons' | 'routines' | 'drills' | 'sparring' | 'chains'>('courses');
 
   // Courses State
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
@@ -31,17 +40,21 @@ export const MyLibrary: React.FC = () => {
 
   // Routines State
   const [purchasedRoutines, setPurchasedRoutines] = useState<DrillRoutine[]>([]);
+  const [savedRoutines, setSavedRoutines] = useState<DrillRoutine[]>([]);
   const [routinesLoading, setRoutinesLoading] = useState(true);
+
+  // Drills State
+  const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
+  const [drillsLoading, setDrillsLoading] = useState(true);
 
   // Sparring State
   const [savedSparring, setSavedSparring] = useState<SparringVideo[]>([]);
   const [sparringLoading, setSparringLoading] = useState(true);
 
-  // Reposts State
-  const [reposts, setReposts] = useState<any[]>([]);
-  const [repostsLoading, setRepostsLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
+  const [savedCourses, setSavedCourses] = useState<Course[]>([]);
+  const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -53,17 +66,21 @@ export const MyLibrary: React.FC = () => {
         return;
       }
 
-      // Fetch Courses
+      // Fetch Courses & Saved Items
       try {
         setError(null);
         setCoursesLoading(true);
         setRoutinesLoading(true);
-        setCoursesLoading(true);
-        setRoutinesLoading(true);
         setSparringLoading(true);
         setChainsLoading(true);
+        setDrillsLoading(true);
 
-        const coursesData = await getUserCourses(user.id);
+        const [coursesData, savedCoursesData, savedLessonsData] = await Promise.all([
+          getUserCourses(user.id),
+          getUserSavedCourses(user.id),
+          getUserSavedLessons(user.id)
+        ]);
+
         const coursesWithProgress = await Promise.all(
           coursesData.map(async (course) => {
             const progressData = await getCourseProgress(user.id, course.id);
@@ -76,6 +93,8 @@ export const MyLibrary: React.FC = () => {
           })
         );
         setCourses(coursesWithProgress);
+        setSavedCourses(savedCoursesData);
+        setSavedLessons(savedLessonsData);
       } catch (error) {
         console.error('Error fetching user courses:', error);
       } finally {
@@ -84,15 +103,28 @@ export const MyLibrary: React.FC = () => {
 
       // Fetch Routines
       try {
-        const routinesData = await getUserRoutines(user.id);
+        const [routinesData, savedRoutinesData] = await Promise.all([
+          getUserRoutines(user.id),
+          getUserSavedRoutines(user.id)
+        ]);
         if (routinesData.data) {
           setPurchasedRoutines(routinesData.data);
         }
+        setSavedRoutines(savedRoutinesData);
       } catch (err: any) {
         console.error('Error fetching user routines:', err);
-        setError(err.message || '라이브러리를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setRoutinesLoading(false);
+      }
+
+      // Fetch Drills
+      try {
+        const drillsData = await getUserSavedDrills(user.id);
+        setSavedDrills(drillsData);
+      } catch (err) {
+        console.error('Error fetching saved drills:', err);
+      } finally {
+        setDrillsLoading(false);
       }
 
       // Fetch Sparring
@@ -105,19 +137,6 @@ export const MyLibrary: React.FC = () => {
         setSparringLoading(false);
       }
 
-      // Fetch Reposts
-      try {
-        const { data: repostsData, error: repostsError } = await getUserReposts(user.id);
-        if (repostsError) {
-          console.error('Error fetching reposts:', repostsError);
-        } else {
-          setReposts(repostsData || []);
-        }
-      } catch (err) {
-        console.error('Error fetching reposts:', err);
-      } finally {
-        setRepostsLoading(false);
-      }
 
       // Fetch Chains
       try {
@@ -138,7 +157,7 @@ export const MyLibrary: React.FC = () => {
   }, [user]);
 
   if (error) {
-    return <ErrorScreen error={error} resetMessage="내 라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+    return <ErrorScreen error={error} resetMessage="라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
   }
 
   if (!user) {
@@ -166,7 +185,7 @@ export const MyLibrary: React.FC = () => {
             <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
               <BookOpen className="w-6 h-6 text-violet-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white">내 라이브러리</h1>
+            <h1 className="text-3xl font-bold text-white">라이브러리</h1>
           </div>
           <p className="text-zinc-400 text-sm">
             구매한 강좌와 훈련 루틴을 관리하세요
@@ -181,25 +200,31 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'courses' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            클래스 ({courses.length})
+            클래스 ({courses.length + savedCourses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('lessons')}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'lessons' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            레슨 ({savedLessons.length})
           </button>
           <button
             onClick={() => setActiveTab('routines')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'routines' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            루틴 ({purchasedRoutines.length})
+            루틴 ({purchasedRoutines.length + savedRoutines.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('drills')}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'drills' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            드릴 ({savedDrills.length})
           </button>
           <button
             onClick={() => setActiveTab('sparring')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'sparring' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             스파링 ({savedSparring.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('feed')}
-            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'feed' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
-          >
-            피드 ({reposts.length})
           </button>
           <button
             onClick={() => setActiveTab('chains')}
@@ -210,18 +235,18 @@ export const MyLibrary: React.FC = () => {
         </div>
 
         {activeTab === 'courses' && (
-          <>
+          <div className="space-y-12">
             {coursesLoading ? (
               <div className="text-center py-20">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto mb-4"></div>
                 <p className="text-zinc-400">강좌 불러오는 중...</p>
               </div>
-            ) : courses.length === 0 ? (
+            ) : (courses.length === 0 && savedCourses.length === 0) ? (
               <div className="text-center py-20">
                 <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-lg border border-zinc-800">
                   <BookOpen className="w-12 h-12 text-zinc-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-3">아직 구매한 클래스가 없습니다</h2>
+                <h2 className="text-2xl font-bold text-white mb-3">아직 클래스가 없습니다</h2>
                 <p className="text-zinc-400 mb-8">관심 있는 클래스를 찾아보세요!</p>
                 <Link
                   to="/browse"
@@ -231,66 +256,169 @@ export const MyLibrary: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course) => (
-                  <div key={course.id} className="relative flex flex-col h-full">
-                    <CourseCard course={course} />
-                    {/* Progress Section - Moved below card */}
-                    <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
-                      <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
-                        <span>진도율</span>
-                        <span>{Math.round(course.progress || 0)}%</span>
-                      </div>
-                      <div className="w-full bg-zinc-800 rounded-full h-2 mb-3">
-                        <div
-                          className="bg-violet-600 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${course.progress || 0}%` }}
-                        ></div>
-                      </div>
-                      <Link to={`/courses/${course.id}`}>
-                        <button className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold py-2 rounded-lg transition-colors">
-                          <PlayCircle className="w-4 h-4" />
-                          {course.progress === 100 ? '다시 보기' : course.progress && course.progress > 0 ? '이어보기' : '학습 시작하기'}
-                        </button>
-                      </Link>
+              <div className="space-y-8">
+                {courses.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-6">구매한 클래스 ({courses.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {courses.map((course) => (
+                        <div key={course.id} className="relative flex flex-col h-full">
+                          <CourseCard course={course} />
+                          <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
+                            <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
+                              <span>진도율</span>
+                              <span>{Math.round(course.progress || 0)}%</span>
+                            </div>
+                            <div className="w-full bg-zinc-800 rounded-full h-2 mb-3">
+                              <div
+                                className="bg-violet-600 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${course.progress || 0}%` }}
+                              ></div>
+                            </div>
+                            <Link to={`/courses/${course.id}`}>
+                              <button className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold py-2 rounded-lg transition-colors">
+                                <PlayCircle className="w-4 h-4" />
+                                {course.progress === 100 ? '다시 보기' : course.progress && course.progress > 0 ? '이어보기' : '학습 시작하기'}
+                              </button>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {savedCourses.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-6">저장한 클래스 ({savedCourses.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {savedCourses.map((course) => (
+                        <CourseCard key={course.id} course={course} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </>
+          </div>
         )}
 
         {activeTab === 'routines' && (
           <div className="space-y-12">
-            {/* My Routines Section */}
             <div>
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <PlaySquare className="w-6 h-6 text-violet-500" />
-                내 루틴
-              </h2>
               {routinesLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
                   <p className="text-zinc-400">루틴 불러오는 중...</p>
                 </div>
-              ) : purchasedRoutines.length === 0 ? (
+              ) : (purchasedRoutines.length === 0 && savedRoutines.length === 0) ? (
                 <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                  <p className="text-zinc-400 mb-4">보유한 루틴이 없습니다.</p>
-                  <Link to="/drills">
+                  <p className="text-zinc-400 mb-4">보유하거나 저장한 루틴이 없습니다.</p>
+                  <Link to="/training-routines">
                     <Button variant="primary">
-                      새로운 루틴 찾아보기
+                      루틴 찾아보기
                     </Button>
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {purchasedRoutines.map((routine) => (
-                    <RoutineCard key={routine.id} routine={routine} />
-                  ))}
+                <div className="space-y-12">
+                  {purchasedRoutines.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-6">구매/제작한 루틴 ({purchasedRoutines.length})</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {purchasedRoutines.map((routine) => (
+                          <RoutineCard key={routine.id} routine={routine} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {savedRoutines.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-6">저장한 루틴 ({savedRoutines.length})</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {savedRoutines.map((routine) => (
+                          <RoutineCard key={routine.id} routine={routine} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'lessons' && (
+          <div className="space-y-12">
+            {coursesLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-zinc-400">레슨 불러오는 중...</p>
+              </div>
+            ) : savedLessons.length === 0 ? (
+              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                <p className="text-zinc-400 mb-4">저장된 레슨이 없습니다.</p>
+                <Link to="/watch">
+                  <Button variant="primary">
+                    레슨 둘러보기
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                {savedLessons.map((lesson) => (
+                  <div key={lesson.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                    <Link to={`/watch?lessonId=${lesson.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <img src={lesson.thumbnailUrl} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                        <PlayCircle className="w-10 h-10 text-white" />
+                      </div>
+                    </Link>
+                    <div className="px-1">
+                      <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{lesson.title}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'drills' && (
+          <div className="space-y-12">
+            {drillsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-zinc-400">드릴 불러오는 중...</p>
+              </div>
+            ) : savedDrills.length === 0 ? (
+              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                <p className="text-zinc-400 mb-4">저장된 드릴이 없습니다.</p>
+                <Link to="/watch">
+                  <Button variant="primary">
+                    드릴 둘러보기
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                {savedDrills.map((drill) => (
+                  <div key={drill.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                    <Link to={`/watch?id=${drill.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                        <PlayCircle className="w-10 h-10 text-white" />
+                      </div>
+                    </Link>
+                    <div className="px-1">
+                      <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{drill.title}</h4>
+                      <p className="text-[10px] text-zinc-500 font-medium">{drill.creatorName || 'Unknown'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -344,7 +472,6 @@ export const MyLibrary: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'feed' && <CommunityFeedTab reposts={reposts} loading={repostsLoading} />}
 
         {activeTab === 'chains' && (
           <div className="space-y-12">
@@ -486,124 +613,3 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
   );
 }
 
-function CommunityFeedTab({ reposts, loading }: { reposts: any[]; loading: boolean }) {
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-zinc-400">리포스트 불러오는 중...</p>
-      </div>
-    );
-  }
-
-  if (reposts.length === 0) {
-    return (
-      <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-        <div className="w-20 h-20 bg-zinc-900/50 backdrop-blur-xl rounded-2xl flex items-center justify-center mx-auto mb-4 border border-zinc-800">
-          <Repeat className="w-10 h-10 text-zinc-600" />
-        </div>
-        <h3 className="text-xl font-bold text-white mb-2">리포스트한 게시물이 없습니다</h3>
-        <p className="text-zinc-400 mb-6">커뮤니티 피드에서 마음에 드는 게시물을 리포스트해보세요!</p>
-        <Link to="/community">
-          <Button variant="primary">
-            커뮤니티 피드 보기
-          </Button>
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-      {reposts.map((post) => (
-        <RepostCard key={post.repostId || post.id} post={post} />
-      ))}
-    </div>
-  );
-}
-
-function RepostCard({ post }: { post: any }) {
-  const getBeltColor = (belt?: string) => {
-    if (!belt) return 'border-zinc-800 bg-zinc-900 text-zinc-500';
-    const lowerBelt = belt.toLowerCase();
-    if (lowerBelt.includes('black')) return 'border-zinc-700 bg-zinc-950/30 text-zinc-400';
-    if (lowerBelt.includes('brown')) return 'border-amber-900/30 bg-amber-950/30 text-amber-500';
-    if (lowerBelt.includes('purple')) return 'border-purple-900/30 bg-purple-950/30 text-purple-400';
-    if (lowerBelt.includes('blue')) return 'border-blue-900/30 bg-blue-950/30 text-blue-400';
-    return 'border-zinc-800 bg-zinc-900 text-zinc-500';
-  };
-
-  // Get images from metadata
-  const images = post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0
-    ? post.metadata.images
-    : (post.media_url && !post.media_url.includes('youtube') && !post.media_url.includes('youtu.be') ? [post.media_url] : []);
-
-  return (
-    <div className="break-inside-avoid bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 transition-all duration-300 hover:border-violet-600/50 hover:shadow-[0_0_20px_rgba(124,58,237,0.3)] group cursor-pointer">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-zinc-500">
-        <Repeat className="w-3 h-3 text-violet-500" />
-        <span>Republished from <span className="text-zinc-300">{post.userName || 'Unknown'}</span></span>
-      </div>
-
-      {/* Author Info */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
-          {post.userAvatar ? (
-            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
-          ) : (
-            post.userName?.[0] || 'U'
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-bold text-zinc-100 truncate">{post.userName || 'Anonymous'}</span>
-            {post.user?.isInstructor ? (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                Instructor
-              </span>
-            ) : post.userBelt && (
-              <span className={`px-1.5 py-[2px] rounded-[4px] text-[9px] font-black uppercase border leading-none ${getBeltColor(post.userBelt)}`}>
-                {post.userBelt}
-              </span>
-            )}
-          </div>
-          {post.techniques && post.techniques.length > 0 && (
-            <p className="text-[10px] text-violet-400 font-bold">#{post.techniques[0]}</p>
-          )}
-        </div>
-        <span className="ml-auto text-[10px] text-zinc-600 font-medium">
-          {post.repostedAt ? formatDistanceToNow(new Date(post.repostedAt), { addSuffix: true, locale: ko }) : ''}
-        </span>
-      </div>
-
-      {/* Content */}
-      <p className="text-sm text-zinc-300 leading-relaxed mb-3 line-clamp-3">
-        {post.notes}
-      </p>
-
-      {/* Image if exists */}
-      {images.length > 0 && (
-        <div className="relative aspect-video rounded-xl overflow-hidden mb-3 border border-zinc-800">
-          <img src={images[0]} alt="content" className="w-full h-full object-cover" />
-        </div>
-      )}
-
-      {/* Interactions */}
-      <div className="flex items-center gap-4 pt-2 border-t border-zinc-800/50">
-        <div className="flex items-center gap-1.5 text-zinc-500">
-          <Heart className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-medium">{post.likes || 0}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-zinc-500">
-          <MessageCircle className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-medium">{post.comments || 0}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-zinc-500">
-          <Share2 className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-medium">공유됨</span>
-        </div>
-      </div>
-    </div>
-  );
-}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle, Map, Signpost, BookOpen, Zap, Activity, Clock } from 'lucide-react';
+import { Heart, MessageCircle, Send, MoreHorizontal, Play, Volume2, VolumeX, Sparkles, Save, ChevronLeft, ChevronRight, Repeat, Trash2, AlertTriangle, Signpost, BookOpen, Zap, Activity, Clock } from 'lucide-react';
 import { TrainingLog } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -790,14 +790,6 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         text={displayText.substring(0, 100) + '...'}
                         url={postUrl}
                         imageUrl={images[0]}
-                        initialStep="write"
-                        activityType="repost"
-                        metadata={{
-                            type: 'training_log',
-                            logId: post.id,
-                            userName: post.userName,
-                            notes: post.notes
-                        }}
                     />
                 )}
             </React.Suspense >

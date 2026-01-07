@@ -831,13 +831,6 @@ export const CourseDetail: React.FC = () => {
                         text={course.description}
                         url={window.location.href}
                         imageUrl={course.thumbnailUrl}
-                        initialStep="write"
-                        activityType="general"
-                        metadata={{
-                            type: 'course',
-                            courseId: course.id,
-                            courseTitle: course.title
-                        }}
                     />
                 </React.Suspense>
             )}

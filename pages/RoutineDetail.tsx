@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, getDailyRoutine, checkDrillRoutineOwnership, getDrillById, createFeedPost, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
+import { getRoutineById, getDailyRoutine, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
-import { ShareToFeedModal } from '../components/social/ShareToFeedModal';
 import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -82,9 +81,7 @@ export const RoutineDetail: React.FC = () => {
 
     // Completion & Sharing State
     const [showQuestComplete, setShowQuestComplete] = useState(false);
-    const [showShareModal, setShowShareModal] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [shareModalData, setShareModalData] = useState<{ defaultContent: string; metadata: any } | null>(null);
     const [shareModalData2, setShareModalData2] = useState<{ title: string; text: string; url: string } | null>(null);
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
     const [streak, setStreak] = useState(0);
@@ -305,14 +302,7 @@ export const RoutineDetail: React.FC = () => {
         if (routine) navigate(`/checkout/routine/${routine.id}`);
     };
 
-    const handleSaveRoutine = () => {
-        if (!routine) return;
-        const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-        if (customRoutines.some((r: any) => r.id === routine.id)) { alert('이미 저장된 루틴입니다.'); return; }
-        const newRoutine = { ...routine, id: routine.id.startsWith('custom-') ? routine.id : `custom-saved-${routine.id}-${Date.now()}`, isSaved: true };
-        localStorage.setItem('my_custom_routines', JSON.stringify([...customRoutines, newRoutine]));
-        alert('내 라이브러리에 담겼습니다!');
-    };
+
 
     const handleDrillComplete = () => {
         if (!currentDrill) return;
@@ -334,7 +324,6 @@ export const RoutineDetail: React.FC = () => {
             setStreak(currentStreak); setXpEarned(xpEarnedToday);
             if (bonusXp > 0) setBonusReward({ type: 'xp_boost', value: `${currentStreak}일 연속 보너스 +${bonusXp} XP` });
         }
-        setShareModalData({ defaultContent: `💪 훈련 루틴 완료! ${routine?.title}`, metadata: { routineId: routine?.id, sharedRoutine: routine } });
         setShowQuestComplete(true);
     };
 
@@ -351,14 +340,7 @@ export const RoutineDetail: React.FC = () => {
             navigate(`/my-routines/${nextId}?playlist=${playlistParam}`);
         } else {
             setShowQuestComplete(false);
-            setShowShareModal(true);
         }
-    };
-
-    const handleShareToFeed = async (comment: string) => {
-        if (!user || !shareModalData) return;
-        await createFeedPost({ userId: user.id, content: comment, type: 'routine', metadata: shareModalData.metadata });
-        setShowShareModal(false); navigate('/journal');
     };
 
     const handleSaveDrill = async (e: React.MouseEvent) => {
@@ -818,7 +800,6 @@ export const RoutineDetail: React.FC = () => {
                                 <h3 className="text-xl font-bold text-white mb-2">{routine.title}</h3>
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-zinc-500 text-sm">{currentDrillIndex + 1} / {routine.drills?.length}</span>
-                                    <button onClick={handleSaveRoutine} className="text-xs font-bold text-zinc-400 flex items-center gap-1"><Bookmark className="w-3 h-3" /> 라이브러리에 담기</button>
                                 </div>
                                 <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden"><div className="h-full bg-violet-600" style={{ width: `${progressPercent}%` }} /></div>
                             </div>
@@ -876,7 +857,6 @@ export const RoutineDetail: React.FC = () => {
                 bonusReward={bonusReward}
                 continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '포스트 작성하기'}
             />
-            {showShareModal && shareModalData && <ShareToFeedModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} onShare={handleShareToFeed} activityType="routine" defaultContent={shareModalData.defaultContent} metadata={shareModalData.metadata} />}
             {isShareModalOpen && shareModalData2 && <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={shareModalData2.title} text={shareModalData2.text} url={shareModalData2.url} imageUrl={currentDrill.thumbnailUrl} />}
         </div>
     );
