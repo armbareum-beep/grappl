@@ -61,8 +61,22 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isGuest) {
-            // Distribute guest routines across few days for realistic preview
+        // Try to load from local storage first
+        const saved = localStorage.getItem('weekly_schedule_draft');
+        let loadedSchedule: WeeklySchedule | null = null;
+
+        if (saved) {
+            try {
+                loadedSchedule = JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to load schedule', e);
+            }
+        }
+
+        if (loadedSchedule) {
+            setSchedule(loadedSchedule);
+        } else if (isGuest) {
+            // Only use guest routines if no local save exists
             const newSchedule: WeeklySchedule = { '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': [] };
             if (guestRoutines.length > 0) {
                 newSchedule['월'] = [guestRoutines[0]];
@@ -70,21 +84,13 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                 if (guestRoutines.length > 2) newSchedule['금'] = [guestRoutines[2]];
             }
             setSchedule(newSchedule);
-            return;
+            // Save this initial guest schedule to localStorage so it persists
+            localStorage.setItem('weekly_schedule_draft', JSON.stringify(newSchedule));
         }
-        const saved = localStorage.getItem('weekly_schedule_draft');
-        if (saved) {
-            try {
-                setSchedule(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to load schedule', e);
-            }
-        }
-    }, [isGuest]);
+    }, [isGuest, guestRoutines]);
 
     // Listen for external updates to the schedule (e.g. from TrainingRoutinesTab)
     useEffect(() => {
-        if (isGuest) return;
         const handleStorageChange = () => {
             const saved = localStorage.getItem('weekly_schedule_draft');
             if (saved) {

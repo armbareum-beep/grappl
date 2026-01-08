@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap, Calendar, Share2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getUserRoutines, getUserSavedDrills, toggleDrillSave } from '../../lib/api';
@@ -76,6 +76,22 @@ export const TrainingRoutinesTab: React.FC = () => {
                 } catch (error) {
                     console.error('Error loading saved drills from DB:', error);
                 }
+            } else {
+                // For non-logged-in users, fetch 3 random drills as demo
+                try {
+                    const { data: randomDrills, error } = await supabase
+                        .from('drills')
+                        .select('*')
+                        .limit(50);
+
+                    if (!error && randomDrills && randomDrills.length > 0) {
+                        const shuffled = [...randomDrills].sort(() => Math.random() - 0.5);
+                        const randomThree = shuffled.slice(0, 3);
+                        setSavedDrills(randomThree);
+                    }
+                } catch (error) {
+                    console.error('Error loading random drills:', error);
+                }
             }
         };
 
@@ -99,20 +115,57 @@ export const TrainingRoutinesTab: React.FC = () => {
     }, [user]);
 
     const toggleDrillSelection = (drillId: string) => {
-        const newSelected = new Set(selectedDrills);
-        if (newSelected.has(drillId)) {
-            newSelected.delete(drillId);
-        } else {
-            newSelected.add(drillId);
-        }
-        setSelectedDrills(newSelected);
+        setSelectedDrills(prev => {
+            const newSelected = new Set(prev);
+            if (newSelected.has(drillId)) {
+                newSelected.delete(drillId);
+            } else {
+                newSelected.add(drillId);
+            }
+            return newSelected;
+        });
     };
 
     const loadRoutines = async () => {
-        if (!user) return;
         try {
             setLoading(true);
             setError(null);
+
+            if (!user) {
+                // For non-logged-in users, fetch 3 random routines as demo
+                const { data: publicRoutines, error: publicError } = await supabase
+                    .from('routines')
+                    .select('*')
+                    .limit(50); // Get more to randomize
+
+                if (publicError) {
+                    console.error('Error fetching routines:', publicError);
+                    setRoutines([]);
+                    setLoading(false);
+                    return;
+                }
+
+                // Load custom routines for guests too
+                const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+
+                if (publicRoutines && publicRoutines.length > 0) {
+                    // Shuffle and take 3
+                    const shuffled = [...publicRoutines].sort(() => Math.random() - 0.5);
+                    const randomThree = shuffled.slice(0, 3).map(r => ({
+                        ...r,
+                        drills: [], // Don't load full drill data for demo
+                        drillCount: r.drill_count || 0,
+                        totalDurationMinutes: r.total_duration_minutes || 0,
+                        creatorName: 'Instructor',
+                        thumbnailUrl: r.thumbnail_url || ''
+                    }));
+                    setRoutines([...customRoutines, ...randomThree]);
+                } else {
+                    setRoutines(customRoutines);
+                }
+                setLoading(false);
+                return;
+            }
 
             const result = await getUserRoutines(user.id);
             if (result.error) throw result.error;
@@ -143,19 +196,10 @@ export const TrainingRoutinesTab: React.FC = () => {
     const { success, error: toastError } = useToast();
 
     useEffect(() => {
-        if (user) {
-            loadRoutines();
-        } else {
-            setLoading(false);
-        }
+        loadRoutines();
     }, [user]);
 
     const handleCreateRoutine = () => {
-        if (!user) {
-            setShowPremiumModal(true);
-            return;
-        }
-
         setIsCreatePromptOpen(true);
     };
 
@@ -164,6 +208,11 @@ export const TrainingRoutinesTab: React.FC = () => {
         if (!routineName) return;
 
         const selectedDrillsList = savedDrills.filter(d => selectedDrills.has(d.id));
+
+        if (selectedDrillsList.length === 0) {
+            toastError('최소 1개 이상의 드릴을 선택해주세요.');
+            return;
+        }
 
         const totalDurationSeconds = selectedDrillsList.reduce((acc, drill) => {
             const duration = drill.duration || '0:00';
@@ -199,15 +248,8 @@ export const TrainingRoutinesTab: React.FC = () => {
     };
 
     const handleRoutineClick = (routine: DrillRoutine) => {
-        if (!user) {
-            setShowPremiumModal(true);
-            // Even if not logged in, allow selecting for placement preview
-            setSelectedRoutineForPlacement(routine);
-            return;
-        }
-
         if (selectedDayForPlacement) {
-            const savedSchedule = JSON.parse(localStorage.getItem('weekly_routine_schedule') || '{"월":[],"화":[],"수":[],"목":[],"금":[],"토":[],"일":[]}');
+            const savedSchedule = JSON.parse(localStorage.getItem('weekly_schedule_draft') || '{"월":[],"화":[],"수":[],"목":[],"금":[],"토":[],"일":[]}');
             const currentDayRoutines = savedSchedule[selectedDayForPlacement] || [];
 
             if (currentDayRoutines.some((r: any) => r.id === routine.id)) {
@@ -220,7 +262,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                 [selectedDayForPlacement]: [...currentDayRoutines, routine]
             };
 
-            localStorage.setItem('weekly_routine_schedule', JSON.stringify(newSchedule));
+            localStorage.setItem('weekly_schedule_draft', JSON.stringify(newSchedule));
             window.dispatchEvent(new Event('weekly_schedule_update'));
 
             success(`${selectedDayForPlacement}요일에 루틴이 추가되었습니다.`);
@@ -233,6 +275,21 @@ export const TrainingRoutinesTab: React.FC = () => {
         } else {
             setSelectedRoutineForPlacement(routine);
             setSelectedDayForPlacement(null);
+        }
+    };
+
+    const handleDrillClick = (e: React.MouseEvent, drillId: string) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Check using current state directly
+        if (isSelectionMode && selectedDrills.has(drillId)) {
+            // Already selected - navigate to drill reels context
+            navigate('/drills', { state: { source: 'saved', drillId } });
+        } else {
+            // Not in selection mode or not selected - toggle selection
+            setIsSelectionMode(true);
+            toggleDrillSelection(drillId);
         }
     };
 
@@ -322,6 +379,10 @@ export const TrainingRoutinesTab: React.FC = () => {
                 if (selectedDayForPlacement || selectedRoutineForPlacement) {
                     setSelectedDayForPlacement(null);
                     setSelectedRoutineForPlacement(null);
+                }
+                if (isSelectionMode) {
+                    setIsSelectionMode(false);
+                    setSelectedDrills(new Set());
                 }
             }}
         >
@@ -413,15 +474,11 @@ export const TrainingRoutinesTab: React.FC = () => {
                             <Button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!user) {
-                                        setShowPremiumModal(true);
-                                        return;
-                                    }
                                     setIsSelectionMode(true);
                                 }}
                                 className="bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300 w-full sm:w-auto whitespace-nowrap"
                             >
-                                드릴 선택하기
+                                루틴 만들기
                             </Button>
                         )}
                     </div>
@@ -477,36 +534,32 @@ export const TrainingRoutinesTab: React.FC = () => {
                                     });
                                 };
 
-                                return isSelectionMode ? (
-                                    <div
-                                        key={drill.id}
-                                        onClick={() => toggleDrillSelection(drill.id)}
-                                        className={`
-                                            relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
-                                            ${selectedDrills.has(drill.id)
-                                                ? 'bg-violet-900/20 border-violet-500'
-                                                : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
-                                            }
-                                        `}
-                                    >
-                                        {cardContent}
-                                    </div>
-                                ) : (
+                                const isSelected = selectedDrills.has(drill.id);
+
+                                return (
                                     <div key={drill.id} className="relative group">
-                                        <Link
-                                            to={`/drills/${drill.id}?source=saved`}
-                                            className="relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer bg-zinc-800/50 border-zinc-800 hover:border-zinc-600"
+                                        <div
+                                            onClick={(e) => handleDrillClick(e, drill.id)}
+                                            className={`
+                                                relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
+                                                ${isSelected
+                                                    ? 'bg-violet-900/20 border-violet-500 ring-2 ring-violet-500 shadow-[0_0_15px_rgba(124,58,237,0.5)]'
+                                                    : 'bg-zinc-800/50 border-zinc-800 hover:border-zinc-600'
+                                                }
+                                            `}
                                         >
                                             {cardContent}
-                                        </Link>
+                                        </div>
 
-                                        <button
-                                            onClick={(e) => handleDeleteDrill(e, drill.id)}
-                                            className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                            title="삭제"
-                                        >
-                                            <Trash2 className="w-3 h-3" />
-                                        </button>
+                                        {user && !isSelectionMode && (
+                                            <button
+                                                onClick={(e) => handleDeleteDrill(e, drill.id)}
+                                                className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="삭제"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -809,10 +862,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                         isGuest={!user}
                         guestRoutines={routines}
                         onSelectDay={(day) => {
-                            if (!user) {
-                                setShowPremiumModal(true);
-                                return;
-                            }
                             if (!selectedRoutineForPlacement) {
                                 setSelectedDayForPlacement(day);
                             }

@@ -10,11 +10,10 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 interface DrillReelsFeedProps {
     drills: Drill[];
-    onChangeView: () => void;
     initialIndex?: number;
 }
 
-export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChangeView, initialIndex = 0 }) => {
+export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialIndex = 0 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -205,7 +204,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, onChange
                         onFollow={() => handleFollow(drill)}
                         onShare={() => handleShare(drill)}
                         onViewRoutine={() => handleViewRoutine(drill)}
-                        onChangeView={onChangeView}
                         offset={offset}
                     />
                 );

@@ -383,18 +383,26 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             <video src={state.previewUrl} className="w-full h-full object-cover opacity-60" autoPlay muted loop playsInline />
                         </div>
                     )}
-                    <div className="relative z-10 p-6 flex flex-col h-full justify-between">
+                    <div className="relative z-10 p-4 flex flex-col h-full justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-black/60 backdrop-blur rounded px-2 py-1">
                                 <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name}</p>
                             </div>
-                            <button onClick={() => isMain ? setMainVideo(initialProcessingState) : setDescVideo(initialProcessingState)} className="p-2 bg-black/60 rounded-full text-zinc-400 hover:text-red-400">
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setActiveEditor(type)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10"
+                                >
+                                    <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
+                                </button>
+                                <button
+                                    onClick={() => isMain ? setMainVideo(initialProcessingState) : setDescVideo(initialProcessingState)}
+                                    className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
-                        <Button onClick={() => setActiveEditor(type)} className="w-full">
-                            <Scissors className="w-4 h-4 mr-2" /> 편집하기
-                        </Button>
                     </div>
                 </div>
             </div>

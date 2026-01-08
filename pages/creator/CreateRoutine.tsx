@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
-import { VideoCategory, Difficulty, Drill } from '../../types';
+import { VideoCategory, Difficulty, Drill, UniformType } from '../../types';
 import { Button } from '../../components/Button';
 import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
@@ -25,6 +25,7 @@ export const CreateRoutine: React.FC = () => {
         thumbnailUrl: '',
         difficulty: Difficulty.Beginner,
         category: VideoCategory.Standing,
+        uniformType: UniformType.Gi,
         totalDurationMinutes: 0
     });
 
@@ -65,6 +66,7 @@ export const CreateRoutine: React.FC = () => {
                 thumbnailUrl: data.thumbnailUrl || '',
                 difficulty: data.difficulty || Difficulty.Beginner,
                 category: data.category || VideoCategory.Standing,
+                uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                 totalDurationMinutes: data.totalDurationMinutes || 0
             });
 
@@ -270,7 +272,7 @@ export const CreateRoutine: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Category */}
                         <div>
                             <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">대표 카테고리</label>
@@ -299,6 +301,21 @@ export const CreateRoutine: React.FC = () => {
                                     <option key={diff} value={diff}>
                                         {diff === 'Beginner' ? '초급' : diff === 'Intermediate' ? '중급' : '상급'}
                                     </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Uniform Type */}
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">도복</label>
+                            <select
+                                name="uniformType"
+                                value={formData.uniformType}
+                                onChange={handleChange}
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                            >
+                                {Object.values(UniformType).map(type => (
+                                    <option key={type} value={type}>{type}</option>
                                 ))}
                             </select>
                         </div>
@@ -338,33 +355,6 @@ export const CreateRoutine: React.FC = () => {
                             />
                         </div>
                         <p className="text-xs text-zinc-500 mt-2 ml-1">0원으로 설정하면 무료로 공개됩니다.</p>
-                    </div>
-
-                    {/* Thumbnail URL */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-semibold text-zinc-400 ml-1">썸네일 이미지 URL</label>
-                            <button
-                                type="button"
-                                onClick={() => setShowThumbnailModal(true)}
-                                disabled={selectedDrillIds.length === 0}
-                                className="text-xs text-violet-400 hover:text-violet-300 disabled:text-zinc-600 disabled:cursor-not-allowed font-semibold transition-colors"
-                            >
-                                드릴에서 선택하기
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
-                            <input
-                                type="url"
-                                name="thumbnailUrl"
-                                value={formData.thumbnailUrl}
-                                onChange={handleChange}
-                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
-                                placeholder="드릴을 선택하면 자동으로 채워집니다"
-                            />
-                        </div>
-                        <p className="text-xs text-zinc-500 mt-2 ml-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
                     </div>
                 </div>
 
@@ -443,6 +433,42 @@ export const CreateRoutine: React.FC = () => {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* Thumbnail URL */}
+                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+                    <div className="flex items-center gap-3 pb-5 border-b border-zinc-800/50 mb-6">
+                        <div className="w-10 h-10 bg-violet-600/10 rounded-xl flex items-center justify-center">
+                            <ImageIcon className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <h2 className="text-xl font-bold text-white">썸네일 설정</h2>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-zinc-400 ml-1">썸네일 이미지 URL</label>
+                            <button
+                                type="button"
+                                onClick={() => setShowThumbnailModal(true)}
+                                disabled={selectedDrillIds.length === 0}
+                                className="text-xs text-violet-400 hover:text-violet-300 disabled:text-zinc-600 disabled:cursor-not-allowed font-semibold transition-colors"
+                            >
+                                드릴에서 선택하기
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                            <input
+                                type="url"
+                                name="thumbnailUrl"
+                                value={formData.thumbnailUrl}
+                                onChange={handleChange}
+                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                placeholder="드릴을 선택하면 자동으로 채워집니다"
+                            />
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-2 ml-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
+                    </div>
                 </div>
 
                 {/* Action Buttons */}

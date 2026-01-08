@@ -269,12 +269,22 @@ export const RoutineDetail: React.FC = () => {
             const loadDrill = async (index: number) => {
                 if (!routine?.drills || index >= routine.drills.length) return;
                 const drill = routine.drills[index];
-                const drillId = typeof drill === 'string' ? drill : drill.id;
+
+                // If we have the full drill object locally (custom routine), set it immediately
+                if (typeof drill !== 'string') {
+                    setCurrentDrill(drill);
+                    return; // Skip API fetch for custom routines to avoid errors/delays
+                }
+
+                // Only fetch if we just have an ID string
+                const drillId = drill;
                 try {
                     const drillData = await getDrillById(drillId);
-                    if (drillData && !('error' in drillData)) { setCurrentDrill(drillData as Drill); return; }
+                    if (drillData && !('error' in drillData)) {
+                        setCurrentDrill(drillData as Drill);
+                        return;
+                    }
                 } catch (e) { }
-                if (typeof drill !== 'string') setCurrentDrill(drill);
             };
             loadDrill(currentDrillIndex);
         }
@@ -385,6 +395,12 @@ export const RoutineDetail: React.FC = () => {
     };
 
     if (loading) return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+
+    // If routine exists but currentDrill is not yet set (and routine has drills), show loading
+    if (routine && !currentDrill && routine.drills && routine.drills.length > 0) {
+        return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+    }
+
     if (!routine || !currentDrill) return <div className="text-white text-center pt-20">Routine not found</div>;
 
     const progressPercent = (completedDrills.size / (routine?.drills?.length || 1)) * 100;

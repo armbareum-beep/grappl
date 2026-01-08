@@ -39,6 +39,7 @@ export const DrillDetail: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [muted, setMuted] = useState(true);
+    const [canAccessDescription, setCanAccessDescription] = useState(false);
 
     const navigateToCreator = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -122,7 +123,10 @@ export const DrillDetail: React.FC = () => {
     const isActionVideo = currentVideoType === 'action';
     const rawVimeoUrl = drill ? (isActionVideo ? (drill.videoUrl || drill.vimeoUrl) : (drill.descriptionVideoUrl || drill.videoUrl || drill.vimeoUrl)) : undefined;
     const vimeoId = extractVimeoId(rawVimeoUrl);
-    const useVimeo = !!vimeoId && owns;
+    // Action video: FREE for everyone
+    // Description video: requires canAccessDescription
+    const canViewCurrentVideo = isActionVideo ? true : canAccessDescription;
+    const useVimeo = !!vimeoId && canViewCurrentVideo;
 
     // For fallback, we prefer the direct video URL (mp4)
     const fallbackUrl = drill ? (isActionVideo ? drill.videoUrl : (drill.descriptionVideoUrl && !vimeoId ? drill.descriptionVideoUrl : drill.videoUrl)) : undefined;
@@ -133,7 +137,7 @@ export const DrillDetail: React.FC = () => {
         : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4');
 
     // Detect Processing State
-    const isProcessing = owns && !useVimeo && drill && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
+    const isProcessing = canViewCurrentVideo && !useVimeo && drill && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
     // -------------------------------------------------------------
 
     // ... (existing state)
@@ -255,6 +259,30 @@ export const DrillDetail: React.FC = () => {
 
                 setOwns(hasAccess);
 
+                // NEW: Check description video access (stricter)
+                // Description videos require subscription, purchase, or daily free
+                let canSeeDescription = false;
+                if (drill.creatorId === contextUser.id) {
+                    canSeeDescription = true;
+                } else if (isDailyFree) {
+                    canSeeDescription = true;
+                } else if (isSub) {
+                    canSeeDescription = true;
+                } else if (id) {
+                    // Check if purchased routine
+                    try {
+                        const { getRoutineByDrillId } = await import('../lib/api');
+                        const { data: routineData } = await getRoutineByDrillId(id);
+                        if (routineData) {
+                            const purchased = await checkDrillRoutineOwnership(contextUser.id, routineData.id);
+                            if (purchased) canSeeDescription = true;
+                        }
+                    } catch (e) {
+                        console.warn('Error checking routine for description access:', e);
+                    }
+                }
+                setCanAccessDescription(canSeeDescription);
+
                 // Check liked and saved status
                 try {
                     const [isLiked, isSaved] = await Promise.all([
@@ -271,6 +299,7 @@ export const DrillDetail: React.FC = () => {
             // Not logged in
             if (isDailyFree) {
                 setOwns(true);
+                setCanAccessDescription(true); // Daily free drills include description
             } else if (id) {
                 // Check if first drill in routine (free preview)
                 try {
@@ -531,7 +560,7 @@ export const DrillDetail: React.FC = () => {
             {/* Video Container - 9:16 aspect ratio */}
             <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="relative w-full h-full max-w-[56.25vh]">
-                    {owns ? (
+                    {canViewCurrentVideo ? (
                         useVimeo ? (
                             <iframe
                                 key={`vimeo-${vimeoId}-${currentVideoType}`}
@@ -597,16 +626,18 @@ export const DrillDetail: React.FC = () => {
                                     <Lock className="w-10 h-10 text-white" />
                                 </div>
                                 <h3 className="text-2xl font-bold mb-3 tracking-tight">
-                                    {drill.price === 0 ? '구독 필요' : '드릴 구매 필요'}
+                                    {currentVideoType === 'description' ? '설명 영상은 유료입니다' : (drill.price === 0 ? '구독 필요' : '드릴 구매 필요')}
                                 </h3>
                                 <p className="text-zinc-300 mb-8 max-w-xs text-sm">
-                                    이 기술을 마스터하고 싶으신가요? <br />지금 바로 시작하세요.
+                                    {currentVideoType === 'description'
+                                        ? '설명 영상은 구독자 또는 구매자만 시청할 수 있습니다.'
+                                        : '이 기술을 마스터하고 싶으신가요? 지금 바로 시작하세요.'}
                                 </p>
                                 {drill.price > 0 ? (
                                     <Button
                                         onClick={handlePurchase}
                                         size="lg"
-                                        className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
+                                        className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-violet-900/20 border border-violet-400/20"
                                     >
                                         ₩{finalPrice.toLocaleString()}에 구매하기
                                     </Button>
@@ -614,7 +645,7 @@ export const DrillDetail: React.FC = () => {
                                     <Button
                                         onClick={() => navigate('/pricing')}
                                         size="lg"
-                                        className="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-blue-900/20 border border-blue-400/20"
+                                        className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-violet-900/20 border border-violet-400/20"
                                     >
                                         구독하기
                                     </Button>

@@ -16,6 +16,7 @@ export async function createLesson(lessonData: {
     difficulty: Difficulty;
     durationMinutes?: number;
     thumbnailUrl?: string;
+    uniformType?: string;
 }) {
     const { data, error } = await supabase
         .from('lessons')
@@ -31,6 +32,7 @@ export async function createLesson(lessonData: {
             difficulty: lessonData.difficulty,
             duration_minutes: lessonData.durationMinutes,
             thumbnail_url: lessonData.thumbnailUrl,
+            uniform_type: lessonData.uniformType,
         }])
 
         .select()
@@ -53,6 +55,7 @@ export async function updateLesson(id: string, updates: Partial<Lesson>) {
             difficulty: updates.difficulty,
             duration_minutes: updates.durationMinutes,
             thumbnail_url: updates.thumbnailUrl,
+            uniform_type: updates.uniformType,
         })
         .eq('id', id)
         .select()

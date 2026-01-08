@@ -5,8 +5,8 @@ import { createSparringVideo, searchDrillsAndLessons } from '../../lib/api';
 import { ArrowLeft, Upload, Search, X, Plus, Scissors, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
-import { SparringVideo } from '../../types';
 import { VideoEditor } from '../../components/VideoEditor';
+import { UniformType, ContentLevel, VideoCategory, QuantentPosition, SparringVideo } from '../../types';
 
 export const UploadSparring: React.FC = () => {
     const { user, loading } = useAuth();
@@ -26,8 +26,9 @@ export const UploadSparring: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [relatedItems, setRelatedItems] = useState<SparringVideo['relatedItems']>([]);
-    const [category, setCategory] = useState<'Sparring' | 'Competition'>('Sparring');
-    const [uniformType, setUniformType] = useState<'Gi' | 'No-Gi'>('Gi');
+    const [category, setCategory] = useState<QuantentPosition | VideoCategory | 'Sparring' | 'Competition'>('Sparring');
+    const [uniformType, setUniformType] = useState<UniformType | 'Gi' | 'No-Gi'>(UniformType.Gi);
+    const [difficulty, setDifficulty] = useState<ContentLevel>(ContentLevel.Beginner);
 
     // Editor State
     const [cuts, setCuts] = useState<{ start: number; end: number }[] | null>(null);
@@ -94,6 +95,7 @@ export const UploadSparring: React.FC = () => {
                 thumbnailUrl: '',
                 category,
                 uniformType,
+                difficulty,
             });
 
             if (error || !video) throw error;
@@ -202,10 +204,10 @@ export const UploadSparring: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setIsEditorOpen(true)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-xl shadow-violet-500/20 transition-all"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold hover:bg-zinc-700 hover:text-white transition-all border border-zinc-700"
                                     >
-                                        <Scissors className="w-4 h-4" />
-                                        {cuts ? '편집 구간 수정하기' : '영상 자르기 / 편집'}
+                                        <Scissors className="w-4 h-4 text-violet-400" />
+                                        {cuts ? '편집 수정' : '영상 편집'}
                                     </button>
                                     <label className="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl transition-all flex items-center gap-2 font-semibold">
                                         <Upload className="w-4 h-4" />
@@ -259,7 +261,7 @@ export const UploadSparring: React.FC = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">Uniform</label>
                                 <div className="flex bg-zinc-950 border border-zinc-800 rounded-xl p-1">
@@ -267,7 +269,7 @@ export const UploadSparring: React.FC = () => {
                                         <button
                                             key={type}
                                             type="button"
-                                            onClick={() => setUniformType(type)}
+                                            onClick={() => setUniformType(type as any)}
                                             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${uniformType === type
                                                 ? 'bg-violet-600 text-white shadow-lg'
                                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -277,6 +279,18 @@ export const UploadSparring: React.FC = () => {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">Level</label>
+                                <select
+                                    value={difficulty}
+                                    onChange={e => setDifficulty(e.target.value as ContentLevel)}
+                                    className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all font-bold text-sm"
+                                >
+                                    {Object.values(ContentLevel).map(lvl => (
+                                        <option key={lvl} value={lvl}>{lvl}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">Category</label>

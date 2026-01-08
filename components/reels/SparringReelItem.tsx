@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Grid, Heart, ChevronLeft } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
@@ -13,10 +13,9 @@ interface SparringReelItemProps {
     video: SparringVideo;
     isActive: boolean;
     offset: number;
-    onChangeView?: () => void;
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, onChangeView }) => {
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
@@ -276,11 +275,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                 <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
                                     {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                 </button>
-                                {onChangeView && (
-                                    <button onClick={(e) => { e.stopPropagation(); onChangeView(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
-                                        <Grid className="w-5 h-5 md:w-6 md:h-6" />
-                                    </button>
-                                )}
+
                             </div>
 
                             {/* Middle-Right Group: Heart, Save, Share */}

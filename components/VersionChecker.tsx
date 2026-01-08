@@ -19,14 +19,16 @@ export const VersionChecker: React.FC = () => {
 
             const data = await response.json();
             const newestVersion = data.version;
-            const currentVersion = localStorage.getItem('app_version');
+
+            // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
+            const currentVersion = import.meta.env.VITE_APP_VERSION;
+
+            console.log(`[VersionCheck] Current: ${currentVersion}, Newest: ${newestVersion}`);
 
             if (currentVersion && newestVersion !== currentVersion) {
                 // If it's a new version, show the prompt instead of reloading
                 setLatestVersion(newestVersion);
                 setShowUpdatePrompt(true);
-            } else if (!currentVersion) {
-                localStorage.setItem('app_version', newestVersion);
             }
         } catch (error) {
             console.error('Failed to check version:', error);
@@ -59,15 +61,19 @@ export const VersionChecker: React.FC = () => {
 
         console.log(`Updating to version: ${latestVersion}...`);
 
-        // 1. Set the new version before reloading
+        // 1. Set the new version in localStorage (as a backup/legacy)
         localStorage.setItem('app_version', latestVersion);
         localStorage.setItem('version_reload_timestamp', Date.now().toString());
 
         // 2. Unregister Service Workers (to ensure clean slate)
         if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const registration of registrations) {
-                await registration.unregister();
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+            } catch (err) {
+                console.error('Error unregistering service worker:', err);
             }
         }
 
@@ -81,8 +87,11 @@ export const VersionChecker: React.FC = () => {
             }
         }
 
-        // 4. Final Reload
-        window.location.reload();
+        // 4. Final Reload - Add cache-busting query parameter to force browser to re-fetch index.html
+        // This ensures the browser GET request bypasses internal disk cache
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('v', latestVersion);
+        window.location.href = currentUrl.toString();
     };
 
     return (

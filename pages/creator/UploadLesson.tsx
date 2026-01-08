@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Difficulty, VideoCategory } from '../../types';
+import { VideoCategory, Difficulty, UniformType } from '../../types';
 import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
 import { uploadThumbnail } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
@@ -48,6 +48,7 @@ export const UploadLesson: React.FC = () => {
         description: '',
         difficulty: Difficulty.Beginner,
         category: VideoCategory.Standing,
+        uniformType: UniformType.Gi,
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -69,6 +70,7 @@ export const UploadLesson: React.FC = () => {
                         description: data.description || '',
                         difficulty: data.difficulty || Difficulty.Beginner,
                         category: data.category || VideoCategory.Standing,
+                        uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                     });
                     // We don't preload videoState as we only show it if user wants to replace video
                 }
@@ -161,6 +163,7 @@ export const UploadLesson: React.FC = () => {
                     description: formData.description,
                     difficulty: formData.difficulty,
                     category: formData.category,
+                    uniformType: formData.uniformType,
                     // Only update video fields if a new video is being uploaded
                     vimeoUrl: videoState.videoId ? '' : undefined, // Reset vimeoUrl if new video
                 };
@@ -202,6 +205,7 @@ export const UploadLesson: React.FC = () => {
                     vimeoUrl: '',
                     length: formatDuration(totalSeconds),
                     difficulty: formData.difficulty,
+                    uniformType: formData.uniformType,
                     durationMinutes: durationMinutes,
                     thumbnailUrl: thumbnailUrl,
                 });
@@ -219,7 +223,7 @@ export const UploadLesson: React.FC = () => {
 
                 await queueUpload(videoState.file, 'action', {
                     videoId: finalVideoId, // This is the UUID for the video file
-                    filename: `${finalVideoId}.${videoState.file.name.split('.').pop() || 'mp4'}`,
+                    filename: `${finalVideoId}.${videoState.file.name.split('.').pop() || 'mp4'} `,
                     cuts: videoState.cuts || [],
                     title: formData.title,
                     description: formData.description,
@@ -234,7 +238,7 @@ export const UploadLesson: React.FC = () => {
 
         } catch (err: any) {
             console.error('Submission error:', err);
-            toastError(`오류가 발생했습니다: ${err.message}`);
+            toastError(`오류가 발생했습니다: ${err.message} `);
             setIsSubmitting(false);
         }
     };
@@ -342,17 +346,31 @@ export const UploadLesson: React.FC = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">난이도</label>
-                                    <select
-                                        value={formData.difficulty}
-                                        onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
-                                        className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
-                                    >
-                                        {Object.values(Difficulty).map(diff => (
-                                            <option key={diff} value={diff}>{diff}</option>
-                                        ))}
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">난이도</label>
+                                        <select
+                                            value={formData.difficulty}
+                                            onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
+                                            className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                        >
+                                            {Object.values(Difficulty).map(diff => (
+                                                <option key={diff} value={diff}>{diff}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">복장</label>
+                                        <select
+                                            value={formData.uniformType}
+                                            onChange={e => setFormData({ ...formData, uniformType: e.target.value as UniformType })}
+                                            className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                        >
+                                            {Object.values(UniformType).map(u => (
+                                                <option key={u} value={u}>{u}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -386,7 +404,7 @@ export const UploadLesson: React.FC = () => {
                                         <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                                             <div
                                                 className="h-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-300"
-                                                style={{ width: `${videoState.progress}%` }}
+                                                style={{ width: `${videoState.progress}% ` }}
                                             />
                                         </div>
                                     </div>
@@ -407,10 +425,10 @@ export const UploadLesson: React.FC = () => {
                                     <div className="flex gap-3">
                                         <button
                                             onClick={() => setIsVideoEditorOpen(true)}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-500 transition-all shadow-lg shadow-violet-500/20"
+                                            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-xl font-semibold hover:bg-zinc-700 hover:text-white transition-all border border-zinc-700"
                                         >
-                                            <Scissors className="w-4 h-4" />
-                                            {videoState.cuts ? '다시 편집' : '영상 편집'}
+                                            <Scissors className="w-4 h-4 text-violet-400" />
+                                            {videoState.cuts ? '편집 수정' : '영상 편집'}
                                         </button>
                                         <button
                                             onClick={() => setVideoState(initialProcessingState)}

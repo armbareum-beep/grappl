@@ -94,9 +94,9 @@ export const ClassShowcase: React.FC = () => {
                 {/* Carousel Viewport */}
                 <div className="relative">
                     <div className="overflow-visible" ref={emblaRef}>
-                        <div className="flex -ml-4 md:-ml-8">
+                        <div className="flex">
                             {courses.map((course) => (
-                                <div key={course.id} className="flex-[0_0_100%] md:flex-[0_0_90%] lg:flex-[0_0_80%] min-w-0 pl-4 md:pl-8">
+                                <div key={course.id} className="flex-[0_0_100%] md:flex-[0_0_90%] lg:flex-[0_0_80%] min-w-0 px-4 md:px-8">
                                     <div className="flex flex-col md:relative md:aspect-video rounded-3xl md:rounded-[3rem] overflow-hidden bg-zinc-900/50 md:bg-zinc-900 ring-1 ring-white/5 shadow-2xl group/card transition-all">
                                         {/* Video Frame */}
                                         <div className="relative aspect-video md:absolute md:inset-0">
@@ -142,18 +142,20 @@ export const ClassShowcase: React.FC = () => {
                     </div>
 
                     {/* Navigation Buttons */}
-                    <button
-                        onClick={scrollPrev}
-                        className="absolute top-1/2 left-2 md:left-4 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-900/90 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 transition-all z-40 shadow-2xl hover:scale-105 active:scale-95 group"
-                    >
-                        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 group-hover:-translate-x-0.5 transition-transform" />
-                    </button>
-                    <button
-                        onClick={scrollNext}
-                        className="absolute top-1/2 right-2 md:right-4 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-900/90 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 transition-all z-40 shadow-2xl hover:scale-105 active:scale-95 group"
-                    >
-                        <ChevronRight className="w-6 h-6 md:w-8 md:h-8 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                    <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between items-center pointer-events-none z-40 px-2 lg:px-4">
+                        <button
+                            onClick={scrollPrev}
+                            className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-zinc-900/60 hover:bg-zinc-900/90 backdrop-blur-md border border-white/5 flex items-center justify-center text-white transition-all shadow-2xl md:hover:scale-110 active:scale-95 pointer-events-auto group"
+                        >
+                            <ChevronLeft className="w-6 h-6 md:w-10 md:h-10 group-hover:-translate-x-1 transition-transform" />
+                        </button>
+                        <button
+                            onClick={scrollNext}
+                            className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-zinc-900/60 hover:bg-zinc-900/90 backdrop-blur-md border border-white/5 flex items-center justify-center text-white transition-all shadow-2xl md:hover:scale-110 active:scale-95 pointer-events-auto group"
+                        >
+                            <ChevronRight className="w-6 h-6 md:w-10 md:h-10 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Footer Info */}
@@ -161,7 +163,7 @@ export const ClassShowcase: React.FC = () => {
                     <Button
                         variant="ghost"
                         className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
-                        onClick={() => navigate('/browse')}
+                        onClick={() => navigate('/library')}
                     >
                         모든 클래스 둘러보기
                         <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />

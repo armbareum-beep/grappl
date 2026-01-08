@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
 import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo } from '../../types';
+import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
@@ -116,6 +116,7 @@ export const CourseEditor: React.FC = () => {
         difficulty: Difficulty.Beginner,
         price: 0,
         thumbnailUrl: '',
+        uniformType: UniformType.Gi,
         isSubscriptionExcluded: false,
         published: false,
     });
@@ -689,7 +690,7 @@ export const CourseEditor: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                             <div className="group">
                                                 <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">카테고리</label>
                                                 <div className="relative">
@@ -703,7 +704,7 @@ export const CourseEditor: React.FC = () => {
                                                         ))}
                                                     </select>
                                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-focus-within:text-violet-500 transition-colors">
-                                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="19 9l-7 7-7-7" /></svg>
+                                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                                     </div>
                                                 </div>
                                             </div>
@@ -720,7 +721,24 @@ export const CourseEditor: React.FC = () => {
                                                         ))}
                                                     </select>
                                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-focus-within:text-violet-500 transition-colors">
-                                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="19 9l-7 7-7-7" /></svg>
+                                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="group">
+                                                <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">도복</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={courseData.uniformType}
+                                                        onChange={e => setCourseData({ ...courseData, uniformType: e.target.value as UniformType })}
+                                                        className="w-full pl-5 pr-10 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none appearance-none"
+                                                    >
+                                                        {Object.values(UniformType).map(type => (
+                                                            <option key={type} value={type}>{type}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-focus-within:text-violet-500 transition-colors">
+                                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                                     </div>
                                                 </div>
                                             </div>

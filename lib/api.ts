@@ -163,7 +163,7 @@ function transformVideo(data: any): Video {
         vimeoUrl: data.vimeo_url,
         length: data.length,
         price: data.price,
-        views: data.views,
+        views: data.views || 0,
         createdAt: data.created_at,
     };
 }
@@ -183,6 +183,7 @@ function transformCourse(data: any): Course {
         views: data.views,
         lessonCount: data.lesson_count,
         createdAt: data.created_at,
+        uniformType: data.uniform_type,
         isSubscriptionExcluded: data.is_subscription_excluded,
         published: data.published,
     };
@@ -206,6 +207,7 @@ export function transformLesson(data: any): Lesson {
         createdAt: data.created_at,
         isSubscriptionExcluded: data.is_subscription_excluded || false,
         isPreview: data.is_preview,
+        uniformType: data.uniform_type,
     };
 }
 
@@ -4500,7 +4502,7 @@ export async function createDrill(drillData: Partial<Drill>) {
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
         length: drillData.length,
-        uniform_type: drillData.uniformType, // Added
+        uniform_type: drillData.uniformType,
     };
 
     let attempts = 0;
@@ -4546,7 +4548,7 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.length) dbData.length = drillData.length;
-    if (drillData.uniformType) dbData.uniform_type = drillData.uniformType; // Added
+    if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
 
     const { data, error } = await supabase
         .from('drills')
@@ -4608,6 +4610,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         thumbnail_url: videoData.thumbnailUrl,
         related_items: videoData.relatedItems,
         category: videoData.category,
+        difficulty: videoData.difficulty,
         uniform_type: videoData.uniformType,
     };
 
@@ -4736,6 +4739,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
     if (updates.category) dbData.category = updates.category;
+    if (updates.difficulty) dbData.difficulty = updates.difficulty;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
 
     const { data, error } = await supabase
@@ -4939,37 +4943,72 @@ export async function getDailyFreeCourse() {
  */
 export async function getDailyFreeDrill() {
     try {
-        const { data, error } = await supabase
-            .from('drills')
-            .select('*, creator:creators(name, profile_image)')
-            .neq('vimeo_url', '')
-            .not('vimeo_url', 'like', 'ERROR%')
-            .order('id')
-            .limit(20);
+        // 1. Try to get featured drill for today
+        const today = new Date().toISOString().split('T')[0];
+        const { data: featured } = await supabase
+            .from('daily_featured_content')
+            .select('featured_id')
+            .eq('date', today)
+            .eq('featured_type', 'drill')
+            .maybeSingle();
 
-        if (error) {
-            console.error('Error fetching drills for daily:', error);
-            return { data: null, error };
+        let drillId = featured?.featured_id;
+        let selectedDrill = null;
+
+        if (drillId) {
+            const { data: drill } = await supabase
+                .from('drills')
+                .select('*')
+                .eq('id', drillId)
+                .maybeSingle();
+            selectedDrill = drill;
         }
 
-        if (!data || data.length === 0) {
-            console.log('[getDailyFreeDrill] No drills found in database');
-            return { data: null, error: null };
+        // 2. Fallback to deterministic random if no featured drill or not found
+        if (!selectedDrill) {
+            const { data, error } = await supabase
+                .from('drills')
+                .select('*')
+                .neq('vimeo_url', '')
+                .not('vimeo_url', 'like', 'ERROR%')
+                .order('id')
+                .limit(20);
+
+            if (error) throw error;
+            if (!data || data.length === 0) return { data: null, error: null };
+
+            const todayObj = new Date();
+            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const x = Math.sin(seed + 456) * 10000;
+            const index = Math.floor((x - Math.floor(x)) * data.length);
+            selectedDrill = data[index];
         }
 
-        // Deterministic selection based on date
-        const today = new Date();
-        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-        const x = Math.sin(seed + 456) * 10000;
-        const index = Math.floor((x - Math.floor(x)) * data.length);
+        if (!selectedDrill) return { data: null, error: null };
 
-        const selectedDrill = data[index];
+        // 3. Fetch creator info from users table (Fixes 400 error)
+        let creatorName = 'Grapplay Team';
+        let creatorProfileImage = undefined;
+
+        if (selectedDrill.creator_id) {
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url')
+                .eq('id', selectedDrill.creator_id)
+                .maybeSingle();
+
+            if (userData) {
+                creatorName = userData.name || creatorName;
+                creatorProfileImage = userData.avatar_url || undefined;
+            }
+        }
 
         return {
             data: {
                 ...selectedDrill,
-                creatorName: selectedDrill.creator?.name || 'Grapplay Team',
-                creatorProfileImage: selectedDrill.creator?.profile_image || undefined
+                thumbnailUrl: selectedDrill.thumbnail_url,
+                creatorName,
+                creatorProfileImage
             },
             error: null
         };
@@ -4984,45 +5023,76 @@ export async function getDailyFreeDrill() {
  */
 export async function getDailyFreeLesson() {
     try {
-        const { data, error } = await supabase
-            .from('lessons')
-            .select(`
-                *,
-                course:courses (
-                    id,
-                    title,
-                    thumbnail_url,
-                    creator_id,
-                    price,
-                    is_subscription_excluded,
-                    creator:creators(name, profile_image)
-                )
-            `)
-            .neq('vimeo_url', '')
-            .not('vimeo_url', 'like', 'ERROR%')
-            .order('id')
-            .limit(20);
+        // 1. Try to get featured course for today
+        const today = new Date().toISOString().split('T')[0];
+        const { data: featured } = await supabase
+            .from('daily_featured_content')
+            .select('featured_id')
+            .eq('date', today)
+            .eq('featured_type', 'course')
+            .maybeSingle();
 
-        if (error) {
-            console.error('Error fetching lessons for daily:', error);
-            return { data: null, error };
+        let selectedLesson = null;
+
+        if (featured?.featured_id) {
+            // Get first lesson of that course
+            const { data: lessons } = await supabase
+                .from('lessons')
+                .select(`
+                    *,
+                    course:courses (
+                        id,
+                        title,
+                        thumbnail_url,
+                        creator_id,
+                        price,
+                        is_subscription_excluded,
+                        creator:creators(name, profile_image)
+                    )
+                `)
+                .eq('course_id', featured.featured_id)
+                .order('lesson_number', { ascending: true })
+                .limit(1);
+
+            if (lessons && lessons.length > 0) {
+                selectedLesson = lessons[0];
+            }
         }
 
-        if (!data || data.length === 0) {
-            console.log('[getDailyFreeLesson] No lessons found in database');
-            return { data: null, error: null };
+        // 2. Fallback to deterministic random if no featured or not found
+        if (!selectedLesson) {
+            const { data, error } = await supabase
+                .from('lessons')
+                .select(`
+                    *,
+                    course:courses (
+                        id,
+                        title,
+                        thumbnail_url,
+                        creator_id,
+                        price,
+                        is_subscription_excluded,
+                        creator:creators(name, profile_image)
+                    )
+                `)
+                .neq('vimeo_url', '')
+                .not('vimeo_url', 'like', 'ERROR%')
+                .order('id')
+                .limit(20);
+
+            if (error) throw error;
+            if (!data || data.length === 0) return { data: null, error: null };
+
+            const todayObj = new Date();
+            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const x = Math.sin(seed + 789) * 10000;
+            const index = Math.floor((x - Math.floor(x)) * data.length);
+            selectedLesson = data[index];
         }
 
-        // Deterministic selection based on date
-        const today = new Date();
-        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-        const x = Math.sin(seed + 789) * 10000;
-        const index = Math.floor((x - Math.floor(x)) * data.length);
+        if (!selectedLesson) return { data: null, error: null };
 
-        const selectedLesson = data[index];
         const transformed = transformLesson(selectedLesson);
-
-        // Ensure creator info is included
         transformed.creatorName = selectedLesson.course?.creator?.name || 'Grapplay Team';
         transformed.creatorProfileImage = selectedLesson.course?.creator?.profile_image || undefined;
 
@@ -5038,38 +5108,78 @@ export async function getDailyFreeLesson() {
 
 export async function getDailyFreeSparring() {
     try {
-        const { data, error } = await supabase
-            .from('sparring_videos')
-            .select(`
-                *,
-                creators(*)
-            `)
-            .neq('video_url', '')
-            .not('video_url', 'like', 'ERROR%')
-            .order('id')
-            .limit(50); // Larger pool for variety
+        // 1. Try to get featured sparring for today
+        const today = new Date().toISOString().split('T')[0];
+        const { data: featured } = await supabase
+            .from('daily_featured_content')
+            .select('featured_id')
+            .eq('date', today)
+            .eq('featured_type', 'sparring')
+            .maybeSingle();
 
-        if (error) throw error;
-        if (!data || data.length === 0) return { data: null, error: null };
+        let sparringId = featured?.featured_id;
+        let selectedSparring = null;
 
-        // Deterministic selection based on week
-        const today = new Date();
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        const pastDaysOfYear = (today.getTime() - startOfYear.getTime()) / 86400000;
-        const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-        const year = today.getFullYear();
+        if (sparringId) {
+            const { data: sparring } = await supabase
+                .from('sparring_videos')
+                .select('*')
+                .eq('id', sparringId)
+                .maybeSingle();
+            selectedSparring = sparring;
+        }
 
-        const seed = year * 100 + weekNum;
+        // 2. Fallback to deterministic random if no featured or not found
+        if (!selectedSparring) {
+            const { data, error } = await supabase
+                .from('sparring_videos')
+                .select('*')
+                .neq('video_url', '')
+                .not('video_url', 'like', 'ERROR%')
+                .order('id')
+                .limit(50);
 
-        // Use a different salt for sparring
-        const x = Math.sin(seed + 456) * 10000;
-        const index = Math.floor((x - Math.floor(x)) * data.length);
+            if (error) throw error;
+            if (!data || data.length === 0) return { data: null, error: null };
 
-        console.log(`[getWeeklyFreeSparring] Year: ${year}, Week: ${weekNum}, Seed: ${seed}, Selected Index: ${index}`);
+            const todayObj = new Date();
+            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const x = Math.sin(seed + 123) * 10000;
+            const index = Math.floor((x - Math.floor(x)) * data.length);
+            selectedSparring = data[index];
+        }
 
-        return { data: transformSparringVideo(data[index]), error: null };
+        if (!selectedSparring) return { data: null, error: null };
+
+        // 3. Fetch creator info from users table (Fixes 400 error)
+        let creatorInfo = undefined;
+        if (selectedSparring.creator_id) {
+            const { data: userData } = await supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .eq('id', selectedSparring.creator_id)
+                .maybeSingle();
+
+            if (userData) {
+                creatorInfo = {
+                    id: userData.id,
+                    name: userData.name || 'Unknown',
+                    profileImage: userData.avatar_url,
+                    bio: '',
+                    subscriberCount: 0
+                };
+            }
+        }
+
+        return {
+            data: {
+                ...transformSparringVideo(selectedSparring),
+                creator: creatorInfo
+            },
+            error: null
+        };
     } catch (error) {
-        console.error('Error fetching weekly free sparring:', error);
+        console.error('Error fetching daily free sparring:', error);
         return { data: null, error };
     }
 }
@@ -5503,6 +5613,7 @@ function transformDrill(data: any): Drill {
         likes: data.likes || 0,
         price: data.price || 0,
         createdAt: data.created_at,
+        uniformType: data.uniform_type,
     };
     console.log('transformDrill output:', result);
     return result;

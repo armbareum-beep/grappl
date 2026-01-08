@@ -15,13 +15,11 @@ export type MixedItem =
 interface MixedReelsFeedProps {
     items: MixedItem[];
     initialIndex?: number;
-    onChangeView?: () => void;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     items,
-    initialIndex = 0,
-    onChangeView
+    initialIndex = 0
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -197,7 +195,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             onFollow={() => handleDrillFollow(item.data)}
                             onShare={() => handleShare(item.data)}
                             onViewRoutine={() => handleViewRoutine(item.data)}
-                            onChangeView={onChangeView || (() => { })}
                             offset={offset}
                         />
                     );
@@ -208,7 +205,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             video={item.data}
                             isActive={isActive}
                             offset={offset}
-                            onChangeView={onChangeView}
                         />
                     );
                 } else if (item.type === 'lesson') {

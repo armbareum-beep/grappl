@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Grid, Search, PlaySquare, ChevronDown, Lock } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { cn } from '../lib/utils';
@@ -13,9 +13,8 @@ import Player from '@vimeo/player';
 const VideoItem: React.FC<{
     video: SparringVideo;
     isActive: boolean;
-    onChangeView: () => void;
     dailyFreeId?: string | null;
-}> = ({ video, isActive, onChangeView, dailyFreeId }) => {
+}> = ({ video, isActive, dailyFreeId }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
@@ -291,9 +290,7 @@ const VideoItem: React.FC<{
                             <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
                                 {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); onChangeView(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
-                                <Grid className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
+
                         </div>
 
                         {/* Video Overlay Layer (Bottom parts) */}
@@ -505,7 +502,6 @@ export const SparringFeed: React.FC<{
                                     key={video.id}
                                     video={video}
                                     isActive={idx === activeIndex}
-                                    onChangeView={() => setViewMode('grid')}
                                     dailyFreeId={dailyFreeId}
                                 />
                             ))

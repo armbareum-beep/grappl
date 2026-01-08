@@ -4,18 +4,66 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export function DrillReels() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [drills, setDrills] = useState<any[]>([]);
+    const [initialIndex, setInitialIndex] = useState(0);
 
     // Load Drill Content
     useEffect(() => {
-        loadDrillContent();
-    }, []);
+        const state = location.state as { source?: string; drillId?: string } | null;
+
+        if (state?.source === 'saved') {
+            loadSavedDrills(state.drillId);
+        } else {
+            loadDrillContent();
+        }
+    }, [location.state]);
+
+    const loadSavedDrills = (initialId?: string) => {
+        try {
+            setLoading(true);
+            const savedStr = localStorage.getItem('saved_drills');
+            if (savedStr) {
+                const saved = JSON.parse(savedStr);
+                // Ensure valid data structure if needed
+                if (Array.isArray(saved) && saved.length > 0) {
+                    setDrills(saved);
+
+                    // If initialId provided, bring it to front or find index?
+                    // DrillReelsFeed takes initialIndex. We need to find the index of initialId.
+                    // But we should NOT shuffle saved drills order probably, or maybe user wants it?
+                    // Let's keep order but set initial index.
+                    if (initialId) {
+                        const idx = saved.findIndex((d: any) => d.id === initialId);
+                        if (idx !== -1) {
+                            // DrillReelsFeed takes initialIndex prop, wait!
+                            // DrillReelsFeed is rendered below. We just need to pass the index.
+                            // But DrillReelsFeed updates its own state. 
+                            // We need to pass the initialIndex to DrillReelsFeed.
+                            // Let's store it in a state or ref if DrillReelsFeed accounts for prop changes?
+                            // Currently DrillReelsFeed uses `useState(initialIndex)` so it only reads it once on mount.
+                            // That is fine since we are mounting it conditional on !loading.
+                            setInitialIndex(idx);
+                        }
+                    }
+                } else {
+                    setDrills([]);
+                }
+            } else {
+                setDrills([]);
+            }
+            setLoading(false);
+        } catch (error) {
+            console.error("Failed to load saved drills", error);
+            setLoading(false);
+        }
+    };
 
     const loadDrillContent = async () => {
         try {
@@ -105,7 +153,7 @@ export function DrillReels() {
                     ) : drills.length > 0 ? (
                         <DrillReelsFeed
                             drills={drills}
-                            onChangeView={() => navigate('/browse?tab=drills')}
+                            initialIndex={initialIndex}
                         />
                     ) : (
                         <div className="h-full flex items-center justify-center text-zinc-500">

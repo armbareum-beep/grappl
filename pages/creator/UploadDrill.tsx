@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { VideoCategory, Difficulty, Drill } from '../../types';
+import { VideoCategory, Difficulty, Drill, UniformType } from '../../types';
 import { createDrill, getDrillById, updateDrill, uploadThumbnail } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
@@ -48,6 +48,7 @@ export const UploadDrill: React.FC = () => {
         description: '',
         category: VideoCategory.Standing,
         difficulty: Difficulty.Beginner,
+        uniformType: UniformType.Gi,
     });
 
     // Video States
@@ -79,8 +80,9 @@ export const UploadDrill: React.FC = () => {
                     setFormData({
                         title: drill.title,
                         description: drill.description || '',
-                        category: drill.category || VideoCategory.Standing,
-                        difficulty: drill.difficulty || Difficulty.Beginner,
+                        category: (drill.category as any) || VideoCategory.Standing,
+                        difficulty: (drill.difficulty as any) || Difficulty.Beginner,
+                        uniformType: (drill.uniformType as UniformType) || UniformType.Gi,
                     });
 
                     // Populate existing videos
@@ -227,6 +229,7 @@ export const UploadDrill: React.FC = () => {
                         descriptionVideoUrl: '',
                         thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
                         durationMinutes: durationMinutes,
+                        uniformType: formData.uniformType,
                     });
                     if (dbError || !drill) throw dbError;
                     currentDrillId = drill.id;
@@ -361,6 +364,7 @@ export const UploadDrill: React.FC = () => {
                     thumbnailUrl: thumbnailUrl,
                     durationMinutes: durationMinutes,
                     length: formatDuration(totalSeconds),
+                    uniformType: formData.uniformType,
                 });
                 if (dbError || !drill) throw dbError;
                 drillId = drill.id;
@@ -371,6 +375,7 @@ export const UploadDrill: React.FC = () => {
                     description: formData.description,
                     category: formData.category,
                     difficulty: formData.difficulty,
+                    uniformType: formData.uniformType,
                 };
 
                 // Update duration if cuts have changed
@@ -619,14 +624,15 @@ export const UploadDrill: React.FC = () => {
                                 )}
                             </div>
 
-                            <Button
-                                variant="primary"
-                                className="w-full py-3 text-base shadow-lg shadow-blue-500/20"
-                                onClick={() => setActiveEditor(type)}
-                            >
-                                <Scissors className="w-4 h-4 mr-2" />
-                                {state.cuts ? '구간 다시 선택하기' : (state.status === 'complete' && !state.file) ? '새 영상으로 교체 (편집 필요)' : '영상 편집하기'}
-                            </Button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setActiveEditor(type)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold hover:bg-zinc-700 hover:text-white transition-all border border-zinc-700"
+                                >
+                                    <Scissors className="w-4 h-4 text-violet-400" />
+                                    {state.cuts ? '다시 편집' : '영상 편집'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -701,7 +707,7 @@ export const UploadDrill: React.FC = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">카테고리</label>
                                 <select
@@ -723,6 +729,18 @@ export const UploadDrill: React.FC = () => {
                                 >
                                     {Object.values(Difficulty).map(diff => (
                                         <option key={diff} value={diff}>{diff}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">복장</label>
+                                <select
+                                    value={formData.uniformType}
+                                    onChange={e => setFormData({ ...formData, uniformType: e.target.value as UniformType })}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                >
+                                    {Object.values(UniformType).map(u => (
+                                        <option key={u} value={u}>{u}</option>
                                     ))}
                                 </select>
                             </div>

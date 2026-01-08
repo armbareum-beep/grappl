@@ -133,16 +133,14 @@ async function getUserInfo(userId: string | null) {
 
 /**
  * 사용자가 접근 가능한 드릴 가져오기
- * - 무료 드릴 (price = 0)
- * - 구독자: 모든 드릴 접근 가능
- * - 구매자: 구매한 드릴만 접근 가능
- * - 오늘의 무료 드릴: 모두 접근 가능
+ * - 모든 드릴 표시 (동작 영상은 무료, 설명 영상만 유료)
+ * - 드릴 상세 페이지에서 설명 영상 접근 제어
  */
 export async function getAccessibleDrills(userId: string | null, limit: number = 50) {
   try {
     console.log('[getAccessibleDrills] Starting fetch, userId:', userId);
 
-    // 모든 드릴 가져오기
+    // 모든 드릴 가져오기 (필터링 없음)
     const { data: allDrills, error } = await supabase
       .from('drills')
       .select('*')
@@ -158,36 +156,9 @@ export async function getAccessibleDrills(userId: string | null, limit: number =
       return { data: [], error: null };
     }
 
-    // 사용자 정보 가져오기
-    const userInfo = await getUserInfo(userId);
-
-    // 매일 무료 루틴 드릴 ID 가져오기
-    const { getDailyRoutine } = await import('./api');
-    const dailyRoutineRes = await getDailyRoutine();
-    const dailyRoutineId = dailyRoutineRes.data?.id;
-
-    let dailyFreeDrillIds: string[] = [];
-    if (dailyRoutineId) {
-      const { data: routineDrills } = await supabase
-        .from('routine_drills')
-        .select('drill_id')
-        .eq('routine_id', dailyRoutineId);
-      dailyFreeDrillIds = routineDrills?.map(rd => rd.drill_id) || [];
-    }
-
-    // 권한에 따라 드릴 필터링
-    const accessibleDrills = allDrills.filter(drill => {
-      return canAccessContentSync({
-        contentId: drill.id,
-        isDailyFreeContent: dailyFreeDrillIds.includes(drill.id),
-        isSubscriber: userInfo.isSubscriber,
-        purchasedItemIds: userInfo.purchasedItemIds,
-        isLoggedIn: !!userId
-      });
-    });
-
-    console.log('[getAccessibleDrills] Total drills:', allDrills.length, 'Accessible:', accessibleDrills.length);
-    return { data: accessibleDrills, error: null };
+    // 모든 드릴 반환 (동작 영상은 누구나 볼 수 있음)
+    console.log('[getAccessibleDrills] Total drills:', allDrills.length, 'All accessible (action videos free)');
+    return { data: allDrills, error: null };
   } catch (error) {
     console.error('Error fetching accessible drills:', error);
     return { data: [], error };

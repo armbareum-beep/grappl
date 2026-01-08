@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, Grid, ChevronLeft } from 'lucide-react';
+import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
 interface DrillReelItemProps {
@@ -17,7 +17,6 @@ interface DrillReelItemProps {
     onFollow: () => void;
     onShare: () => void;
     onViewRoutine: () => void;
-    onChangeView: () => void;
     offset: number; // -1, 0, 1 for sliding effect
 }
 
@@ -35,7 +34,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     onFollow,
     onShare,
     onViewRoutine,
-    onChangeView,
     offset
 }) => {
 
@@ -289,12 +287,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 >
                                     {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                 </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onChangeView(); }}
-                                    className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl"
-                                >
-                                    <Grid className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
+
                             </div>
 
                             {/* Bottom Actions: Like, Routine, Save, Share */}
