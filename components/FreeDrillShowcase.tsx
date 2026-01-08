@@ -135,7 +135,7 @@ export const FreeDrillShowcase: React.FC = () => {
     const getVimeoId = (url?: string) => {
         if (!url) return null;
         if (/^\d+$/.test(url)) return url;
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        const match = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
         return match ? match[1] : null;
     };
 
@@ -156,16 +156,6 @@ export const FreeDrillShowcase: React.FC = () => {
                         {/* Card Base */}
                         <div className="relative aspect-[9/14] rounded-2xl overflow-hidden bg-zinc-900/30 backdrop-blur-xl border border-zinc-800 transition-all duration-300 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.1)] group-hover:border-zinc-700">
 
-                            {/* Video Player (shown on hover) */}
-                            {vimeoId && isHovered && (
-                                <iframe
-                                    src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&muted=1&controls=0`}
-                                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                                    frameBorder="0"
-                                    allow="autoplay; fullscreen"
-                                />
-                            )}
-
                             {/* Thumbnail */}
                             {drill.thumbnail_url && (
                                 <img
@@ -174,6 +164,16 @@ export const FreeDrillShowcase: React.FC = () => {
                                     className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${isHovered ? 'opacity-0' : 'grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105'
                                         }`}
                                     loading="lazy"
+                                />
+                            )}
+
+                            {/* Video Player (shown on hover) - Rendered AFTER thumbnail to be on top */}
+                            {vimeoId && isHovered && (
+                                <iframe
+                                    src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&muted=1&controls=0`}
+                                    className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                                    frameBorder="0"
+                                    allow="autoplay; fullscreen"
                                 />
                             )}
 

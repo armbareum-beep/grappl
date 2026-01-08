@@ -6,32 +6,42 @@ import { cn } from '../../lib/utils';
 
 interface FeaturedRoutinesSectionProps {
     routines: DrillRoutine[];
+    title?: string;
+    subtitle?: string;
+    hideHeader?: boolean;
 }
 
-export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = ({ routines }) => {
+export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = ({
+    routines,
+    title = "추천 루틴",
+    subtitle = "체계적인 드릴 루틴으로 실력을 향상시키세요.",
+    hideHeader = false
+}) => {
     const navigate = useNavigate();
 
     if (!routines || routines.length === 0) return null;
 
     return (
-        <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                        <LayoutGrid className="w-5 h-5 text-violet-500" />
+        <section className={`px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto ${hideHeader ? '' : 'mb-20'}`}>
+            {!hideHeader && (
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                            <LayoutGrid className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white leading-none mb-1">{title}</h2>
+                            <p className="text-sm text-zinc-500 font-medium">{subtitle}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">추천 루틴</h2>
-                        <p className="text-sm text-zinc-500 font-medium">체계적인 드릴 루틴으로 실력을 향상시키세요.</p>
-                    </div>
+                    <button
+                        onClick={() => navigate('/library?tab=routines')}
+                        className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
+                    >
+                        모두 보기 <ArrowRight className="w-4 h-4" />
+                    </button>
                 </div>
-                <button
-                    onClick={() => navigate('/library?tab=routines')}
-                    className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
-                >
-                    모두 보기 <ArrowRight className="w-4 h-4" />
-                </button>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                 {routines.map((routine) => (

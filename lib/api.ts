@@ -4966,15 +4966,25 @@ export async function getDailyFreeDrill() {
 
         // 2. Fallback to deterministic random if no featured drill or not found
         if (!selectedDrill) {
-            const { data, error } = await supabase
-                .from('drills')
-                .select('*')
-                .neq('vimeo_url', '')
-                .not('vimeo_url', 'like', 'ERROR%')
-                .order('id')
-                .limit(20);
+            // Only select drills that are part of routines
+            const { data: routineDrills, error } = await supabase
+                .from('routine_drills')
+                .select('drill_id, drills!inner(*)')
+                .neq('drills.vimeo_url', '')
+                .not('drills.vimeo_url', 'like', 'ERROR%');
 
             if (error) throw error;
+            if (!routineDrills || routineDrills.length === 0) return { data: null, error: null };
+
+            // Extract unique drills
+            const uniqueDrillsMap = new Map();
+            routineDrills.forEach((rd: any) => {
+                if (rd.drills && !uniqueDrillsMap.has(rd.drills.id)) {
+                    uniqueDrillsMap.set(rd.drills.id, rd.drills);
+                }
+            });
+            const data = Array.from(uniqueDrillsMap.values());
+
             if (!data || data.length === 0) return { data: null, error: null };
 
             const todayObj = new Date();
@@ -7468,15 +7478,40 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
+    // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
     const { data, error } = await supabase
         .from('routines')
         .select('*, creator:creators(name, profile_image)')
-        .limit(limit)
+        .limit(50) // Candidate pool size
         .order('created_at', { ascending: false });
 
     if (error) return [];
 
-    return (data || []).map((r: any) => ({
+    // 2. Calculate Score for each routine
+    let rankedRoutines = (data || []).map((r: any) => {
+        const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        const views = r.views || 0;
+        const likes = r.likes || 0; // Assuming 'likes' column exists or is joined
+
+        // Algorithm Weights
+        // - Recency: Boosts new content significantly in the first few days
+        // - Popularity: High views and likes can sustain a routine's position
+        const recencyScore = 500 / (daysOld + 1);
+        const popularityScore = (views * 0.1) + (likes * 10);
+
+        const totalScore = recencyScore + popularityScore;
+
+        return {
+            ...r,
+            _score: totalScore
+        };
+    });
+
+    // 3. Sort by Score (Descending)
+    rankedRoutines.sort((a: any, b: any) => b._score - a._score);
+
+    // 4. Return top 'limit' items
+    return rankedRoutines.slice(0, limit).map((r: any) => ({
         id: r.id,
         title: r.title,
         description: r.description,
@@ -7489,6 +7524,7 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
         durationMinutes: r.duration_minutes || 10,
         category: r.category || 'General',
         views: r.views || 0,
+        likes: r.likes || 0,
         createdAt: r.created_at || new Date().toISOString(),
         drills: []
     }));
@@ -7508,4 +7544,116 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
     }
 
     return (data || []).map(transformCourse);
+}
+
+export async function getTrendingCourses(limit = 6): Promise<Course[]> {
+    // 1. Fetch larger pool for ranking
+    const { data, error } = await supabase
+        .from('courses')
+        .select('*, creator:creators(name, profile_image), lessons(count)')
+        .eq('published', true)
+        .limit(50)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching trending courses:', error);
+        return [];
+    }
+
+    // 2. Score Calculation: Quality First
+    // "Content is King" - Focus heavily on quality signals (if available) and consistent consumption
+    let ranked = (data || []).map((c: any) => {
+        const daysOld = Math.max(1, (new Date().getTime() - new Date(c.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        const views = c.views || 0;
+        // Note: If 'likes' column doesn't exist on courses, we rely more on views. 
+        // Assuming we might have it or use views as proxy for quality signal.
+        const likes = c.likes || 0;
+
+        // Weight: Low recency decay, High interaction value
+        const recencyScore = 100 / Math.sqrt(daysOld); // Slower decay than routines
+        const qualityScore = (likes * 20) + (views * 0.1);
+
+        return { ...c, _score: recencyScore + qualityScore };
+    });
+
+    // 3. Sort & Slice
+    ranked.sort((a: any, b: any) => b._score - a._score);
+
+    return ranked.slice(0, limit).map((c: any) => ({
+        ...transformCourse(c),
+        lessonCount: c.lessons?.[0]?.count || 0
+    }));
+}
+
+export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
+    // 1. Fetch larger pool
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .select('*')
+        .limit(50)
+        .order('created_at', { ascending: false });
+
+    if (error) return [];
+
+    // 2. Score Calculation: Viral Focus
+    // "Hot Now" - Recency is critical, coupled with rapid view accumulation
+    let ranked = (data || []).map((v: any) => {
+        const daysOld = Math.max(0.1, (new Date().getTime() - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        const views = v.views || 0;
+        const likes = v.likes || 0;
+
+        // Weight: Very high recency, Moderate view weight, High like weight
+        // decay uses 1/daysOld so 0.1 days old gives huge multiplier (10x)
+        const recencyScore = 1000 / (daysOld + 1);
+        const viralScore = (views * 0.5) + (likes * 5);
+
+        return { ...v, _score: recencyScore + viralScore };
+    });
+
+    ranked.sort((a: any, b: any) => b._score - a._score);
+
+    // Need to fetch creators for these IDs if not joined. 
+    // Ideally we join in the select, but for now we'll do a quick pass if needed 
+    // or rely on getPublicSparringVideos logic which does post-fetch.
+    // For simplicity/speed here, let's just reuse the transform or minimal return
+    // depending on what UI needs. UI needs creator info.
+
+    const topIds = ranked.slice(0, limit).map((v: any) => v.id);
+
+    // Re-fetch standardized with creators for the top N to ensure valid creator data
+    // Or just manually fetch creators here.
+    if (topIds.length === 0) return [];
+
+    const { data: fullData } = await supabase
+        .from('sparring_videos')
+        .select('*, creator:users!creator_id(id, name, avatar_url)') // Attempt inner join style or just normal select
+        // Note: In other parts of api.ts, sparring uses 'creator_id' and fetches users separately.
+        // Let's stick to consistent pattern if possible, but for 'Trending', manual Creator fetch is safer.
+        .in('id', topIds);
+
+    const fullDataMap = new Map((fullData || []).map((v: any) => [v.id, v]));
+
+    return ranked.slice(0, limit).map((v: any) => {
+        // Merge score data with full creator data if available
+        const full = fullDataMap.get(v.id) || v;
+        return {
+            id: full.id,
+            creatorId: full.creator_id,
+            title: full.title || 'Sparring Video',
+            description: full.description || '',
+            videoUrl: full.video_url,
+            thumbnailUrl: full.thumbnail_url,
+            views: full.views || 0,
+            likes: full.likes || 0,
+            price: full.price || 0,
+            creator: full.creator ? {
+                id: full.creator.id,
+                name: full.creator.name || 'Unknown',
+                profileImage: full.creator.avatar_url, // Map avatar_url to profileImage
+                bio: '',
+                subscriberCount: 0
+            } : undefined,
+            createdAt: full.created_at
+        } as SparringVideo;
+    });
 }

@@ -3,7 +3,7 @@ import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, Chevr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getUserRoutines, getUserSavedDrills, toggleDrillSave } from '../../lib/api';
+import { getUserSavedDrills, toggleDrillSave } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
@@ -28,6 +28,7 @@ export const TrainingRoutinesTab: React.FC = () => {
     // Custom Routine Creation State
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedDrills, setSelectedDrills] = useState<Set<string>>(new Set());
+    const [selectedDrillsMap, setSelectedDrillsMap] = useState<Map<string, Drill>>(new Map());
 
     // Click-to-Place State
     const [selectedRoutineForPlacement, setSelectedRoutineForPlacement] = useState<DrillRoutine | null>(null);
@@ -77,7 +78,16 @@ export const TrainingRoutinesTab: React.FC = () => {
                     console.error('Error loading saved drills from DB:', error);
                 }
             } else {
-                // For non-logged-in users, fetch 3 random drills as demo
+                // For non-logged-in users
+                // If we already have saved drills in localStorage, use them and don't fetch random ones
+                // This prevents the drills from changing (and clearing selection) when window focus changes
+                if (localSaved.length > 0) {
+                    setSavedDrills(localSaved);
+                    setLoading(false);
+                    return;
+                }
+
+                // fetch 3 random drills as demo ONLY if storage is empty
                 try {
                     const { data: randomDrills, error } = await supabase
                         .from('drills')
@@ -85,9 +95,51 @@ export const TrainingRoutinesTab: React.FC = () => {
                         .limit(50);
 
                     if (!error && randomDrills && randomDrills.length > 0) {
-                        const shuffled = [...randomDrills].sort(() => Math.random() - 0.5);
+                        const creatorIds = [...new Set(randomDrills.map((d: any) => d.creator_id).filter(Boolean))];
+
+                        // Fetch creator details directly from users table
+                        let creatorsMap: Record<string, { name: string, avatarUrl: string }> = {};
+                        if (creatorIds.length > 0) {
+                            const { data: users } = await supabase
+                                .from('users')
+                                .select('id, name, avatar_url')
+                                .in('id', creatorIds);
+
+                            if (users) {
+                                users.forEach((u: any) => {
+                                    creatorsMap[u.id] = { name: u.name, avatarUrl: u.avatar_url };
+                                });
+                            }
+                        }
+
+                        const enrichedDrills = randomDrills.map((d: any) => ({
+                            id: d.id,
+                            title: d.title,
+                            description: d.description,
+                            creatorId: d.creator_id,
+                            creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
+                            creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || '',
+                            category: d.category,
+                            difficulty: d.difficulty,
+                            thumbnailUrl: d.thumbnail_url,
+                            videoUrl: d.video_url,
+                            vimeoUrl: d.vimeo_url,
+                            descriptionVideoUrl: d.description_video_url,
+                            views: d.views || 0,
+                            duration: d.duration || '0:00',
+                            price: d.price || 0,
+                            likes: d.likes || 0,
+                            createdAt: d.created_at,
+                            tags: d.tags || [],
+                            aspectRatio: '9:16' as const,
+                            durationMinutes: 0
+                        }));
+
+                        const shuffled = [...enrichedDrills].sort(() => Math.random() - 0.5);
                         const randomThree = shuffled.slice(0, 3);
                         setSavedDrills(randomThree);
+                        // Save to local storage so they persist
+                        localStorage.setItem('saved_drills', JSON.stringify(randomThree));
                     }
                 } catch (error) {
                     console.error('Error loading random drills:', error);
@@ -114,16 +166,20 @@ export const TrainingRoutinesTab: React.FC = () => {
         };
     }, [user]);
 
-    const toggleDrillSelection = (drillId: string) => {
-        setSelectedDrills(prev => {
-            const newSelected = new Set(prev);
-            if (newSelected.has(drillId)) {
-                newSelected.delete(drillId);
-            } else {
-                newSelected.add(drillId);
-            }
-            return newSelected;
-        });
+    const toggleDrillSelection = (drill: Drill) => {
+        const drillId = drill.id;
+        const newSelected = new Set(selectedDrills);
+        const newMap = new Map(selectedDrillsMap);
+
+        if (newSelected.has(drillId)) {
+            newSelected.delete(drillId);
+            newMap.delete(drillId);
+        } else {
+            newSelected.add(drillId);
+            newMap.set(drillId, drill);
+        }
+        setSelectedDrills(newSelected);
+        setSelectedDrillsMap(newMap);
     };
 
     const loadRoutines = async () => {
@@ -132,59 +188,108 @@ export const TrainingRoutinesTab: React.FC = () => {
             setError(null);
 
             if (!user) {
-                // For non-logged-in users, fetch 3 random routines as demo
+                // For non-logged-in users, fetch random routines as demo
                 const { data: publicRoutines, error: publicError } = await supabase
                     .from('routines')
                     .select('*')
-                    .limit(50); // Get more to randomize
+                    .limit(20);
 
-                if (publicError) {
-                    console.error('Error fetching routines:', publicError);
-                    setRoutines([]);
-                    setLoading(false);
-                    return;
+                let enrichedPublicRoutines: any[] = [];
+
+                if (!publicError && publicRoutines) {
+                    // Fetch creator details manually
+                    const creatorIds = [...new Set(publicRoutines.map((r: any) => r.creator_id).filter(Boolean))];
+                    let creatorsMap: Record<string, { name: string, avatarUrl: string }> = {};
+
+                    if (creatorIds.length > 0) {
+                        const { data: users } = await supabase
+                            .from('users')
+                            .select('id, name, avatar_url')
+                            .in('id', creatorIds);
+
+                        if (users) {
+                            users.forEach((u: any) => {
+                                creatorsMap[u.id] = { name: u.name, avatarUrl: u.avatar_url };
+                            });
+                        }
+                    }
+
+                    // Shuffle and pick 3
+                    const shuffled = [...publicRoutines].sort(() => Math.random() - 0.5);
+                    enrichedPublicRoutines = shuffled.slice(0, 3).map(r => ({
+                        ...r,
+                        // Ensure we use camelCase for internal use if needed, but Routine type might match DB? 
+                        // Let's manually map important fields to stay safe
+                        id: r.id,
+                        title: r.title,
+                        description: r.description,
+                        thumbnailUrl: r.thumbnail_url || '', // Fix thumbnail
+                        difficulty: r.difficulty,
+                        category: r.category,
+                        totalDurationMinutes: r.total_duration_minutes || r.duration_minutes || 0,
+                        drillCount: r.drill_count || 0,
+                        creatorId: r.creator_id,
+                        // Use fetched name or fallback
+                        creatorName: creatorsMap[r.creator_id]?.name || 'Instructor',
+                        creatorProfileImage: creatorsMap[r.creator_id]?.avatarUrl || '',
+                        price: r.price || 0,
+                        views: r.views || 0,
+                        createdAt: r.created_at,
+                        drills: [] // Demo routines don't need drills loaded immediately
+                    }));
                 }
 
-                // Load custom routines for guests too
-                const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+                // Load and Fix Custom Routines
+                const localCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+                const fixedCustomRoutines = localCustomRoutines.map((r: any) => ({
+                    ...r,
+                    // Force 'Guest' if currently a guest, fixing stale 'Me' data
+                    creatorName: 'Guest',
+                    creatorId: 'guest'
+                }));
 
-                if (publicRoutines && publicRoutines.length > 0) {
-                    // Shuffle and take 3
-                    const shuffled = [...publicRoutines].sort(() => Math.random() - 0.5);
-                    const randomThree = shuffled.slice(0, 3).map(r => ({
-                        ...r,
-                        drills: [], // Don't load full drill data for demo
-                        drillCount: r.drill_count || 0,
-                        totalDurationMinutes: r.total_duration_minutes || 0,
-                        creatorName: 'Instructor',
-                        thumbnailUrl: r.thumbnail_url || ''
-                    }));
-                    setRoutines([...customRoutines, ...randomThree]);
+                const combined = [...fixedCustomRoutines, ...enrichedPublicRoutines];
+                // Sort by creation date new -> old
+                combined.sort((a: any, b: any) => {
+                    const timeA = new Date(a.createdAt || 0).getTime();
+                    const timeB = new Date(b.createdAt || 0).getTime();
+                    return timeB - timeA;
+                });
+
+                setRoutines(combined);
+            } else {
+                // Logged in user logic
+                const { getUserRoutines } = await import('../../lib/api');
+                const result = await getUserRoutines(user.id);
+                if (result.error) throw result.error;
+
+                let customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+
+                // Fetch real user profile from DB to get correct avatar
+                const { data: userProfile } = await supabase
+                    .from('users')
+                    .select('name, avatar_url')
+                    .eq('id', user.id)
+                    .single();
+
+                // Update local custom routines to belong to the logged-in user
+                customRoutines = customRoutines.map((r: any) => ({
+                    ...r,
+                    creatorId: user.id,
+                    creatorName: userProfile?.name || user.user_metadata?.name || 'User',
+                    creatorProfileImage: userProfile?.avatar_url || user.user_metadata?.avatar_url || ''
+                }));
+                localStorage.setItem('my_custom_routines', JSON.stringify(customRoutines));
+
+                if (result.data) {
+                    const combined = [...customRoutines, ...result.data];
+                    // Sort by creation date new -> old
+                    combined.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                    setRoutines(combined);
                 } else {
                     setRoutines(customRoutines);
                 }
-                setLoading(false);
-                return;
             }
-
-            const result = await getUserRoutines(user.id);
-            if (result.error) throw result.error;
-
-            const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-
-            if (result.data) {
-                const combined = [...customRoutines, ...result.data];
-                // Shuffle logic preserved
-                for (let i = combined.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [combined[i], combined[j]] = [combined[j], combined[i]];
-                }
-                setRoutines(combined);
-            } else {
-                setRoutines(customRoutines);
-            }
-
-
         } catch (err: any) {
             console.error('Error loading routines:', err);
             setError(err.message || '훈련 루틴을 불러오는 중 오류가 발생했습니다.');
@@ -207,14 +312,14 @@ export const TrainingRoutinesTab: React.FC = () => {
         setIsCreatePromptOpen(false);
         if (!routineName) return;
 
-        const selectedDrillsList = savedDrills.filter(d => selectedDrills.has(d.id));
+        const selectedDrillsList = Array.from(selectedDrillsMap.values());
 
         if (selectedDrillsList.length === 0) {
             toastError('최소 1개 이상의 드릴을 선택해주세요.');
             return;
         }
 
-        const totalDurationSeconds = selectedDrillsList.reduce((acc, drill) => {
+        const totalDurationSeconds = selectedDrillsList.reduce((acc: number, drill: Drill) => {
             const duration = drill.duration || '0:00';
             const [min, sec] = duration.split(':').map(Number);
             return acc + (isNaN(min) ? 0 : min) * 60 + (isNaN(sec) ? 0 : sec);
@@ -225,8 +330,8 @@ export const TrainingRoutinesTab: React.FC = () => {
             id: `custom-${Date.now()}`,
             title: routineName,
             description: '나만의 커스텀 루틴',
-            creatorId: user?.id || 'me',
-            creatorName: user?.user_metadata?.name || '나',
+            creatorId: user?.id || 'guest',
+            creatorName: user?.user_metadata?.name || 'Guest',
             thumbnailUrl: selectedDrillsList[0]?.thumbnailUrl || '',
             price: 0,
             views: 0,
@@ -248,6 +353,10 @@ export const TrainingRoutinesTab: React.FC = () => {
     };
 
     const handleRoutineClick = (routine: DrillRoutine) => {
+        if (isSelectionMode) {
+            toastError('드릴 선택 모드 중에는 루틴을 선택할 수 없습니다.');
+            return;
+        }
         if (selectedDayForPlacement) {
             const savedSchedule = JSON.parse(localStorage.getItem('weekly_schedule_draft') || '{"월":[],"화":[],"수":[],"목":[],"금":[],"토":[],"일":[]}');
             const currentDayRoutines = savedSchedule[selectedDayForPlacement] || [];
@@ -271,25 +380,34 @@ export const TrainingRoutinesTab: React.FC = () => {
         }
 
         if (selectedRoutineForPlacement?.id === routine.id) {
-            navigate(`/my-routines/${routine.id}`);
+            if (String(routine.id).startsWith('custom-')) {
+                navigate(`/my-routines/${routine.id}`);
+            } else {
+                navigate(`/routines/${routine.id}`);
+            }
         } else {
             setSelectedRoutineForPlacement(routine);
             setSelectedDayForPlacement(null);
         }
     };
 
-    const handleDrillClick = (e: React.MouseEvent, drillId: string) => {
+    const handleDrillClick = (e: React.MouseEvent, drill: Drill) => {
         e.stopPropagation();
         e.preventDefault();
 
+        if (selectedRoutineForPlacement) {
+            toastError('루틴 배치 모드 중에는 드릴을 선택할 수 없습니다.');
+            return;
+        }
+
         // Check using current state directly
-        if (isSelectionMode && selectedDrills.has(drillId)) {
+        if (isSelectionMode && selectedDrills.has(drill.id)) {
             // Already selected - navigate to drill reels context
-            navigate('/drills', { state: { source: 'saved', drillId } });
+            navigate('/drills', { state: { source: 'saved', drillId: drill.id } });
         } else {
             // Not in selection mode or not selected - toggle selection
             setIsSelectionMode(true);
-            toggleDrillSelection(drillId);
+            toggleDrillSelection(drill);
         }
     };
 
@@ -327,7 +445,8 @@ export const TrainingRoutinesTab: React.FC = () => {
     };
 
     const handleRoutineAdded = (_day: string) => {
-        // Feedback handled in WeeklyRoutinePlanner or elsewhere
+        // Clear routine selection after adding to a day
+        setSelectedRoutineForPlacement(null);
     };
 
     const handleDeleteRoutine = (e: React.MouseEvent, routineId: string) => {
@@ -539,7 +658,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                 return (
                                     <div key={drill.id} className="relative group">
                                         <div
-                                            onClick={(e) => handleDrillClick(e, drill.id)}
+                                            onClick={(e) => handleDrillClick(e, drill)}
                                             className={`
                                                 relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer
                                                 ${isSelected
@@ -554,10 +673,10 @@ export const TrainingRoutinesTab: React.FC = () => {
                                         {user && !isSelectionMode && (
                                             <button
                                                 onClick={(e) => handleDeleteDrill(e, drill.id)}
-                                                className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="absolute top-2 right-2 p-1.5 bg-zinc-800/80 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
                                                 title="삭제"
                                             >
-                                                <Trash2 className="w-3 h-3" />
+                                                <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                         )}
                                     </div>
@@ -746,17 +865,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             {/* Badge removed as per request */}
                                             {user && (
                                                 <>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setRoutineToShare(routine);
-                                                            setIsShareModalOpen(true);
-                                                        }}
-                                                        className="p-1.5 bg-zinc-800/80 hover:bg-violet-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"
-                                                        title="루틴 공유"
-                                                    >
-                                                        <Share2 className="w-3.5 h-3.5" />
-                                                    </button>
+
                                                     <button
                                                         onClick={(e) => handleDeleteRoutine(e, routine.id)}
                                                         className="p-1.5 bg-zinc-800/80 hover:bg-red-600 text-zinc-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100"

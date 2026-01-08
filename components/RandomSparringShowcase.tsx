@@ -71,7 +71,7 @@ export function RandomSparringShowcase() {
                                 onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
-                                <span>이 스파링 전체 보기</span>
+                                <span>ROLL</span>
                             </button>
 
                             <button
@@ -123,7 +123,7 @@ export function RandomSparringShowcase() {
                                 onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
-                                <span>이 스파링 전체 보기</span>
+                                <span>ROLL</span>
                             </button>
 
                             <button

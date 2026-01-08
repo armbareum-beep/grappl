@@ -453,6 +453,7 @@ export interface DrillRoutine {
   difficulty?: Difficulty | ContentLevel;
   category?: VideoCategory | QuantentPosition;
   totalDurationMinutes?: number;
+  likes?: number; // Added for algorithm
   creatorProfileImage?: string;
 }
 

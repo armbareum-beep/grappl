@@ -162,11 +162,26 @@ export function Watch() {
 
             // Transform & Filter
             if (drillsRes.data) {
-                const accessibleDrills = drillsRes.data.filter((d: any) => isAccessible('drill', d));
+                // Drills are now "Freemium" - Action is free, Description is paid.
+                // So we show ALL drills in the feed, regardless of subscription status.
+                // The DrillReelItem handles the locking of the description.
+                const accessibleDrills = drillsRes.data;
                 allItems = [...allItems, ...accessibleDrills.map((d: any) => ({
                     type: 'drill' as const,
                     data: {
                         ...d,
+                        id: d.id,
+                        title: d.title,
+                        description: d.description,
+                        category: d.category,
+                        difficulty: d.difficulty,
+                        thumbnailUrl: d.thumbnail_url,
+                        videoUrl: d.video_url,
+                        vimeoUrl: d.vimeo_url,
+                        descriptionVideoUrl: d.description_video_url,
+                        durationMinutes: d.duration_minutes,
+                        price: d.price,
+                        views: d.views,
                         creatorId: d.creator_id,
                         creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
                         creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
@@ -181,6 +196,18 @@ export function Watch() {
                     type: 'sparring' as const,
                     data: {
                         ...s,
+                        id: s.id,
+                        title: s.title,
+                        description: s.description,
+                        videoUrl: s.video_url,
+                        thumbnailUrl: s.thumbnail_url,
+                        creatorId: s.creator_id,
+                        views: s.views,
+                        likes: s.likes,
+                        price: s.price,
+                        category: s.category,
+                        uniformType: s.uniform_type,
+                        difficulty: s.difficulty,
                         creator: creatorsMap[s.creator_id] ? {
                             id: s.creator_id,
                             name: creatorsMap[s.creator_id].name,
@@ -297,7 +324,6 @@ export function Watch() {
                     ) : items.length > 0 ? (
                         <MixedReelsFeed
                             items={items}
-                            onChangeView={() => { }}
                         />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">

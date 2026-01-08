@@ -27,7 +27,7 @@ import {
     getUserSkillTree,
     transformUserSkillTree
 } from '../../lib/api-skill-tree';
-import { getLessons, getDrills, getUserSkills, createTrainingLog, checkCourseOwnership, checkDrillRoutineOwnership } from '../../lib/api';
+import { getLessons, getDrills, getUserSkills, createTrainingLog, checkCourseOwnership, checkDrillRoutineOwnership, getUserSavedLessons, getUserSavedDrills } from '../../lib/api';
 import { getUserTechniqueMastery } from '../../lib/api-technique-mastery';
 import { Lesson, Drill, SkillTreeNode, UserSkill, UserTechniqueMastery, UserSkillTree } from '../../types';
 import { TechniqueNode } from './TechniqueNode';
@@ -71,7 +71,10 @@ const DraggableTechnique: React.FC<{
     navigate: any;
     onVideoClick: (node: any) => void;
 }> = ({ node, index, navigate, onVideoClick }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+        id: node.id,
+    });
+    const { setNodeRef: setDropRef } = useDroppable({
         id: node.id,
     });
 
@@ -86,11 +89,14 @@ const DraggableTechnique: React.FC<{
     const isCompleted = node.data.isCompleted;
 
     const hasVideo = node.data.lesson?.videoUrl || node.data.lesson?.vimeoUrl ||
-        node.data.drill?.videoUrl || node.data.drill?.vimeoUrl;
+        node.data.drill?.descriptionVideoUrl || node.data.drill?.videoUrl || node.data.drill?.vimeoUrl;
 
     return (
         <div
-            ref={setNodeRef}
+            ref={(node) => {
+                setDragRef(node);
+                setDropRef(node);
+            }}
             style={style}
             {...attributes}
             className={`group relative p-3 rounded-xl border transition-all ${isDragging ? 'opacity-50 z-50' : ''} ${isCompleted || (mastery && mastery.masteryLevel >= 5)
@@ -250,6 +256,8 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const [allLessons, setAllLessons] = useState<(Lesson & { course?: { title: string; creatorName?: string } })[]>([]);
     const [allDrills, setAllDrills] = useState<Drill[]>([]);
+    const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
+    const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
     const [userSkills, setUserSkills] = useState<UserSkill[]>([]);
     const [masteries, setMasteries] = useState<UserTechniqueMastery[]>([]);
 
@@ -647,14 +655,20 @@ export const TechniqueSkillTree: React.FC = () => {
 
             if (treeId) {
                 // Case A: Loading a specific tree (Shared Link) - Works for Guests too
-                const [tr, userSkillsRes, mastery] = await Promise.all([
+                const [tr, userSkillsRes, mastery, savedLessonsData, savedDrillsData] = await Promise.all([
                     getUserSkillTree(treeId),
                     user ? getUserSkills(user.id).then(res => res) : Promise.resolve([]),
-                    user ? getUserTechniqueMastery(user.id).then(res => res.data || []) : Promise.resolve([])
+                    user ? getUserTechniqueMastery(user.id).then(res => res.data || []) : Promise.resolve([]),
+                    user ? getUserSavedLessons(user.id) : Promise.resolve([]),
+                    user ? getUserSavedDrills(user.id) : Promise.resolve([])
                 ]);
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
+                if (user) {
+                    setSavedLessons(savedLessonsData);
+                    setSavedDrills(savedDrillsData);
+                }
 
                 // 공유된 트리를 찾을 수 없으면 에러 표시
                 if (!treeRes.data && (tr as any).error) {
@@ -663,14 +677,18 @@ export const TechniqueSkillTree: React.FC = () => {
             } else if (user) {
                 // Case B: Logged-in User default view (Latest Tree)
                 // 단, 게스트 데이터가 있으면 로드하지 않음 (이미 위에서 체크)
-                const [tr, userSkillsRes, mastery] = await Promise.all([
+                const [tr, userSkillsRes, mastery, savedLessonsData, savedDrillsData] = await Promise.all([
                     getLatestUserSkillTree(user.id),
                     getUserSkills(user.id).then(res => res),
-                    getUserTechniqueMastery(user.id).then(res => res.data || [])
+                    getUserTechniqueMastery(user.id).then(res => res.data || []),
+                    getUserSavedLessons(user.id),
+                    getUserSavedDrills(user.id)
                 ]);
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
+                setSavedLessons(savedLessonsData);
+                setSavedDrills(savedDrillsData);
             }
 
             setUserSkills(skills);
@@ -1473,7 +1491,7 @@ export const TechniqueSkillTree: React.FC = () => {
     const handleVideoClick = useCallback(async (nodeToPlay: any) => {
         const d = nodeToPlay.data;
         const videoUrl = d?.lesson?.videoUrl || d?.lesson?.vimeoUrl ||
-            d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
+            d?.drill?.descriptionVideoUrl || d?.drill?.videoUrl || d?.drill?.vimeoUrl ||
             d?.technique?.videoUrl || d?.technique?.vimeoUrl;
 
         if (videoUrl) {
@@ -3839,6 +3857,8 @@ export const TechniqueSkillTree: React.FC = () => {
                         }}
                         lessons={allLessons}
                         drills={allDrills}
+                        savedLessons={savedLessons}
+                        savedDrills={savedDrills}
                         addedItems={nodes.map(n => ({
                             id: n.data.contentId || '',
                             type: n.data.contentType || 'technique'

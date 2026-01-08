@@ -416,8 +416,17 @@ export const RoutineDetail: React.FC = () => {
     const isVimeo = !!extractVimeoId(effectiveUrl);
     const vimeoId = extractVimeoId(effectiveUrl);
     const directVideoUrl = !isVimeo ? effectiveUrl : undefined;
-    const hasFullAccess = owns || isSubscribed || routine?.price === 0 || isDailyFree;
-    const hasAccess = hasFullAccess || currentDrillIndex === 0;
+    const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
+    const isActionVideo = videoType === 'main';
+
+    const hasDescriptionAccess =
+        isSubscribed ||
+        (!isCustomRoutine && (owns || routine?.price === 0)) ||
+        currentDrill?.price === 0 ||
+        isDailyFree;
+
+    const hasAccess = isActionVideo || hasDescriptionAccess;
+    const hasFullAccess = hasDescriptionAccess;
 
 
     const formatTime = (seconds: number) => {
@@ -572,10 +581,13 @@ export const RoutineDetail: React.FC = () => {
                                         <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
                                     </button>
 
+
                                     {/* Share */}
                                     <button onClick={handleShare} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                         <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
+
+
                                 </div>
                             </div>
 
@@ -789,10 +801,13 @@ export const RoutineDetail: React.FC = () => {
                                             <Bookmark className={`w-5 h-5 md:w-7 md:h-7 ${currentDrill && savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
                                         </button>
 
+
                                         {/* Share */}
                                         <button onClick={handleShare} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                             <Share2 className="w-5 h-5 md:w-7 md:h-7" />
                                         </button>
+
+
                                     </div>
                                 </div>
                             </div>

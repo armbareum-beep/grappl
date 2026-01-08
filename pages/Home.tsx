@@ -2,12 +2,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  Play, Video, Clock, Target, Flame
+  Play, Clock
 } from 'lucide-react';
 import {
   getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
   getPublicSparringVideos, getFeaturedRoutines, getNewCourses,
-  getRecentCompletedRoutines
+  getRecentCompletedRoutines, fetchRoutines, getTrendingCourses
 } from '../lib/api';
 import { Lesson, DrillRoutine, SparringVideo, Course, CompletedRoutineRecord } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -33,8 +33,16 @@ export const Home: React.FC = () => {
   const [continueItems, setContinueItems] = useState<any[]>([]);
   const [trendingSparring, setTrendingSparring] = useState<SparringVideo[]>([]);
   const [featuredRoutines, setFeaturedRoutines] = useState<DrillRoutine[]>([]);
-  const [newCourses, setNewCourses] = useState<Course[]>([]);
+  const [trendingCourses, setTrendingCourses] = useState<Course[]>([]);
   const [recentCompletedRoutines, setRecentCompletedRoutines] = useState<CompletedRoutineRecord[]>([]);
+
+  // Tab Section Data
+  const [newCourses, setNewCourses] = useState<Course[]>([]);
+  const [newRoutines, setNewRoutines] = useState<DrillRoutine[]>([]);
+  const [newSparring, setNewSparring] = useState<SparringVideo[]>([]);
+
+  // Tab State
+  const [activeNewTab, setActiveNewTab] = useState<'sparring' | 'routine' | 'course'>('sparring');
 
   // User info
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -115,14 +123,14 @@ export const Home: React.FC = () => {
           console.error("Error fetching routines", e);
         }
 
-        // D. New Courses
+        // D. Trending Courses (Replaces old NewCourses logic for main section)
         try {
-          const courses = await getNewCourses(10);
+          const courses = await getTrendingCourses(6); // Use trending!
           if (courses && courses.length > 0) {
-            setNewCourses(courses);
+            setTrendingCourses(courses);
           }
         } catch (e) {
-          console.error("Error fetching new courses", e);
+          console.error("Error fetching trending courses", e);
         }
 
         // E. Recent Completed Routines
@@ -133,6 +141,38 @@ export const Home: React.FC = () => {
           }
         } catch (e) {
           console.error("Error fetching completed routines", e);
+        }
+
+        // --- Tab Content Data ---
+
+        // F. New Courses (For Tab)
+        try {
+          const courses = await getNewCourses(10);
+          if (courses && courses.length > 0) {
+            setNewCourses(courses);
+          }
+        } catch (e) {
+          console.error("Error fetching new courses for tab", e);
+        }
+
+        // G. New Routines (For Tab)
+        try {
+          const routinesRes = await fetchRoutines(6);
+          if (routinesRes.data && routinesRes.data.length > 0) {
+            setNewRoutines(routinesRes.data);
+          }
+        } catch (e) {
+          console.error("Error fetching new routines", e);
+        }
+
+        // H. New Sparring (For Tab)
+        try {
+          const sparringRes = await getPublicSparringVideos(10);
+          if (sparringRes && sparringRes.length > 0) {
+            setNewSparring(sparringRes);
+          }
+        } catch (e) {
+          console.error("Error fetching new sparring", e);
         }
 
       } catch (error) {
@@ -211,6 +251,7 @@ export const Home: React.FC = () => {
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
                               <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 드릴</span>
+                              <span className="px-2 py-0.5 rounded bg-white text-violet-600 text-xs font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.3)]">✨ 오늘만 무료</span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {drill.durationMinutes || 5} min</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tight leading-[1.1] drop-shadow-lg">
@@ -253,7 +294,7 @@ export const Home: React.FC = () => {
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
                               <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 레슨</span>
-                              <span className="text-zinc-400 text-xs font-bold flex items-center gap-1"><Video className="w-3.5 h-3.5" /> FREE</span>
+                              <span className="px-2 py-0.5 rounded bg-white text-violet-600 text-xs font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.3)]">✨ 오늘만 무료</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tighter leading-[1.05] group-hover:text-violet-200 transition-colors uppercase italic">
                               {typeof lesson.title === 'string' ? lesson.title : 'Lesson'}
@@ -295,7 +336,7 @@ export const Home: React.FC = () => {
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
                               <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 스파링</span>
-                              <span className="text-zinc-400 text-xs font-bold flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-violet-400 fill-violet-400" /> TRENDING</span>
+                              <span className="px-2 py-0.5 rounded bg-white text-violet-600 text-xs font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.3)]">✨ 오늘만 무료</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tighter leading-[1.05] group-hover:text-violet-200 transition-colors uppercase italic">
                               {typeof sparring.title === 'string' ? sparring.title : 'Sparring Session'}
@@ -367,8 +408,77 @@ export const Home: React.FC = () => {
       {/* 6. Featured Routines */}
       <FeaturedRoutinesSection routines={featuredRoutines} />
 
-      {/* 7. New Courses */}
-      <NewCoursesSection courses={newCourses} />
+      {/* 7. Trending Courses */}
+      <NewCoursesSection
+        courses={trendingCourses}
+        title="요즘 뜨는 인기 클래스"
+        subtitle="수강생들이 인정한 검증된 클래스를 만나보세요."
+      />
+
+      {/* 8. New Content Tabs */}
+      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20">
+        <div className="flex items-center gap-2 mb-8 border-b border-white/10">
+          <button
+            onClick={() => setActiveNewTab('course')}
+            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+          >
+            신규 클래스
+            {activeNewTab === 'course' && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveNewTab('routine')}
+            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+          >
+            신규 루틴
+            {activeNewTab === 'routine' && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveNewTab('sparring')}
+            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+          >
+            신규 스파링
+            {activeNewTab === 'sparring' && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+            )}
+          </button>
+        </div>
+
+        <div className="min-h-[400px]">
+          {activeNewTab === 'course' && (
+            <div className="animate-fadeIn">
+              <NewCoursesSection courses={newCourses} title="" subtitle="" hideHeader={true} />
+            </div>
+          )}
+          {activeNewTab === 'routine' && (
+            <div className="animate-fadeIn">
+              <FeaturedRoutinesSection
+                routines={newRoutines}
+                title=""
+                subtitle=""
+                hideHeader={true}
+              />
+            </div>
+          )}
+          {activeNewTab === 'sparring' && (
+            <div className="animate-fadeIn">
+              <TrendingSparringSection
+                videos={newSparring}
+                title=""
+                subtitle=""
+                showRank={false}
+                hideHeader={true}
+              />
+            </div>
+          )}
+        </div>
+      </section>
 
     </div>
   );

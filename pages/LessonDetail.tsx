@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-route
 import { useAuth } from '../contexts/AuthContext';
 import { getLessonById, getCourseById, checkCourseOwnership } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
-import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2 } from 'lucide-react';
+import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -175,7 +175,7 @@ export const LessonDetail: React.FC = () => {
                                 {lesson.title}
                             </h1>
 
-                            {/* Actions: Like & Share */}
+                            {/* Actions: Like, Course View & Share */}
                             <div className="flex items-center gap-3 mb-8">
                                 <button
                                     onClick={async () => {
@@ -188,6 +188,15 @@ export const LessonDetail: React.FC = () => {
                                     <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                                     좋아요
                                 </button>
+                                {lesson.courseId && course && (
+                                    <button
+                                        onClick={() => navigate(`/courses/${lesson.courseId}`)}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all text-sm font-bold"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        클래스 보기
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setIsShareModalOpen(true)}
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800 text-sm font-bold"

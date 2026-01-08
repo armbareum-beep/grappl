@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Lesson } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Grid, Heart, ChevronLeft } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow } from '../../lib/api';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface LessonReelItemProps {
     lesson: Lesson;
@@ -19,10 +20,13 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isFollowed, setIsFollowed] = useState(false);
-    const [likeCount, setLikeCount] = useState(lesson.likes || 0);
+    const [likeCount, setLikeCount] = useState(0);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [watchTime, setWatchTime] = useState(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        if (user && isActive) {
+        if (user && isActive && lesson.creatorId) {
             getLessonInteractionStatus(user.id, lesson.id, lesson.creatorId)
                 .then(status => {
                     setIsLiked(status.liked);
@@ -31,6 +35,42 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 });
         }
     }, [user, lesson.id, isActive, lesson.creatorId]);
+
+    // Watch time tracking for non-logged-in users
+    useEffect(() => {
+        if (!user && isActive) {
+            // Start timer
+            setWatchTime(0);
+            timerRef.current = setInterval(() => {
+                setWatchTime((prev: number) => {
+                    const newTime = prev + 1;
+                    if (newTime >= 60) {
+                        // 60 seconds reached, show login modal
+                        setIsLoginModalOpen(true);
+                        if (videoRef.current) {
+                            videoRef.current.pause();
+                        }
+                        if (timerRef.current) {
+                            clearInterval(timerRef.current);
+                        }
+                    }
+                    return newTime;
+                });
+            }, 1000);
+        } else {
+            // Clear timer when not active or user is logged in
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            setWatchTime(0);
+        }
+
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [isActive, user]);
 
     const handleLike = async () => {
         if (!user) {
@@ -99,6 +139,18 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                             </button>
                                             <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
                                         </div>
+                                        {lesson.courseId && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/courses/${lesson.courseId}`);
+                                                }}
+                                                className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
+                                                title="클래스 보기"
+                                            >
+                                                <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
@@ -138,6 +190,31 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                     </div>
                 </div>
             </div>
+
+            {/* Login Modal for non-logged-in users */}
+            <ConfirmModal
+                isOpen={isLoginModalOpen}
+                onClose={() => {
+                    setIsLoginModalOpen(false);
+                    navigate('/');
+                }}
+                onConfirm={() => {
+                    setIsLoginModalOpen(false);
+                    navigate('/login', {
+                        state: {
+                            from: {
+                                pathname: '/watch',
+                                search: `?tab=lesson&id=${lesson.id}`
+                            }
+                        }
+                    });
+                }}
+                title="1분 무료 체험 종료"
+                message="계속 시청하려면 무료 회원가입이 필요합니다. 그랩플레이의 모든 릴스를 무료로 시청하고, 전문가의 클래스도 체험해보세요."
+                confirmText="무료로 시작하기"
+                cancelText="나중에"
+                variant="info"
+            />
         </div>
     );
 };

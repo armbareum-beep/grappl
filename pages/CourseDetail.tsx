@@ -820,10 +820,29 @@ export const CourseDetail: React.FC = () => {
             <ConfirmModal
                 isOpen={isPaywallOpen}
                 onClose={() => setIsPaywallOpen(false)}
-                onConfirm={() => navigate('/pricing')}
+                onConfirm={() => {
+                    if (!user) {
+                        // Non-logged-in users: redirect to login with current course info
+                        navigate('/login', {
+                            state: {
+                                from: {
+                                    pathname: `/courses/${id}`,
+                                    search: selectedLesson ? `?lessonId=${selectedLesson.id}` : ''
+                                }
+                            }
+                        });
+                    } else {
+                        // Logged-in users: redirect to pricing
+                        navigate('/pricing');
+                    }
+                }}
                 title="1분 무료 체험 종료"
-                message="이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
-                confirmText="구독 요금제 보기"
+                message={
+                    !user
+                        ? "계속 시청하려면 무료 회원가입이 필요합니다. 그랩플레이의 모든 클래스를 체험하고, 전문가의 커리큘럼을 확인해보세요."
+                        : "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                }
+                confirmText={!user ? "무료로 시작하기" : "구독 요금제 보기"}
                 cancelText="나중에 하기"
                 variant="info"
             />

@@ -5,6 +5,7 @@ import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft } from 'lucide-r
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -28,6 +29,11 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [isSaved, setIsSaved] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
     const navigate = useNavigate();
+
+    // Login modal state for non-logged-in users
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [watchTime, setWatchTime] = useState(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Check interaction status on load
     useEffect(() => {
@@ -179,6 +185,42 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             });
         }
     }, [isActive, user, video.id]);
+
+    // Watch time tracking for non-logged-in users
+    useEffect(() => {
+        if (!user && isActive) {
+            // Start timer
+            setWatchTime(0);
+            timerRef.current = setInterval(() => {
+                setWatchTime((prev: number) => {
+                    const newTime = prev + 1;
+                    if (newTime >= 60) {
+                        // 60 seconds reached, show login modal and pause video
+                        setIsLoginModalOpen(true);
+                        if (playerRef.current) {
+                            playerRef.current.pause().catch(console.error);
+                        }
+                        if (timerRef.current) {
+                            clearInterval(timerRef.current);
+                        }
+                    }
+                    return newTime;
+                });
+            }, 1000);
+        } else {
+            // Clear timer when not active or user is logged in
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            setWatchTime(0);
+        }
+
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [isActive, user]);
 
     const toggleMute = async () => {
         const newMuteState = !muted;
@@ -349,6 +391,31 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     </React.Suspense>
                 </div>
             </div>
+
+            {/* Login Modal for non-logged-in users */}
+            <ConfirmModal
+                isOpen={isLoginModalOpen}
+                onClose={() => {
+                    setIsLoginModalOpen(false);
+                    navigate('/');
+                }}
+                onConfirm={() => {
+                    setIsLoginModalOpen(false);
+                    navigate('/login', {
+                        state: {
+                            from: {
+                                pathname: '/watch',
+                                search: `?tab=sparring&id=${video.id}`
+                            }
+                        }
+                    });
+                }}
+                title="1분 무료 체험 종료"
+                message="계속 시청하려면 무료 회원가입이 필요합니다. 그랩플레이의 모든 릴스를 무료로 시청하고, 전문가의 클래스도 체험해보세요."
+                confirmText="무료로 시작하기"
+                cancelText="나중에"
+                variant="info"
+            />
         </div>
     );
 };

@@ -163,7 +163,7 @@ export const ClassShowcase: React.FC = () => {
                     <Button
                         variant="ghost"
                         className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
-                        onClick={() => navigate('/library')}
+                        onClick={() => navigate('/lessons')}
                     >
                         모든 클래스 둘러보기
                         <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />

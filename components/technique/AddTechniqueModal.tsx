@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Lesson, Drill } from '../../types';
-import { X, Search, GraduationCap, Target, LayoutGrid, Check, Plus } from 'lucide-react';
+import { X, Search, GraduationCap, Target, LayoutGrid, Check, Plus, Bookmark } from 'lucide-react';
 
 interface AddContentItem {
     id: string;
@@ -16,9 +16,11 @@ interface AddTechniqueModalProps {
     drills: Drill[];
     addedItems: AddContentItem[];
     onAddContent: (items: AddContentItem[]) => void;
+    savedLessons?: Lesson[];
+    savedDrills?: Drill[];
 }
 
-type TabType = 'all' | 'lesson' | 'drill';
+type TabType = 'all' | 'lesson' | 'drill' | 'saved';
 
 const categories = ['All', 'Standing', 'Guard', 'Guard Pass', 'Side', 'Mount', 'Back'];
 
@@ -28,7 +30,9 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     lessons,
     drills,
     addedItems,
-    onAddContent
+    onAddContent,
+    savedLessons = [],
+    savedDrills = []
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -95,6 +99,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
 
     const filteredLessons = lessons.filter(filterItem);
     const filteredDrills = drills.filter(filterItem);
+    const filteredSavedLessons = savedLessons.filter(filterItem);
+    const filteredSavedDrills = savedDrills.filter(filterItem);
 
     const handleAddSelected = () => {
         if (selectedItems.length > 0) {
@@ -142,8 +148,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                     {/* Controls Bar */}
                     <div className="flex flex-col gap-3 p-5 md:p-6 border-b border-zinc-800/30 bg-zinc-950">
                         {/* Tabs */}
-                        <div className="flex items-center p-1 bg-zinc-900/50 rounded-xl w-fit">
-                            {(['all', 'lesson', 'drill'] as const).map(tab => {
+                        <div className="flex items-center p-1 bg-zinc-900/50 rounded-xl w-fit overflow-x-auto">
+                            {(['all', 'lesson', 'drill', 'saved'] as const).map(tab => {
                                 const isActive = activeTab === tab;
                                 return (
                                     <button
@@ -152,7 +158,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                             setActiveTab(tab);
                                             setSearchQuery('');
                                         }}
-                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${isActive
+                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${isActive
                                             ? 'bg-violet-600 text-white shadow-lg'
                                             : 'text-zinc-500 hover:text-zinc-300'
                                             }`}
@@ -160,7 +166,8 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                         {tab === 'all' && <LayoutGrid className="w-3.5 h-3.5" />}
                                         {tab === 'lesson' && <GraduationCap className="w-3.5 h-3.5" />}
                                         {tab === 'drill' && <Target className="w-3.5 h-3.5" />}
-                                        {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : '드릴'}
+                                        {tab === 'saved' && <Bookmark className="w-3.5 h-3.5" />}
+                                        {tab === 'all' ? '전체' : tab === 'lesson' ? '레슨' : tab === 'drill' ? '드릴' : '저장'}
                                     </button>
                                 );
                             })}
@@ -232,13 +239,55 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                             />
                         ))}
 
+                        {activeTab === 'saved' && (
+                            <>
+                                {filteredSavedLessons.map(lesson => (
+                                    <ContentItemRow
+                                        key={`saved-lesson-${lesson.id}`}
+                                        title={lesson.title}
+                                        instructor={''}
+                                        pathInfo={`저장된 레슨`}
+                                        thumbnail={lesson.thumbnailUrl}
+                                        isAdded={isAlreadyAdded(lesson.id, 'lesson')}
+                                        isSelected={isItemSelected(lesson.id, 'lesson')}
+                                        onClick={() => handleToggleSelection(lesson.id, 'lesson')}
+                                        onDragStart={(e) => {
+                                            e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'lesson', id: lesson.id }));
+                                            e.dataTransfer.effectAllowed = 'copy';
+                                        }}
+                                    />
+                                ))}
+                                {filteredSavedDrills.map(drill => (
+                                    <ContentItemRow
+                                        key={`saved-drill-${drill.id}`}
+                                        title={drill.title}
+                                        instructor={drill.creatorName || ''}
+                                        pathInfo={`저장된 드릴 • ${drill.category || ''}`}
+                                        thumbnail={drill.thumbnailUrl}
+                                        isAdded={isAlreadyAdded(drill.id, 'drill')}
+                                        isSelected={isItemSelected(drill.id, 'drill')}
+                                        onClick={() => handleToggleSelection(drill.id, 'drill')}
+                                        onDragStart={(e) => {
+                                            e.dataTransfer.setData('application/grapplay-node', JSON.stringify({ type: 'drill', id: drill.id }));
+                                            e.dataTransfer.effectAllowed = 'copy';
+                                        }}
+                                    />
+                                ))}
+                            </>
+                        )}
+
                         {((activeTab === 'all' && filteredLessons.length === 0 && filteredDrills.length === 0) ||
                             (activeTab === 'lesson' && filteredLessons.length === 0) ||
-                            (activeTab === 'drill' && filteredDrills.length === 0)) && (
+                            (activeTab === 'drill' && filteredDrills.length === 0) ||
+                            (activeTab === 'saved' && filteredSavedLessons.length === 0 && filteredSavedDrills.length === 0)) && (
                                 <div className="col-span-full flex flex-col items-center justify-center py-32 text-zinc-600">
-                                    <Search className="w-12 h-12 mb-4 opacity-20" />
-                                    <div className="text-xl font-medium">검색 결과가 없습니다.</div>
-                                    <div className="mt-1">다른 검색어를 입력해 보세요.</div>
+                                    <Bookmark className="w-12 h-12 mb-4 opacity-20" />
+                                    <div className="text-xl font-medium">
+                                        {activeTab === 'saved' ? '저장된 콘텐츠가 없습니다.' : '검색 결과가 없습니다.'}
+                                    </div>
+                                    <div className="mt-1">
+                                        {activeTab === 'saved' ? '라이브러리에서 레슨이나 드릴을 저장해보세요.' : '다른 검색어를 입력해 보세요.'}
+                                    </div>
                                 </div>
                             )}
                     </div>

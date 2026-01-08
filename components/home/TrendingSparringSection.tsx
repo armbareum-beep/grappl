@@ -1,39 +1,50 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, PlayCircle, ArrowRight, Trophy } from 'lucide-react';
+import { Target, PlayCircle, ArrowRight } from 'lucide-react';
 import { SparringVideo } from '../../types';
 
 interface TrendingSporringSectionProps {
     videos: SparringVideo[];
+    title?: string;
+    subtitle?: string;
+    showRank?: boolean;
+    hideHeader?: boolean;
 }
 
-export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = ({ videos }) => {
+export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = ({
+    videos,
+    title = "인기 스파링",
+    subtitle = "인기 스파링 영상을 분석해보세요.",
+    hideHeader = false
+}) => {
     const navigate = useNavigate();
 
     if (!videos || videos.length === 0) return null;
 
     return (
-        <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                        <Target className="w-5 h-5 text-violet-500" />
+        <section className={`px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto ${hideHeader ? '' : 'mb-20'}`}>
+            {!hideHeader && (
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                            <Target className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white leading-none mb-1">{title}</h2>
+                            <p className="text-sm text-zinc-500 font-medium">{subtitle}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">인기 스파링</h2>
-                        <p className="text-sm text-zinc-500 font-medium">인기 스파링 영상을 분석해보세요.</p>
-                    </div>
+                    <button
+                        onClick={() => navigate('/sparring')}
+                        className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
+                    >
+                        모두 보기 <ArrowRight className="w-4 h-4" />
+                    </button>
                 </div>
-                <button
-                    onClick={() => navigate('/sparring')}
-                    className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
-                >
-                    모두 보기 <ArrowRight className="w-4 h-4" />
-                </button>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-                {videos.map((video, index) => (
+                {videos.map((video) => (
                     <div
                         key={video.id}
                         onClick={() => navigate('/sparring', { state: { highlightVideoId: video.id } })}
@@ -57,23 +68,6 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
                                 <PlayCircle className="w-5 h-5" />
-                            </div>
-
-                            {/* Rank Badge (Top 3) */}
-                            {index < 3 && (
-                                <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
-                                    <Trophy className="w-4 h-4 text-white fill-white" />
-                                </div>
-                            )}
-
-                            {/* Stats */}
-                            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] font-bold text-white">
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10">
-                                    👁️ {video.views || 0}
-                                </span>
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10">
-                                    ❤️ {video.likes || 0}
-                                </span>
                             </div>
                         </div>
 
