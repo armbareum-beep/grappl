@@ -9,10 +9,9 @@ import { Browse } from './pages/Browse';
 import { VideoDetail } from './pages/VideoDetail';
 import { Pricing } from './pages/Pricing';
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
-import { UploadDrill } from './pages/creator/UploadDrill';
-import { UploadLesson } from './pages/creator/UploadLesson';
+import { UnifiedUploadModal } from './pages/creator/UnifiedUploadModal';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
-import { UploadSparring } from './pages/creator/UploadSparring';
+// import { UploadSparring } from './pages/creator/UploadSparring';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
@@ -36,7 +35,7 @@ import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
 import { BecomeCreator } from './pages/BecomeCreator';
-import { UploadVideo } from './pages/UploadVideo';
+// import { UploadVideo } from './pages/UploadVideo'; // Deprecated
 import { NotFound } from './pages/NotFound';
 import { PaymentComplete } from './pages/PaymentComplete';
 import { Checkout } from './pages/Checkout';
@@ -62,6 +61,8 @@ import { Contact } from './pages/Contact';
 import UserProfile from './pages/UserProfile';
 import MyRoutineSchedule from './pages/MyRoutineSchedule';
 import { DrillReels } from './pages/DrillReels';
+import { LessonReels } from './pages/LessonReels';
+import { AllCompletedRoutines } from './pages/AllCompletedRoutines';
 
 import { LandingPage } from './pages/LandingPage';
 import { useAuth } from './contexts/AuthContext';
@@ -224,7 +225,7 @@ const App: React.FC = () => {
       <ToastProvider>
         <BackgroundUploadProvider>
           <GlobalUploadProgress />
-          <Router>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <OAuthRedirectHandler />
             <ScrollToTop />
             <Layout>
@@ -247,11 +248,11 @@ const App: React.FC = () => {
                 <Route path="/creator/courses" element={<CreatorCourses />} />
                 <Route path="/creator/courses/new" element={<CourseEditor />} />
                 <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
-                <Route path="/creator/upload" element={<UploadVideo />} />
-                <Route path="/creator/drills/new" element={<UploadDrill />} />
-                <Route path="/creator/drills/:id/edit" element={<UploadDrill />} />
-                <Route path="/creator/lessons/new" element={<UploadLesson />} />
-                <Route path="/creator/lessons/:id/edit" element={<UploadLesson />} />
+                <Route path="/creator/upload" element={<UnifiedUploadModal />} />
+                <Route path="/creator/drills/new" element={<UnifiedUploadModal initialContentType="drill" />} />
+                <Route path="/creator/drills/:id/edit" element={<UnifiedUploadModal initialContentType="drill" />} />
+                <Route path="/creator/lessons/new" element={<UnifiedUploadModal initialContentType="lesson" />} />
+                <Route path="/creator/lessons/:id/edit" element={<UnifiedUploadModal initialContentType="lesson" />} />
                 <Route path="/creator/create-routine" element={<CreateRoutine />} />
                 <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
                 <Route path="/become-creator" element={<BecomeCreator />} />
@@ -262,24 +263,25 @@ const App: React.FC = () => {
                 <Route path="/watch-test" element={<div className="h-screen w-full bg-green-500 flex items-center justify-center text-white text-4xl">WATCH TEST ROUTE WORKS</div>} />
                 <Route path="/watch" element={<Watch />} />
                 <Route path="/training-routines" element={<MyRoutines />} />
-
                 {/* Legacy / Direct Links */}
                 <Route path="/saved" element={<Navigate to="/my-library" replace />} />
                 <Route path="/drills" element={<DrillReels />} />
+                <Route path="/lessons" element={<LessonReels />} />
                 <Route path="/drills/:id" element={<DrillDetail />} />
                 <Route path="/routines" element={<Routines />} />
                 <Route path="/routines/:id" element={<RoutineDetail />} />
                 <Route path="/my-routines/:id" element={<RoutineDetail />} />
                 <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
-                <Route path="/sparring" element={<Navigate to="/watch" replace />} />
+                <Route path="/completed-routines" element={<AllCompletedRoutines />} />
+                <Route path="/sparring" element={<Navigate to={`/watch${window.location.search}`} replace />} />
                 <Route path="/ai-coach" element={
                   <ProtectedRoute>
                     <AICoach />
                   </ProtectedRoute>
                 } />
                 <Route path="/skill-tree" element={<TechniqueSkillTree />} />
-                <Route path="/creator/sparring/new" element={<UploadSparring />} />
+                <Route path="/creator/sparring/new" element={<UnifiedUploadModal initialContentType="sparring" />} />
 
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                 <Route path="/lessons/:id" element={<LessonDetail />} />

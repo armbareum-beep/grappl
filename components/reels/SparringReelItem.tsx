@@ -121,10 +121,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     // Initialize Player
     useEffect(() => {
         if (!containerRef.current || !vimeoId) return;
-        if (offset !== 0) return; // Only init if reasonable visible or close? adapting for logic
-
-        // For sliding window, we might want to be careful with destroying/recreating.
-        // But the Original logic destroys on unmount/re-render if vimeoId changes.
+        if (offset !== 0) return;
 
         if (playerRef.current) {
             // Keep if same
@@ -152,14 +149,12 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         }
 
         return () => {
-            // In sliding window we might keep it? No, unmount should destroy.
             if (playerRef.current) {
                 playerRef.current.destroy();
                 playerRef.current = null;
             }
         };
-    }, [vimeoId, offset]); // Re-run if offset? Maybe not needed if we just use style transform.
-    // Actually, simple ref mounting logic relies on component mount, which works in sliding window as item is mounted/unmounted or kept.
+    }, [vimeoId, offset]);
 
     // Handle Active State Changes
     useEffect(() => {
@@ -200,7 +195,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     };
 
     const renderVideoContent = () => {
-        // hasAccess 체크 제거 - 스파링은 모두 무료
         if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
             return (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
@@ -313,12 +307,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                             <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
                                 <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
                                     <div className="inline-block px-2 py-0.5 bg-indigo-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">SPARRING</div>
-
-                                    {video.relatedItems && video.relatedItems.length > 0 && (
-                                        <div className="w-full pointer-events-auto mb-4 hidden md:block">
-                                            {/* Related items simplified for reel view */}
-                                        </div>
-                                    )}
 
                                     {video.creator && (
                                         <div className="flex items-center gap-3 mb-3">

@@ -21,7 +21,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                         <LayoutGrid className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">Featured Routines</h2>
+                        <h2 className="text-2xl font-black text-white leading-none mb-1">추천 루틴</h2>
                         <p className="text-sm text-zinc-500 font-medium">체계적인 드릴 루틴으로 실력을 향상시키세요.</p>
                     </div>
                 </div>
@@ -29,7 +29,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                     onClick={() => navigate('/library?tab=routines')}
                     className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                    View All <ArrowRight className="w-4 h-4" />
+                    모두 보기 <ArrowRight className="w-4 h-4" />
                 </button>
             </div>
 
@@ -65,7 +65,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
 
                             {/* Duration Badge */}
                             <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md text-[10px] font-bold text-white border border-white/10 group-hover:border-violet-500/50 transition-colors">
-                                {routine.durationMinutes || 10} min
+                                {routine.totalDurationMinutes || 10} min
                             </div>
                         </div>
 

@@ -1,3 +1,16 @@
+// ==================== Unified Content Types ====================
+// New Standard Categories for Upload Standardization
+export enum QuantentPosition {
+  Standing = 'Standing',
+  Guard = 'Guard',
+  Passing = 'Passing',
+  Side = 'Side',
+  Mount = 'Mount',
+  Back = 'Back',
+  Submission = 'Submission',
+}
+
+// Deprecated: Use QuantentPosition instead
 export enum VideoCategory {
   Standing = 'Standing',
   Guard = 'Guard',
@@ -10,6 +23,18 @@ export enum VideoCategory {
   NoGi = 'No-Gi',
 }
 
+export enum UniformType {
+  Gi = 'Gi',
+  NoGi = 'No-Gi',
+}
+
+export enum ContentLevel {
+  Beginner = 'Beginner',
+  Intermediate = 'Intermediate',
+  Advanced = 'Advanced',
+}
+
+// Deprecated: Use ContentLevel instead
 export enum Difficulty {
   Beginner = 'Beginner',
   Intermediate = 'Intermediate',
@@ -39,8 +64,9 @@ export interface Course {
   creatorId: string;
   creatorName: string;
   creatorProfileImage?: string;
-  category: VideoCategory;
-  difficulty: Difficulty;
+  category: VideoCategory | QuantentPosition; // Support both for now
+  difficulty: Difficulty | ContentLevel;
+  uniformType?: UniformType; // Added for new standard
   thumbnailUrl: string;
   price: number;
   views: number;
@@ -57,13 +83,14 @@ export interface Lesson {
   creatorId?: string; // Optional for compatibility with legacy data
   title: string;
   description: string;
-  category?: VideoCategory; // Added for categorization
+  category?: VideoCategory | QuantentPosition; // Added for categorization
+  uniformType?: UniformType; // Added for new standard
   lessonNumber: number;
   vimeoUrl?: string;
   thumbnailUrl?: string; // Added for dashboard display
   durationMinutes?: number; // Added for dashboard display
   length: string;
-  difficulty: Difficulty;
+  difficulty: Difficulty | ContentLevel;
   videoUrl?: string; // Support for Vimeo or direct URLs
   views?: number; // Added for dashboard display
   createdAt: string;
@@ -186,6 +213,17 @@ export interface TrainingLog {
   };
 }
 
+export interface CompletedRoutineRecord {
+  id: string;                    // training_log ID
+  routineId: string | null;      // routine ID
+  routineTitle: string;          // routine title
+  routineThumbnail: string | null; // routine thumbnail
+  durationMinutes: number;       // 소요 시간 (분)
+  completedAt: string;           // ISO timestamp
+  date: string;                  // YYYY-MM-DD
+  techniques: string[];          // 포함된 드릴 목록
+}
+
 export interface SparringVideo {
   id: string;
   creatorId: string;
@@ -197,15 +235,17 @@ export interface SparringVideo {
     type: 'drill' | 'lesson' | 'course';
     id: string;
     title: string;
+    description?: string;
+    difficulty?: string;
   }[];
   views: number;
   likes: number;
   creator?: Creator; // Joined creator profile
   creatorProfileImage?: string; // Add for consistent access
   createdAt?: string; // Standardized to camelCase
-  category?: VideoCategory | 'Sparring' | 'Competition'; // Competition vs Regular Sparring vs Technical Categories
-  uniformType?: 'Gi' | 'No-Gi'; // Gi vs No-Gi
-  difficulty?: Difficulty;
+  category?: QuantentPosition | VideoCategory | 'Sparring' | 'Competition'; // Competition vs Regular Sparring vs Technical Categories
+  uniformType?: UniformType | 'Gi' | 'No-Gi'; // Gi vs No-Gi
+  difficulty?: Difficulty | ContentLevel;
   price: number; // Price in cents (0 = free)
 }
 
@@ -379,8 +419,9 @@ export interface Drill {
   description: string;
   creatorId: string;
   creatorName?: string;
-  category: VideoCategory;
-  difficulty: Difficulty;
+  category: VideoCategory | QuantentPosition;
+  difficulty: Difficulty | ContentLevel;
+  uniformType?: UniformType; // Added for standard
   thumbnailUrl: string;
   videoUrl?: string; // Direct video URL or Vimeo URL
   descriptionVideoUrl?: string; // 설명 영상 URL
@@ -409,8 +450,8 @@ export interface DrillRoutine {
   drillCount?: number;
   drills?: Drill[];
   createdAt: string;
-  difficulty?: Difficulty;
-  category?: VideoCategory;
+  difficulty?: Difficulty | ContentLevel;
+  category?: VideoCategory | QuantentPosition;
   totalDurationMinutes?: number;
   creatorProfileImage?: string;
 }

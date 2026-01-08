@@ -21,7 +21,7 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({ courses })
                         <BookOpen className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">New Courses</h2>
+                        <h2 className="text-2xl font-black text-white leading-none mb-1">신규 강좌</h2>
                         <p className="text-sm text-zinc-500 font-medium">따끈따끈한 신규 강좌를 만나보세요.</p>
                     </div>
                 </div>
@@ -29,7 +29,7 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({ courses })
                     onClick={() => navigate('/library?tab=classes')}
                     className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                    View All <ArrowRight className="w-4 h-4" />
+                    모두 보기 <ArrowRight className="w-4 h-4" />
                 </button>
             </div>
 

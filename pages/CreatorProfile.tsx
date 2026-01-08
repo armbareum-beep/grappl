@@ -169,13 +169,13 @@ export const CreatorProfile: React.FC = () => {
             {/* Creator Header */}
             <div className="relative bg-zinc-900 border-b border-zinc-800 overflow-hidden">
                 {/* Background Pattern */}
-                <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/20 to-black pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-violet-900/20 to-black pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                         {/* Profile Image */}
                         <div className="relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                             {creator.profileImage ? (
                                 <img
                                     src={creator.profileImage}
@@ -192,14 +192,14 @@ export const CreatorProfile: React.FC = () => {
                         {/* Creator Info */}
                         <div className="flex-1 text-center md:text-left w-full">
                             {/* Top Row: Name, Badge, Actions */}
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
                                 <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4">
                                     <h1 className="text-3xl md:text-4xl font-black text-white">{creator.name}</h1>
-                                    <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded border border-indigo-500/30 self-center">INSTRUCTOR</span>
+                                    <span className="px-2 py-0.5 bg-violet-500/20 text-violet-300 text-xs font-bold rounded border border-violet-500/30 self-center">INSTRUCTOR</span>
                                 </div>
 
                                 {/* Actions (Follow / Edit) */}
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center md:justify-start gap-3">
                                     {user?.id === creator.id ? (
                                         <div className="flex gap-2">
                                             <Link to="/settings">
@@ -211,7 +211,7 @@ export const CreatorProfile: React.FC = () => {
                                             size="sm"
                                             className={`shadow-lg transition-all px-6 font-bold ${isSubscribed
                                                 ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700'
-                                                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}`}
+                                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-500/20'}`}
                                             onClick={handleSubscribe}
                                             disabled={subscribeLoading}
                                         >
@@ -253,16 +253,16 @@ export const CreatorProfile: React.FC = () => {
             {/* 1:1 Feedback Section */}
             {feedbackSettings?.enabled && user?.id !== creator.id && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 rounded-2xl p-6 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-indigo-500/5 group-hover:bg-indigo-500/10 transition-colors"></div>
+                    <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 border border-violet-500/20 rounded-2xl p-6 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-violet-500/5 group-hover:bg-violet-500/10 transition-colors"></div>
                         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                             <div className="flex-1 text-center md:text-left">
                                 <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                                    <MessageSquare className="w-5 h-5 text-indigo-400" />
+                                    <MessageSquare className="w-5 h-5 text-violet-400" />
                                     <h3 className="text-xl font-bold text-white">1:1 피드백 받기</h3>
                                 </div>
                                 <p className="text-zinc-400 text-sm mb-4">
-                                    내 스파링 영상을 보내고 <span className="text-indigo-400 font-bold">{creator.name}</span>님에게 직접 피드백을 받아보세요.
+                                    내 스파링 영상을 보내고 <span className="text-violet-400 font-bold">{creator.name}</span>님에게 직접 피드백을 받아보세요.
                                 </p>
                                 <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm">
                                     <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
@@ -277,7 +277,7 @@ export const CreatorProfile: React.FC = () => {
                             </div>
                             <button
                                 onClick={() => setShowFeedbackModal(true)}
-                                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 hover:scale-105 active:scale-95 text-sm"
+                                className="px-6 py-2.5 bg-violet-600 text-white rounded-lg font-bold hover:bg-violet-500 transition-all shadow-lg shadow-violet-900/20 hover:scale-105 active:scale-95 text-sm"
                             >
                                 피드백 요청하기
                             </button>
@@ -301,7 +301,7 @@ export const CreatorProfile: React.FC = () => {
                         <span>클래스</span>
                         <span className="text-xs opacity-60">({courses.length})</span>
                         {activeTab === 'courses' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500"></div>
                         )}
                     </button>
                     <button
@@ -315,7 +315,7 @@ export const CreatorProfile: React.FC = () => {
                         <span>루틴</span>
                         <span className="text-xs opacity-60">({routines.length})</span>
                         {activeTab === 'routines' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500"></div>
                         )}
                     </button>
                     <button
@@ -329,7 +329,7 @@ export const CreatorProfile: React.FC = () => {
                         <span>스파링</span>
                         <span className="text-xs opacity-60">({sparringVideos.length})</span>
                         {activeTab === 'sparring' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500"></div>
                         )}
                     </button>
                 </div>
@@ -434,7 +434,7 @@ export const CreatorProfile: React.FC = () => {
                                     value={videoUrl}
                                     onChange={(e) => setVideoUrl(e.target.value)}
                                     placeholder="https://youtube.com/watch?v=..."
-                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-zinc-600"
+                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder-zinc-600"
                                 />
                                 <p className="text-xs text-zinc-500 mt-2">
                                     YouTube에 업로드한 영상의 링크를 입력해주세요 (비공개/unlisted 가능)
@@ -450,18 +450,18 @@ export const CreatorProfile: React.FC = () => {
                                     onChange={(e) => setDescription(e.target.value)}
                                     rows={4}
                                     placeholder="어떤 부분에 대한 피드백을 원하시나요?"
-                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-zinc-600 resize-none"
+                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder-zinc-600 resize-none"
                                 />
                             </div>
 
-                            <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-xl p-4">
+                            <div className="bg-violet-900/20 border border-violet-500/30 rounded-xl p-4">
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="font-semibold text-indigo-300">결제 금액</span>
+                                    <span className="font-semibold text-violet-300">결제 금액</span>
                                     <span className="text-2xl font-bold text-white">
                                         ₩{feedbackSettings?.price.toLocaleString()}
                                     </span>
                                 </div>
-                                <p className="text-xs text-indigo-400/70">
+                                <p className="text-xs text-violet-400/70">
                                     {feedbackSettings?.turnaroundDays}일 이내에 텍스트 피드백을 받으실 수 있습니다
                                 </p>
                             </div>
@@ -481,7 +481,7 @@ export const CreatorProfile: React.FC = () => {
                             <button
                                 onClick={handleSubmitFeedbackRequest}
                                 disabled={!videoUrl.trim() || submitting}
-                                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-indigo-900/20"
+                                className="flex-1 px-4 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-violet-900/20"
                             >
                                 {submitting ? '요청 중...' : '결제 및 요청하기'}
                             </button>

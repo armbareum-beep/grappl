@@ -55,7 +55,7 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
         switch (type) {
             case 'routine': return 'Drill Routine';
             case 'sparring': return 'Sparring';
-            default: return 'Lesson';
+            default: return '강좌';
         }
     };
 
@@ -67,7 +67,7 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
                         <History className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">Continue Learning</h2>
+                        <h2 className="text-2xl font-black text-white leading-none mb-1">계속 수련하기</h2>
                         <p className="text-sm text-zinc-500 font-medium">멈추지 말고 수련을 이어가세요.</p>
                     </div>
                 </div>

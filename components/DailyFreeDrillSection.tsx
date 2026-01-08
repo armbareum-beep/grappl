@@ -193,7 +193,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                         {/* Sparring Card */}
                         {sparring ? (
                             <div
-                                onClick={() => navigate('/sparring')}
+                                onClick={() => navigate(`/watch?tab=sparring&id=${sparring.id}`)}
                                 className="group flex flex-col bg-zinc-900/30 border border-zinc-800/50 rounded-[24px] overflow-hidden cursor-pointer transition-all duration-500 hover:border-violet-500/50 hover:bg-zinc-900/60 hover:shadow-[0_20px_50px_rgba(124,58,237,0.1)] relative"
                             >
                                 <div className="w-full aspect-square relative overflow-hidden shrink-0">
@@ -262,10 +262,10 @@ export const DailyFreeDrillSection: React.FC = () => {
                             onClick={() => navigate('/login')}
                             className="bg-violet-600 hover:bg-violet-500 text-white text-xl font-bold py-5 px-12 rounded-full shadow-[0_20px_40px_rgba(124,58,237,0.3)] transition-all hover:scale-105 active:scale-95"
                         >
-                            로그인 하기
+                            무료 기술 시청하기
                         </button>
                         <p className="mt-4 text-zinc-500 text-sm font-medium break-keep">
-                            지금 로그인하고 오늘의 무료 기술을 확인하세요.
+                            지금 바로 오늘의 무료 기술을 확인하고 훈련을 시작하세요.
                         </p>
                     </div>
                 </div>

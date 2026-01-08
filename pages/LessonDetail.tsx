@@ -3,13 +3,13 @@ import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-route
 import { useAuth } from '../contexts/AuthContext';
 import { getLessonById, getCourseById, checkCourseOwnership } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
-import { Lock, Heart } from 'lucide-react';
+import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2 } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 export const LessonDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -22,6 +22,7 @@ export const LessonDetail: React.FC = () => {
     const [owns, setOwns] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -120,40 +121,16 @@ export const LessonDetail: React.FC = () => {
                             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 
                             <div className="relative h-full z-10">
-                                {owns && (lesson.videoUrl || lesson.vimeoUrl) ? (
+                                {(lesson.videoUrl || lesson.vimeoUrl) ? (
                                     <VideoPlayer
                                         vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                         title={lesson.title}
-                                        onProgress={() => { }}
+                                        isPreviewMode={!owns}
+                                        maxPreviewDuration={!owns ? 60 : undefined}
+                                        onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                        isPaused={isPaywallOpen}
                                         onEnded={() => { }}
                                     />
-                                ) : !owns ? (
-                                    <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative">
-                                        {course?.thumbnailUrl && (
-                                            <img
-                                                src={course.thumbnailUrl}
-                                                alt={course?.title}
-                                                className="absolute inset-0 w-full h-full object-cover opacity-30"
-                                            />
-                                        )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent"></div>
-
-                                        <div className="relative z-10 flex flex-col items-center p-4 md:p-8 text-center max-w-lg">
-                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-zinc-800/80 backdrop-blur-md flex items-center justify-center mb-4 md:mb-6 border border-zinc-700 shadow-xl">
-                                                <Lock className="w-5 h-5 md:w-6 md:h-6 text-zinc-400" />
-                                            </div>
-                                            <h2 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3 tracking-tight px-4">잠겨있는 레슨입니다</h2>
-                                            <p className="text-zinc-400 text-sm md:text-lg mb-6 md:mb-8 px-4">
-                                                이 클래스를 구매하거나 구독하여 시청하세요.
-                                            </p>
-
-                                            <Link to="/pricing">
-                                                <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
-                                                    구독/구매 안내 보기
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    </div>
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
                                         <div className="w-16 h-16 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin mb-4"></div>
@@ -278,6 +255,18 @@ export const LessonDetail: React.FC = () => {
                         imageUrl={lesson.thumbnailUrl || course?.thumbnailUrl}
                     />
                 </React.Suspense>
+            )}
+            {isPaywallOpen && (
+                <ConfirmModal
+                    isOpen={isPaywallOpen}
+                    onClose={() => setIsPaywallOpen(false)}
+                    onConfirm={() => navigate('/pricing')}
+                    title="1분 무료 체험 종료"
+                    message="이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                    confirmText="구독 요금제 보기"
+                    cancelText="나중에 하기"
+                    variant="info"
+                />
             )}
         </div>
     );

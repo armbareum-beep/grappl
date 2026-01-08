@@ -162,7 +162,7 @@ export const RoutinePromotionSection: React.FC = () => {
                         </p>
 
                         <button
-                            onClick={() => navigate('/arena?tab=routines')}
+                            onClick={() => navigate('/training-routines')}
                             className="group flex items-center gap-2 border border-violet-600/50 text-violet-400 hover:bg-violet-600 hover:text-white hover:border-violet-600 px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-[0_0_20px_rgba(124,58,237,0.0)] hover:shadow-[0_0_25px_rgba(124,58,237,0.3)]"
                         >
                             <span>주간 훈련 스케줄 짜기</span>

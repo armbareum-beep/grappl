@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import { Users, BookOpen, Dumbbell, ChevronLeft, ChevronRight, Shield, CheckCircle, Video } from 'lucide-react';
+import { Users, BookOpen, Dumbbell, Shield, CheckCircle, Video } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Creator {
@@ -23,17 +23,9 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
     const [creators, setCreators] = useState<Creator[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'center' }, [
-        Autoplay({ delay: 4000, stopOnInteraction: true })
+    const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [
+        Autoplay({ delay: 3000, stopOnInteraction: false })
     ]);
-
-    const scrollPrev = useCallback(() => {
-        if (emblaApi) emblaApi.scrollPrev();
-    }, [emblaApi]);
-
-    const scrollNext = useCallback(() => {
-        if (emblaApi) emblaApi.scrollNext();
-    }, [emblaApi]);
 
     useEffect(() => {
         fetchCreators();
@@ -147,49 +139,40 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                         </p>
                                     </div>
 
-                                    {/* Stats Grid */}
-                                    <div className="grid grid-cols-4 gap-1 py-4 border-t border-zinc-800/50 bg-zinc-900/30 rounded-xl">
-                                        <div className="flex flex-col items-center">
-                                            <Users className="w-3 h-3 text-violet-500 mb-1" />
-                                            <span className="text-xs font-bold text-white">{creator.subscriber_count > 999 ? '999+' : creator.subscriber_count}</span>
-                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">수련생</span>
-                                        </div>
-                                        <div className="flex flex-col items-center border-l border-zinc-800/50">
-                                            <BookOpen className="w-3 h-3 text-violet-500 mb-1" />
-                                            <span className="text-xs font-bold text-white">{creator.course_count}</span>
-                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">클래스</span>
-                                        </div>
-                                        <div className="flex flex-col items-center border-l border-zinc-800/50">
-                                            <Dumbbell className="w-3 h-3 text-violet-500 mb-1" />
-                                            <span className="text-xs font-bold text-white">{creator.routine_count}</span>
-                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">루틴</span>
-                                        </div>
-                                        <div className="flex flex-col items-center border-l border-zinc-800/50">
-                                            <Video className="w-3 h-3 text-violet-500 mb-1" />
-                                            <span className="text-xs font-bold text-white">{creator.sparring_count}</span>
-                                            <span className="text-[8px] text-zinc-500 uppercase tracking-wider">스파링</span>
-                                        </div>
-                                    </div>
+                                    {StatStat(creator)}
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
-
-            {/* Navigation Buttons (Desktop) */}
-            <button
-                className="hidden md:flex absolute top-1/2 -left-12 -translate-y-1/2 w-10 h-10 items-center justify-center bg-zinc-900 border border-zinc-700 text-zinc-400 rounded-full hover:bg-zinc-800 hover:text-violet-400 hover:border-violet-500/30 transition-all z-20"
-                onClick={scrollPrev}
-            >
-                <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-                className="hidden md:flex absolute top-1/2 -right-12 -translate-y-1/2 w-10 h-10 items-center justify-center bg-zinc-900 border border-zinc-700 text-zinc-400 rounded-full hover:bg-zinc-800 hover:text-violet-400 hover:border-violet-500/30 transition-all z-20"
-                onClick={scrollNext}
-            >
-                <ChevronRight className="w-5 h-5" />
-            </button>
         </div>
     );
 };
+
+function StatStat(creator: Creator) {
+    return (
+        <div className="grid grid-cols-4 gap-1 py-4 border-t border-zinc-800/50 bg-zinc-900/30 rounded-xl">
+            <div className="flex flex-col items-center">
+                <Users className="w-3 h-3 text-violet-500 mb-1" />
+                <span className="text-xs font-bold text-white">{creator.subscriber_count > 999 ? '999+' : creator.subscriber_count}</span>
+                <span className="text-[8px] text-zinc-500 uppercase tracking-wider">수련생</span>
+            </div>
+            <div className="flex flex-col items-center border-l border-zinc-800/50">
+                <BookOpen className="w-3 h-3 text-violet-500 mb-1" />
+                <span className="text-xs font-bold text-white">{creator.course_count}</span>
+                <span className="text-[8px] text-zinc-500 uppercase tracking-wider">클래스</span>
+            </div>
+            <div className="flex flex-col items-center border-l border-zinc-800/50">
+                <Dumbbell className="w-3 h-3 text-violet-500 mb-1" />
+                <span className="text-xs font-bold text-white">{creator.routine_count}</span>
+                <span className="text-[8px] text-zinc-500 uppercase tracking-wider">루틴</span>
+            </div>
+            <div className="flex flex-col items-center border-l border-zinc-800/50">
+                <Video className="w-3 h-3 text-violet-500 mb-1" />
+                <span className="text-xs font-bold text-white">{creator.sparring_count}</span>
+                <span className="text-[8px] text-zinc-500 uppercase tracking-wider">스파링</span>
+            </div>
+        </div>
+    );
+}

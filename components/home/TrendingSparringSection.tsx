@@ -20,7 +20,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                         <Target className="w-5 h-5 text-violet-500" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-white leading-none mb-1">Trending Sparring</h2>
+                        <h2 className="text-2xl font-black text-white leading-none mb-1">인기 스파링</h2>
                         <p className="text-sm text-zinc-500 font-medium">인기 스파링 영상을 분석해보세요.</p>
                     </div>
                 </div>
@@ -28,7 +28,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                     onClick={() => navigate('/sparring')}
                     className="flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                    View All <ArrowRight className="w-4 h-4" />
+                    모두 보기 <ArrowRight className="w-4 h-4" />
                 </button>
             </div>
 

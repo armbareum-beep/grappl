@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, DrillRoutineItem, Title, VideoCategory, SparringReview, Testimonial, SparringVideo } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord } from '../types';
 
 
 // Revenue split constants
@@ -9,6 +9,136 @@ export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscriptio
 export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
+
+
+
+// Lesson Interactions
+export async function toggleLessonLike(userId: string, lessonId: string): Promise<{ liked: boolean }> {
+    const { data: existing } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'like')
+        .maybeSingle();
+
+    if (existing) {
+        await supabase
+            .from('user_interactions')
+            .delete()
+            .eq('id', existing.id);
+        return { liked: false };
+    } else {
+        await supabase
+            .from('user_interactions')
+            .insert({
+                user_id: userId,
+                content_type: 'lesson',
+                content_id: lessonId,
+                interaction_type: 'like'
+            });
+        return { liked: true };
+    }
+}
+
+export async function checkLessonLiked(userId: string, lessonId: string): Promise<{ liked: boolean }> {
+    const { data } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'like')
+        .maybeSingle();
+    return { liked: !!data };
+}
+
+export async function toggleLessonSave(userId: string, lessonId: string): Promise<{ saved: boolean }> {
+    const { data: existing } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'save')
+        .maybeSingle();
+
+    if (existing) {
+        await supabase
+            .from('user_interactions')
+            .delete()
+            .eq('id', existing.id);
+        return { saved: false };
+    } else {
+        await supabase
+            .from('user_interactions')
+            .insert({
+                user_id: userId,
+                content_type: 'lesson',
+                content_id: lessonId,
+                interaction_type: 'save'
+            });
+        return { saved: true };
+    }
+}
+
+export async function getLessonInteractionStatus(userId: string, lessonId: string, creatorId: string) {
+    const [likeData, followData, saveData] = await Promise.all([
+        supabase.from('user_interactions').select('id').eq('user_id', userId).eq('content_type', 'lesson').eq('content_id', lessonId).eq('interaction_type', 'like').maybeSingle(),
+        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle(),
+        supabase.from('user_interactions').select('id').eq('user_id', userId).eq('content_type', 'lesson').eq('content_id', lessonId).eq('interaction_type', 'save').maybeSingle()
+    ]);
+
+    return {
+        liked: !!likeData.data,
+        followed: !!followData.data,
+        saved: !!saveData.data
+    };
+}
+
+export async function checkLessonSaved(userId: string, lessonId: string): Promise<boolean> {
+    const { data } = await supabase
+        .from('user_interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('content_id', lessonId)
+        .eq('interaction_type', 'save')
+        .maybeSingle();
+    return !!data;
+}
+
+export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
+    const { data, error } = await supabase
+        .from('user_interactions')
+        .select('content_id')
+        .eq('user_id', userId)
+        .eq('content_type', 'lesson')
+        .eq('interaction_type', 'save');
+
+    if (error || !data || data.length === 0) return [];
+
+    const lessonIds = data.map(item => item.content_id);
+    const lessons: Lesson[] = [];
+
+    for (const lessonId of lessonIds) {
+        const { data: lessonData } = await supabase.from('lessons').select('*, course:courses(title, thumbnail_url)').eq('id', lessonId).maybeSingle();
+        if (lessonData) lessons.push(transformLesson(lessonData));
+    }
+
+    return lessons;
+}
+
+/**
+ * Helper function to wrap Supabase promises with a timeout
+ */
+async function withTimeout<T>(promise: Promise<T> | any, ms: number): Promise<any> {
+    const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), ms);
+    });
+    return Promise.race([promise, timeout]);
+}
 
 function transformCreator(data: any): Creator {
     return {
@@ -794,8 +924,11 @@ export async function getUserFollowedCreators(userId: string): Promise<string[]>
         return [];
     }
 
+
     return (data || []).map((d: any) => d.creator_id);
 }
+
+
 
 export async function toggleSparringLike(userId: string, videoId: string): Promise<{ liked: boolean }> {
     // Check if already liked
@@ -1277,6 +1410,7 @@ export async function createCourse(courseData: Partial<Course>) {
         price: courseData.price,
         is_subscription_excluded: courseData.isSubscriptionExcluded,
         published: courseData.published,
+        uniform_type: courseData.uniformType, // Added
     };
 
     const { data, error } = await supabase
@@ -1299,6 +1433,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
     if (courseData.published !== undefined) dbData.published = courseData.published;
+    if (courseData.uniformType) dbData.uniform_type = courseData.uniformType; // Added
 
     const { data, error } = await supabase
         .from('courses')
@@ -1321,6 +1456,7 @@ export async function createLesson(lessonData: Partial<Lesson>) {
         vimeo_url: lessonData.vimeoUrl,
         length: lessonData.length,
         difficulty: lessonData.difficulty,
+        uniform_type: lessonData.uniformType, // Added
     };
 
     const { data, error } = await supabase
@@ -1345,6 +1481,7 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
     if (lessonData.length) dbData.length = lessonData.length;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
+    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType; // Added
 
     const { data, error } = await supabase
         .from('lessons')
@@ -2169,8 +2306,7 @@ export async function getCreatorRevenueStats(creatorId: string) {
             settlementAmount: Math.floor(row.amount * 0.8)
         }));
 
-        (data || []).forEach((row: any) => {
-            const date = new Date(row.settlement_month); // View aggregates by settlement_month, but we want to group raw rows if duplication exists? 
+        (data || []).forEach((_row: any) => {
             // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
             // BUT the final select DOES `GROUP BY ... settlement_month`.
             // Ah, looking at the view definition:
@@ -2416,6 +2552,68 @@ export async function getCompletedRoutinesToday(userId: string): Promise<string[
         .filter((id: any) => typeof id === 'string') || [];
 
     return [...new Set(completedIds)];
+}
+
+/**
+ * Get recent completed routines with full details
+ */
+export async function getRecentCompletedRoutines(
+    userId: string,
+    limit: number = 3
+): Promise<CompletedRoutineRecord[]> {
+    const { data, error } = await supabase
+        .from('training_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'routine')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching completed routines:', error);
+        throw error;
+    }
+
+    // 각 기록에서 루틴 정보를 가져와서 결합
+    const enrichedData = await Promise.all(
+        (data || []).map(async (log: any) => {
+            const routineId = log.metadata?.routineId;
+            let rawNotes = log.notes?.replace('[Routine Completed] ', '') || '';
+            let routineTitle = rawNotes.split('\n')[0].trim() || 'Unknown Routine';
+            let routineThumbnail: string | null = null;
+
+            // 루틴 정보 가져오기
+            if (routineId) {
+                try {
+                    const { data: routine } = await supabase
+                        .from('drill_routines')
+                        .select('title, thumbnail')
+                        .eq('id', routineId)
+                        .maybeSingle();
+
+                    if (routine) {
+                        routineTitle = routine.title;
+                        routineThumbnail = routine.thumbnail;
+                    }
+                } catch (e) {
+                    console.error('Error fetching routine details:', e);
+                }
+            }
+
+            return {
+                id: log.id,
+                routineId: routineId,
+                routineTitle: routineTitle,
+                routineThumbnail: routineThumbnail,
+                durationMinutes: log.duration_minutes,
+                completedAt: log.created_at,
+                date: log.date,
+                techniques: log.techniques || []
+            };
+        })
+    );
+
+    return enrichedData;
 }
 
 /**
@@ -4159,6 +4357,13 @@ export async function recordMatch(matchData: {
     }
 }
 
+export interface Title {
+    id: string;
+    name: string;
+    description: string;
+    icon_url?: string;
+}
+
 export interface UserTitle {
     id: string;
     userId: string;
@@ -4282,16 +4487,6 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
     });
 }
 
-// Add 5s timeout to prevent hanging
-
-
-// Helper for timeout
-const withTimeout = (promise: any, ms: number) => {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
-    ]);
-};
 
 export async function createDrill(drillData: Partial<Drill>) {
     const dbData = {
@@ -4305,6 +4500,7 @@ export async function createDrill(drillData: Partial<Drill>) {
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
         length: drillData.length,
+        uniform_type: drillData.uniformType, // Added
     };
 
     let attempts = 0;
@@ -4350,6 +4546,7 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.length) dbData.length = drillData.length;
+    if (drillData.uniformType) dbData.uniform_type = drillData.uniformType; // Added
 
     const { data, error } = await supabase
         .from('drills')
@@ -4744,7 +4941,9 @@ export async function getDailyFreeDrill() {
     try {
         const { data, error } = await supabase
             .from('drills')
-            .select('*')
+            .select('*, creator:creators(name, profile_image)')
+            .neq('vimeo_url', '')
+            .not('vimeo_url', 'like', 'ERROR%')
             .order('id')
             .limit(20);
 
@@ -4764,31 +4963,13 @@ export async function getDailyFreeDrill() {
         const x = Math.sin(seed + 456) * 10000;
         const index = Math.floor((x - Math.floor(x)) * data.length);
 
-        console.log(`[getDailyFreeDrill] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
-
         const selectedDrill = data[index];
-
-        // Fetch creator details from users table
-        let creatorInfo = null;
-        if (selectedDrill.creator_id) {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
-                .eq('id', selectedDrill.creator_id)
-                .maybeSingle();
-            if (userData) {
-                creatorInfo = {
-                    name: userData.name,
-                    avatar_url: userData.avatar_url
-                };
-            }
-        }
 
         return {
             data: {
                 ...selectedDrill,
-                creatorName: creatorInfo?.name || 'Grapplay Team',
-                creatorProfileImage: creatorInfo?.avatar_url || undefined
+                creatorName: selectedDrill.creator?.name || 'Grapplay Team',
+                creatorProfileImage: selectedDrill.creator?.profile_image || undefined
             },
             error: null
         };
@@ -4813,9 +4994,12 @@ export async function getDailyFreeLesson() {
                     thumbnail_url,
                     creator_id,
                     price,
-                    is_subscription_excluded
+                    is_subscription_excluded,
+                    creator:creators(name, profile_image)
                 )
             `)
+            .neq('vimeo_url', '')
+            .not('vimeo_url', 'like', 'ERROR%')
             .order('id')
             .limit(20);
 
@@ -4835,10 +5019,12 @@ export async function getDailyFreeLesson() {
         const x = Math.sin(seed + 789) * 10000;
         const index = Math.floor((x - Math.floor(x)) * data.length);
 
-        console.log(`[getDailyFreeLesson] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
-
         const selectedLesson = data[index];
         const transformed = transformLesson(selectedLesson);
+
+        // Ensure creator info is included
+        transformed.creatorName = selectedLesson.course?.creator?.name || 'Grapplay Team';
+        transformed.creatorProfileImage = selectedLesson.course?.creator?.profile_image || undefined;
 
         return {
             data: transformed,
@@ -4854,29 +5040,36 @@ export async function getDailyFreeSparring() {
     try {
         const { data, error } = await supabase
             .from('sparring_videos')
-            .select('*')
+            .select(`
+                *,
+                creators(*)
+            `)
+            .neq('video_url', '')
+            .not('video_url', 'like', 'ERROR%')
             .order('id')
             .limit(50); // Larger pool for variety
 
         if (error) throw error;
         if (!data || data.length === 0) return { data: null, error: null };
 
-        // Deterministic selection based on date
+        // Deterministic selection based on week
         const today = new Date();
-        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-        // Use a different salt than courses/routines to avoid "same index" feeling if coincidental
-        const x = Math.sin(seed + 123) * 10000;
+        const startOfYear = new Date(today.getFullYear(), 0, 1);
+        const pastDaysOfYear = (today.getTime() - startOfYear.getTime()) / 86400000;
+        const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+        const year = today.getFullYear();
+
+        const seed = year * 100 + weekNum;
+
+        // Use a different salt for sparring
+        const x = Math.sin(seed + 456) * 10000;
         const index = Math.floor((x - Math.floor(x)) * data.length);
 
-        console.log(`[getDailyFreeSparring] Seed: ${seed}, Selected Index: ${index}`);
+        console.log(`[getWeeklyFreeSparring] Year: ${year}, Week: ${weekNum}, Seed: ${seed}, Selected Index: ${index}`);
 
-        // Transform logic - assuming implicit transform or manual mapping if transformSparringVideo doesn't exist
-        // I'll check getPublicSparringVideos for transform logic parity if needed, but returning raw data + needed fields is usually safe if types match or I cast.
-        // Actually, SparringFeed uses the data directly usually or transforms.
-        // Let's look at getPublicSparringVideos later for consistency, but for now returning data[index] is safe.
-        return { data: data[index], error: null };
+        return { data: transformSparringVideo(data[index]), error: null };
     } catch (error) {
-        console.error('Error fetching daily free sparring:', error);
+        console.error('Error fetching weekly free sparring:', error);
         return { data: null, error };
     }
 }
@@ -6335,7 +6528,7 @@ export async function getUserLikedDrills(userId: string): Promise<Drill[]> {
 }
 
 export async function getCoursePreviewVideo(courseId: string) {
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('lessons')
         .select('vimeo_url')
         .eq('course_id', courseId)
@@ -6362,7 +6555,7 @@ export async function getUserSavedCourses(userId: string): Promise<Course[]> {
 
     for (const courseId of courseIds) {
         const result = await getCourseById(courseId);
-        if (result && !result.error) courses.push(result.data);
+        if (result) courses.push(result);
     }
 
     return courses;
@@ -6480,72 +6673,7 @@ export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine
     return routines;
 }
 
-/**
- * Toggle save/bookmark on a lesson
- */
-export async function toggleLessonSave(userId: string, lessonId: string): Promise<{ saved: boolean; error?: any }> {
-    try {
-        const { data: existing } = await supabase
-            .from('user_saved_lessons')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('lesson_id', lessonId)
-            .limit(1);
 
-        if (existing && existing.length > 0) {
-            const { error } = await supabase
-                .from('user_saved_lessons')
-                .delete()
-                .eq('user_id', userId)
-                .eq('lesson_id', lessonId);
-            return { saved: false, error };
-        } else {
-            const { error } = await supabase
-                .from('user_saved_lessons')
-                .insert({ user_id: userId, lesson_id: lessonId });
-            return { saved: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling lesson save:', error);
-        return { saved: false, error };
-    }
-}
-
-/**
- * Check if user has saved a lesson
- */
-export async function checkLessonSaved(userId: string, lessonId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_saved_lessons')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('lesson_id', lessonId)
-        .limit(1);
-
-    return !!(data && data.length > 0);
-}
-
-/**
- * Get user's saved lessons
- */
-export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
-    const { data } = await supabase
-        .from('user_saved_lessons')
-        .select('lesson_id')
-        .eq('user_id', userId);
-
-    if (!data || data.length === 0) return [];
-
-    const lessonIds = data.map(item => item.lesson_id);
-    const lessons: Lesson[] = [];
-
-    for (const lessonId of lessonIds) {
-        const result = await getLessonById(lessonId);
-        if (result) lessons.push(result);
-    }
-
-    return lessons;
-}
 
 
 
@@ -7249,6 +7377,8 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
         price: r.price || 0,
         durationMinutes: r.duration_minutes || 10,
         category: r.category || 'General',
+        views: r.views || 0,
+        createdAt: r.created_at || new Date().toISOString(),
         drills: []
     }));
 }

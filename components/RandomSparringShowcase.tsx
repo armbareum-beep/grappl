@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, ChevronRight, VolumeX, Activity } from 'lucide-react';
-import { getPublicSparringVideos } from '../lib/api';
+import { getDailyFreeSparring } from '../lib/api';
 import { SparringVideo } from '../types';
 
 export function RandomSparringShowcase() {
@@ -21,15 +21,10 @@ export function RandomSparringShowcase() {
     useEffect(() => {
         const fetchVideo = async () => {
             try {
-                const videos = await getPublicSparringVideos();
+                const { data } = await getDailyFreeSparring();
 
-                // Filter out videos with invalid or error URLs
-                const validVideos = videos.filter(v => getVimeoId(v.videoUrl));
-
-                if (validVideos.length > 0) {
-                    // Random selection from valid videos only
-                    const randomVideo = validVideos[Math.floor(Math.random() * validVideos.length)];
-                    setVideo(randomVideo);
+                if (data && getVimeoId(data.videoUrl)) {
+                    setVideo(data);
                 }
             } catch (error) {
                 console.error('Failed to load sparring video', error);
@@ -73,7 +68,7 @@ export function RandomSparringShowcase() {
                         <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                             <button
                                 className="px-8 py-4 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2 group"
-                                onClick={() => navigate(`/sparring?id=${video.id}`)}
+                                onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
                                 <span>이 스파링 전체 보기</span>
@@ -81,7 +76,7 @@ export function RandomSparringShowcase() {
 
                             <button
                                 className="px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                onClick={() => navigate('/sparring')}
+                                onClick={() => navigate('/watch?tab=sparring')}
                             >
                                 <span>더 많은 스파링</span>
                                 <ChevronRight className="w-4 h-4" />
@@ -93,7 +88,7 @@ export function RandomSparringShowcase() {
                     <div className="flex-1 w-full max-w-2xl">
                         <div
                             className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
-                            onClick={() => navigate(`/sparring?id=${video.id}`)}
+                            onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                         >
                             <iframe
                                 src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1`}
@@ -112,7 +107,7 @@ export function RandomSparringShowcase() {
                                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                                     <span className="text-zinc-400 text-xs font-bold tracking-wider uppercase">Live Sparring</span>
                                 </div>
-                                <p className="text-zinc-100 font-medium text-xl">이바름 스파링</p>
+                                <p className="text-zinc-100 font-medium text-xl">{video.title}</p>
                             </div>
 
                             {/* Unmute Hint */}
@@ -125,7 +120,7 @@ export function RandomSparringShowcase() {
                         <div className="flex lg:hidden flex-col sm:flex-row gap-4 mt-8 w-full">
                             <button
                                 className="flex-1 px-8 py-4 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2 group"
-                                onClick={() => navigate(`/sparring?id=${video.id}`)}
+                                onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
                                 <span>이 스파링 전체 보기</span>
@@ -133,7 +128,7 @@ export function RandomSparringShowcase() {
 
                             <button
                                 className="flex-1 px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                onClick={() => navigate('/sparring')}
+                                onClick={() => navigate('/watch?tab=sparring')}
                             >
                                 <span>더 많은 스파링</span>
                                 <ChevronRight className="w-4 h-4" />

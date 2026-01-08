@@ -38,7 +38,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center">
 
                 {/* 1. Typography & CTA */}
-                <div className="text-center max-w-4xl mx-auto mb-20">
+                <div className="text-center max-w-4xl mx-auto mb-10 md:mb-20">
                     <motion.h2
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -56,28 +56,30 @@ export const CapsuleRoadmapSection: React.FC = () => {
                         길을 잃지 않는 수련, <br className="md:hidden" />
                         <span className="text-violet-500">당신의 다음 테크닉은 무엇입니까?</span>
                     </motion.h2>
-
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="text-zinc-400 text-lg md:text-xl leading-relaxed mb-10 max-w-2xl mx-auto break-keep"
+                        className="text-zinc-400 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto break-keep"
                     >
                         단편적인 기술 습득은 성장을 늦출 뿐입니다. <br />
                         레슨과 드릴을 연결하여 당신의 주짓수를 끊김 없는 하나의 흐름으로 만듭니다.
                     </motion.p>
+                </div>
 
+                {/* CTA Button - Desktop only */}
+                <div className="hidden md:block mb-20">
                     <motion.button
                         initial={{ opacity: 0, scale: 0.9 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => navigate('/arena?tab=skills')}
+                        onClick={() => navigate('/skill-tree')}
                         className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]"
                     >
-                        기술 시스템 구축하기
+                        기술시스템 구축하기
                     </motion.button>
                 </div>
 
@@ -93,8 +95,6 @@ export const CapsuleRoadmapSection: React.FC = () => {
                             backgroundSize: '40px 40px'
                         }}></div>
 
-                        {/* Connection Lines (SVG) - REMOVED AS REQUESTED */}
-
                         {/* Nodes */}
                         {nodes.map((node, i) => (
                             <motion.div
@@ -106,14 +106,14 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                 transition={{ delay: 0.2 + (i * 0.1), type: "spring", stiffness: 200, damping: 20 }}
                             >
                                 <div className={`
-                    relative px-4 py-2 md:px-6 md:py-3 rounded-full border transition-all duration-300 flex items-center gap-2 md:gap-3 cursor-pointer group hover:scale-105
-                    ${node.status === 'active'
+                                    relative px-4 py-2 md:px-6 md:py-3 rounded-full border transition-all duration-300 flex items-center gap-2 md:gap-3 cursor-pointer group hover:scale-105
+                                    ${node.status === 'active'
                                         ? 'bg-violet-600 border-violet-400 shadow-[0_0_25px_rgba(124,58,237,0.6)]'
                                         : node.status === 'mastered'
                                             ? 'bg-zinc-800 border-zinc-600 shadow-lg'
                                             : 'bg-zinc-950/80 border-zinc-800 opacity-60'
                                     }
-                  `}>
+                                `}>
                                     {/* Visual Pulse for active node */}
                                     {node.status === 'active' && (
                                         <div className="absolute inset-0 rounded-full animate-ping bg-violet-500/30"></div>
@@ -138,8 +138,22 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                 </div>
                             </motion.div>
                         ))}
-
                     </div>
+                </div>
+
+                {/* CTA Button - Mobile only */}
+                <div className="md:hidden mt-8">
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/skill-tree')}
+                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]"
+                    >
+                        기술시스템 구축하기
+                    </motion.button>
                 </div>
 
             </div>

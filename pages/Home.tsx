@@ -6,9 +6,10 @@ import {
 } from 'lucide-react';
 import {
   getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
-  getPublicSparringVideos, getFeaturedRoutines, getNewCourses
+  getPublicSparringVideos, getFeaturedRoutines, getNewCourses,
+  getRecentCompletedRoutines
 } from '../lib/api';
-import { Lesson, DrillRoutine, SparringVideo, Course } from '../types';
+import { Lesson, DrillRoutine, SparringVideo, Course, CompletedRoutineRecord } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { supabase } from '../lib/supabase';
 import { MasteryRoadmapWidget } from '../components/home/MasteryRoadmapWidget';
@@ -16,6 +17,7 @@ import { ContinueLearningSection } from '../components/home/ContinueLearningSect
 import { TrendingSparringSection } from '../components/home/TrendingSparringSection';
 import { FeaturedRoutinesSection } from '../components/home/FeaturedRoutinesSection';
 import { NewCoursesSection } from '../components/home/NewCoursesSection';
+import { RecentCompletedRoutinesSection } from '../components/home/RecentCompletedRoutinesSection';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +34,7 @@ export const Home: React.FC = () => {
   const [trendingSparring, setTrendingSparring] = useState<SparringVideo[]>([]);
   const [featuredRoutines, setFeaturedRoutines] = useState<DrillRoutine[]>([]);
   const [newCourses, setNewCourses] = useState<Course[]>([]);
+  const [recentCompletedRoutines, setRecentCompletedRoutines] = useState<CompletedRoutineRecord[]>([]);
 
   // User info
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -67,37 +70,11 @@ export const Home: React.FC = () => {
           ]);
 
           if (drillRes.data) {
-            const drill = drillRes.data;
-            if (drill.creatorId) {
-              const { data: creatorData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
-                .eq('id', drill.creatorId)
-                .maybeSingle();
-
-              if (creatorData) {
-                drill.creatorName = creatorData.name;
-                drill.creatorAvatar = creatorData.avatar_url;
-              }
-            }
-            setDailyDrill(drill);
+            setDailyDrill(drillRes.data);
           }
 
           if (lessonRes.data) {
-            const lesson = lessonRes.data;
-            if (lesson.creatorId) {
-              const { data: creatorData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
-                .eq('id', lesson.creatorId)
-                .maybeSingle();
-
-              if (creatorData) {
-                lesson.creatorName = creatorData.name;
-                lesson.creatorAvatar = creatorData.avatar_url;
-              }
-            }
-            setDailyLesson(lesson);
+            setDailyLesson(lessonRes.data);
           }
 
           if (sparringRes && sparringRes.length > 0) setDailySparring(sparringRes[0]);
@@ -148,6 +125,16 @@ export const Home: React.FC = () => {
           console.error("Error fetching new courses", e);
         }
 
+        // E. Recent Completed Routines
+        try {
+          const completedRoutines = await getRecentCompletedRoutines(user.id, 3);
+          if (completedRoutines && completedRoutines.length > 0) {
+            setRecentCompletedRoutines(completedRoutines);
+          }
+        } catch (e) {
+          console.error("Error fetching completed routines", e);
+        }
+
       } catch (error) {
         console.error('Fatal fetch error:', error);
       } finally {
@@ -191,8 +178,8 @@ export const Home: React.FC = () => {
       <section className="relative px-4 md:px-6 lg:px-12 pt-8 pb-12 md:pt-12 max-w-[1440px] mx-auto">
         <div className="flex justify-between items-start mb-8">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              Hello, <span className="text-violet-400">{displayName}</span>
+            <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-4 tracking-tighter">
+              안녕하세요, <span className="text-violet-500">{displayName}</span>님.
             </h1>
             <p className="text-zinc-400 text-sm font-medium">오늘도 그랩플레이와 함께 성장하세요 🥋</p>
           </div>
@@ -223,7 +210,7 @@ export const Home: React.FC = () => {
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative z-10 h-full max-w-6xl mx-auto">
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
-                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">DAILY DRILL</span>
+                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 드릴</span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {drill.durationMinutes || 5} min</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tight leading-[1.1] drop-shadow-lg">
@@ -234,20 +221,20 @@ export const Home: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-3 pt-2">
                               <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden">
-                                {drill.creatorAvatar ? (
-                                  <img src={drill.creatorAvatar} className="w-full h-full object-cover" />
+                                {drill.creatorProfileImage ? (
+                                  <img src={drill.creatorProfileImage} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-[10px] text-zinc-400">T</div>
                                 )}
                               </div>
                               <p className="text-zinc-400 text-sm font-medium">
-                                <span className="text-zinc-200 font-bold">{typeof drill.creatorName === 'string' ? drill.creatorName : 'Grapplay Team'}</span>
+                                <span className="text-zinc-200 font-bold">{drill.creatorName || 'Grapplay Team'}</span>
                               </p>
                             </div>
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
                             <button onClick={() => navigate(`/drills/${drill.id}`)} className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
-                              <Play className="w-5 h-5 fill-current" /> Start Training
+                              <Play className="w-5 h-5 fill-current" /> 훈련 시작
                             </button>
                           </div>
                         </div>
@@ -265,7 +252,7 @@ export const Home: React.FC = () => {
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative z-10 h-full max-w-6xl mx-auto">
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
-                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">DAILY LESSON</span>
+                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 레슨</span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1"><Video className="w-3.5 h-3.5" /> FREE</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tighter leading-[1.05] group-hover:text-violet-200 transition-colors uppercase italic">
@@ -276,8 +263,8 @@ export const Home: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-3 pt-2">
                               <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden">
-                                {lesson.creatorAvatar ? (
-                                  <img src={lesson.creatorAvatar} className="w-full h-full object-cover" />
+                                {lesson.creatorProfileImage ? (
+                                  <img src={lesson.creatorProfileImage} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-[10px] text-zinc-400">I</div>
                                 )}
@@ -289,7 +276,7 @@ export const Home: React.FC = () => {
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
                             <button className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
-                              <Play className="w-5 h-5 fill-current" /> Watch Lesson
+                              <Play className="w-5 h-5 fill-current" /> 강좌 보기
                             </button>
                           </div>
                         </div>
@@ -307,7 +294,7 @@ export const Home: React.FC = () => {
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative z-10 h-full max-w-6xl mx-auto">
                           <div className="space-y-5 flex-1 max-w-2xl pt-4 md:pt-0">
                             <div className="flex items-center gap-3 mb-2 animate-fadeIn">
-                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">DAILY SPARRING</span>
+                              <span className="px-3 py-1 bg-violet-500/20 text-violet-200 text-xs font-bold rounded-full border border-violet-500/20 backdrop-blur-md">데일리 스파링</span>
                               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-violet-400 fill-violet-400" /> TRENDING</span>
                             </div>
                             <h2 className="text-white text-3xl md:text-6xl font-black tracking-tighter leading-[1.05] group-hover:text-violet-200 transition-colors uppercase italic">
@@ -328,7 +315,7 @@ export const Home: React.FC = () => {
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
                             <button className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
-                              <Play className="w-5 h-5 fill-current" /> Watch Sparring
+                              <Play className="w-5 h-5 fill-current" /> 스파링 보기
                             </button>
                           </div>
                         </div>
@@ -371,13 +358,16 @@ export const Home: React.FC = () => {
       {/* 3. Continue Learning List */}
       <ContinueLearningSection items={continueItems} />
 
-      {/* 4. Trending Sparring Section */}
+      {/* 4. Recent Completed Routines */}
+      <RecentCompletedRoutinesSection routines={recentCompletedRoutines} />
+
+      {/* 5. Trending Sparring Section */}
       <TrendingSparringSection videos={trendingSparring} />
 
-      {/* 5. Featured Routines */}
+      {/* 6. Featured Routines */}
       <FeaturedRoutinesSection routines={featuredRoutines} />
 
-      {/* 6. New Courses */}
+      {/* 7. New Courses */}
       <NewCoursesSection courses={newCourses} />
 
     </div>

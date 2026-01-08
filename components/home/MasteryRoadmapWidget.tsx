@@ -220,7 +220,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
                     <div className="flex items-center gap-2 mb-3">
                         <span className="px-3 py-1 bg-violet-500/10 text-violet-300 text-[10px] font-bold rounded-full border border-violet-500/20 flex items-center gap-1.5 uppercase tracking-wider">
                             <Network className="w-3 h-3" />
-                            Next Step
+                            다음 단계
                         </span>
                         <span className="hidden sm:inline text-zinc-500 text-xs font-medium">
                             마스터리 로드맵
@@ -236,7 +236,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
                             <div className="flex items-end gap-2 text-sm font-bold text-zinc-300">
                                 <span>Level {level}</span>
                                 <span className="text-xs text-zinc-500 font-normal mb-0.5">
-                                    {isMastered ? 'Mastered' : 'Progress'}
+                                    {isMastered ? '마스터 완료' : '진행도'}
                                 </span>
                             </div>
                             <div className="w-32 sm:w-48 h-1.5 md:h-2 bg-zinc-800/80 rounded-full overflow-hidden">

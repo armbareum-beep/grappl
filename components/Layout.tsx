@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Globe } from 'lucide-react';
+import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Globe, Home } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -44,8 +44,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const navigation = [
+    { name: '홈', href: '/home', icon: Home },
     { name: '라이브러리', href: '/library', icon: BookOpen },
-    { name: '워치', href: '/watch', icon: Clapperboard },
+    { name: '피드', href: '/watch', icon: Clapperboard },
     { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
     { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
     // { name: '아고라', href: '/agora', icon: Globe },
@@ -484,10 +485,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay below modals */}
       {!isFullScreenMode && (
         <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[40] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
-          <div className="grid grid-cols-4 h-full items-center relative">
+          <div className="grid grid-cols-5 h-full items-center relative">
             {[
               { name: '라이브러리', href: '/library', icon: BookOpen },
               { name: '워치', href: '/watch', icon: Clapperboard },
+              { name: '홈', href: '/home', icon: Home, isSpecial: true },
               { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
               { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
             ].map((item) => {
@@ -514,14 +516,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to={item.href}
                   className={cn(
                     "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
-                    isActive
+                    item.isSpecial
+                      ? "text-violet-400"
+                      : isActive
                       ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
                       : "text-zinc-500 active:text-zinc-300"
                   )}
                 >
                   <Icon className={cn(
-                    "w-5 h-5 transition-all duration-300",
-                    isActive ? "scale-110" : "scale-100"
+                    "transition-all duration-300",
+                    item.isSpecial
+                      ? "w-6 h-6"
+                      : isActive ? "w-5 h-5 scale-110" : "w-5 h-5 scale-100"
                   )} />
 
                   <span className={cn(

@@ -1,19 +1,35 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import useEmblaCarousel from 'embla-carousel-react';
+import { ChevronLeft, ChevronRight, Play, Sparkles } from 'lucide-react';
 import { getCourses } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
-import { ChevronRight, Play, RefreshCw, Video } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import Player from '@vimeo/player';
+import { VideoPlayer } from './VideoPlayer';
+import { ConfirmModal } from './common/ConfirmModal';
+import { useAuth } from '../contexts/AuthContext';
 
 export const ClassShowcase: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
-    const [featuredCourse, setFeaturedCourse] = useState<Course | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showVideo, setShowVideo] = useState(false);
+    const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const navigate = useNavigate();
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const playerRef = useRef<Player | null>(null);
+    const { isSubscribed, isAdmin } = useAuth();
+
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        align: 'center',
+        loop: true,
+        skipSnaps: false,
+        dragFree: false
+    });
+
+    const scrollPrev = React.useCallback(() => {
+        if (emblaApi) emblaApi.scrollPrev();
+    }, [emblaApi]);
+
+    const scrollNext = React.useCallback(() => {
+        if (emblaApi) emblaApi.scrollNext();
+    }, [emblaApi]);
 
     const getVimeoId = (url?: string) => {
         if (!url) return null;
@@ -28,43 +44,19 @@ export const ClassShowcase: React.FC = () => {
 
     const fetchFeaturedCourses = async () => {
         try {
-            const data = await getCourses(20);
+            const data = await getCourses(12);
+            // Filter courses that have preview videos
             const validCourses = data.filter(course => {
-                return course.thumbnailUrl && getVimeoId(course.previewVideoUrl);
+                return getVimeoId(course.previewVideoUrl);
             });
 
             setCourses(validCourses);
-            if (validCourses.length > 0) {
-                const random = validCourses[Math.floor(Math.random() * validCourses.length)];
-                setFeaturedCourse(random);
-            }
             setLoading(false);
         } catch (error) {
             console.error('Error fetching featured courses:', error);
             setLoading(false);
         }
     };
-
-    const handleRandomize = () => {
-        if (courses.length > 1) {
-            let next;
-            do {
-                next = courses[Math.floor(Math.random() * courses.length)];
-            } while (next.id === featuredCourse?.id);
-            setShowVideo(false);
-            setFeaturedCourse(next);
-        }
-    };
-
-    const vimeoId = featuredCourse ? getVimeoId(featuredCourse.previewVideoUrl) : null;
-
-    useEffect(() => {
-        if (showVideo && iframeRef.current && !playerRef.current) {
-            const player = new Player(iframeRef.current);
-            playerRef.current = player;
-            player.play().catch(console.error);
-        }
-    }, [showVideo]);
 
     if (loading) {
         return (
@@ -74,130 +66,98 @@ export const ClassShowcase: React.FC = () => {
         );
     }
 
-    if (!featuredCourse) return null;
+    if (!courses.length) return null;
 
     return (
         <section className="py-24 md:py-40 relative overflow-hidden">
             {/* Background Decoration */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/5 rounded-full blur-[100px] pointer-events-none"></div>
 
-            <div className="max-w-7xl mx-auto px-4 relative z-10">
+            <div className="max-w-[1400px] mx-auto relative z-10 px-4">
                 <div className="text-center mb-16">
-                    <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                        <Video className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                    <div className="inline-flex items-center px-4 py-2 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
+                        <Sparkles className="w-3.5 h-3.5 text-violet-500 mr-2" />
                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
-                            FREE PREVIEW
+                            MASTERY PREVIEW
                         </span>
                     </div>
-                    <h2 className="text-4xl md:text-5xl font-black text-zinc-50 mb-6">
-                        블랙벨트의 디테일, <br className="md:hidden" />
-                        <span className="text-violet-400">무료로 먼저 경험하세요.</span>
+                    <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight">
+                        블랙벨트의 독점 <br className="md:hidden" />
+                        <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span>
                     </h2>
-                    <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed">
-                        결제 전에도 충분합니다. <br className="md:hidden" />
-                        가장 기본이 되지만 강력한 핵심 기술들을 엄선하여 공개합니다.
+                    <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium">
+                        오늘의 프리패스로 맛보고, 전체 시스템으로 완성하세요. <br className="md:hidden" />
+                        단순한 나열이 아닌 성장을 보장하는 체계적인 가이드를 제공합니다.
                     </p>
                 </div>
 
-                <div className="relative max-w-5xl mx-auto mb-16 px-4 md:px-0">
-                    <div className="aspect-video w-full rounded-2xl md:rounded-3xl overflow-hidden bg-zinc-900/30 backdrop-blur-xl border border-zinc-800 shadow-2xl relative group">
-                        {/* Thumbnail or Video */}
-                        {!showVideo ? (
-                            <>
-                                <img
-                                    src={featuredCourse.thumbnailUrl}
-                                    alt={featuredCourse.title}
-                                    className="w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0 opacity-90 group-hover:opacity-100 group-hover:scale-105"
-                                />
+                {/* Carousel Viewport */}
+                <div className="relative">
+                    <div className="overflow-visible" ref={emblaRef}>
+                        <div className="flex -ml-4 md:-ml-8">
+                            {courses.map((course) => (
+                                <div key={course.id} className="flex-[0_0_100%] md:flex-[0_0_90%] lg:flex-[0_0_80%] min-w-0 pl-4 md:pl-8">
+                                    <div className="flex flex-col md:relative md:aspect-video rounded-3xl md:rounded-[3rem] overflow-hidden bg-zinc-900/50 md:bg-zinc-900 ring-1 ring-white/5 shadow-2xl group/card transition-all">
+                                        {/* Video Frame */}
+                                        <div className="relative aspect-video md:absolute md:inset-0">
+                                            <VideoPlayer
+                                                vimeoId={course.previewVideoUrl || ''}
+                                                title={course.title}
+                                                maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
+                                                onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                                showControls={false}
+                                                isPaused={isPaywallOpen}
+                                            />
+                                        </div>
 
-                                {/* Overlay Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 transition-opacity duration-300"></div>
+                                        {/* Overlay Content (Desktop Only) */}
+                                        <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none opacity-60 group-hover/card:opacity-40 transition-opacity"></div>
 
-                                {/* Pulse Play Button */}
-                                <div
-                                    className="absolute inset-0 flex items-center justify-center cursor-pointer z-20"
-                                    onClick={() => setShowVideo(true)}
-                                >
-                                    <span className="relative flex h-14 w-14 md:h-24 md:w-24">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-30 group-hover:opacity-50 transition-opacity duration-300"></span>
-                                        <span className="relative inline-flex rounded-full h-14 w-14 md:h-24 md:w-24 bg-violet-600/90 backdrop-blur-sm items-center justify-center shadow-xl group-hover:bg-violet-500 transition-colors duration-300">
-                                            <Play className="w-6 h-6 md:w-10 md:h-10 text-white fill-white ml-1" />
-                                        </span>
-                                    </span>
-                                </div>
+                                        {/* Info - Bottom Left (Responsive) */}
+                                        <div className="relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none">
+                                            <div className="max-w-3xl transform md:translate-y-4 group-hover/card:translate-y-0 transition-transform duration-500">
+                                                <h3 className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-1 drop-shadow-2xl">
+                                                    {course.title}
+                                                </h3>
+                                                <div className="flex items-center gap-3 text-white font-bold opacity-80 md:opacity-0 group-hover/card:opacity-100 transition-all duration-500 delay-100">
+                                                    <span className="text-xs md:text-xl tracking-tight">{course.creatorName}</span>
+                                                    <div className="w-1 h-1 rounded-full bg-white/40" />
+                                                    <span className="text-xs md:text-xl font-medium">{course.lessonCount} Lessons</span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                {/* Content Overlay - Desktop Only */}
-                                <div className="hidden md:block absolute bottom-0 left-0 right-0 p-8 md:p-12 z-20">
-                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                                        <div className="text-left flex-1 space-y-3">
-                                            <h3
-                                                className="text-3xl md:text-5xl font-black text-white leading-tight line-clamp-2 md:line-clamp-1 group-hover:text-violet-100 transition-colors cursor-pointer"
-                                                onClick={() => navigate(`/courses/${featuredCourse.id}`)}
-                                            >
-                                                {featuredCourse.title}
-                                            </h3>
-                                            <p className="text-zinc-500 font-medium text-lg">
-                                                {featuredCourse.creatorName}
-                                            </p>
+                                        {/* Action Button - Bottom Right */}
+                                        <div className="absolute top-6 right-6 md:bottom-10 md:right-10 z-30 pointer-events-auto">
+                                            <Link to={`/courses/${course.id}`}>
+                                                <button className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-white/10 hover:bg-white/20 md:bg-violet-600 md:hover:bg-violet-500 text-white backdrop-blur-md md:backdrop-blur-none border border-white/20 md:border-none shadow-2xl flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn">
+                                                    <Play className="w-5 h-5 md:w-8 md:h-8 fill-current ml-0.5 md:ml-1 group-hover:rotate-12 transition-transform" />
+                                                </button>
+                                            </Link>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Top Right "FREE" Badge */}
-                                <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
-                                    <div className="px-2.5 py-1 md:px-3 md:py-1.5 bg-zinc-950/90 backdrop-blur border border-violet-500/30 rounded-full shadow-lg">
-                                        <span className="text-[10px] md:text-xs font-bold text-violet-400 tracking-wider">FREE PREVIEW</span>
-                                    </div>
-                                </div>
-
-                                {/* Refresh Button - Bottom Right (Fixed) */}
-                                <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-20">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleRandomize();
-                                        }}
-                                        className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:rotate-180 duration-500 group/refresh"
-                                        title="다른 클래스 보기"
-                                    >
-                                        <RefreshCw className="w-4 h-4 md:w-5 md:h-5 text-zinc-400 group-hover/refresh:text-white transition-colors" />
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            vimeoId ? (
-                                <iframe
-                                    ref={iframeRef}
-                                    src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&muted=0&title=0&byline=0&portrait=0`}
-                                    className="w-full h-full"
-                                    frameBorder="0"
-                                    allow="autoplay; fullscreen"
-                                    allowFullScreen
-                                ></iframe>
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                    미리보기 영상을 불러올 수 없습니다.
-                                </div>
-                            )
-                        )}
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Mobile Content - Below Video */}
-                    <div className="md:hidden mt-6 px-2">
-                        <h3
-                            className="text-2xl font-black text-white leading-tight mb-2 cursor-pointer"
-                            onClick={() => navigate(`/courses/${featuredCourse.id}`)}
-                        >
-                            {featuredCourse.title}
-                        </h3>
-                        <p className="text-zinc-500 font-medium text-base">
-                            {featuredCourse.creatorName}
-                        </p>
-                    </div>
+                    {/* Navigation Buttons */}
+                    <button
+                        onClick={scrollPrev}
+                        className="absolute top-1/2 left-2 md:left-4 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-900/90 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 transition-all z-40 shadow-2xl hover:scale-105 active:scale-95 group"
+                    >
+                        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
+                    <button
+                        onClick={scrollNext}
+                        className="absolute top-1/2 right-2 md:right-4 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-900/90 backdrop-blur-md border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 transition-all z-40 shadow-2xl hover:scale-105 active:scale-95 group"
+                    >
+                        <ChevronRight className="w-6 h-6 md:w-8 md:h-8 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
                 </div>
 
                 {/* Footer Info */}
-                <div className="flex justify-center">
+                <div className="mt-16 flex justify-center">
                     <Button
                         variant="ghost"
                         className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
@@ -208,6 +168,17 @@ export const ClassShowcase: React.FC = () => {
                     </Button>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={isPaywallOpen}
+                onClose={() => setIsPaywallOpen(false)}
+                onConfirm={() => navigate('/pricing')}
+                title="무료 체험 기간 종료"
+                message="전체 영상을 시청하고 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                confirmText="구독 요금제 보기"
+                cancelText="더 둘러보기"
+                variant="info"
+            />
         </section>
     );
 };

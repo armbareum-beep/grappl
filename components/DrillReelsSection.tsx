@@ -4,14 +4,19 @@ import { Play, Clapperboard } from 'lucide-react';
 import { Drill } from '../types';
 import { getDrills } from '../lib/api';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const [previewEnded, setPreviewEnded] = useState(false);
+    const { isSubscribed, isAdmin } = useAuth();
+    const canWatchFull = isSubscribed || isAdmin;
 
     useEffect(() => {
         if (videoRef.current) {
             if (isHovered) {
+                if (previewEnded) return;
                 // Try to play
                 const playPromise = videoRef.current.play();
                 if (playPromise !== undefined) {
@@ -24,7 +29,28 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                 videoRef.current.currentTime = 0;
             }
         }
+    }, [isHovered, previewEnded]);
+
+    useEffect(() => {
+        if (!isHovered) {
+            setPreviewEnded(false);
+        }
     }, [isHovered]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || canWatchFull) return;
+
+        const handleTimeUpdate = () => {
+            if (video.currentTime >= 10) {
+                video.pause();
+                setPreviewEnded(true);
+            }
+        };
+
+        video.addEventListener('timeupdate', handleTimeUpdate);
+        return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    }, [canWatchFull]);
 
     return (
         <div
@@ -49,13 +75,25 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     ref={videoRef}
                     src={drill.videoUrl}
                     muted
-                    loop
+                    loop={canWatchFull}
                     playsInline
                     className={cn(
                         "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-                        isHovered ? "opacity-100" : "opacity-0"
+                        isHovered && !previewEnded ? "opacity-100" : "opacity-0"
                     )}
                 />
+            )}
+
+            {/* Preview Ended Overlay */}
+            {previewEnded && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-20">
+                    <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center mb-3">
+                        <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                    </div>
+                    <p className="text-white text-xs font-bold leading-tight">
+                        구독 후 <br /> 전체 보기
+                    </p>
+                </div>
             )}
 
             {/* Overlay Gradient */}
@@ -143,7 +181,7 @@ export const DrillReelsSection: React.FC = () => {
                         onClick={() => navigate('/drills')}
                         className="relative group bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300 overflow-hidden"
                     >
-                        <span className="relative z-10">지금 바로 무료 기술 습득하기</span>
+                        <span className="relative z-10">드릴 전체 보기</span>
                         <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">

@@ -4,11 +4,12 @@ import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ArrowLeft, Lock, Heart, Share2, Clock, Eye, BookOpen, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 import { cn } from '../lib/utils';
 
@@ -37,6 +38,7 @@ export const CourseDetail: React.FC = () => {
     const [likeCount, setLikeCount] = useState(0);
     const [isFollowed, setIsFollowed] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
 
@@ -194,33 +196,43 @@ export const CourseDetail: React.FC = () => {
     };
 
     const canWatchLesson = (lesson: Lesson) => {
-        // Free courses or Daily Free Course: all lessons accessible
-        if (course?.price === 0 || isDailyFree) return true;
-        // Paid courses: first lesson free, rest require purchase OR subscription (unless excluded)
-        if (lesson.lessonNumber === 1) return true;
-        if (ownsCourse) return true;
-        // If subscription excluded, subscriber status doesn't grant access
-        if (isSubscribed && !course?.isSubscriptionExcluded) return true;
+        // Everyone can watch at least preview
+        return true;
+    };
 
-        // Admin always has access
-        if (isAdmin) return true;
-
-        return false;
+    const isPreviewMode = (lesson: Lesson) => {
+        // Free courses or Daily Free Course: full access, no preview
+        if (course?.price === 0 || isDailyFree) return false;
+        // Course owner: full access, no preview
+        if (ownsCourse) return false;
+        // Subscriber (unless excluded): full access, no preview
+        if (isSubscribed && !course?.isSubscriptionExcluded) return false;
+        // Admin: full access, no preview
+        if (isAdmin) return false;
+        // Everyone else: preview mode
+        return true;
     };
 
     const handleLessonSelect = async (lesson: Lesson) => {
         if (selectedLesson?.id === lesson.id) return;
 
         setSelectedLesson(lesson);
-        setInitialStartTime(0); // Reset for new lesson
 
-        // Update last watched time
+        // Preview mode: always start from beginning
+        // Full access: resume from last position if available
+        if (isPreviewMode(lesson)) {
+            setInitialStartTime(0);
+        } else {
+            setInitialStartTime(0);
+        }
+
+        // Update last watched time and get progress
         if (user && canWatchLesson(lesson)) {
             await updateLastWatched(user.id, lesson.id);
 
             // Try to get existing progress for this lesson
             const prog = await getLessonProgress(user.id, lesson.id);
-            if (prog?.watched_seconds) {
+            if (prog?.watched_seconds && !isPreviewMode(lesson)) {
                 setInitialStartTime(prog.watched_seconds);
             }
         }
@@ -382,48 +394,20 @@ export const CourseDetail: React.FC = () => {
             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 
             <div className="relative h-full z-10">
-                {selectedLesson && canWatchLesson(selectedLesson) && (selectedLesson.videoUrl || selectedLesson.vimeoUrl) ? (
+                {selectedLesson && (selectedLesson.videoUrl || selectedLesson.vimeoUrl) ? (
                     <VideoPlayer
                         vimeoId={selectedLesson.videoUrl || selectedLesson.vimeoUrl || ''}
                         title={selectedLesson.title}
                         startTime={initialStartTime}
                         onEnded={handleVideoEnded}
                         onProgress={handleProgress}
+                        maxPreviewDuration={isPreviewMode(selectedLesson) ? 60 : undefined}
+                        onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                        isPaused={isPaywallOpen}
                     />
                 ) : (
                     <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative">
-                        {course?.thumbnailUrl && (
-                            <img
-                                src={course.thumbnailUrl}
-                                alt={course?.title}
-                                className="absolute inset-0 w-full h-full object-cover opacity-30"
-                            />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent"></div>
-
-                        <div className="relative z-10 flex flex-col items-center p-4 md:p-8 text-center max-w-lg">
-                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-zinc-800/80 backdrop-blur-md flex items-center justify-center mb-4 md:mb-6 border border-zinc-700 shadow-xl">
-                                <Lock className="w-5 h-5 md:w-6 md:h-6 text-zinc-400" />
-                            </div>
-                            <h2 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3 tracking-tight px-4">잠겨있는 레슨입니다</h2>
-                            <p className="text-zinc-400 text-sm md:text-lg mb-6 md:mb-8 px-4">
-                                {isFree ? '로그인하고 무료로 시청하세요.' : '이 클래스를 구매하거나 구독하여 시청하세요.'}
-                            </p>
-
-                            {user ? (
-                                <Link to="/pricing">
-                                    <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
-                                        구독/구매 안내 보기
-                                    </Button>
-                                </Link>
-                            ) : (
-                                <Link to="/login" state={{ from: location }}>
-                                    <Button className="rounded-full px-6 py-4 md:px-8 md:py-6 text-base md:text-lg bg-violet-600 hover:bg-violet-500 border-none shadow-[0_0_20px_rgba(124,58,237,0.3)]">
-                                        로그인하기
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
+                        {/* Empty or processing state */}
                     </div>
                 )}
             </div>
@@ -669,8 +653,6 @@ export const CourseDetail: React.FC = () => {
                             <div className="shrink-0 pt-0.5">
                                 {completedLessons.has(lesson.id) ? (
                                     <CheckCircle className="w-5 h-5 text-violet-500" />
-                                ) : !canWatchLesson(lesson) ? (
-                                    <Lock className="w-5 h-5 text-zinc-600" />
                                 ) : (
                                     <div className={cn("w-5 h-5 rounded-full flex items-center justify-center border-2 text-[10px] font-bold",
                                         selectedLesson?.id === lesson.id ? "border-violet-500 text-violet-400" : "border-zinc-700 text-zinc-500"
@@ -688,9 +670,9 @@ export const CourseDetail: React.FC = () => {
                                 </h4>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-zinc-500">{lesson.length}</span>
-                                    {(lesson.lessonNumber === 1 && !isFree) && (
+                                    {isPreviewMode(lesson) && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">
-                                            Free Preview
+                                            1분 프리뷰
                                         </span>
                                     )}
                                 </div>
@@ -834,6 +816,17 @@ export const CourseDetail: React.FC = () => {
                     />
                 </React.Suspense>
             )}
+
+            <ConfirmModal
+                isOpen={isPaywallOpen}
+                onClose={() => setIsPaywallOpen(false)}
+                onConfirm={() => navigate('/pricing')}
+                title="1분 무료 체험 종료"
+                message="이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                confirmText="구독 요금제 보기"
+                cancelText="나중에 하기"
+                variant="info"
+            />
         </div>
     );
 };
