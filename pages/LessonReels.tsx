@@ -50,10 +50,11 @@ export function LessonReels() {
             const { fetchCreatorsByIds, transformLesson, getDailyFreeLesson } = await import('../lib/api');
             const { canAccessContentSync } = await import('../lib/api-accessible-content');
 
-            // Get lessons
+            // Get lessons that belong to a published course
             const { data: allLessons, error: lessonError } = await supabase
                 .from('lessons')
-                .select('*, course:courses(id, title, thumbnail_url, creator_id, price, is_subscription_excluded)')
+                .select('*, course:courses!inner(id, title, thumbnail_url, creator_id, price, is_subscription_excluded, published)')
+                .eq('course.published', true)
                 .order('created_at', { ascending: false })
                 .limit(100);
 

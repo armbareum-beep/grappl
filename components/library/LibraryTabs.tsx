@@ -16,7 +16,7 @@ export const LibraryTabs: React.FC<LibraryTabsProps> = ({ activeTab, onTabChange
                     activeTab === 'classes' ? "text-violet-500" : "text-zinc-500 hover:text-zinc-300"
                 )}
             >
-                클래스
+                Classes
                 {activeTab === 'classes' && (
                     <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.5)]" />
                 )}
@@ -28,7 +28,7 @@ export const LibraryTabs: React.FC<LibraryTabsProps> = ({ activeTab, onTabChange
                     activeTab === 'routines' ? "text-violet-500" : "text-zinc-500 hover:text-zinc-300"
                 )}
             >
-                루틴
+                Routines
                 {activeTab === 'routines' && (
                     <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.5)]" />
                 )}
@@ -40,7 +40,7 @@ export const LibraryTabs: React.FC<LibraryTabsProps> = ({ activeTab, onTabChange
                     activeTab === 'sparring' ? "text-violet-500" : "text-zinc-500 hover:text-zinc-300"
                 )}
             >
-                스파링
+                Sparring
                 {activeTab === 'sparring' && (
                     <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.5)]" />
                 )}

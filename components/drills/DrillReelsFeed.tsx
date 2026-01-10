@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
 import { useNavigate } from 'react-router-dom';
@@ -11,9 +12,10 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 interface DrillReelsFeedProps {
     drills: Drill[];
     initialIndex?: number;
+    onDrillsUpdate?: (drills: Drill[]) => void; // Callback to update parent with refreshed drills
 }
 
-export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialIndex = 0 }) => {
+export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialIndex = 0, onDrillsUpdate }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -23,28 +25,97 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     const [isMuted, setIsMuted] = useState(true);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
+    const [userPermissions, setUserPermissions] = useState({
+        isSubscriber: false,
+        purchasedItemIds: [] as string[]
+    });
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Fetch user interactions
+    // Fetch user interactions and permissions
     useEffect(() => {
-        const fetchUserInteractions = async () => {
-            if (!user) return;
+        const fetchUserData = async () => {
+            if (!user) {
+                setUserPermissions({ isSubscriber: false, purchasedItemIds: [] });
+                return;
+            }
             try {
-                const [likedDrills, savedDrills, followedCreators] = await Promise.all([
+                const [likedDrills, savedDrills, followedCreators, userRes, purchasesRes] = await Promise.all([
                     getUserLikedDrills(user.id),
                     getUserSavedDrills(user.id),
-                    getUserFollowedCreators(user.id)
+                    getUserFollowedCreators(user.id),
+                    supabase.from('users').select('is_subscriber').eq('id', user.id).maybeSingle(),
+                    supabase.from('purchases').select('item_id').eq('user_id', user.id)
                 ]);
                 setLiked(new Set(likedDrills.map(d => d.id)));
                 setSaved(new Set(savedDrills.map(d => d.id)));
                 setFollowing(new Set(followedCreators));
+                setUserPermissions({
+                    isSubscriber: userRes.data?.is_subscriber === true,
+                    purchasedItemIds: purchasesRes.data?.map(p => p.item_id) || []
+                });
             } catch (error) {
-                console.error('Error fetching interactions:', error);
+                console.error('Error fetching user data:', error);
             }
         };
-        fetchUserInteractions();
+        fetchUserData();
     }, [user]);
+
+    // Auto-poll for processing status changes (Vimeo encoding completion)
+    useEffect(() => {
+        const hasProcessing = drills.some(d =>
+            !d.vimeoUrl && (!d.videoUrl || d.videoUrl.includes('placeholder') || d.videoUrl.includes('placehold.co'))
+        );
+
+        if (!hasProcessing || !onDrillsUpdate) return; // No processing items or no callback, skip polling
+
+        const pollInterval = setInterval(async () => {
+            try {
+                // Re-fetch drill list to check for processing completion
+                const drillIds = drills.map(d => d.id);
+                const { data: updatedDrills, error } = await supabase
+                    .from('drills')
+                    .select('id, vimeo_url, video_url, description_video_url, thumbnail_url, duration_minutes, length, category, difficulty, created_at, tags, likes, price')
+                    .in('id', drillIds);
+
+                if (!error && updatedDrills) {
+                    // Check if any drill's video URL has been updated (processing complete)
+                    const hasUpdates = updatedDrills.some(updated => {
+                        const original = drills.find(d => d.id === updated.id);
+                        return original && (
+                            updated.vimeo_url !== (original.vimeoUrl || original.vimeo_url) ||
+                            updated.video_url !== (original.videoUrl || original.video_url)
+                        );
+                    });
+
+                    if (hasUpdates) {
+                        // Map updated data back to Drill format
+                        const refreshedDrills = drills.map(originalDrill => {
+                            const updated = updatedDrills.find(d => d.id === originalDrill.id);
+                            if (!updated) return originalDrill;
+
+                            return {
+                                ...originalDrill,
+                                vimeoUrl: updated.vimeo_url || originalDrill.vimeoUrl,
+                                videoUrl: updated.video_url || originalDrill.videoUrl,
+                                descriptionVideoUrl: updated.description_video_url || originalDrill.descriptionVideoUrl,
+                                thumbnailUrl: updated.thumbnail_url || originalDrill.thumbnailUrl,
+                                durationMinutes: updated.duration_minutes || originalDrill.durationMinutes,
+                                length: updated.length || originalDrill.length,
+                            };
+                        });
+
+                        console.log('[DrillReelsFeed] Detected processing completion, updating drills...');
+                        onDrillsUpdate(refreshedDrills);
+                    }
+                }
+            } catch (err) {
+                console.error('[DrillReelsFeed] Polling error:', err);
+            }
+        }, 3000); // Poll every 3 seconds
+
+        return () => clearInterval(pollInterval);
+    }, [drills, onDrillsUpdate]);
 
     // Navigation handlers
     const goToNext = () => {
@@ -205,6 +276,9 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         onShare={() => handleShare(drill)}
                         onViewRoutine={() => handleViewRoutine(drill)}
                         offset={offset}
+                        isSubscriber={userPermissions.isSubscriber}
+                        purchasedItemIds={userPermissions.purchasedItemIds}
+                        isLoggedIn={!!user}
                     />
                 );
             })}

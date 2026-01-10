@@ -222,14 +222,14 @@ export const CreatorDashboard: React.FC = () => {
     });
 
     const salesSparringControls = useDataControls<SparringVideo>({
-        data: sparringVideos.filter(v => v.isPublished === true),
+        data: sparringVideos.filter(v => (v.price || 0) > 0),
         searchKeys: ['title', 'description'],
         sortOptions: commonSortOptions,
         itemsPerPage: 6
     });
 
     const materialsSparringControls = useDataControls<SparringVideo>({
-        data: sparringVideos,
+        data: sparringVideos.filter(v => (v.price || 0) === 0),
         searchKeys: ['title', 'description'],
         sortOptions: commonSortOptions,
         itemsPerPage: 10
@@ -358,41 +358,8 @@ export const CreatorDashboard: React.FC = () => {
 
         fetchData();
 
-        // 폴링: 처리중인 항목들의 상태 업데이트 (1초 간격으로 빠르게 감지)
-        const intervalId = setInterval(() => {
-            if (user) {
-                // Check if there are any processing drills (vimeoUrl empty or error)
-                const hasProcessingDrills = drills.some(d => !d.vimeoUrl || d.vimeoUrl?.trim() === '');
-                // Check if there are any processing lessons
-                const hasProcessingLessons = lessons.some(l => !l.vimeoUrl || l.vimeoUrl?.trim() === '');
-                // Check if there are any processing sparring videos
-                const hasProcessingSparring = sparringVideos.some(v => !v.videoUrl || v.videoUrl?.trim() === '');
-
-                // Only poll if there are items being processed
-                if (hasProcessingDrills) {
-                    getDrills(user.id).then(res => {
-                        const data = Array.isArray(res) ? res : (res as any)?.data;
-                        if (data) setDrills(data);
-                    }).catch(err => console.error('[Polling] Drills error:', err));
-                }
-
-                if (hasProcessingLessons) {
-                    getAllCreatorLessons(user.id).then(res => {
-                        setLessons(res || []);
-                    }).catch(err => console.error('[Polling] Lessons error:', err));
-                }
-
-                if (hasProcessingSparring) {
-                    getSparringVideos(100, user.id).then(res => {
-                        if (res.data) setSparringVideos(res.data);
-                    }).catch(err => console.error('[Polling] Sparring error:', err));
-                }
-            }
-        }, 1000); // 1초 간격 - 빠른 상태 업데이트
-
-        return () => {
-            clearInterval(intervalId);
-        };
+        // 폴링 비활성화 - 페이지 새로고침으로 데이터 자동 로드됨
+        // 처리중 상태는 페이지 새로고침 시점에 최신 데이터로 업데이트됨
 
     }, [user?.id]); // FIX: Only re-run if user ID changes, preventing infinite loops on object reference updates
 
@@ -470,7 +437,19 @@ export const CreatorDashboard: React.FC = () => {
         return <LoadingScreen message="크리에이터 대시보드를 불러오는 중..." />;
     }
 
-    const totalViews = courses.reduce((sum, course) => sum + course.views, 0);
+    // Calculate total stats
+    const totalViews =
+        courses.reduce((sum, c) => sum + (c.views || 0), 0) +
+        drills.reduce((sum, d) => sum + (d.views || 0), 0) +
+        routines.reduce((sum, r) => sum + (r.views || 0), 0) +
+        sparringVideos.reduce((sum, s) => sum + (s.views || 0), 0);
+
+    // Calculate total watch time in minutes from the OFFICIAL settlement data (which includes Lessons, Drills, Sparring)
+    const totalWatchTimeSeconds = earnings?.creatorWatchTime || 0;
+    const totalWatchTimeMinutes = Math.floor(totalWatchTimeSeconds / 60);
+    const watchTimeDisplay = totalWatchTimeMinutes >= 60
+        ? `${Math.floor(totalWatchTimeMinutes / 60)}시간 ${totalWatchTimeMinutes % 60}분`
+        : `${totalWatchTimeMinutes}분`;
 
     const TABS = [
         { id: 'content', label: '내 콘텐츠 (판매 상품)', icon: LayoutDashboard },
@@ -510,11 +489,10 @@ export const CreatorDashboard: React.FC = () => {
                         </div>
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 shadow-sm backdrop-blur-sm hover:border-blue-500/20 transition-colors">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-medium text-zinc-400">개설 클래스</h3>
-                                <BookOpen className="w-4 h-4 text-blue-500" />
+                                <h3 className="text-sm font-medium text-zinc-400">총 시청시간</h3>
+                                <PlayCircle className="w-4 h-4 text-blue-500" />
                             </div>
-                            <div className="text-2xl font-bold text-white">{courses.length}개</div>
-
+                            <div className="text-2xl font-bold text-white">{watchTimeDisplay}</div>
                         </div>
                     </div>
                 </div>
@@ -1091,9 +1069,9 @@ export const CreatorDashboard: React.FC = () => {
                                         <div>
                                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                                 <Clapperboard className="w-5 h-5 text-zinc-400" />
-                                                내 스파링 (전체 목록)
+                                                내 스파링 (전체 자료)
                                             </h2>
-                                            <p className="text-zinc-400 text-sm mt-1">업로드한 모든 스파링 영상을 관리합니다. 가격을 설정하면 '판매 상품'으로 등록됩니다.</p>
+                                            <p className="text-zinc-400 text-sm mt-1">업로드한 원본 스파링 영상입니다. '내 콘텐츠' 탭에서 이 자료를 가져와 판매용 상품으로 구성할 수 있습니다.</p>
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2">
                                             <SearchInput
@@ -1178,11 +1156,8 @@ export const CreatorDashboard: React.FC = () => {
                                                             </div>
                                                             <span>{video.views?.toLocaleString()} 조회</span>
                                                         </div>
-                                                        <div className="mt-2 flex justify-between items-center">
-                                                            <div className="text-xs font-bold text-violet-400">
-                                                                {video.price && video.price > 0 ? `₩${video.price.toLocaleString()}` : '무료'}
-                                                            </div>
-                                                            <div className="text-[10px] text-zinc-600 font-medium italic">
+                                                        <div className="mt-2 flex justify-between items-center text-[10px] text-zinc-600 font-medium italic">
+                                                            <div>
                                                                 {video.uniformType || 'No-Gi'}
                                                             </div>
                                                         </div>
@@ -1250,7 +1225,7 @@ export const CreatorDashboard: React.FC = () => {
                         </div>
                         <div className="p-4 overflow-y-auto flex-1 space-y-2">
                             {sparringVideos
-                                .filter(v => !v.isPublished)
+                                .filter(v => (v.price || 0) === 0)
                                 .filter(v => v.title.toLowerCase().includes(modalSearchQuery.toLowerCase()))
                                 .length === 0 ? (
                                 <div className="text-center py-10 text-zinc-500">
@@ -1269,7 +1244,7 @@ export const CreatorDashboard: React.FC = () => {
                                 </div>
                             ) : (
                                 sparringVideos
-                                    .filter(v => !v.isPublished)
+                                    .filter(v => (v.price || 0) === 0)
                                     .filter(v => v.title.toLowerCase().includes(modalSearchQuery.toLowerCase()))
                                     .map(video => (
                                         <div

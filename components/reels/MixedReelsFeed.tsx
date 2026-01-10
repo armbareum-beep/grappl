@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import { Drill, SparringVideo, Lesson } from '../../types';
 import { DrillReelItem } from '../drills/DrillReelItem';
 import { SparringReelItem } from './SparringReelItem';
@@ -15,15 +16,27 @@ export type MixedItem =
 interface MixedReelsFeedProps {
     items: MixedItem[];
     initialIndex?: number;
+    userPermissions?: {
+        isSubscriber: boolean;
+        purchasedItemIds: string[];
+    };
+    isLoggedIn?: boolean;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     items,
-    initialIndex = 0
+    initialIndex = 0,
+    userPermissions: externalPermissions,
+    isLoggedIn: externalIsLoggedIn
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [userPermissions, setUserPermissions] = useState({
+        isSubscriber: false,
+        purchasedItemIds: [] as string[]
+    });
+    const isLoggedIn = externalIsLoggedIn ?? !!user;
 
     // Drill specific interactions state
     const [likedDrills, setLikedDrills] = useState<Set<string>>(new Set());
@@ -35,25 +48,44 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Fetch user interactions for drills
+    // Fetch user interactions and permissions for drills
     useEffect(() => {
-        const fetchUserInteractions = async () => {
-            if (!user) return;
+        const fetchUserData = async () => {
+            if (!user) {
+                if (externalPermissions) setUserPermissions(externalPermissions);
+                return;
+            }
+
+            // If external permissions provided, use them
+            if (externalPermissions) {
+                setUserPermissions(externalPermissions);
+            }
+
             try {
-                const [liked, saved, followed] = await Promise.all([
+                const [liked, saved, followed, userRes, purchasesRes] = await Promise.all([
                     getUserLikedDrills(user.id),
                     getUserSavedDrills(user.id),
-                    getUserFollowedCreators(user.id)
+                    getUserFollowedCreators(user.id),
+                    !externalPermissions ? supabase.from('users').select('is_subscriber').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+                    !externalPermissions ? supabase.from('purchases').select('item_id').eq('user_id', user.id) : Promise.resolve({ data: [] })
                 ]);
+
                 setLikedDrills(new Set(liked.map(d => d.id)));
                 setSavedDrills(new Set(saved.map(d => d.id)));
                 setFollowingCreators(new Set(followed));
+
+                if (!externalPermissions) {
+                    setUserPermissions({
+                        isSubscriber: userRes.data?.is_subscriber === true,
+                        purchasedItemIds: purchasesRes.data?.map((p: any) => p.item_id) || []
+                    });
+                }
             } catch (error) {
-                console.error('Error fetching interactions:', error);
+                console.error('Error fetching user data:', error);
             }
         };
-        fetchUserInteractions();
-    }, [user]);
+        fetchUserData();
+    }, [user, externalPermissions]);
 
     // Navigation logic
     const goToNext = () => {
@@ -196,6 +228,9 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             onShare={() => handleShare(item.data)}
                             onViewRoutine={() => handleViewRoutine(item.data)}
                             offset={offset}
+                            isSubscriber={userPermissions.isSubscriber}
+                            purchasedItemIds={userPermissions.purchasedItemIds}
+                            isLoggedIn={isLoggedIn}
                         />
                     );
                 } else if (item.type === 'sparring') {

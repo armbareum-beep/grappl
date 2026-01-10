@@ -22,6 +22,9 @@ export const Checkout: React.FC = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [fullName, setFullName] = useState('');
 
+    // Get return URL from location state
+    const returnUrl = (location.state as any)?.returnUrl;
+
     // Coupon states
     const [couponCode, setCouponCode] = useState('');
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -143,7 +146,8 @@ export const Checkout: React.FC = () => {
             );
 
             if (response.ok) {
-                navigate('/payment/complete');
+                // Pass returnUrl to payment complete page
+                navigate('/payment/complete', { state: { returnUrl } });
             } else {
                 const err = await response.json();
                 throw new Error(err.error || '결제 검증에 실패했습니다.');
@@ -418,7 +422,8 @@ export const Checkout: React.FC = () => {
                                                     throw new Error('결제 검증 실패');
                                                 }
 
-                                                navigate('/payment/complete');
+                                                // Pass returnUrl to payment complete page
+                                                navigate('/payment/complete', { state: { returnUrl } });
                                             } catch (err: any) {
                                                 setError(`국내 결제 초기화 실패: ${err.message || JSON.stringify(err)}`);
                                             }

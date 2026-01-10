@@ -12,17 +12,22 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '무림�
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowReset(true);
-        }, 5000); // Show reset option after 5 seconds to give more time
+        }, 3000); // 3 seconds as requested
 
         return () => clearTimeout(timer);
     }, []);
 
     const handleReset = () => {
-        if (window.confirm('캐시를 삭제하고 새로고침하시겠습니까?\n\n로그인 정보는 유지되며, 앱이 최신 버전으로 업데이트됩니다.')) {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/';
-        }
+        // Force clear without confirmation
+        localStorage.clear();
+        sessionStorage.clear();
+        // Remove Supabase auth token specifically if present in cookies (unlikely but safe)
+        document.cookie.split(";").forEach((c) => {
+            document.cookie = c
+                .replace(/^ +/, "")
+                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        window.location.href = '/';
     };
 
     return (
@@ -75,21 +80,29 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '무림�
                                         <Info className="w-6 h-6 text-violet-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-white font-black text-xl leading-tight">앱 업데이트 필요</h3>
-                                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Update Required</p>
+                                        <h3 className="text-white font-black text-xl leading-tight">로딩이 지연되고 있습니다</h3>
+                                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Slow Connection</p>
                                     </div>
                                 </div>
                                 <p className="text-zinc-300 text-sm mb-6 leading-relaxed font-medium">
-                                    새로운 기능과 개선사항이 적용되었습니다.<br />
-                                    원활한 사용을 위해 캐시를 삭제해 주세요.
+                                    네트워크 상태가 원활하지 않거나 데이터 양이 많을 수 있습니다.<br />
+                                    계속 기다리시거나 새로고침 해보세요.
                                 </p>
-                                <button
-                                    onClick={handleReset}
-                                    className="w-full px-4 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl transition-all shadow-xl shadow-violet-900/20 active:scale-95 flex items-center justify-center gap-2"
-                                >
-                                    <RefreshCw className="w-4 h-4" />
-                                    캐시 삭제하고 새로고침
-                                </button>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={handleReset}
+                                        className="w-full px-4 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl transition-all shadow-xl shadow-violet-900/20 active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        새로고침
+                                    </button>
+                                    <button
+                                        onClick={() => setShowReset(false)}
+                                        className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-bold text-sm rounded-2xl transition-all active:scale-95"
+                                    >
+                                        계속 기다리기 (닫기)
+                                    </button>
+                                </div>
                                 <div className="flex items-center justify-center gap-1.5 mt-4 text-[10px] text-zinc-500 font-bold">
                                     <ShieldCheck className="w-3 h-3" />
                                     로그인 정보는 안전하게 유지됩니다

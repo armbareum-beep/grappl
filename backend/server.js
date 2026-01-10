@@ -479,15 +479,15 @@ async function logToDB(processId, level, message, details = {}) {
 
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
-    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType, sparringId } = req.body;
+    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType, sparringId, courseId } = req.body;
 
-    // Validate: exactly one of drillId, lessonId, or sparringId must be present
-    const idCount = [drillId, lessonId, sparringId].filter(id => !!id).length;
+    // Validate: exactly one of drillId, lessonId, sparringId, or courseId must be present
+    const idCount = [drillId, lessonId, sparringId, courseId].filter(id => !!id).length;
     if (idCount === 0) {
-        return res.status(400).json({ error: 'One of drillId, lessonId, or sparringId is required' });
+        return res.status(400).json({ error: 'One of drillId, lessonId, sparringId, or courseId is required' });
     }
     if (idCount > 1) {
-        return res.status(400).json({ error: 'Cannot specify multiple content IDs (drill, lesson, sparring)' });
+        return res.status(400).json({ error: 'Cannot specify multiple content IDs' });
     }
 
     if (!videoId || !filename || !cuts) {
@@ -496,8 +496,9 @@ app.post('/process', async (req, res) => {
 
     const isLesson = !!lessonId;
     const isSparring = !!sparringId;
-    const contentId = isLesson ? lessonId : (isSparring ? sparringId : drillId);
-    const tableName = isLesson ? 'lessons' : (isSparring ? 'sparring_videos' : 'drills');
+    const isCourse = !!courseId;
+    const contentId = isLesson ? lessonId : (isSparring ? sparringId : (isCourse ? courseId : drillId));
+    const tableName = isLesson ? 'lessons' : (isSparring ? 'sparring_videos' : (isCourse ? 'courses' : 'drills'));
     const processId = uuidv4();
 
     // Immediate response
@@ -829,18 +830,18 @@ app.post('/process', async (req, res) => {
                         // Check if existing thumbnail is custom
                         const { data: currentSparring } = await supabase.from('sparring_videos').select('thumbnail_url').eq('id', sparringId).single();
 
-                        const updateData = {
-                            video_url: vimeoId,
-                            is_published: true
-                        };
+                        const isPreview = videoType === 'preview';
+                        const updateData = isPreview
+                            ? { preview_vimeo_id: vimeoId }
+                            : { video_url: vimeoId, is_published: true };
 
-                        // Only update thumbnail if it's empty, placeholder, or generic vumbnail
+                        // Only update thumbnail if it's NOT a preview and it's currently a placeholder
                         const isPlaceholder = !currentSparring?.thumbnail_url ||
                             currentSparring.thumbnail_url.includes('placehold.co') ||
                             currentSparring.thumbnail_url.includes('generated') ||
                             currentSparring.thumbnail_url.includes('vumbnail.com');
 
-                        if (isPlaceholder) {
+                        if (!isPreview && isPlaceholder) {
                             updateData.thumbnail_url = finalThumbnail;
                         }
 
@@ -862,6 +863,27 @@ app.post('/process', async (req, res) => {
                             console.log(`Supabase updated for sparring ${sparringId}`);
                             logToDB(processId, 'info', 'Job Fully Complete', {
                                 sparringId,
+                                vimeoId,
+                                videoType
+                            });
+                        }
+                    } else if (isCourse) {
+                        const updateData = { preview_vimeo_id: vimeoId };
+
+                        // Update courses table
+                        console.log(`[DEBUG] Updating courses table for ID: ${courseId} with`, updateData);
+                        const { data: updatedData, error: updateError } = await supabase.from('courses')
+                            .update(updateData)
+                            .eq('id', courseId)
+                            .select();
+
+                        if (updateError) {
+                            console.error('Supabase Update Error:', updateError);
+                            logToDB(processId, 'error', 'DB Update Failed', { error: updateError.message });
+                        } else {
+                            console.log(`Supabase updated for course ${courseId}`);
+                            logToDB(processId, 'info', 'Job Fully Complete', {
+                                courseId,
                                 vimeoId,
                                 videoType
                             });
@@ -941,10 +963,18 @@ app.post('/process', async (req, res) => {
                 } else if (isSparring) {
                     await supabase.from('sparring_videos')
                         .update({
-                            video_url: 'error',
-                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
+                            [videoType === 'preview' ? 'preview_vimeo_id' : 'video_url']: 'error',
+                            ...(videoType !== 'preview' ? {
+                                thumbnailUrl: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error'
+                            } : {})
                         })
                         .eq('id', sparringId);
+                } else if (isCourse) {
+                    await supabase.from('courses')
+                        .update({
+                            preview_vimeo_id: 'error'
+                        })
+                        .eq('id', courseId);
                 } else {
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     await supabase.from('drills')
@@ -980,10 +1010,16 @@ app.post('/process', async (req, res) => {
                 } else if (isSparring) {
                     await supabase.from('sparring_videos')
                         .update({
-                            video_url: `ERROR: ${error.message}`.substring(0, 100),
-                            thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error'
+                            [videoType === 'preview' ? 'preview_vimeo_id' : 'video_url']: `ERROR: ${error.message}`.substring(0, 100),
+                            ...(videoType !== 'preview' ? { thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Error' } : {})
                         })
                         .eq('id', sparringId);
+                } else if (isCourse) {
+                    await supabase.from('courses')
+                        .update({
+                            preview_vimeo_id: `ERROR: ${error.message}`.substring(0, 100)
+                        })
+                        .eq('id', courseId);
                 } else {
                     const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                     await supabase.from('drills')

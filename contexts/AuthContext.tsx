@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     };
 
-    const value = {
+    const value = React.useMemo(() => ({
         user,
         loading,
         isCreator,
@@ -323,7 +323,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         becomeCreator,
         isSubscribed,
-    };
+    }), [user, loading, isCreator, isAdmin, isSubscribed]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

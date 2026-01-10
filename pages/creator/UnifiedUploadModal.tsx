@@ -10,7 +10,8 @@ import {
     createDrill, getDrillById, updateDrill,
     createLesson, updateLesson,
     createSparringVideo, updateSparringVideo,
-    uploadThumbnail
+    uploadThumbnail,
+    getCoursesByCreator, createCourse
 } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
@@ -75,6 +76,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         category: QuantentPosition.Standing,
         level: ContentLevel.Beginner,
         uniformType: UniformType.Gi,
+        sparringType: 'Sparring' as 'Sparring' | 'Competition',
     });
 
     // Video States
@@ -82,17 +84,19 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [mainVideo, setMainVideo] = useState<ProcessingState>(initialProcessingState);
     // Secondary video (used only for Drill-Description)
     const [descVideo, setDescVideo] = useState<ProcessingState>(initialProcessingState);
+    // Preview video (used for Course/Sparring)
+    const [previewVideo, setPreviewVideo] = useState<ProcessingState>(initialProcessingState);
 
     // Background Upload Hook
     const { queueUpload, tasks, cancelUpload } = useBackgroundUpload();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Editor State
-    const [activeEditor, setActiveEditor] = useState<'main' | 'desc' | null>(null);
+    const [activeEditor, setActiveEditor] = useState<'main' | 'desc' | 'preview' | null>(null);
     const [createdContentId, setCreatedContentId] = useState<string | null>(null);
 
-    // Tab State for Drill (Action vs Description)
-    const [activeTab, setActiveTab] = useState<'main' | 'desc'>('main');
+    // Tab State for Drill (Action vs Description) 및 Sparring (Main vs Preview)
+    const [activeTab, setActiveTab] = useState<'main' | 'desc' | 'preview'>('main');
 
     // Fetch data in edit mode
     useEffect(() => {
@@ -118,6 +122,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         category: (data.category as QuantentPosition) || QuantentPosition.Standing,
                         level: (data.difficulty as ContentLevel) || ContentLevel.Beginner,
                         uniformType: (data.uniformType as UniformType) || UniformType.Gi,
+                        sparringType: contentType === 'sparring' ? (data.category as any) || 'Sparring' : 'Sparring',
                     });
 
                     // Populate videos
@@ -149,6 +154,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     useEffect(() => {
         setMainVideo(initialProcessingState);
         setDescVideo(initialProcessingState);
+        setPreviewVideo(initialProcessingState);
         setCreatedContentId(null);
     }, [contentType]);
 
@@ -159,10 +165,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         tasks.forEach(task => {
             const isMainMatch = mainVideo.videoId === task.id;
             const isDescMatch = descVideo.videoId === task.id;
+            const isPreviewMatch = previewVideo.videoId === task.id;
 
-            if (!isMainMatch && !isDescMatch) return;
+            if (!isMainMatch && !isDescMatch && !isPreviewMatch) return;
 
-            const updateFn = isMainMatch ? setMainVideo : setDescVideo;
+            const updateFn = isMainMatch ? setMainVideo : (isDescMatch ? setDescVideo : setPreviewVideo);
 
             updateFn(prev => {
                 const newStatus = task.status === 'uploading' ? 'ready' : (task.status as any);
@@ -179,15 +186,17 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     }, [tasks, mainVideo.videoId, descVideo.videoId]);
 
     // Handle File Selection
-    const handleFileUpload = (
+    const handleFileUpload = async (
         file: File,
-        type: 'main' | 'desc',
+        type: 'main' | 'desc' | 'preview',
         setter: React.Dispatch<React.SetStateAction<ProcessingState>>
     ) => {
-        const currentState = type === 'main' ? mainVideo : descVideo;
+        const currentState = type === 'main' ? mainVideo : (type === 'desc' ? descVideo : previewVideo);
         if (currentState.videoId) cancelUpload(currentState.videoId);
 
         const objectUrl = URL.createObjectURL(file);
+
+        // Initial state update
         setter(prev => ({
             ...prev,
             file,
@@ -197,7 +206,57 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             videoId: null,
             error: null
         }));
+
+        // Immediately open editor for thumbnail selection/editing
         setActiveEditor(type);
+    };
+
+    // Helper to ensure a draft record exists before uploading
+    const ensureDraftRecord = async () => {
+        let contentId = id || createdContentId;
+        if (contentId) return contentId;
+
+        console.log(`Creating draft ${contentType}...`);
+        const commonData = {
+            title: formData.title || `업로드 중인 ${CONTENT_LABELS[contentType]}...`,
+            description: formData.description,
+            creatorId: user?.id,
+            category: (contentType === 'sparring' ? formData.sparringType : formData.category) as any,
+            difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
+            uniformType: formData.uniformType,
+            durationMinutes: 0,
+        };
+
+        let result;
+        if (contentType === 'drill') {
+            result = await createDrill({ ...commonData, vimeoUrl: '', descriptionVideoUrl: '', thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...' });
+        } else if (contentType === 'lesson') {
+            const courses = await getCoursesByCreator(user!.id);
+            let targetCourseId = courses[0]?.id;
+
+            if (!targetCourseId) {
+                const newCourse = await createCourse({
+                    title: '나의 첫 번째 코스',
+                    description: '자동 생성된 테스트 코스입니다.',
+                    creatorId: user!.id,
+                    category: formData.category,
+                    difficulty: formData.level,
+                    published: false,
+                    uniformType: formData.uniformType
+                });
+                if (newCourse.data) targetCourseId = newCourse.data.id;
+            }
+
+            if (!targetCourseId) throw new Error('코스를 찾거나 생성할 수 없습니다.');
+            result = await createLesson({ ...commonData, courseId: targetCourseId, lessonNumber: 1 });
+        } else if (contentType === 'sparring') {
+            result = await createSparringVideo({ ...commonData });
+        }
+
+        if (result?.error || !result?.data) throw result?.error;
+        const newId = result.data.id;
+        setCreatedContentId(newId);
+        return newId;
     };
 
     // Handle Cuts Save & Auto Upload
@@ -208,84 +267,43 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         } else {
             setDescVideo(prev => ({ ...prev, cuts, status: 'ready', thumbnailBlob: thumbnailBlob || null }));
         }
-
-        // Auto Upload Logic
-        const targetState = activeEditor === 'main' ? mainVideo : descVideo;
-        const setTargetState = activeEditor === 'main' ? setMainVideo : setDescVideo;
-
-        if (targetState.file && cuts && !targetState.isBackgroundUploading && !targetState.videoId) {
-            try {
-                // Ensure Draft Record Exists
-                let contentId = id || createdContentId;
-
-                if (!contentId) {
-                    console.log(`Creating draft ${contentType}...`);
-                    const totalSeconds = cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
-                    const durationMinutes = Math.floor(totalSeconds / 60);
-
-                    // Create Draft
-                    let result;
-                    const commonData = {
-                        title: formData.title || `업로드 중인 ${CONTENT_LABELS[contentType]}...`,
-                        description: formData.description,
-                        creatorId: user?.id,
-                        category: formData.category, // Type assertion might be needed in API
-                        difficulty: formData.level,
-                        uniformType: formData.uniformType,
-                        durationMinutes,
-                    };
-
-                    if (contentType === 'drill') {
-                        result = await createDrill({ ...commonData, vimeoUrl: '', descriptionVideoUrl: '', thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...' });
-                    } else if (contentType === 'lesson') {
-                        result = await createLesson({ ...commonData, courseId: undefined, lessonNumber: 1, length: formatDuration(totalSeconds) }); // Lesson requires courseId... might need to handle this
-                    } else if (contentType === 'sparring') {
-                        result = await createSparringVideo({ ...commonData });
-                    }
-
-                    if (result?.error || !result?.data) throw result?.error;
-                    contentId = result.data.id;
-                    setCreatedContentId(contentId);
-                }
-
-                // Queue Upload
-                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
-                const ext = targetState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-                const filename = `${videoId}.${ext}`;
-
-                await queueUpload(targetState.file, activeEditor as 'action' | 'desc', { // 'action' maps to main, 'desc' to desc. Need to verify queueUpload types compatibility.
-                    videoId,
-                    filename,
-                    cuts,
-                    title: `[${contentType.toUpperCase()}] ${formData.title}`,
-                    description: formData.description,
-                    drillId: contentType === 'drill' ? contentId : undefined, // Currently background upload is heavily tied to drills? Need to check.
-                    // If background context only supports drills, we might need to update it or accept it's only for drills for now.
-                    // Assuming for now we can adapt or pass generic IDs.
-                    // Actually the BackgroundUploadContext likely expects specific fields.
-                    // Let's pass drillId as contentId and maybe add a 'type' field if context supports it.
-                    // Based on previous analysis, context tasks seem generic but might have drill specific fields.
-                    // Let's assume drillId field handles the ID association.
-                    videoType: activeEditor === 'main' ? 'action' : 'desc'
-                });
-
-                setTargetState(prev => ({ ...prev, isBackgroundUploading: true, videoId, filename }));
-
-            } catch (err) {
-                console.error('Auto-upload error:', err);
-            }
-        }
         setActiveEditor(null);
     };
 
+
+
     const handleSubmit = async () => {
         if (!user) return;
+
+        // Strict validation for drills - both videos required
+        if (contentType === 'drill') {
+            const isMainVideoValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts);
+            const isDescVideoValid = descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId || (!!descVideo.file && !!descVideo.cuts);
+
+            if (!isMainVideoValid) {
+                toastError('동작 영상을 업로드하고 편집 구간을 선택해주세요.');
+                setActiveTab('main');
+                return;
+            }
+            if (!isDescVideoValid) {
+                toastError('설명 영상을 업로드하고 편집 구간을 선택해주세요.');
+                setActiveTab('desc');
+                return;
+            }
+        }
+
         setIsSubmitting(true);
 
         try {
             // Logic to create/update final record
-            // Similar to UploadDrill but switching on contentType
             let contentId = id || createdContentId;
+
+            // Ensure we have a content record ID
+            if (!contentId) {
+                contentId = await ensureDraftRecord();
+            }
+            if (!contentId) throw new Error("Failed to create or retrieve content record ID.");
+
             const totalSeconds = mainVideo.cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
             const durationMinutes = Math.floor(totalSeconds / 60);
 
@@ -299,45 +317,92 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             const commonData = {
                 title: formData.title,
                 description: formData.description,
-                category: formData.category,
-                difficulty: formData.level,
+                category: (contentType === 'sparring' ? formData.sparringType : formData.category) as any,
+                difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
                 uniformType: formData.uniformType,
                 durationMinutes,
                 thumbnailUrl: !isEditMode ? thumbnailUrl : undefined, // Only update if new
-                length: formatDuration(totalSeconds)
+                length: formatDuration(totalSeconds),
             };
 
-            // Should also check if we need to update existing record or create new
-            if (contentId) {
-                // Update
-                if (contentType === 'drill') {
-                    const { error } = await updateDrill(contentId, commonData);
-                    if (error) throw error;
-                } else if (contentType === 'lesson') {
-                    const { error } = await updateLesson(contentId, commonData);
-                    if (error) throw error;
-                } else if (contentType === 'sparring') {
-                    const { error } = await updateSparringVideo(contentId, commonData);
-                    if (error) throw error;
-                }
-            } else {
-                // Create New
-                if (contentType === 'drill') {
-                    const { error } = await createDrill({ ...commonData, creatorId: user.id, vimeoUrl: '', descriptionVideoUrl: '' });
-                    if (error) throw error;
-                } else if (contentType === 'lesson') {
-                    // Start of Lesson requires course selection usually. 
-                    // For now, minimal implementation.
-                    const { error } = await createLesson({ ...commonData, creatorId: user.id, courseId: undefined, lessonNumber: 1 });
-                    if (error) throw error;
-                } else if (contentType === 'sparring') {
-                    const { error } = await createSparringVideo({ ...commonData, creatorId: user.id });
-                    if (error) throw error;
-                }
+            // Update Metadata
+            if (contentType === 'drill') {
+                const { error } = await updateDrill(contentId, commonData);
+                if (error) throw error;
+            } else if (contentType === 'lesson') {
+                const { error } = await updateLesson(contentId, commonData);
+                if (error) throw error;
+            } else if (contentType === 'sparring') {
+                const { error } = await updateSparringVideo(contentId, commonData);
+                if (error) throw error;
             }
 
-            success(`${CONTENT_LABELS[contentType]} 업로드 완료!`);
-            navigate('/creator?tab=content');
+            // TRIGGER UPLOADS
+            // Main Video
+            if (mainVideo.file && !mainVideo.isBackgroundUploading && !mainVideo.videoId) {
+                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const ext = mainVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const filename = `${videoId}.${ext}`;
+
+                console.log(`[Submit] Starting background upload for ${contentType} Main Video`);
+
+                await queueUpload(mainVideo.file, contentType === 'sparring' ? 'sparring' : 'action', {
+                    videoId,
+                    filename,
+                    cuts: mainVideo.cuts || [],
+                    title: `[${contentType.toUpperCase()}] ${formData.title}`,
+                    description: formData.description,
+                    drillId: contentType === 'drill' ? contentId : undefined,
+                    lessonId: contentType === 'lesson' ? contentId : undefined,
+                    sparringId: contentType === 'sparring' ? contentId : undefined,
+                    videoType: contentType === 'sparring' ? 'sparring' : 'action'
+                });
+            }
+
+            // Description Video (Drill only)
+            if (contentType === 'drill' && descVideo.file && !descVideo.isBackgroundUploading && !descVideo.videoId) {
+                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const ext = descVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const filename = `${videoId}.${ext}`;
+
+                console.log(`[Submit] Starting background upload for Drill Desc Video`);
+
+                await queueUpload(descVideo.file, 'desc', {
+                    videoId,
+                    filename,
+                    cuts: descVideo.cuts || [],
+                    title: `[DRILL DESC] ${formData.title}`,
+                    description: formData.description,
+                    drillId: contentId,
+                    videoType: 'desc'
+                });
+            }
+
+            // Preview Video (Sparring)
+            if (contentType === 'sparring' && previewVideo.file && !previewVideo.isBackgroundUploading && !previewVideo.videoId) {
+                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
+                const ext = previewVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
+                const filename = `${videoId}.${ext}`;
+
+                console.log(`[Submit] Starting background upload for Sparring Preview Video`);
+
+                await queueUpload(previewVideo.file, 'sparring', {
+                    videoId,
+                    filename,
+                    cuts: previewVideo.cuts || [],
+                    title: `[SPARRING PREVIEW] ${formData.title}`,
+                    description: formData.description,
+                    sparringId: contentId,
+                    videoType: 'preview'
+                });
+            }
+
+            success(`${CONTENT_LABELS[contentType]} 업로드/수정 완료!`);
+
+            // Navigate back using history to avoid full page reload
+            setTimeout(() => {
+                navigate(-1);
+            }, 500);
 
         } catch (err: any) {
             console.error(err);
@@ -348,10 +413,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     };
 
     // Render Video Box Helper
-    const renderVideoBox = (type: 'main' | 'desc', state: ProcessingState, label: string) => {
-        // Implementation similar to UploadDrill...
-        // Reuse UI code for brevity in plan, but will write full code in file
+    const renderVideoBox = (type: 'main' | 'desc' | 'preview', state: ProcessingState, label: string) => {
         const isMain = type === 'main';
+        const isDesc = type === 'desc';
+        const setter = isMain ? setMainVideo : (isDesc ? setDescVideo : setPreviewVideo);
 
         if (state.status === 'idle' || state.status === 'error') {
             return (
@@ -360,7 +425,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         <input
                             type="file"
                             accept="video/*"
-                            onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], type, isMain ? setMainVideo : setDescVideo)}
+                            onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], type, setter)}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
                         <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4 group-hover:bg-violet-500/20 transition-colors">
@@ -373,8 +438,6 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             );
         }
 
-        // ... Other states (uploading, ready, etc)
-        // For simplicity returning a placeholder for detailed states
         return (
             <div className="h-full flex flex-col">
                 <div className="border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[250px] relative group">
@@ -386,7 +449,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     <div className="relative z-10 p-4 flex flex-col h-full justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-black/60 backdrop-blur rounded px-2 py-1">
-                                <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name}</p>
+                                <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name || 'Uploaded Video'}</p>
                             </div>
                             <div className="flex gap-2">
                                 <button
@@ -396,7 +459,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                     <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
                                 </button>
                                 <button
-                                    onClick={() => isMain ? setMainVideo(initialProcessingState) : setDescVideo(initialProcessingState)}
+                                    onClick={() => setter(initialProcessingState)}
                                     className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -411,7 +474,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
     if (activeEditor) {
         // Video Editor View
-        const activeState = activeEditor === 'main' ? mainVideo : descVideo;
+        const activeState = activeEditor === 'main' ? mainVideo : (activeEditor === 'desc' ? descVideo : previewVideo);
         return (
             <div className="min-h-screen bg-zinc-950 p-4">
                 <div className="max-w-5xl mx-auto space-y-4">
@@ -478,30 +541,46 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-zinc-400 mb-2">포지션 (Category)</label>
-                                <select
-                                    value={formData.category}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value as QuantentPosition })}
-                                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
-                                >
-                                    {Object.values(QuantentPosition).map(pos => (
-                                        <option key={pos} value={pos}>{pos}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-zinc-400 mb-2">레벨 (Level)</label>
-                                <select
-                                    value={formData.level}
-                                    onChange={e => setFormData({ ...formData, level: e.target.value as ContentLevel })}
-                                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
-                                >
-                                    {Object.values(ContentLevel).map(lvl => (
-                                        <option key={lvl} value={lvl}>{lvl}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {contentType === 'sparring' ? (
+                                <div>
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2">스파링 종류 (Category)</label>
+                                    <select
+                                        value={formData.sparringType}
+                                        onChange={e => setFormData({ ...formData, sparringType: e.target.value as any })}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                                    >
+                                        <option value="Sparring">스파링 (Sparring)</option>
+                                        <option value="Competition">컴페티션 (Competition)</option>
+                                    </select>
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">포지션 (Category)</label>
+                                        <select
+                                            value={formData.category}
+                                            onChange={e => setFormData({ ...formData, category: e.target.value as QuantentPosition })}
+                                            className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                                        >
+                                            {Object.values(QuantentPosition).map(pos => (
+                                                <option key={pos} value={pos}>{pos}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">레벨 (Level)</label>
+                                        <select
+                                            value={formData.level}
+                                            onChange={e => setFormData({ ...formData, level: e.target.value as ContentLevel })}
+                                            className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                                        >
+                                            {Object.values(ContentLevel).map(lvl => (
+                                                <option key={lvl} value={lvl}>{lvl}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
                             <div>
                                 <label className="block text-sm font-semibold text-zinc-400 mb-2">복장 (Uniform)</label>
                                 <select
@@ -528,51 +607,92 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         </div>
                     </div>
 
-                    {/* Video Upload Area */}
-                    <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 overflow-hidden">
-                        {contentType === 'drill' ? (
-                            <>
-                                <div className="flex border-b border-zinc-800">
-                                    <button
-                                        onClick={() => setActiveTab('main')}
-                                        className={`flex-1 py-4 font-bold transition-all ${activeTab === 'main' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
-                                    >
-                                        동작 영상
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('desc')}
-                                        className={`flex-1 py-4 font-bold transition-all ${activeTab === 'desc' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
-                                    >
-                                        설명 영상
-                                    </button>
-                                </div>
-                                <div className="p-6">
-                                    {activeTab === 'main'
-                                        ? renderVideoBox('main', mainVideo, '동작 영상')
-                                        : renderVideoBox('desc', descVideo, '설명 영상')
-                                    }
-                                </div>
-                            </>
-                        ) : (
-                            <div className="p-6">
-                                <h3 className="text-lg font-bold text-white mb-4">영상 업로드</h3>
-                                {renderVideoBox('main', mainVideo, `${CONTENT_LABELS[contentType]} 영상`)}
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Submit Actions */}
-                    <div className="flex gap-3 pt-4">
-                        <Button variant="secondary" onClick={() => navigate('/creator')} className="px-6">취소</Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.title || (!isEditMode && !mainVideo.cuts)}
-                            className="flex-1 bg-violet-600 hover:bg-violet-700"
-                        >
-                            {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : '업로드 완료'}
-                        </Button>
-                    </div>
+                </div>
+
+                {/* Video Upload Area */}
+                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 overflow-hidden">
+                    {contentType === 'drill' ? (
+                        <>
+                            <div className="flex border-b border-zinc-800">
+                                <button
+                                    onClick={() => setActiveTab('main')}
+                                    className={`flex-1 py-4 font-bold transition-all ${activeTab === 'main' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                                >
+                                    동작 영상
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('desc')}
+                                    className={`flex-1 py-4 font-bold transition-all ${activeTab === 'desc' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                                >
+                                    설명 영상
+                                </button>
+                            </div>
+                            <div className="p-6">
+                                {activeTab === 'main'
+                                    ? renderVideoBox('main', mainVideo, '동작 영상')
+                                    : renderVideoBox('desc', descVideo, '설명 영상')
+                                }
+                            </div>
+                        </>
+                    ) : contentType === 'sparring' ? (
+                        <>
+                            <div className="flex border-b border-zinc-800">
+                                <button
+                                    onClick={() => setActiveTab('main')}
+                                    className={`flex-1 py-4 font-bold transition-all ${activeTab === 'main' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                                >
+                                    스파링 영상
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('preview')}
+                                    className={`flex-1 py-4 font-bold transition-all ${activeTab === 'preview' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                                >
+                                    미리보기 영상
+                                </button>
+                            </div>
+                            <div className="p-6">
+                                {activeTab === 'main'
+                                    ? renderVideoBox('main', mainVideo, '스파링 영상')
+                                    : renderVideoBox('preview', previewVideo, '미리보기 영상')
+                                }
+                            </div>
+                        </>
+                    ) : (
+                        <div className="p-6">
+                            <h3 className="text-lg font-bold text-white mb-4">영상 업로드</h3>
+                            {renderVideoBox('main', mainVideo, `${CONTENT_LABELS[contentType]} 영상`)}
+                        </div>
+                    )}
+                </div>
+
+                {/* Submit Actions */}
+                <div className="flex gap-3 pt-4">
+                    <Button variant="secondary" onClick={() => navigate('/creator')} className="px-6">취소</Button>
+                    {(() => {
+                        // For drills, both main and desc videos are required
+                        const isDrillRequirementsmet = contentType === 'drill'
+                            ? (mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts)) &&
+                            (descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId || (!!descVideo.file && !!descVideo.cuts))
+                            : true;
+
+                        // For lessons and sparring, only main video is required
+                        const isMainVideoValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts);
+
+                        const canSubmit = !isSubmitting && !!formData.title &&
+                            (contentType === 'drill' ? isDrillRequirementsmet : isMainVideoValid);
+
+                        return (
+                            <Button
+                                variant="primary"
+                                onClick={handleSubmit}
+                                disabled={!canSubmit}
+                                className="flex-1 bg-violet-600 hover:bg-violet-700"
+                            >
+                                {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : '업로드 완료'}
+                            </Button>
+                        );
+                    })()}
                 </div>
             </div>
         </div>

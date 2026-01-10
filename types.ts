@@ -74,6 +74,7 @@ export interface Course {
   createdAt: string;
   isSubscriptionExcluded?: boolean; // If true, subscribers cannot access for free
   previewVideoUrl?: string; // URL of the first lesson for preview
+  previewVimeoId?: string; // Dedicated 1-minute preview vimeo ID
   published?: boolean;
 }
 
@@ -243,10 +244,12 @@ export interface SparringVideo {
   creator?: Creator; // Joined creator profile
   creatorProfileImage?: string; // Add for consistent access
   createdAt?: string; // Standardized to camelCase
-  category?: QuantentPosition | VideoCategory | 'Sparring' | 'Competition'; // Competition vs Regular Sparring vs Technical Categories
+  category?: 'Sparring' | 'Competition'; // Competition vs Regular Sparring
   uniformType?: UniformType | 'Gi' | 'No-Gi'; // Gi vs No-Gi
-  difficulty?: Difficulty | ContentLevel;
+  difficulty?: Difficulty | ContentLevel; // Deprecated for Sparring
   price: number; // Price in cents (0 = free)
+  isPublished?: boolean; // Visibility on Reels/Feed
+  previewVimeoId?: string; // Dedicated preview vimeo ID
 }
 
 export interface LogFeedback {
@@ -442,16 +445,25 @@ export interface DrillRoutine {
   id: string;
   title: string;
   description: string;
+  relatedItems?: {
+    type: 'drill' | 'lesson' | 'course' | 'sparring';
+    id: string;
+    title: string;
+    description?: string;
+    difficulty?: string;
+    thumbnailUrl?: string;
+  }[];
   creatorId: string;
   creatorName?: string;
+  category?: VideoCategory | QuantentPosition;
+  difficulty?: Difficulty | ContentLevel;
+  uniformType?: UniformType;
   thumbnailUrl: string;
   price: number;
   views: number;
   drillCount?: number;
   drills?: Drill[];
   createdAt: string;
-  difficulty?: Difficulty | ContentLevel;
-  category?: VideoCategory | QuantentPosition;
   totalDurationMinutes?: number;
   likes?: number; // Added for algorithm
   creatorProfileImage?: string;

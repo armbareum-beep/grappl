@@ -3940,7 +3940,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
             {/* FAB for List Mode Only */}
             {viewMode === 'list' && (
-                <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 ${isFullScreen ? 'bottom-8' : 'bottom-24'}`}>
+                <div className={`fixed right-8 z-[120] flex flex-col items-end gap-3 transition-all duration-300 ${isFullScreen ? 'bottom-8' : 'bottom-32 md:bottom-24'}`}>
                     <AnimatePresence>
                         {isFabOpen && (
                             <div className="flex flex-col items-end gap-3 mb-2">

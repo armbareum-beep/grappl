@@ -8,15 +8,17 @@ export const GlobalUploadProgress: React.FC = () => {
     // Filter out dismissed tasks
     const activeTasks = tasks.filter(task => !task.isDismissed);
 
+    console.log('[GlobalUploadProgress] Tasks:', tasks.length, 'Active:', activeTasks.length, tasks);
+
     // Only show if there are tasks
     if (activeTasks.length === 0) return null;
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 w-96 max-h-[70vh] overflow-y-auto">
+        <div className="fixed bottom-24 right-6 z-[9999] flex flex-col gap-3 w-96 max-h-[70vh] overflow-y-auto pointer-events-none">
             {activeTasks.map(task => (
                 <div
                     key={task.id}
-                    className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/50 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-500"
+                    className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/50 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-500 pointer-events-auto"
                 >
                     {/* Header with gradient accent */}
                     <div className="relative">
@@ -67,7 +69,7 @@ export const GlobalUploadProgress: React.FC = () => {
                                                     'text-rose-400'
                                             }`}>
                                             {task.status === 'uploading' && `업로드 중 ${Math.round(task.progress)}%`}
-                                            {task.status === 'processing' && 'Vimeo 업로드 중...'}
+                                            {task.status === 'processing' && '서버에서 처리 중...'}
                                             {task.status === 'completed' && '완료!'}
                                             {task.status === 'error' && '오류 발생'}
                                         </span>

@@ -27,7 +27,7 @@ export async function createLesson(lessonData: {
             description: lessonData.description,
             category: lessonData.category || null,
             lesson_number: lessonData.lessonNumber,
-            vimeo_url: lessonData.vimeoUrl,
+            vimeo_url: lessonData.vimeoUrl || null,
             length: String(lessonData.length),
             difficulty: lessonData.difficulty,
             duration_minutes: lessonData.durationMinutes,

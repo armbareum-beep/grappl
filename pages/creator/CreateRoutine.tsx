@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
-import { VideoCategory, Difficulty, Drill, UniformType } from '../../types';
-import { Button } from '../../components/Button';
-import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw } from 'lucide-react';
+import { VideoCategory, Difficulty, Drill, UniformType, QuantentPosition, ContentLevel } from '../../types';
+import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw, Clapperboard } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
@@ -23,11 +22,24 @@ export const CreateRoutine: React.FC = () => {
         description: '',
         price: 0,
         thumbnailUrl: '',
-        difficulty: Difficulty.Beginner,
-        category: VideoCategory.Standing,
+        difficulty: Difficulty.Beginner as Difficulty | ContentLevel,
+        category: VideoCategory.Standing as VideoCategory | QuantentPosition,
         uniformType: UniformType.Gi,
         totalDurationMinutes: 0
     });
+
+    // New state for related items
+    const [lessons, setLessons] = useState<any[]>([]);
+    const [sparringVideos, setSparringVideos] = useState<any[]>([]);
+    const [relatedItems, setRelatedItems] = useState<{
+        type: 'drill' | 'lesson' | 'course' | 'sparring';
+        id: string;
+        title: string;
+        description?: string;
+        difficulty?: string;
+        thumbnailUrl?: string;
+    }[]>([]);
+    const [activeSelectionTab, setActiveSelectionTab] = useState<'drills' | 'lessons' | 'sparring'>('drills');
 
     useEffect(() => {
         if (user) {
@@ -74,6 +86,10 @@ export const CreateRoutine: React.FC = () => {
                 setSelectedDrillIds(data.drills.map(d => d.id));
             }
 
+            if (data.relatedItems) {
+                setRelatedItems(data.relatedItems);
+            }
+
         } catch (error) {
             console.error('Error loading routine:', error);
             toastError('루틴 정보를 불러오는 중 오류가 발생했습니다.');
@@ -82,12 +98,54 @@ export const CreateRoutine: React.FC = () => {
         }
     };
 
-    const loadDrills = async () => {
+    const loadContent = async () => {
         if (!user) return;
-        const drillsData = await getDrills(user.id);
-        if (drillsData) {
-            setDrills(drillsData);
+
+        // Load Content using dynamic imports or direct api calls if possible, but adhering to existing patterns
+        // We will assume api.ts has been updated or we use existing methods
+        // Since I cannot easily modify api.ts in this step without reading it again (and I already did), 
+        // I will assume standard fetches work or I use the specialized ones.
+        // Actually, I saw `searchDrillsAndLessons` in api.ts.
+        const api = await import('../../lib/api');
+
+        const [drillsRes, lessonsRes, sparringRes] = await Promise.all([
+            getDrills(user.id),
+            api.searchDrillsAndLessons('', user.id), // Fetch creator's lessons
+            api.getSparringVideos(100, user.id) // Fetch creator's sparring
+        ]);
+
+        if (drillsRes) setDrills(drillsRes);
+
+        if (lessonsRes && lessonsRes.data) {
+            // Filter for lessons only just in case
+            setLessons(lessonsRes.data.filter((l: any) => l.type === 'lesson'));
         }
+
+        if (sparringRes && sparringRes.data) {
+            setSparringVideos(sparringRes.data);
+        }
+    };
+
+    const loadDrills = () => {
+        loadContent();
+    };
+
+    const toggleRelatedItem = (item: any, type: 'lesson' | 'sparring') => {
+        setRelatedItems(prev => {
+            const exists = prev.some(i => i.id === item.id && i.type === type);
+            if (exists) {
+                return prev.filter(i => !(i.id === item.id && i.type === type));
+            } else {
+                return [...prev, {
+                    type,
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    difficulty: item.difficulty,
+                    thumbnailUrl: item.thumbnailUrl
+                }];
+            }
+        });
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -159,13 +217,14 @@ export const CreateRoutine: React.FC = () => {
             if (isEditMode && id) {
                 result = await updateRoutine(id, {
                     ...finalFormData,
-                    // Remove fields that shouldn't be updated or are handled separately
+                    relatedItems: relatedItems
                 }, selectedDrillIds);
             } else {
                 result = await createRoutine({
                     ...finalFormData,
                     creatorId: user.id,
-                    creatorName: user.user_metadata?.name || 'Unknown Creator'
+                    creatorName: user.user_metadata?.name || 'Unknown Creator',
+                    relatedItems: relatedItems
                 }, selectedDrillIds);
             }
 
@@ -188,7 +247,7 @@ export const CreateRoutine: React.FC = () => {
 
             // Wait a bit for the toast to show before navigating
             setTimeout(() => {
-                navigate('/arena');
+                navigate('/creator?tab=content&contentTab=routines');
             }, 1000);
         } catch (error: any) {
             console.error('Error creating routine:', error);
@@ -358,81 +417,204 @@ export const CreateRoutine: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Drill Selection Card */}
+                {/* Content Selection Card (Drills, Lessons, Sparring) */}
                 <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-                    <div className="flex items-center justify-between pb-5 border-b border-zinc-800/50 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-violet-600/10 rounded-xl flex items-center justify-center">
+                    <div className="flex flex-col sm:flex-row items-center justify-between pb-5 border-b border-zinc-800/50 mb-6 gap-4">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="w-10 h-10 bg-violet-600/10 rounded-xl flex items-center justify-center shrink-0">
                                 <Dumbbell className="w-5 h-5 text-violet-400" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-white">드릴 선택</h2>
-                                <p className="text-sm text-zinc-500 mt-0.5">{selectedDrillIds.length}개 선택됨</p>
+                                <h2 className="text-xl font-bold text-white">콘텐츠 선택</h2>
+                                <p className="text-sm text-zinc-500 mt-0.5">
+                                    {selectedDrillIds.length}개 드릴, {relatedItems.length}개 연관항목 선택됨
+                                </p>
                             </div>
                         </div>
+
+                        <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800 w-full sm:w-auto overflow-x-auto">
+                            <button
+                                type="button"
+                                onClick={() => setActiveSelectionTab('drills')}
+                                className={`px-4 py-2 rounded-md text-sm font-bold whitespace-nowrap transition-all flex-1 sm:flex-none ${activeSelectionTab === 'drills'
+                                    ? 'bg-zinc-800 text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                드릴
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSelectionTab('lessons')}
+                                className={`px-4 py-2 rounded-md text-sm font-bold whitespace-nowrap transition-all flex-1 sm:flex-none ${activeSelectionTab === 'lessons'
+                                    ? 'bg-zinc-800 text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                레슨
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSelectionTab('sparring')}
+                                className={`px-4 py-2 rounded-md text-sm font-bold whitespace-nowrap transition-all flex-1 sm:flex-none ${activeSelectionTab === 'sparring'
+                                    ? 'bg-zinc-800 text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                스파링
+                            </button>
+                        </div>
+
                         <button
                             type="button"
-                            onClick={() => loadDrills()}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-zinc-300 hover:text-white transition-all font-semibold"
+                            onClick={() => loadContent()}
+                            className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-zinc-300 hover:text-white transition-all font-semibold shrink-0"
+                            title="새로고침"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            새로고침
                         </button>
                     </div>
 
-                    {drills.length === 0 ? (
-                        <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
-                            <Dumbbell className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
-                            <p className="text-zinc-500 font-medium">등록된 드릴이 없습니다</p>
-                            <p className="text-zinc-600 text-sm mt-1">먼저 드릴을 업로드해주세요</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
-                            {drills.map(drill => (
-                                <div
-                                    key={drill.id}
-                                    onClick={() => toggleDrillSelection(drill.id)}
-                                    className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${selectedDrillIds.includes(drill.id)
-                                        ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
-                                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
-                                        }`}
-                                >
-                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${selectedDrillIds.includes(drill.id)
-                                        ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
-                                        : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
-                                        }`}>
-                                        {selectedDrillIds.includes(drill.id) && (
-                                            <CheckCircle className="w-4 h-4 text-white" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0 pr-16">
-                                        <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
-                                            {drill.title}
-                                        </h4>
-                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
-                                        <div className="flex items-center gap-2 mt-3 overflow-hidden">
-                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
-                                                {drill.category}
-                                            </span>
-                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
-                                                {drill.difficulty}
-                                            </span>
-                                            {drill.durationMinutes && (
-                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
-                                                    {drill.durationMinutes}분
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
-                                        {drill.thumbnailUrl && (
-                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
-                                        )}
-                                    </div>
+                    <div className="max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 min-h-[200px]">
+                        {activeSelectionTab === 'drills' && (
+                            drills.length === 0 ? (
+                                <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                                    <Dumbbell className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
+                                    <p className="text-zinc-500 font-medium">등록된 드릴이 없습니다</p>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {drills.map(drill => (
+                                        <div
+                                            key={drill.id}
+                                            onClick={() => toggleDrillSelection(drill.id)}
+                                            className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${selectedDrillIds.includes(drill.id)
+                                                ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
+                                                : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                }`}
+                                        >
+                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${selectedDrillIds.includes(drill.id)
+                                                ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
+                                                : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                }`}>
+                                                {selectedDrillIds.includes(drill.id) && (
+                                                    <CheckCircle className="w-4 h-4 text-white" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 pr-16">
+                                                <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
+                                                    {drill.title}
+                                                </h4>
+                                                <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
+                                                <div className="flex items-center gap-2 mt-3 overflow-hidden">
+                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
+                                                        {drill.category}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
+                                                        {drill.difficulty}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
+                                                {drill.thumbnailUrl && (
+                                                    <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        )}
+
+                        {activeSelectionTab === 'lessons' && (
+                            lessons.length === 0 ? (
+                                <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                                    <p className="text-zinc-500 font-medium">등록된 레슨이 없습니다</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {lessons.map(lesson => {
+                                        const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
+                                        return (
+                                            <div
+                                                key={lesson.id}
+                                                onClick={() => toggleRelatedItem(lesson, 'lesson')}
+                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
+                                                    ? 'border-blue-500 bg-blue-600/10 shadow-lg shadow-blue-500/5'
+                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
+                                                    ? 'bg-blue-500 border-blue-500 scale-110 shadow-lg'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                    }`}>
+                                                    {isSelected && (
+                                                        <CheckCircle className="w-4 h-4 text-white" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0 pr-16">
+                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-blue-400' : 'text-white'}`}>
+                                                        {lesson.title}
+                                                    </h4>
+                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{lesson.description}</p>
+                                                </div>
+                                                <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
+                                                    {lesson.thumbnailUrl && (
+                                                        <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )
+                        )}
+
+                        {activeSelectionTab === 'sparring' && (
+                            sparringVideos.length === 0 ? (
+                                <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
+                                    <p className="text-zinc-500 font-medium">등록된 스파링 영상이 없습니다</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {sparringVideos.map(video => {
+                                        const isSelected = relatedItems.some(i => i.id === video.id && i.type === 'sparring');
+                                        return (
+                                            <div
+                                                key={video.id}
+                                                onClick={() => toggleRelatedItem(video, 'sparring')}
+                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
+                                                    ? 'border-emerald-500 bg-emerald-600/10 shadow-lg shadow-emerald-500/5'
+                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
+                                                    ? 'bg-emerald-500 border-emerald-500 scale-110 shadow-lg'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                    }`}>
+                                                    {isSelected && (
+                                                        <CheckCircle className="w-4 h-4 text-white" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0 pr-16">
+                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
+                                                        {video.title}
+                                                    </h4>
+                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{video.description}</p>
+                                                </div>
+                                                <div className="absolute right-4 top-4 w-24 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
+                                                    {video.thumbnailUrl ? (
+                                                        <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Clapperboard className="w-6 h-6 text-zinc-600" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )
+                        )}
+                    </div>
                 </div>
 
                 {/* Thumbnail URL */}
@@ -468,6 +650,16 @@ export const CreateRoutine: React.FC = () => {
                             />
                         </div>
                         <p className="text-xs text-zinc-500 mt-2 ml-1">비워두면 첫 번째 드릴의 썸네일이 자동으로 사용됩니다.</p>
+
+                        {/* Preview */}
+                        {formData.thumbnailUrl && (
+                            <div className="mt-4 w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-zinc-800/50 relative group">
+                                <img src={formData.thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover" />
+                                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-md">
+                                    미리보기
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

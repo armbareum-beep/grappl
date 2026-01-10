@@ -23,6 +23,8 @@ export const LessonDetail: React.FC = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+    const [isDailyFree, setIsDailyFree] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
 
     useEffect(() => {
         async function fetchData() {
@@ -59,18 +61,20 @@ export const LessonDetail: React.FC = () => {
 
                     setOwns(hasAccess || false);
 
-                    // 2. Check if this belongs to the daily free course
-                    if (!hasAccess && lessonData.courseId) {
-                        try {
-                            const { getDailyFreeCourse } = await import('../lib/api');
-                            const { data: dailyCourse } = await getDailyFreeCourse();
-                            if (dailyCourse && dailyCourse.id === lessonData.courseId) {
+                    // 2. Check for daily free lesson (logged-in users get full access)
+                    try {
+                        const { getDailyFreeLesson } = await import('../lib/api');
+                        const { data: dailyLesson } = await getDailyFreeLesson();
+                        if (dailyLesson && dailyLesson.id === id) {
+                            setIsDailyFree(true);
+                            if (user) {
+                                // Logged-in users: full access to daily free lesson
                                 hasAccess = true;
                                 setOwns(true);
                             }
-                        } catch (e) {
-                            console.warn('Failed to check daily free course access:', e);
                         }
+                    } catch (e) {
+                        console.warn('Failed to check daily free lesson access:', e);
                     }
                 }
             } catch (error) {
@@ -86,7 +90,9 @@ export const LessonDetail: React.FC = () => {
         return <LoadingScreen message="레슨 정보를 불러오는 중..." />;
     }
 
-    if (!user) {
+    // Allow non-logged-in users to view daily free lessons (with potential preview limit)
+    // For other lessons, require login
+    if (!user && !lesson) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
@@ -126,10 +132,15 @@ export const LessonDetail: React.FC = () => {
                                         vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                         title={lesson.title}
                                         isPreviewMode={!owns}
-                                        maxPreviewDuration={!owns ? 60 : undefined}
+                                        maxPreviewDuration={
+                                            owns ? undefined : // Full access
+                                                (user && isDailyFree) ? undefined : // Logged-in + daily free: full access
+                                                    60 // Non-logged or non-daily-free: 1min preview
+                                        }
                                         onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                         isPaused={isPaywallOpen}
                                         onEnded={() => { }}
+                                        onProgress={(seconds) => setCurrentTime(seconds)}
                                     />
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
@@ -145,6 +156,33 @@ export const LessonDetail: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Preview Time Limit Bar - Similar to DrillReelItem */}
+                            {!owns && (
+                                <div className="absolute bottom-0 left-0 right-0 z-50 h-1.5 bg-violet-900/30">
+                                    <div
+                                        className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear"
+                                        style={{
+                                            width: `${(currentTime / (user && isDailyFree ? 1 : 60)) * 100}%`,
+                                            transitionDuration: '1000ms'
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Time Limit Warning Text */}
+                            {!owns && currentTime > 0 && (
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-violet-600/90 backdrop-blur-sm rounded-full border border-violet-400/30 shadow-lg">
+                                    <p className="text-white text-xs font-bold">
+                                        {user
+                                            ? `1분 후 구독 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
+                                            : isDailyFree
+                                                ? `로그인하면 전체 시청 가능 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
+                                                : `1분 후 로그인 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
+                                        }
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Title & Stats */}
@@ -269,10 +307,16 @@ export const LessonDetail: React.FC = () => {
                 <ConfirmModal
                     isOpen={isPaywallOpen}
                     onClose={() => setIsPaywallOpen(false)}
-                    onConfirm={() => navigate('/pricing')}
-                    title="1분 무료 체험 종료"
-                    message="이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
-                    confirmText="구독 요금제 보기"
+                    onConfirm={() => navigate(user ? '/pricing' : '/login')}
+                    title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
+                    message={
+                        user
+                            ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                            : isDailyFree
+                                ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
+                                : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
+                    }
+                    confirmText={user ? "구독 요금제 보기" : "로그인하기"}
                     cancelText="나중에 하기"
                     variant="info"
                 />

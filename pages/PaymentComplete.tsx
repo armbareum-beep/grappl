@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useStripe } from '@stripe/react-stripe-js';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -7,10 +7,14 @@ import { Button } from '../components/Button';
 export const PaymentComplete: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('결제 상태를 확인하고 있습니다...');
 
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
+
+    // Get return URL from location state
+    const returnUrl = (location.state as any)?.returnUrl;
 
     useEffect(() => {
         if (!paymentIntentClientSecret) {
@@ -50,8 +54,11 @@ export const PaymentComplete: React.FC = () => {
                         </div>
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">결제 완료!</h2>
                         <p className="text-slate-600 mb-8">{message}</p>
-                        <Button onClick={() => navigate('/library')} className="w-full">
-                            내 강의실로 이동
+                        <Button
+                            onClick={() => navigate(returnUrl || '/library')}
+                            className="w-full"
+                        >
+                            {returnUrl ? '이어서 시청하기' : '내 강의실로 이동'}
                         </Button>
                     </div>
                 )}

@@ -206,6 +206,8 @@ export function transformLesson(data: any): Lesson {
         thumbnailUrl: data.thumbnail_url || data.course?.thumbnail_url,
         courseTitle: data.course?.title,
         length: data.length,
+        durationMinutes: data.duration_minutes || data.duration || 0,
+        views: data.views || 0,
         difficulty: data.difficulty,
         createdAt: data.created_at,
         isSubscriptionExcluded: data.is_subscription_excluded || false,
@@ -429,6 +431,9 @@ export async function searchContent(query: string) {
                 .from('sparring_videos')
                 .select('*')
                 .or(contentFilter)
+                .is('deleted_at', null)
+                .eq('is_published', true)
+                .gt('price', 0)
                 .limit(20)
         ]);
 
@@ -782,6 +787,8 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
         const { data: videos, error } = await supabase
             .from('sparring_videos')
             .select('*')
+            .eq('is_published', true)
+            .gt('price', 0)
             .order('created_at', { ascending: false })
             .limit(limit);
 
@@ -825,6 +832,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     relatedItems: v.related_items || [],
                     views: v.views || 0,
                     likes: v.likes || 0,
+                    isPublished: v.is_published ?? true,
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || 'Unknown',
@@ -2269,24 +2277,33 @@ export async function calculateCreatorEarnings(creatorId: string) {
     });
 
     // Get actual watch seconds from video_watch_logs
-    // Modified to fetch drills as well
     const { data: watchLogs } = await supabase
         .from('video_watch_logs')
-        .select(`
-            user_id,
-            watch_seconds,
-            lesson_id,
-            drill_id,
-            lessons (
-                id,
-                course_id,
-                courses ( creator_id )
-            ),
-            drills (
-                id,
-                creator_id
-            )
-        `);
+        .select(`user_id, watch_seconds, lesson_id, video_id`);
+
+    // Fetch mapping data for all content types to attribute creator_id
+    const [
+        { data: lessonsRef },
+        { data: drillsRef },
+        { data: sparringRef },
+        { data: videosRef }
+    ] = await Promise.all([
+        supabase.from('lessons').select('id, creator_id, course_id'),
+        supabase.from('drills').select('id, creator_id'),
+        supabase.from('sparring_videos').select('id, creator_id'),
+        supabase.from('videos').select('id, creator_id')
+    ]);
+
+    const contentCreatorMap = new Map<string, string>();
+    const lessonCourseMap = new Map<string, string>();
+
+    lessonsRef?.forEach(l => {
+        if (l.creator_id) contentCreatorMap.set(l.id, l.creator_id);
+        if (l.course_id) lessonCourseMap.set(l.id, l.course_id);
+    });
+    drillsRef?.forEach(d => { if (d.creator_id) contentCreatorMap.set(d.id, d.creator_id); });
+    sparringRef?.forEach(s => { if (s.creator_id) contentCreatorMap.set(s.id, s.creator_id); });
+    videosRef?.forEach(v => { if (v.creator_id) contentCreatorMap.set(v.id, v.creator_id); });
 
     let totalWatchTime = 0;
     let creatorWatchTime = 0;
@@ -2294,38 +2311,23 @@ export async function calculateCreatorEarnings(creatorId: string) {
     watchLogs?.forEach((log: any) => {
         const seconds = log.watch_seconds || 0;
         const userId = log.user_id;
+        const contentId = log.lesson_id || log.video_id;
 
-        // --- Case 1: Lesson Watch ---
-        if (log.lesson_id && log.lessons) {
-            const lessonCreatorId = log.lessons.courses?.creator_id;
-            const courseId = log.lessons.course_id;
+        if (!contentId) return;
 
-            // Skip if user owns this course
-            if (ownershipMap.has(`${userId}_course_${courseId}`)) {
-                return;
-            }
-
-            totalWatchTime += seconds;
-            if (lessonCreatorId === creatorId) {
-                creatorWatchTime += seconds;
-            }
+        // Skip if user owns the course (direct purchase items don't count toward subscription pool)
+        if (log.lesson_id) {
+            const courseId = lessonCourseMap.get(log.lesson_id);
+            if (courseId && ownershipMap.has(`${userId}_course_${courseId}`)) return;
+        } else if (log.video_id) {
+            // Check drill ownership via routine
+            if (ownershipMap.has(`${userId}_drill_${log.video_id}`)) return;
         }
-        // --- Case 2: Drill Watch ---
-        else if (log.drill_id && log.drills) {
-            const drillCreatorId = log.drills.creator_id;
-            const drillId = log.drill_id;
 
-            // Skip if user owns this drill (via routine purchase)
-            // Note: We only check routine ownership. Individual drill purchase isn't fully implemented yet but if it were, we'd check that too.
-            // Assuming drills are mostly consumed via routines for now.
-            if (ownershipMap.has(`${userId}_drill_${drillId}`)) {
-                return;
-            }
-
-            totalWatchTime += seconds;
-            if (drillCreatorId === creatorId) {
-                creatorWatchTime += seconds;
-            }
+        totalWatchTime += seconds;
+        const targetCreatorId = contentCreatorMap.get(contentId);
+        if (targetCreatorId === creatorId) {
+            creatorWatchTime += seconds;
         }
     });
 
@@ -4691,7 +4693,8 @@ function transformSparringVideo(data: any): SparringVideo {
         uniformType: data.uniform_type,
         difficulty: data.difficulty,
         price: data.price || 0,
-        isPublished: data.is_published ?? false
+        isPublished: data.is_published ?? false,
+        previewVimeoId: data.preview_vimeo_id
     };
 }
 
@@ -4701,6 +4704,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         title: videoData.title,
         description: videoData.description,
         video_url: videoData.videoUrl,
+        preview_vimeo_id: videoData.previewVimeoId,
         thumbnail_url: videoData.thumbnailUrl,
         related_items: videoData.relatedItems,
         category: videoData.category,
@@ -4723,7 +4727,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
     return { data: transformSparringVideo(data), error: null };
 }
 
-export async function getSparringVideos(limit = 10, creatorId?: string) {
+export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false) {
     try {
         let query = supabase
             .from('sparring_videos')
@@ -4733,6 +4737,10 @@ export async function getSparringVideos(limit = 10, creatorId?: string) {
 
         if (creatorId) {
             query = query.eq('creator_id', creatorId);
+        }
+
+        if (publicOnly) {
+            query = query.eq('is_published', true).gt('price', 0);
         }
 
         // Hide soft-deleted videos from general lists
@@ -4789,7 +4797,8 @@ export async function getSparringVideos(limit = 10, creatorId?: string) {
                 category: v.category,
                 uniformType: v.uniform_type,
                 difficulty: v.difficulty,
-                price: v.price || 0
+                price: v.price || 0,
+                isPublished: v.is_published ?? true
             };
         });
 
@@ -4841,10 +4850,9 @@ export async function deleteSparringVideo(id: string) {
 }
 
 export async function getSparringVideoById(id: string) {
-    // Try both creators and profiles just in case, but standardizing on what was there
     const { data, error } = await supabase
         .from('sparring_videos')
-        .select('*, profiles(*)')
+        .select('*')
         .eq('id', id)
         .maybeSingle();
 
@@ -4859,7 +4867,19 @@ export async function getSparringVideoById(id: string) {
     }
 
     try {
-        return { data: transformSparringVideo(data), error: null };
+        // Fetch creator info from users table for robustness
+        const { data: userData } = await supabase
+            .from('users')
+            .select('id, name, avatar_url')
+            .eq('id', data.creator_id)
+            .maybeSingle();
+
+        const transformed = transformSparringVideo({
+            ...data,
+            users: userData
+        });
+
+        return { data: transformed, error: null };
     } catch (e) {
         console.error('Transformation error for sparring video:', id, e);
         return { data: null, error: e };
@@ -4878,6 +4898,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
+    if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
 
     const { data, error } = await supabase
         .from('sparring_videos')

@@ -194,8 +194,6 @@ export const UploadDrill: React.FC = () => {
     };
 
     const handleCutsSave = async (cuts: { start: number; end: number }[], thumbnailBlob?: Blob) => {
-        let currentDrillId = id || createdDrillId;
-
         // Update local state first for immediate UI feedback
         if (activeEditor === 'action') {
             setActionVideo(prev => ({ ...prev, cuts, status: 'ready', thumbnailBlob: thumbnailBlob || null }));
@@ -203,66 +201,8 @@ export const UploadDrill: React.FC = () => {
             setDescVideo(prev => ({ ...prev, cuts, status: 'ready', thumbnailBlob: thumbnailBlob || null }));
         }
 
-        // Trigger auto-upload if we have all requirements (file and cuts)
-        // and haven't started uploading yet
-        const targetState = activeEditor === 'action' ? actionVideo : descVideo;
-        const setTargetState = activeEditor === 'action' ? setActionVideo : setDescVideo;
-
-        if (targetState.file && cuts && !targetState.isBackgroundUploading && !targetState.videoId) {
-            console.log('Auto-triggering background upload for', activeEditor);
-
-            try {
-                // 1. Ensure Drill record exists
-                if (!currentDrillId) {
-                    console.log('Creating draft drill for early upload...');
-                    // Calculate duration from cuts if available
-                    const totalSeconds = cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
-                    const durationMinutes = Math.floor(totalSeconds / 60);
-
-                    const { data: drill, error: dbError } = await createDrill({
-                        title: formData.title || '업로드 중인 드릴...',
-                        description: formData.description,
-                        creatorId: user?.id,
-                        category: formData.category,
-                        difficulty: formData.difficulty,
-                        vimeoUrl: '',
-                        descriptionVideoUrl: '',
-                        thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
-                        durationMinutes: durationMinutes,
-                        uniformType: formData.uniformType,
-                    });
-                    if (dbError || !drill) throw dbError;
-                    currentDrillId = drill.id;
-                    setCreatedDrillId(drill.id);
-                }
-
-                // 2. Queue Upload
-                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
-                const ext = targetState.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-                const filename = `${videoId}.${ext}`;
-
-                await queueUpload(targetState.file, activeEditor as 'action' | 'desc', {
-                    videoId,
-                    filename,
-                    cuts,
-                    title: `[Drill] ${formData.title || 'New Drill'}`,
-                    description: formData.description,
-                    drillId: currentDrillId,
-                    videoType: activeEditor as 'action' | 'desc'
-                });
-
-                // Update local state to reflect upload started
-                setTargetState(prev => ({
-                    ...prev,
-                    isBackgroundUploading: true,
-                    videoId: videoId,
-                    filename: filename
-                }));
-
-            } catch (err) {
-                console.error('Auto-upload failed:', err);
-            }
-        }
+        // Removed auto-upload logic to prevent partial uploads.
+        // Uploads will now only trigger in handleSubmit.
 
         setActiveEditor(null);
     };
@@ -302,34 +242,45 @@ export const UploadDrill: React.FC = () => {
         });
     }, [tasks, actionVideo.videoId, descVideo.videoId]);
 
+
+    // Helper to check if a video exists (either already on server or ready to upload)
+    // Both action and description videos are REQUIRED
+    // A video is valid if: (1) it's already on server (complete status or has videoId) OR (2) has file AND cuts
+    const isActionValid = (
+        (actionVideo.status === 'complete' || actionVideo.status === 'completed' || !!actionVideo.videoId) ||
+        (!!actionVideo.file && !!actionVideo.cuts)
+    );
+    const isDescValid = (
+        (descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId) ||
+        (!!descVideo.file && !!descVideo.cuts)
+    );
+
     const handleSubmit = async () => {
         if (!user) return;
 
-        // Basic Validation
-        // Only require cuts/file if not in edit mode OR if a new file is uploaded
-        if (!isEditMode) {
-            if (!actionVideo.cuts) {
-                alert('동작 영상 편집 구간을 선택해주세요.');
-                return;
-            }
-            if (!descVideo.cuts) {
-                alert('설명 영상 편집 구간을 선택해주세요.');
-                return;
-            }
-            if (!actionVideo.file || !descVideo.file) {
-                alert('영상 파일을 선택해주세요.');
-                return;
-            }
-        } else {
-            // Edit Mode: Only check if user attempted to upload a new file but didn't finish editing
-            if (actionVideo.file && !actionVideo.cuts) {
-                alert('동작 영상의 편집 구간을 완료해주세요.');
-                return;
-            }
-            if (descVideo.file && !descVideo.cuts) {
-                alert('설명 영상의 편집 구간을 완료해주세요.');
-                return;
-            }
+        // Strict Validation: Both videos are required for ALL drills
+        if (!isActionValid) {
+            alert('동작 영상을 업로드하고 편집 구간을 선택해주세요.');
+            setActiveTab('action');
+            return;
+        }
+
+        if (!isDescValid) {
+            alert('설명 영상을 업로드하고 편집 구간을 선택해주세요.');
+            setActiveTab('desc');
+            return;
+        }
+
+        // Additional sanity check for file+cuts relationship
+        if (actionVideo.file && !actionVideo.cuts) {
+            alert('동작 영상의 편집 구간을 완료해주세요.');
+            setActiveTab('action');
+            return;
+        }
+        if (descVideo.file && !descVideo.cuts) {
+            alert('설명 영상의 편집 구간을 완료해주세요.');
+            setActiveTab('desc');
+            return;
         }
 
         setIsSubmitting(true);
@@ -346,9 +297,14 @@ export const UploadDrill: React.FC = () => {
 
                 // Handle Thumbnail Upload if capture exists
                 let thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+                // Upload Thumbnail if exists
                 if (actionVideo.thumbnailBlob) {
                     const { url, error: thumbError } = await uploadThumbnail(actionVideo.thumbnailBlob);
-                    if (!thumbError && url) {
+                    if (thumbError) {
+                        console.error('Thumbnail upload failed:', thumbError);
+                        throw new Error('썸네일 업로드에 실패했습니다. (권한 또는 네트워크 오류)');
+                    }
+                    if (url) {
                         thumbnailUrl = url;
                     }
                 }
@@ -388,7 +344,11 @@ export const UploadDrill: React.FC = () => {
                 // Handle Thumbnail Upload if capture exists
                 if (actionVideo.thumbnailBlob) {
                     const { url, error: thumbError } = await uploadThumbnail(actionVideo.thumbnailBlob);
-                    if (!thumbError && url) {
+                    if (thumbError) {
+                        console.error('Thumbnail upload failed:', thumbError);
+                        throw new Error('썸네일 업로드에 실패했습니다. (권한 또는 네트워크 오류)');
+                    }
+                    if (url) {
                         updateParams.thumbnailUrl = url;
                     }
                 }
@@ -448,9 +408,11 @@ export const UploadDrill: React.FC = () => {
                 });
             }
 
-            // 3. Navigate Immediately to Dashboard (Materials Tab)
+            // 3. Navigate back using history to avoid full page reload
             success(isEditMode ? '드릴 정보가 수정되었습니다.' : '드릴이 등록되었습니다.');
-            navigate('/creator?tab=materials');
+            setTimeout(() => {
+                navigate(-1);
+            }, 500);
 
         } catch (err: any) {
             console.error(err);
@@ -789,27 +751,53 @@ export const UploadDrill: React.FC = () => {
                     </div>
 
                     {/* Submit Button */}
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => navigate('/creator')}
-                            className="px-6 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
-                        >
-                            취소
-                        </button>
-                        <button
-                            onClick={() => {
-                                handleEnableNoSleep();
-                                handleSubmit();
-                            }}
-                            disabled={isSubmitting || !formData.title || (!isEditMode && (!actionVideo.cuts || !descVideo.cuts))}
-                            className="flex-1 px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}
-                            {isEditMode ? '수정사항 저장' : '드릴 생성하기'}
-                        </button>
+                    <div className="flex flex-col gap-3 pt-4">
+                        {/* DEBUGGING STATE - REMOVE LATER */}
+                        {/* <div className="text-xs text-zinc-500 font-mono bg-black/20 p-2 rounded block">
+                            DescStatus: {descVideo.status} / File: {descVideo.file ? 'Yes' : 'No'} / Cuts: {descVideo.cuts ? 'Yes' : 'No'}
+                        </div> */}
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate('/creator')}
+                                className="px-6 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                            >
+                                취소
+                            </button>
+
+                            {(() => {
+                                const isTitleValid = !!formData.title;
+                                const canSubmit = !isSubmitting && isTitleValid && isActionValid && isDescValid;
+
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            handleEnableNoSleep();
+                                            handleSubmit();
+                                        }}
+                                        disabled={!canSubmit}
+                                        className={`flex-1 px-8 py-3.5 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2
+                                            ${!canSubmit
+                                                ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed opacity-50'
+                                                : 'bg-violet-600 text-white hover:bg-violet-500 shadow-violet-500/20'}`
+                                        }
+                                    >
+                                        {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}
+                                        {isEditMode ? '수정사항 저장' : '업로드 완료'}
+                                    </button>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Validation Hints */}
+                        {(!isActionValid || !isDescValid) && (
+                            <p className="text-center text-xs text-red-400">
+                                {!isActionValid ? '*동작 영상이 필요합니다 ' : ''}
+                                {!isDescValid ? '*설명 영상이 필요합니다' : ''}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
-    );
+            );
 };

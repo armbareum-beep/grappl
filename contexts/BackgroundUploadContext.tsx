@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 export interface UploadTask {
     id: string; // Unique ID for this task
     file: File;
-    type: 'action' | 'desc' | 'sparring';
+    type: 'action' | 'desc' | 'sparring' | 'preview';
     progress: number;
     status: 'uploading' | 'processing' | 'completed' | 'error';
     error?: string;
@@ -15,13 +15,14 @@ export interface UploadTask {
     processingParams?: {
         videoId: string; // The UUID used for storage
         filename: string; // The full path in storage
-        cuts: { start: number; end: number }[];
+        cuts?: { start: number; end: number }[]; // Added cuts
         title: string;
         description: string;
         drillId?: string; // For drill uploads
         lessonId?: string; // For lesson uploads
         sparringId?: string; // For sparring uploads
-        videoType: 'action' | 'desc' | 'sparring';
+        courseId?: string; // For course uploads
+        videoType: 'action' | 'desc' | 'sparring' | 'preview';
     };
 }
 
@@ -29,7 +30,7 @@ interface BackgroundUploadContextType {
     tasks: UploadTask[];
     queueUpload: (
         file: File,
-        type: 'action' | 'desc' | 'sparring',
+        type: 'action' | 'desc' | 'sparring' | 'preview',
         processingParams: UploadTask['processingParams']
     ) => Promise<void>;
     retryUpload: (taskId: string) => void;
@@ -45,7 +46,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
     const queueUpload = async (
         file: File,
-        type: 'action' | 'desc' | 'sparring',
+        type: 'action' | 'desc' | 'sparring' | 'preview',
         processingParams: UploadTask['processingParams']
     ) => {
         // Create a new task entry
@@ -110,39 +111,45 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     console.log('Upload Complete, starting processing...', task.id);
                     updateTaskStatus(task.id, 'processing');
 
-                    // Trigger Direct Vimeo Upload (No Backend!)
+                    // Trigger Vimeo Upload via Backend
                     if (task.processingParams) {
-                        import('../lib/vimeo-upload').then(({ processAndUploadVideo }) => {
-                            const contentType = task.processingParams!.videoType === 'sparring' ? 'sparring' :
-                                task.processingParams!.lessonId ? 'lesson' : 'drill';
+                        import('../lib/vimeo-upload-backend').then(({ processAndUploadVideo }) => {
+                            const contentType = task.processingParams!.courseId ? 'course' :
+                                (task.processingParams!.sparringId || task.processingParams!.videoType === 'sparring' ? 'sparring' :
+                                    (task.processingParams!.lessonId ? 'lesson' : 'drill'));
 
-                            const contentId = task.processingParams!.sparringId ||
+                            const contentId = task.processingParams!.courseId ||
+                                task.processingParams!.sparringId ||
                                 task.processingParams!.lessonId ||
                                 task.processingParams!.drillId || '';
 
                             processAndUploadVideo({
                                 bucketName: 'raw_videos_v2',
                                 filePath: task.processingParams!.filename,
+                                file: task.file, // Pass file directly
                                 title: task.processingParams!.title,
                                 description: task.processingParams!.description,
-                                contentType: contentType as 'lesson' | 'drill' | 'sparring',
+                                contentType: contentType as 'lesson' | 'drill' | 'sparring' | 'course',
                                 contentId: contentId,
-                                videoType: task.processingParams!.videoType as 'action' | 'desc' | undefined,
+                                videoType: task.processingParams!.videoType as 'action' | 'desc' | 'preview' | undefined,
+                                cuts: task.processingParams!.cuts,
                                 onProgress: (stage, progress) => {
                                     console.log(`[${task.id}] ${stage}: ${progress}%`);
-                                    // Update task progress based on stage
-                                    if (stage === 'vimeo') {
-                                        updateTaskProgress(task.id, progress);
-                                    }
+                                    // Update task progress
+                                    updateTaskProgress(task.id, progress);
                                 }
                             })
                                 .then(() => {
-                                    console.log('✅ Vimeo processing completed for:', task.id);
-                                    updateTaskStatus(task.id, 'completed');
-                                    // Remove completed task after a delay
+                                    console.log('✅ Backend accepted processing for:', task.id);
+                                    // Stay in processing status, don't say "completed" yet 
+                                    // because the backend is actually doing the work now.
+                                    updateTaskStatus(task.id, 'processing');
+
+                                    // Remove the task from the floating list after a while
+                                    // to keep the UI clean, as the user can see progress in the dashboard
                                     setTimeout(() => {
                                         setTasks(prev => prev.filter(t => t.id !== task.id));
-                                    }, 5000);
+                                    }, 10000); // 10 seconds of "Processing" visible
                                 })
                                 .catch(err => {
                                     console.error('❌ Vimeo Processing Error:', err);
@@ -158,21 +165,10 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
             tusRefs.current[task.id] = upload;
 
-            // Check for previous uploads to resume
-            upload.findPreviousUploads().then((previousUploads) => {
-                try {
-                    if (previousUploads.length) {
-                        upload.resumeFromPreviousUpload(previousUploads[0]);
-                    }
-                } catch (err) {
-                    console.warn('Failed to resume TUS upload, starting fresh:', err);
-                }
-                upload.start();
-            }).catch(err => {
-                console.warn('TUS findPreviousUploads failed, starting fresh:', err);
-                // Fallback to fresh upload if HEAD request fails (common for network/cors issues)
-                upload.start();
-            });
+            // Force fresh upload to prevent "instant complete" issues with missing files
+            // (TUS resume might think it's done if previous state exists, but server file might be gone)
+            console.log('Starting fresh upload for:', task.id);
+            upload.start();
 
         } catch (error: any) {
             console.error('Failed to init TUS:', error);

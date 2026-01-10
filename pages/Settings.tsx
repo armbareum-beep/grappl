@@ -9,7 +9,7 @@ import { Button } from '../components/Button';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription' | 'app' | 'library';
+type SettingsSection = 'profile' | 'notifications' | 'security' | 'subscription' | 'app' | 'saved';
 
 export const Settings: React.FC = () => {
     const { user, isCreator, signOut } = useAuth();
@@ -533,11 +533,11 @@ export const Settings: React.FC = () => {
                         </div>
                     </div>
                 );
-            case 'library':
+            case 'saved':
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <div>
-                            <h3 className="text-xl font-bold text-white mb-1">나의 라이브러리</h3>
+                            <h3 className="text-xl font-bold text-white mb-1">저장 목록</h3>
                             <p className="text-sm text-zinc-400">저장한 콘텐츠를 한눈에 관리하세요.</p>
                         </div>
 
@@ -620,7 +620,7 @@ export const Settings: React.FC = () => {
                     <nav className="w-full lg:w-64 flex-shrink-0 space-y-2">
                         {[
                             { id: 'profile', label: '프로필 설정', icon: User },
-                            { id: 'library', label: '나의 라이브러리', icon: Bookmark },
+                            { id: 'saved', label: '저장 목록', icon: Bookmark },
                             { id: 'subscription', label: '멤버십 구독', icon: CreditCard },
                             { id: 'notifications', label: '알림 설정', icon: Bell },
                             { id: 'security', label: '보안', icon: Shield },

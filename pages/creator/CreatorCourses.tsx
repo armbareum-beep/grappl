@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, MoreVertical, Edit, Trash, Eye, Users, TrendingUp, DollarSign, PlayCircle, Grid, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash, Eye, Users, TrendingUp, DollarSign, PlayCircle, Grid, ChevronDown, ChevronUp } from 'lucide-react';
 import { getCreatorCourses } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course } from '../../types';
@@ -65,15 +65,17 @@ export const CreatorCourses: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-white mb-2">콘텐츠 관리</h1>
-                    <p className="text-slate-400">내가 만든 강좌와 루틴을 관리하세요.</p>
+                    <p className="text-slate-400">내가 만든 클래스와 루틴을 관리하세요.</p>
                 </div>
+
                 <div className="flex gap-2">
                     <Link to="/creator/courses/new">
                         <button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-bold shadow-lg shadow-blue-500/25">
                             <Plus className="w-5 h-5" />
-                            새 강좌
+                            새 클래스
                         </button>
                     </Link>
+
                     <Link to="/creator/routines/new">
                         <button className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-bold shadow-lg shadow-purple-500/25">
                             <Plus className="w-5 h-5" />
@@ -88,17 +90,18 @@ export const CreatorCourses: React.FC = () => {
                 <button
                     onClick={() => setActiveTab('courses')}
                     className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'courses'
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'text-slate-400 hover:text-white'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-slate-400 hover:text-white'
                         }`}
                 >
-                    강좌 ({courses.length})
+                    클래스 ({courses.length})
                 </button>
+
                 <button
                     onClick={() => setActiveTab('routines')}
                     className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'routines'
-                            ? 'bg-purple-600 text-white shadow-lg'
-                            : 'text-slate-400 hover:text-white'
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : 'text-slate-400 hover:text-white'
                         }`}
                 >
                     루틴 ({routines.length})
@@ -113,7 +116,8 @@ export const CreatorCourses: React.FC = () => {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={`${activeTab === 'courses' ? '강좌' : '루틴'} 검색...`}
+                        placeholder={`${activeTab === 'courses' ? '클래스' : '루틴'} 검색...`}
+
                         className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                 </div>
@@ -123,7 +127,8 @@ export const CreatorCourses: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-400 text-sm font-medium">총 {activeTab === 'courses' ? '강좌' : '루틴'}</span>
+                        <span className="text-slate-400 text-sm font-medium">총 {activeTab === 'courses' ? '클래스' : '루틴'}</span>
+
                         <TrendingUp className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="text-2xl font-black text-white">{currentItems.length}</div>
@@ -155,12 +160,14 @@ export const CreatorCourses: React.FC = () => {
             {currentItems.length === 0 ? (
                 <div className="text-center py-16 bg-slate-900/50 rounded-xl border border-slate-800">
                     <div className="text-slate-500 mb-4">
-                        {searchQuery ? '검색 결과가 없습니다.' : `아직 등록된 ${activeTab === 'courses' ? '강좌' : '루틴'}가 없습니다.`}
+                        {searchQuery ? '검색 결과가 없습니다.' : `아직 등록된 ${activeTab === 'courses' ? '클래스' : '루틴'}가 없습니다.`}
                     </div>
+
                     {!searchQuery && (
                         <Link to={`/creator/${activeTab}/new`}>
                             <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                                첫 {activeTab === 'courses' ? '강좌' : '루틴'} 만들기
+                                첫 {activeTab === 'courses' ? '클래스' : '루틴'} 만들기
+
                             </button>
                         </Link>
                     )}

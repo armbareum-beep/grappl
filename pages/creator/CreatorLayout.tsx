@@ -38,8 +38,9 @@ export const CreatorLayout: React.FC = () => {
                             }`}
                     >
                         <BookOpen className="w-5 h-5" />
-                        강좌 관리
+                        클래스 관리
                     </Link>
+
                     <Link
                         to="/creator/upload-drill"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/creator/upload-drill')

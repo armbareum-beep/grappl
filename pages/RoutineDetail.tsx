@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, getDailyRoutine, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
 import { Drill, DrillRoutine } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
@@ -74,7 +74,6 @@ export const RoutineDetail: React.FC = () => {
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
-    const [isDailyFree, setIsDailyFree] = useState(false);
     const [muted, setMuted] = useState(true);
 
     const toggleMute = () => setMuted(prev => !prev);
@@ -203,48 +202,47 @@ export const RoutineDetail: React.FC = () => {
 
     useEffect(() => {
         if (authLoading) return;
-        if (id) {
-            const fetchRoutine = async () => {
-                if (!id) return;
-                try {
-                    const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
-                    const found = customRoutines.find((r: any) => r.id === id);
-                    if (found) { setRoutine(found); setOwns(true); setLoading(false); return; }
-                    const { data: routineData } = await getRoutineById(id);
-                    if (routineData) {
-                        if (!routineData.drills && (routineData as any).items) routineData.drills = (routineData as any).items;
-                        setRoutine(routineData);
-                    }
-                } catch (error) { console.error('Error fetching routine:', error); }
-                finally { setLoading(false); }
-            };
-            const checkUser = async () => {
-                // First check if this is the daily free routine (accessible to everyone)
-                if (id) {
-                    try {
-                        const { data: dailyRoutine } = await getDailyRoutine();
-                        if (dailyRoutine && dailyRoutine.id === id) {
-                            setIsDailyFree(true);
-                            return; // If daily routine, no need to check other ownership
-                        }
-                    } catch (e) {
-                        console.warn('Failed to check daily routine:', e);
-                    }
+
+        const loadRoutineAndPermissions = async () => {
+            if (!id) return;
+            try {
+                // 1. Fetch Routine
+                const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
+                const found = customRoutines.find((r: any) => r.id === id);
+                if (found) {
+                    setRoutine(found);
+                    setOwns(true);
+                    setLoading(false);
+                    return;
                 }
 
-                if (user) {
-                    if (id) {
-                        if (id.startsWith('custom-')) setOwns(true);
-                        else {
-                            const isOwned = await checkDrillRoutineOwnership(user.id, id);
-                            if (isOwned) setOwns(true);
-                        }
-                        await getCompletedRoutinesToday(user.id);
+                const { data: routineData } = await getRoutineById(id);
+                if (routineData) {
+                    if (!routineData.drills && (routineData as any).items) {
+                        routineData.drills = (routineData as any).items;
                     }
+                    setRoutine(routineData);
                 }
-            };
-            fetchRoutine();
-            checkUser();
+
+                // 2. Check Ownership & Progress
+                if (user) {
+                    if (id.startsWith('custom-')) {
+                        setOwns(true);
+                    } else {
+                        const isOwned = await checkDrillRoutineOwnership(user.id, id);
+                        if (isOwned) setOwns(true);
+                    }
+                    await getCompletedRoutinesToday(user.id);
+                }
+            } catch (error) {
+                console.error('Error in RoutineDetail load:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id) {
+            loadRoutineAndPermissions();
         }
     }, [id, authLoading, user]);
 
@@ -380,18 +378,20 @@ export const RoutineDetail: React.FC = () => {
     };
 
     const handleDrillSelect = (index: number) => {
-        if (hasFullAccess || index === 0) {
-            setCurrentDrillIndex(index);
-        } else {
-            handlePurchase();
-        }
+        // Allow selecting any drill - access control happens at video type level
+        setCurrentDrillIndex(index);
+        // Reset to action video when switching drills
+        setVideoType('main');
     };
 
     const handleStartRoutine = () => {
-        if (hasAccess && routine?.drills?.length) {
+        // Always allow starting routine - access control happens at video type level
+        if (routine?.drills?.length) {
             setViewMode('player');
             if (currentDrillIndex === -1) setCurrentDrillIndex(0);
-        } else handlePurchase();
+            // Start with action video
+            setVideoType('main');
+        }
     };
 
     if (loading) return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
@@ -419,14 +419,18 @@ export const RoutineDetail: React.FC = () => {
     const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
     const isActionVideo = videoType === 'main';
 
+    // Description videos require subscription or ownership
     const hasDescriptionAccess =
         isSubscribed ||
         (!isCustomRoutine && (owns || routine?.price === 0)) ||
-        currentDrill?.price === 0 ||
-        isDailyFree;
+        currentDrill?.price === 0;
 
+    // Action videos are ALWAYS accessible (even for non-logged-in users)
+    // Description videos require hasDescriptionAccess
     const hasAccess = isActionVideo || hasDescriptionAccess;
-    const hasFullAccess = hasDescriptionAccess;
+
+    // Full access means the user owns the routine, is subscribed, or the routine is free
+    const hasFullAccess = isSubscribed || owns || routine?.price === 0;
 
 
     const formatTime = (seconds: number) => {
@@ -469,10 +473,12 @@ export const RoutineDetail: React.FC = () => {
                                 {routine.drills?.map((drill, idx) => {
                                     const d = typeof drill === 'string' ? null : drill;
                                     return (
-                                        <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { setCurrentDrillIndex(idx); setViewMode('player'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors">
+                                        <div key={idx} onClick={() => { if (hasFullAccess) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors cursor-pointer">
                                             <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-zinc-800/50">
                                                 {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover" />}
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{(hasFullAccess || idx === 0) ? <PlayCircle className="w-5 h-5 text-white/80" /> : <Lock className="w-4 h-4 text-zinc-500" />}</div>
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                    <PlayCircle className="w-5 h-5 text-white/80" />
+                                                </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="text-sm font-bold text-zinc-200 truncate">{d?.title || `Drill ${idx + 1}`}</h4>
@@ -486,17 +492,42 @@ export const RoutineDetail: React.FC = () => {
 
                         {/* Mobile Access Pass Bottom Sheet */}
                         <div className="fixed bottom-24 left-4 right-4 z-40">
-                            <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-4 shadow-2xl flex items-center justify-between gap-4">
-                                <div className="flex flex-col">
-                                    <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Access Pass</span>
-                                    <span className="text-2xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
-                                </div>
-                                <button
-                                    onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
-                                    className="flex-1 bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
-                                >
-                                    {isDailyFree ? <><Play className="w-5 h-5 fill-current" /> 오늘의 무료 루틴</> : (hasFullAccess ? <><Play className="w-5 h-5 fill-current" /> START</> : <><Lock className="w-5 h-5" /> UNLOCK</>)}
-                                </button>
+                            <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
+                                {hasFullAccess ? (
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Access Pass</span>
+                                            <span className="text-2xl font-black text-white">Owned</span>
+                                        </div>
+                                        <button
+                                            onClick={handleStartRoutine}
+                                            className="flex-1 bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
+                                        >
+                                            <Play className="w-5 h-5 fill-current" /> 시작하기
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between px-2">
+                                            <span className="text-sm text-zinc-400 font-bold uppercase tracking-wider">Access Pass</span>
+                                            <span className="text-xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <button
+                                                onClick={handlePurchase}
+                                                className="w-full bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
+                                            >
+                                                <Lock className="w-5 h-5" /> 루틴 구매하기
+                                            </button>
+                                            <button
+                                                onClick={() => navigate('/pricing')}
+                                                className="w-full bg-zinc-800 active:bg-zinc-700 text-zinc-100 rounded-2xl py-3.5 font-bold text-sm border border-zinc-700 flex items-center justify-center gap-2"
+                                            >
+                                                <Zap className="w-4 h-4 text-violet-400" /> 멤버십 구독하고 전체 시청하기
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </>
@@ -521,10 +552,17 @@ export const RoutineDetail: React.FC = () => {
                                         <Zap className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
                                     </button>
                                     <button
-                                        onClick={() => setVideoType('description')}
-                                        className={`p-2 md:p-2.5 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        onClick={() => {
+                                            if (hasDescriptionAccess) {
+                                                setVideoType('description');
+                                            } else {
+                                                handlePurchase();
+                                            }
+                                        }}
+                                        className={`p-2 md:p-2.5 rounded-full transition-all relative ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                     >
                                         <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
+                                        {!hasDescriptionAccess && <Lock className="w-2.5 h-2.5 absolute top-0.5 right-0.5 text-white" />}
                                     </button>
                                 </div>
                             </div>
@@ -545,11 +583,16 @@ export const RoutineDetail: React.FC = () => {
                                         <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 border border-white/20">
                                             <Lock className="w-8 h-8 text-white" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">루틴 구매가 필요합니다</h3>
-                                        <p className="text-zinc-400 text-sm mb-6">전체 드릴을 시청하려면 루틴을 해제하세요.</p>
-                                        <Button onClick={handlePurchase} className="bg-violet-600 hover:bg-violet-500 text-white rounded-xl px-6 py-3 font-bold">
-                                            ₩{routine.price.toLocaleString()}에 해제하기
-                                        </Button>
+                                        <h3 className="text-xl font-bold text-white mb-2">루틴 구매 또는 구독이 필요합니다</h3>
+                                        <p className="text-zinc-400 text-sm mb-6">전체 드릴을 시청하려면 루틴을 소유하거나 멤버십을 구독하세요.</p>
+                                        <div className="flex flex-col w-full gap-2">
+                                            <Button onClick={handlePurchase} className="bg-violet-600 hover:bg-violet-500 text-white rounded-xl px-6 py-3 font-bold">
+                                                ₩{routine.price.toLocaleString()}에 해제하기
+                                            </Button>
+                                            <Button onClick={() => navigate('/pricing')} className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl px-6 py-3 font-bold border border-zinc-700">
+                                                멤버십 구독하기
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -611,14 +654,12 @@ export const RoutineDetail: React.FC = () => {
                                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {routine?.drills?.map((d: any, idx) => (
-                                            <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { handleDrillSelect(idx); setShowMobileList(false); } else { handlePurchase(); } }} className={`p-3 rounded-xl flex items-center gap-4 transition-all ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
+                                            <div key={idx} onClick={() => { handleDrillSelect(idx); setShowMobileList(false); }} className={`p-3 rounded-xl flex items-center gap-4 transition-all cursor-pointer ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
                                                 <div className="w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
                                                     <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
-                                                    {!(hasFullAccess || idx === 0) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
                                                 </div>
                                                 <span className={`text-sm font-bold truncate ${idx === currentDrillIndex ? 'text-violet-400' : 'text-zinc-400'}`}>{d.title}</span>
                                                 {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto shrink-0" />}
-                                                {!(hasFullAccess || idx === 0) && <Lock className="w-3.5 h-3.5 text-zinc-600 ml-1" />}
                                             </div>
                                         ))}
                                     </div>
@@ -665,10 +706,12 @@ export const RoutineDetail: React.FC = () => {
                                         {routine.drills?.map((drill, idx) => {
                                             const d = typeof drill === 'string' ? null : drill;
                                             return (
-                                                <div key={idx} onClick={() => { if (hasFullAccess || idx === 0) { setCurrentDrillIndex(idx); setViewMode('player'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
+                                                <div key={idx} onClick={() => { if (hasFullAccess) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
                                                     <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-zinc-800">
                                                         {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-all" />}
-                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">{(hasFullAccess || idx === 0) ? <PlayCircle className="w-6 h-6 text-white/80" /> : <Lock className="w-5 h-5 text-zinc-500" />}</div>
+                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                            <PlayCircle className="w-6 h-6 text-white/80" />
+                                                        </div>
                                                     </div>
                                                     <div className="flex-1 py-1">
                                                         <h4 className="text-lg font-bold text-zinc-100">{d?.title || `Drill ${idx + 1}`}</h4>
@@ -687,14 +730,22 @@ export const RoutineDetail: React.FC = () => {
                                         <div className="flex items-end gap-2">
                                             <span className="text-5xl font-black text-zinc-50">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                         </div>
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             <button
                                                 onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
                                                 className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-lg shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
                                             >
-                                                {isDailyFree ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> 오늘의 무료 루틴</> : (hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> START ROUTINE</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> UNLOCK ACCESS</>)}
+                                                {hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> 루틴 시작하기</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> 루틴 구매하기</>}
                                             </button>
-                                            <p className="text-center text-xs text-zinc-500">Includes lifetime access & updates</p>
+                                            {!hasFullAccess && (
+                                                <button
+                                                    onClick={() => navigate('/pricing')}
+                                                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-full py-4 font-bold text-base border border-zinc-700 transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                                                >
+                                                    <Zap className="w-5 h-5 text-violet-400" /> 멤버십 구독하고 전체 시청하기
+                                                </button>
+                                            )}
+                                            <p className="text-center text-xs text-zinc-500">{hasFullAccess ? 'Lifetime access active' : 'Includes lifetime access & updates'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -718,11 +769,16 @@ export const RoutineDetail: React.FC = () => {
                                             <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-white/20">
                                                 <Lock className="w-10 h-10 text-white" />
                                             </div>
-                                            <h3 className="text-2xl font-bold text-white mb-3">루틴 구매가 필요합니다</h3>
-                                            <p className="text-zinc-400 mb-8 max-w-xs">전체 루틴을 시청하고 훈련에 활용하려면 구매가 필요합니다.</p>
-                                            <Button onClick={handlePurchase} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-10 py-4 text-lg font-bold">
-                                                ₩{routine.price.toLocaleString()}에 구매하기
-                                            </Button>
+                                            <h3 className="text-2xl font-bold text-white mb-3">루틴 구매 또는 구독이 필요합니다</h3>
+                                            <p className="text-zinc-400 mb-8 max-w-xs">전체 루틴을 시청하고 훈련에 활용하려면 구매하거나 멤버십을 구독하세요.</p>
+                                            <div className="flex flex-col gap-3 w-full max-w-sm">
+                                                <Button onClick={handlePurchase} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-10 py-4 text-lg font-bold w-full">
+                                                    ₩{routine.price.toLocaleString()}에 구매하기
+                                                </Button>
+                                                <Button onClick={() => navigate('/pricing')} size="lg" className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-full px-10 py-4 text-base font-bold w-full border border-zinc-700">
+                                                    멤버십 구독하기
+                                                </Button>
+                                            </div>
                                         </div>
                                     )}
 
@@ -745,10 +801,17 @@ export const RoutineDetail: React.FC = () => {
                                                     <Zap className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
                                                 </button>
                                                 <button
-                                                    onClick={() => setVideoType('description')}
-                                                    className={`p-2 md:p-3 rounded-full transition-all ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                    onClick={() => {
+                                                        if (hasDescriptionAccess) {
+                                                            setVideoType('description');
+                                                        } else {
+                                                            handlePurchase();
+                                                        }
+                                                    }}
+                                                    className={`p-2 md:p-3 rounded-full transition-all relative ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                                 >
                                                     <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
+                                                    {!hasDescriptionAccess && <Lock className="w-3 h-3 absolute top-0.5 right-0.5 text-white" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -839,12 +902,10 @@ export const RoutineDetail: React.FC = () => {
                                     <button key={idx} onClick={() => handleDrillSelect(idx)} className={`group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
                                         <div className="relative w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0">
                                             <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
-                                            {!(hasFullAccess || idx === 0) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
                                         </div>
                                         <div className="text-left font-bold text-sm text-zinc-200 truncate">{d.title}</div>
                                         <div className="ml-auto flex items-center gap-2">
                                             {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500" />}
-                                            {!(hasFullAccess || idx === 0) && <Lock className="w-3.5 h-3.5 text-zinc-600" />}
                                         </div>
                                     </button>
                                 ))}

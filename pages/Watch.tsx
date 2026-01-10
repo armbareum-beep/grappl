@@ -108,10 +108,26 @@ export function Watch() {
             const { fetchCreatorsByIds, transformLesson, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
             const userId = user?.id || null;
 
-            // Define filters
-            let drillQuery = supabase.from('drills').select('*').order('created_at', { ascending: false }).limit(50);
-            let sparringQuery = supabase.from('sparring_videos').select('*').order('created_at', { ascending: false }).limit(20);
-            let lessonQuery = supabase.from('lessons').select('*, course:courses(id, title, thumbnail_url, creator_id, price, is_subscription_excluded)').order('created_at', { ascending: false }).limit(50);
+            // Filter Drills: Must belong to at least one routine (joined via routine_drills)
+            let drillQuery = supabase.from('drills')
+                .select('*, routine_drills!inner(id)')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            // Filter Sparring: Must be explicitly published and have a price > 0 (Content)
+            let sparringQuery = supabase.from('sparring_videos')
+                .select('*')
+                .eq('is_published', true)
+                .gt('price', 0)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            // Filter Lessons: Fetch those belonging to a published course
+            let lessonQuery = supabase.from('lessons')
+                .select('*, course:courses!inner(*)')
+                .eq('course.published', true)
+                .order('created_at', { ascending: false })
+                .limit(50);
 
             const queries: any[] = [];
             if (activeTab === 'mix' || activeTab === 'drill') queries.push(drillQuery);
@@ -137,6 +153,17 @@ export function Watch() {
             const dailyFreeSparringIds = dailySparringRes.data?.id ? [dailySparringRes.data.id] : [];
 
             const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
+                // Also check if the video is actually processed (has a valid URL or Vimeo ID)
+                // lessons and drills use vimeo_url, sparring uses video_url
+                const url = contentType === 'sparring' ? content.video_url : content.vimeo_url;
+                // Valid if: URL starts with http, OR is a pure Vimeo ID (numeric string), OR is ID:hash format
+                const isValidVideoUrl = url && !url.includes('ERROR') && (
+                    url.startsWith('http') ||
+                    /^\d+$/.test(url) ||
+                    /^\d+:[a-z0-9]+$/i.test(url) // ID:hash format like "1139272530:3fdc00141c"
+                );
+                if (!isValidVideoUrl) return false;
+
                 let isDailyFree = false;
                 if (contentType === 'drill') isDailyFree = dailyFreeDrillIds.includes(content.id);
                 else if (contentType === 'lesson') isDailyFree = dailyFreeLessonIds.includes(content.id);
@@ -218,7 +245,12 @@ export function Watch() {
             }
 
             if (lessonsRes.data) {
-                const accessibleLessons = lessonsRes.data.filter((l: any) => isAccessible('lesson', l));
+                const accessibleLessons = lessonsRes.data.filter((l: any) => {
+                    // Manual filter for published course
+                    if (!l.course || l.course.published !== true) return false;
+                    return isAccessible('lesson', l);
+                });
+
                 allItems = [...allItems, ...accessibleLessons.map((l: any) => {
                     const transformed = transformLesson(l);
                     const creatorId = l.course?.creator_id || l.creator_id;
@@ -267,7 +299,7 @@ export function Watch() {
     };
 
     return (
-        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden">
+        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden pb-24 md:pb-0">
 
             {/* TOP DROPDOWN TABS */}
             <div className="absolute top-6 left-0 right-0 z-[100] flex justify-center pointer-events-none px-4">
@@ -324,6 +356,8 @@ export function Watch() {
                     ) : items.length > 0 ? (
                         <MixedReelsFeed
                             items={items}
+                            userPermissions={userPermissions}
+                            isLoggedIn={!!user}
                         />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">

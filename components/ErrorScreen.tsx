@@ -21,11 +21,18 @@ export const ErrorScreen: React.FC<ErrorScreenProps> = ({
             return;
         }
 
-        if (window.confirm('캐시를 삭제하고 새로고침하시겠습니까?\n\n로그인 정보는 유지되며, 앱이 최신 버전으로 업데이트됩니다.')) {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/';
-        }
+        // Force clear without confirmation to ensure it works
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Remove Supabase auth token specifically if present in cookies (unlikely but safe)
+        document.cookie.split(";").forEach((c) => {
+            document.cookie = c
+                .replace(/^ +/, "")
+                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+
+        window.location.href = '/';
     };
 
     return (

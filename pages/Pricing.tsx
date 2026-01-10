@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Check, Zap, Crown } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,9 +12,13 @@ type SubscriptionTier = 'basic' | 'premium';
 export const Pricing: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading] = React.useState(false);
   const [currentTier, setCurrentTier] = React.useState<SubscriptionTier | null>(null);
   const [isSubscribed, setIsSubscribed] = React.useState(false);
+
+  // Get return URL from location state
+  const returnUrl = (location.state as any)?.returnUrl;
 
   React.useEffect(() => {
     if (user) {
@@ -54,7 +58,8 @@ export const Pricing: React.FC = () => {
       navigate('/login');
       return;
     }
-    navigate(`/checkout/subscription/${priceId}`);
+    // Pass returnUrl to checkout
+    navigate(`/checkout/subscription/${priceId}`, { state: { returnUrl } });
   };
 
   const getMonthlyEquivalent = (yearlyPrice: number) => {
@@ -192,7 +197,8 @@ export const Pricing: React.FC = () => {
         </div>
 
         <div className="mt-20 text-center">
-          <p className="text-zinc-500 mb-4 italic font-medium">강좌나 패키지 상품을 찾고 계신가요?</p>
+          <p className="text-zinc-500 mb-4 italic font-medium">클래스나 패키지 상품을 찾고 계신가요?</p>
+
           <Link to="/bundles" className="text-violet-400 font-bold hover:text-violet-300 transition-colors border-b border-violet-500/30 pb-1">
             번들/패키지 상품 보러가기 &rarr;
           </Link>

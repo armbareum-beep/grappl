@@ -8,13 +8,16 @@ import {
   getUserSavedDrills,
   getUserSavedCourses,
   getUserSavedRoutines,
-  getUserSavedLessons
+  getUserSavedLessons,
+  getCreatorCourses,
+  getCourses,
+  getPurchasedSparringVideos
 } from '../lib/api';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { Course, DrillRoutine, SparringVideo, UserSkillTree, Drill, Lesson } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, PlayCircle, Dumbbell, Clock, Play, Network } from 'lucide-react';
+import { BookOpen, PlayCircle, Dumbbell, Clock, Play, Network, Bookmark } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,11 +30,12 @@ interface CourseWithProgress extends Course {
 }
 
 export const MyLibrary: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isCreator, isSubscribed } = useAuth();
   const [activeTab, setActiveTab] = useState<'courses' | 'lessons' | 'routines' | 'drills' | 'sparring' | 'chains'>('courses');
 
   // Courses State
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
 
   // Chains State
@@ -49,6 +53,7 @@ export const MyLibrary: React.FC = () => {
 
   // Sparring State
   const [savedSparring, setSavedSparring] = useState<SparringVideo[]>([]);
+  const [purchasedSparring, setPurchasedSparring] = useState<SparringVideo[]>([]);
   const [sparringLoading, setSparringLoading] = useState(true);
 
 
@@ -75,14 +80,28 @@ export const MyLibrary: React.FC = () => {
         setChainsLoading(true);
         setDrillsLoading(true);
 
-        const [coursesData, savedCoursesData, savedLessonsData] = await Promise.all([
+        const [allCoursesData, ownedCoursesData, savedCoursesData, savedLessonsData, creatorCoursesData] = await Promise.all([
+          getCourses(),
           getUserCourses(user.id),
           getUserSavedCourses(user.id),
-          getUserSavedLessons(user.id)
+          getUserSavedLessons(user.id),
+          getCreatorCourses(user.id)
         ]);
 
+        setAllCourses(allCoursesData || []);
+
+        // Combine purchased courses and created courses, avoiding duplicates
+        const combinedCourses = [...ownedCoursesData];
+        if (creatorCoursesData && creatorCoursesData.length > 0) {
+          creatorCoursesData.forEach((c: Course) => {
+            if (!combinedCourses.some(owned => owned.id === c.id)) {
+              combinedCourses.push(c);
+            }
+          });
+        }
+
         const coursesWithProgress = await Promise.all(
-          coursesData.map(async (course) => {
+          combinedCourses.map(async (course) => {
             const progressData = await getCourseProgress(user.id, course.id);
             return {
               ...course,
@@ -129,8 +148,12 @@ export const MyLibrary: React.FC = () => {
 
       // Fetch Sparring
       try {
-        const sparringData = await getSavedSparringVideos(user.id);
-        setSavedSparring(sparringData);
+        const [savedSparringData, purchasedSparringData] = await Promise.all([
+          getSavedSparringVideos(user.id),
+          getPurchasedSparringVideos(user.id)
+        ]);
+        setSavedSparring(savedSparringData);
+        setPurchasedSparring(purchasedSparringData);
       } catch (err) {
         console.error('Error fetching saved sparring:', err);
       } finally {
@@ -154,7 +177,7 @@ export const MyLibrary: React.FC = () => {
     }
 
     fetchData();
-  }, [user]);
+  }, [user, isCreator]);
 
   if (error) {
     return <ErrorScreen error={error} resetMessage="라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
@@ -183,13 +206,14 @@ export const MyLibrary: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-violet-400" />
+              < BookOpen className="w-6 h-6 text-violet-400" />
             </div>
             <h1 className="text-3xl font-bold text-white">라이브러리</h1>
           </div>
           <p className="text-zinc-400 text-sm">
-            구매한 강좌와 훈련 루틴을 관리하세요
+            구매한 클래스와 훈련 루틴을 관리하세요
           </p>
+
         </div>
       </div>
 
@@ -200,37 +224,37 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'courses' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            클래스 ({courses.length + savedCourses.length})
+            Classes ({allCourses.length})
           </button>
           <button
             onClick={() => setActiveTab('lessons')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'lessons' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            레슨 ({savedLessons.length})
+            Lessons ({savedLessons.length})
           </button>
           <button
             onClick={() => setActiveTab('routines')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'routines' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            루틴 ({purchasedRoutines.length + savedRoutines.length})
+            Routines ({purchasedRoutines.length + savedRoutines.length})
           </button>
           <button
             onClick={() => setActiveTab('drills')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'drills' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            드릴 ({savedDrills.length})
+            Drills ({savedDrills.length})
           </button>
           <button
             onClick={() => setActiveTab('sparring')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'sparring' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            스파링 ({savedSparring.length})
+            Sparring ({savedSparring.length})
           </button>
           <button
             onClick={() => setActiveTab('chains')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'chains' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            로드맵 ({chains.length})
+            Roadmap ({chains.length})
           </button>
         </div>
 
@@ -239,27 +263,17 @@ export const MyLibrary: React.FC = () => {
             {coursesLoading ? (
               <div className="text-center py-20">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto mb-4"></div>
-                <p className="text-zinc-400">강좌 불러오는 중...</p>
+                <p className="text-zinc-400">클래스 불러오는 중...</p>
               </div>
-            ) : (courses.length === 0 && savedCourses.length === 0) ? (
-              <div className="text-center py-20">
-                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-lg border border-zinc-800">
-                  <BookOpen className="w-12 h-12 text-zinc-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-3">아직 클래스가 없습니다</h2>
-                <p className="text-zinc-400 mb-8">관심 있는 클래스를 찾아보세요!</p>
-                <Link
-                  to="/browse"
-                  className="inline-block bg-violet-600 text-white px-8 py-3 rounded-lg hover:bg-violet-700 transition-colors font-semibold"
-                >
-                  클래스 둘러보기
-                </Link>
-              </div>
+
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-12">
+                {/* My Classes (Purchased or Created) */}
                 {courses.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-6">구매한 클래스 ({courses.length})</h3>
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                      My Classes <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">{courses.length}</span>
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {courses.map((course) => (
                         <div key={course.id} className="relative flex flex-col h-full">
@@ -288,9 +302,36 @@ export const MyLibrary: React.FC = () => {
                   </div>
                 )}
 
+                {/* Explore More Classes */}
+                {allCourses.filter(ac =>
+                  !courses.some(c => c.id === ac.id) &&
+                  !savedCourses.some(sc => sc.id === ac.id)
+                ).length > 0 && (
+                    <div>
+                      <div className="flex justify-between items-end mb-6">
+                        <h3 className="text-lg font-bold text-white">Explore All Classes</h3>
+                        {isSubscribed && (
+                          <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-3 py-1 rounded-full border border-violet-500/20">
+                            ✨ 구독 중: 모든 클래스 시청 가능
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {allCourses
+                          .filter(ac =>
+                            !courses.some(c => c.id === ac.id) &&
+                            !savedCourses.some(sc => sc.id === ac.id)
+                          )
+                          .map((course) => (
+                            <CourseCard key={course.id} course={course} />
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
                 {savedCourses.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-6">저장한 클래스 ({savedCourses.length})</h3>
+                    <h3 className="text-lg font-bold text-white mb-6">Saved Classes ({savedCourses.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {savedCourses.map((course) => (
                         <CourseCard key={course.id} course={course} />
@@ -324,7 +365,7 @@ export const MyLibrary: React.FC = () => {
                 <div className="space-y-12">
                   {purchasedRoutines.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-6">구매/제작한 루틴 ({purchasedRoutines.length})</h3>
+                      <h3 className="text-lg font-bold text-white mb-6">My Routines ({purchasedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {purchasedRoutines.map((routine) => (
                           <RoutineCard key={routine.id} routine={routine} />
@@ -335,7 +376,7 @@ export const MyLibrary: React.FC = () => {
 
                   {savedRoutines.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-6">저장한 루틴 ({savedRoutines.length})</h3>
+                      <h3 className="text-lg font-bold text-white mb-6">Saved Routines ({savedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {savedRoutines.map((routine) => (
                           <RoutineCard key={routine.id} routine={routine} />
@@ -424,61 +465,107 @@ export const MyLibrary: React.FC = () => {
 
         {activeTab === 'sparring' && (
           <div className="space-y-12">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Dumbbell className="w-6 h-6 text-violet-500" />
-              저장된 스파링
-            </h2>
-            {sparringLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-zinc-400">저장된 스파링 불러오는 중...</p>
-              </div>
-            ) : savedSparring.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                <p className="text-zinc-400 mb-4">저장된 스파링 영상이 없습니다.</p>
-                <Link to="/sparring">
-                  <Button variant="primary">
-                    스파링 영상 보러가기
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {savedSparring.map((video) => (
-                  <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                    <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                      <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                          <Play className="w-6 h-6 text-white fill-white/20" />
+            {/* Purchased Sparring */}
+            {purchasedSparring.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Dumbbell className="w-6 h-6 text-violet-500" />
+                  My Sparring
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                  {purchasedSparring.map((video) => (
+                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                      <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                            <Play className="w-6 h-6 text-white fill-white/20" />
+                          </div>
+                        </div>
+                        <div className="absolute top-2 left-2 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
+                          OWNED
+                        </div>
+                      </Link>
+                      <div className="px-1">
+                        <Link to={`/sparring?id=${video.id}`}>
+                          <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
+                        </Link>
+                        <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
+                          <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
                         </div>
                       </div>
-                    </Link>
-                    <div className="px-1">
-                      <Link to={`/sparring?id=${video.id}`}>
-                        <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
-                      </Link>
-                      <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
-                        <span>{video.creator?.name || 'Unknown User'}</span>
-                        <span>•</span>
-                        <span>{video.views?.toLocaleString()} 조회</span>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Saved Sparring */}
+            <div>
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Bookmark className="w-6 h-6 text-violet-500" />
+                Saved Sparring
+              </h2>
+              {sparringLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-zinc-400">저장된 스파링 불러오는 중...</p>
+                </div>
+              ) : savedSparring.length === 0 ? (
+                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                  <p className="text-zinc-400 mb-4">저장된 스파링 영상이 없습니다.</p>
+                  <Link to="/sparring">
+                    <Button variant="primary">
+                      스파링 영상 보러가기
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                  {savedSparring.map((video) => (
+                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                      <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                            <Play className="w-6 h-6 text-white fill-white/20" />
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="px-1">
+                        <Link to={`/sparring?id=${video.id}`}>
+                          <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
+                        </Link>
+                        <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
+                          {video.category && (
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider flex-shrink-0 ${video.category === 'Competition'
+                              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                              : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                              }`}>
+                              {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
+                            </span>
+                          )}
+                          <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
+                          <span className="flex-shrink-0">•</span>
+                          <span className="flex-shrink-0">{video.views?.toLocaleString()} 조회</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
-
 
         {activeTab === 'chains' && (
           <div className="space-y-12">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Network className="w-6 h-6 text-violet-500" />
-                내 로드맵
+                My Roadmap
               </h2>
               <Link to="/technique/new">
                 <Button size="sm">
@@ -612,4 +699,3 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
     </div>
   );
 }
-

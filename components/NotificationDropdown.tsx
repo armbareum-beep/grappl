@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,7 @@ export const NotificationDropdown: React.FC = () => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (user) {
@@ -25,6 +26,23 @@ export const NotificationDropdown: React.FC = () => {
             return () => clearInterval(interval);
         }
     }, [user]);
+
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
 
     const loadNotifications = async () => {
         if (!user) return;
@@ -67,7 +85,7 @@ export const NotificationDropdown: React.FC = () => {
     if (!user) return null;
 
     return (
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => {
                     setIsOpen(!isOpen);
@@ -84,62 +102,54 @@ export const NotificationDropdown: React.FC = () => {
             </button>
 
             {isOpen && (
-                <>
-                    <div
-                        className="fixed inset-0 z-[11001]"
-                        onClick={() => setIsOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-[11002] max-h-[500px] overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-900">알림</h3>
-                            {unreadCount > 0 && (
-                                <button
-                                    onClick={handleMarkAllAsRead}
-                                    className="text-sm text-violet-600 hover:text-violet-700 font-bold"
-                                >
-                                    모두 읽음
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="overflow-y-auto flex-1">
-                            {loading ? (
-                                <div className="p-8 text-center text-slate-500">로딩 중...</div>
-                            ) : notifications.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500">
-                                    <Bell className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                                    <p>새로운 알림이 없습니다</p>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-100">
-                                    {notifications.map((notification) => (
-                                        <div
-                                            key={notification.id}
-                                            className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-violet-50/50' : ''
-                                                }`}
-                                            onClick={() => {
-                                                if (!notification.isRead) {
-                                                    handleMarkAsRead(notification.id);
-                                                }
-                                                if (notification.link) {
-                                                    setIsOpen(false);
-                                                }
-                                            }}
-                                        >
-                                            {notification.link ? (
-                                                <Link to={notification.link} className="block">
-                                                    <NotificationContent notification={notification} getTypeColor={getTypeColor} />
-                                                </Link>
-                                            ) : (
-                                                <NotificationContent notification={notification} getTypeColor={getTypeColor} />
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-[11002] max-h-[500px] overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-900">알림</h3>
+                        {unreadCount > 0 && (
+                            <button
+                                onClick={handleMarkAllAsRead}
+                                className="text-sm text-violet-600 hover:text-violet-700 font-bold"
+                            >
+                                모두 읽음
+                            </button>
+                        )}
                     </div>
-                </>
+
+                    <div className="overflow-y-auto flex-1">
+                        {loading ? (
+                            <div className="p-8 text-center text-slate-500">로딩 중...</div>
+                        ) : notifications.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500">
+                                <Bell className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                                <p>새로운 알림이 없습니다</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-violet-50/50' : ''
+                                            }`}
+                                        onClick={() => {
+                                            if (!notification.isRead) {
+                                                handleMarkAsRead(notification.id);
+                                            }
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        {notification.link ? (
+                                            <Link to={notification.link} className="block">
+                                                <NotificationContent notification={notification} getTypeColor={getTypeColor} />
+                                            </Link>
+                                        ) : (
+                                            <NotificationContent notification={notification} getTypeColor={getTypeColor} />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

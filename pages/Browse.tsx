@@ -29,12 +29,13 @@ export const Browse: React.FC<{
   const setSearchTerm = setInternalSearchTerm;
 
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
-  const ownershipOptions = ['All', 'Purchased', 'Not Purchased'];
+  const ownershipOptions = ['All', 'My Classes', 'Not Purchased'];
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const data = await getCourses();
+        console.log('📚 Fetched courses:', data.length, data);
         // Shuffle courses for a fresh experience on every refresh
         const shuffled = [...data].sort(() => Math.random() - 0.5);
         setCourses(shuffled);
@@ -48,28 +49,28 @@ export const Browse: React.FC<{
   }, []);
 
   const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.creatorName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (course.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (course.creatorName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     // Category mapping
     let matchesCategory = selectedCategory === 'All';
 
     if (selectedCategory === 'Standing') matchesCategory = (course.category as string) === 'Takedown' || course.category === 'Standing';
-    if (selectedCategory === 'Guard') matchesCategory = course.category === 'Guard';
-    if (selectedCategory === 'Passing') matchesCategory = course.category === 'Passing';
-    if (selectedCategory === 'Side') matchesCategory = (course.category as string) === 'Defense' || course.category === 'Side' || (course.category as string) === 'Side Control';
-    if (selectedCategory === 'Mount') matchesCategory = (course.category as string) === 'Submission' || course.category === 'Mount';
-    if (selectedCategory === 'Back') matchesCategory = course.category === 'Back' || (course.category as string) === 'Back Control';
+    if (selectedCategory === 'Guard') matchesCategory = course.category === 'Guard' || (course.category as string || '').includes('Guard');
+    if (selectedCategory === 'Passing') matchesCategory = course.category === 'Passing' || (course.category as string || '').includes('Pass');
+    if (selectedCategory === 'Side') matchesCategory = (course.category as string || '').includes('Side') || (course.category as string || '').includes('Defense');
+    if (selectedCategory === 'Mount') matchesCategory = (course.category as string || '').includes('Mount') || (course.category as string || '').includes('Submission');
+    if (selectedCategory === 'Back') matchesCategory = (course.category as string || '').includes('Back');
 
     const matchesDifficulty = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;
 
     let matchesOwnership = true;
-    if (selectedOwnership === 'Purchased') {
-      matchesOwnership = user?.ownedVideoIds?.includes(course.id) || false;
+    if (selectedOwnership === 'My Classes') {
+      matchesOwnership = user?.ownedVideoIds?.includes(course.id) || course.creatorId === user?.id || false;
     } else if (selectedOwnership === 'Not Purchased') {
-      matchesOwnership = !(user?.ownedVideoIds?.includes(course.id));
+      matchesOwnership = !(user?.ownedVideoIds?.includes(course.id) || course.creatorId === user?.id);
     }
 
     return matchesSearch && (matchesCategory || selectedCategory === 'All') && matchesDifficulty && matchesUniform && matchesOwnership;
@@ -227,7 +228,8 @@ export const Browse: React.FC<{
                     onClick={() => setOpenDropdown(openDropdown === 'ownership' ? null : 'ownership')}
                     className={cn(
                       "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
-                      selectedOwnership !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                      selectedOwnership !== 'All' && "border-violet-500/50",
+                      selectedOwnership !== 'All' ? "bg-violet-500/5 text-violet-300" : ""
                     )}
                   >
                     <span className="whitespace-nowrap">Status: {selectedOwnership}</span>

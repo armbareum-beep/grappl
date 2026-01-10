@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Zap } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { supabase } from '../lib/supabase';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export function DrillReels() {
-    const { user } = useAuth();
-    const navigate = useNavigate();
     const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [drills, setDrills] = useState<any[]>([]);
@@ -23,6 +20,15 @@ export function DrillReels() {
         } else {
             loadDrillContent();
         }
+
+        // Auto-refresh drills every 5 seconds to detect when processing is complete
+        const pollInterval = setInterval(() => {
+            if (!location.state?.source) {
+                loadDrillContent();
+            }
+        }, 5000);
+
+        return () => clearInterval(pollInterval);
     }, [location.state]);
 
     const loadSavedDrills = (initialId?: string) => {
@@ -71,10 +77,10 @@ export function DrillReels() {
 
             const { fetchCreatorsByIds } = await import('../lib/api');
 
-            // Get drills only
+            // Get drills that belong to a routine
             const { data: allDrills, error: drillError } = await supabase
                 .from('drills')
-                .select('*')
+                .select('*, routine_drills!inner(id)')
                 .order('created_at', { ascending: false })
                 .limit(100);
 
@@ -122,7 +128,7 @@ export function DrillReels() {
     };
 
     return (
-        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden">
+        <div className="h-[calc(100dvh-64px)] md:h-screen bg-black text-white flex md:pl-28 relative overflow-hidden pb-24 md:pb-0">
             {/* Simple Left Sub-Navigation Sidebar */}
             <div className="hidden sm:flex w-20 md:w-24 flex-col items-center py-8 gap-8 border-r border-zinc-900 bg-zinc-950/20 backdrop-blur-sm z-50">
                 <div className="flex flex-col gap-6">
@@ -154,6 +160,7 @@ export function DrillReels() {
                         <DrillReelsFeed
                             drills={drills}
                             initialIndex={initialIndex}
+                            onDrillsUpdate={(updatedDrills) => setDrills(updatedDrills)}
                         />
                     ) : (
                         <div className="h-full flex items-center justify-center text-zinc-500">

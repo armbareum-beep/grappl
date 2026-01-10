@@ -9,6 +9,10 @@ import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
 import { useToast } from '../../contexts/ToastContext';
+import { Upload } from 'lucide-react';
+import { VideoTrimmer } from '../../components/VideoTrimmer';
+import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
+import { Button } from '../../components/Button';
 import {
     DndContext,
     closestCenter,
@@ -92,6 +96,7 @@ const SortableLessonItem = ({ lesson, index, onEdit, onDelete }: {
                     <Trash2 className="w-4 h-4" />
                 </button>
             </div>
+
         </div>
     );
 };
@@ -118,7 +123,7 @@ export const CourseEditor: React.FC = () => {
         thumbnailUrl: '',
         uniformType: UniformType.Gi,
         isSubscriptionExcluded: false,
-        published: false,
+        published: true,
     });
 
     // Lessons State
@@ -140,6 +145,43 @@ export const CourseEditor: React.FC = () => {
     const [showThumbnailModal, setShowThumbnailModal] = useState(false);
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
     const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+
+    const [previewVideoFile, setPreviewVideoFile] = useState<File | null>(null);
+    const [showTrimmer, setShowTrimmer] = useState(false);
+    const { queueUpload } = useBackgroundUpload();
+
+    const handlePreviewSave = async (trimmedBlob: Blob) => {
+        if (!user) return;
+
+        try {
+            if (isNew) {
+                toastError('미리보기를 추출하려면 먼저 클래스를 저장(개설)해야 합니다.');
+
+                setShowTrimmer(false);
+                return;
+            }
+
+            const previewFile = new File([trimmedBlob], `course-preview-${id}.mp4`, { type: 'video/mp4' });
+            const previewVideoId = `${crypto.randomUUID()}-course-preview`;
+            const filename = `${previewVideoId}.mp4`;
+
+            await queueUpload(previewFile, 'preview', {
+                videoId: previewVideoId,
+                filename,
+                cuts: [{ start: 0, end: 60 }],
+                title: `[클래스 미리보기] ${courseData.title}`,
+                description: `${courseData.title} 클래스의 1분 미리보기 영상입니다.`,
+                courseId: id,
+                videoType: 'preview'
+            });
+
+            success('미리보기 업로드 및 처리를 시작합니다.');
+            setShowTrimmer(false);
+        } catch (err) {
+            console.error('Preview save error:', err);
+            toastError('미리보기 처리 중 오류가 발생했습니다.');
+        }
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -346,7 +388,8 @@ export const CourseEditor: React.FC = () => {
 
         // Validation: Course must have at least one lesson to be created
         if (isNew && lessons.length === 0) {
-            toastError('강좌를 개설하려면 최소 1개의 레슨이 필요합니다.');
+            toastError('클래스를 개설하려면 최소 1개의 레슨이 필요합니다.');
+
             return;
         }
 
@@ -429,12 +472,14 @@ export const CourseEditor: React.FC = () => {
 
                     // Redirect to Public Course Page
                     navigate(`/courses/${data.id}`);
-                    success('강좌가 개설되었습니다! 강좌 페이지로 이동합니다.');
+                    success('클래스가 개설되었습니다! 클래스 페이지로 이동합니다.');
+
                 }
             } else if (id) {
                 const { error } = await updateCourse(id, courseToSave);
                 if (error) throw error;
-                success('저장되었습니다. 강좌 페이지로 이동합니다.');
+                success('저장되었습니다. 클래스 페이지로 이동합니다.');
+
                 navigate(`/courses/${id}`);
             }
         } catch (error) {
@@ -564,34 +609,7 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const fetchLessonMetadata = async () => {
-        if (!editingLesson?.vimeoUrl) {
-            toastError('먼저 Vimeo URL을 입력하세요.');
-            return;
-        }
 
-        try {
-            const videoInfo = await getVimeoVideoInfo(editingLesson.vimeoUrl);
-            if (videoInfo) {
-                const durationMinutes = Math.floor(videoInfo.duration / 60);
-                const durationSeconds = videoInfo.duration % 60;
-                const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
-
-                setEditingLesson({
-                    ...editingLesson,
-                    length: formattedDuration,
-                    title: editingLesson.title || videoInfo.title,
-                    description: editingLesson.description || videoInfo.description,
-                });
-                success('비디오 정보를 가져왔습니다! 🎉');
-            } else {
-                toastError('비디오 정보를 가져올 수 없습니다. Vimeo URL을 확인하세요.');
-            }
-        } catch (error) {
-            console.error('Error fetching video metadata:', error);
-            toastError('비디오 정보를 가져오는 중 오류가 발생했습니다.');
-        }
-    };
 
     if (loading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-zinc-500">
@@ -613,7 +631,8 @@ export const CourseEditor: React.FC = () => {
                         </button>
                         <div>
                             <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                                {isNew ? '새 강좌 만들기' : '강좌 수정하기'}
+                                {isNew ? '새 클래스 만들기' : '클래스 수정하기'}
+
                             </h1>
                             <p className="text-sm text-zinc-500 mt-1">
                                 프리미엄 지식을 체계적으로 구성하여 전달하세요
@@ -631,7 +650,8 @@ export const CourseEditor: React.FC = () => {
                             ) : (
                                 <Save className="w-4.5 h-4.5" />
                             )}
-                            {saving ? '저장 중...' : (isNew ? '강좌 개설하기' : '변경사항 저장')}
+                            {saving ? '저장 중...' : (isNew ? '클래스 개설하기' : '변경사항 저장')}
+
                         </button>
                     </div>
                 </div>
@@ -668,7 +688,8 @@ export const CourseEditor: React.FC = () => {
                                     <div className="lg:col-span-2 space-y-8">
                                         <div className="space-y-6">
                                             <div>
-                                                <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">강좌 제목</label>
+                                                <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">클래스 제목</label>
+
                                                 <input
                                                     type="text"
                                                     value={courseData.title}
@@ -685,7 +706,8 @@ export const CourseEditor: React.FC = () => {
                                                     onChange={e => setCourseData({ ...courseData, description: e.target.value })}
                                                     rows={5}
                                                     className="w-full px-5 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white placeholder:text-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none text-base leading-relaxed"
-                                                    placeholder="강좌에 대한 상세한 커리큘럼과 목표를 입력하세요..."
+                                                    placeholder="클래스에 대한 상세한 커리큘럼과 목표를 입력하세요..."
+
                                                 />
                                             </div>
                                         </div>
@@ -788,7 +810,8 @@ export const CourseEditor: React.FC = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <span className={`block font-semibold transition-colors ${courseData.published ? 'text-violet-400' : 'text-zinc-200 group-hover:text-white'}`}>강좌 전체 공개 (Publish)</span>
+                                                            <span className={`block font-semibold transition-colors ${courseData.published ? 'text-violet-400' : 'text-zinc-200 group-hover:text-white'}`}>클래스 전체 공개 (Publish)</span>
+
                                                             <span className="block text-xs text-zinc-500 mt-1 leading-relaxed">체크 시 즉시 서비스에 노출됩니다. 콘텐츠 준비가 완벽히 끝난 후 활성화해주세요.</span>
                                                         </div>
                                                     </label>
@@ -819,6 +842,57 @@ export const CourseEditor: React.FC = () => {
                                                 <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10">
                                                     <p className="text-xs text-violet-400/70 leading-relaxed font-medium">
                                                         💡 미설정 시 첫 번째 레슨 영상에서 자동으로 캡처된 이미지가 사용됩니다.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 shadow-inner mt-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <label className="text-sm font-semibold text-zinc-400 ml-1">1분 미리보기 영상</label>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {courseData.previewVimeoId ? (
+                                                    <div className="aspect-video bg-black rounded-xl overflow-hidden relative group">
+                                                        <iframe
+                                                            src={`https://player.vimeo.com/video/${courseData.previewVimeoId}`}
+                                                            className="w-full h-full"
+                                                            allow="autoplay; fullscreen; picture-in-picture"
+                                                            allowFullScreen
+                                                        />
+                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => setCourseData({ ...courseData, previewVimeoId: '' })}
+                                                                className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center hover:border-violet-500 hover:bg-zinc-800/50 transition-all cursor-pointer relative group flex flex-col items-center justify-center min-h-[160px]">
+                                                        <input
+                                                            type="file"
+                                                            accept="video/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    setPreviewVideoFile(file);
+                                                                    setShowTrimmer(true);
+                                                                }
+                                                            }}
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                        />
+                                                        <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3 group-hover:bg-violet-500/20 transition-colors">
+                                                            <Upload className="w-6 h-6 text-zinc-400 group-hover:text-violet-400" />
+                                                        </div>
+                                                        <p className="font-bold text-zinc-300 text-sm mb-1 group-hover:text-violet-400 transition-colors">미리보기 영상 추출</p>
+                                                        <p className="text-xs text-zinc-500">1분 내외의 하이라이트 영상 추출</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10">
+                                                    <p className="text-xs text-violet-400/70 leading-relaxed font-medium">
+                                                        💡 클래스 권한이 없는 사용자에게 보여줄 1분 미리보기 영상을 추출합니다.
                                                     </p>
                                                 </div>
                                             </div>
@@ -903,8 +977,10 @@ export const CourseEditor: React.FC = () => {
                                             보너스 드릴 설정 <span className="bg-violet-500/20 text-violet-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold">Bonus content</span>
                                         </h3>
                                         <p className="text-zinc-500 leading-relaxed">
-                                            이 강좌를 구매한 수강생들에게 자동으로 지급될 추가 드릴을 선택하세요.<br />
-                                            <span className="text-zinc-400 font-medium italic underline decoration-violet-500/30">잘 구성된 보너스 콘텐츠는 강좌의 가치를 높여줍니다.</span>
+                                            이 클래스를 구매한 수강생들에게 자동으로 지급될 추가 드릴을 선택하세요.<br />
+
+                                            <span className="text-zinc-400 font-medium italic underline decoration-violet-500/30">잘 구성된 보너스 콘텐츠는 클래스의 가치를 높여줍니다.</span>
+
                                         </p>
                                     </div>
                                     <div className="absolute -right-4 -bottom-4 text-violet-500/10 group-hover:scale-110 transition-transform">
@@ -1008,7 +1084,8 @@ export const CourseEditor: React.FC = () => {
                                         실전 스파링 연동 <span className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold border border-zinc-700">Live sparring</span>
                                     </h3>
                                     <p className="text-zinc-500 leading-relaxed">
-                                        강좌에서 배운 테크닉이 실제로 어떻게 쓰이는지 보여주는 스파링 영상을 선택하세요.<br />
+                                        클래스에서 배운 테크닉이 실제로 어떻게 쓰이는지 보여주는 스파링 영상을 선택하세요.<br />
+
                                         수강생들의 실전 응용력을 높여주는 최고의 시청각 자료가 됩니다.
                                     </p>
                                 </div>
@@ -1104,7 +1181,8 @@ export const CourseEditor: React.FC = () => {
                     <div className="bg-zinc-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800/50 animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h3 className="text-3xl font-black text-white tracking-tight">강좌 썸네일 추출</h3>
+                                <h3 className="text-3xl font-black text-white tracking-tight">클래스 썸네일 추출</h3>
+
                                 <p className="text-zinc-500 font-medium mt-1">커리큘럼 비디오 중 하나를 대표 이미지로 사용하세요</p>
                             </div>
                             <button
@@ -1133,7 +1211,8 @@ export const CourseEditor: React.FC = () => {
                                                         if (videoInfo?.thumbnail) {
                                                             setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
                                                             setShowThumbnailModal(false);
-                                                            success('강좌 대표 썸네일이 변경되었습니다 ✨');
+                                                            success('클래스 대표 썸네일이 변경되었습니다 ✨');
+
                                                         }
                                                     } catch (err) {
                                                         toastError('썸네일을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -1289,7 +1368,8 @@ export const CourseEditor: React.FC = () => {
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="text-2xl font-bold text-white">기존 레슨 가져오기</h3>
-                                <p className="text-zinc-500 text-sm mt-1">내가 만든 강좌의 레슨들을 재사용할 수 있습니다</p>
+                                <p className="text-zinc-500 text-sm mt-1">내가 만든 클래스의 레슨들을 재사용할 수 있습니다</p>
+
                             </div>
                             <button
                                 onClick={() => setShowImportModal(false)}
@@ -1361,6 +1441,27 @@ export const CourseEditor: React.FC = () => {
                                 레슨 일괄 가져오기
                             </button>
                         </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {showTrimmer && previewVideoFile && createPortal(
+                <div className="fixed inset-0 z-[70000] bg-black/95 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-4xl animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white">미리보기 추출</h2>
+                                <p className="text-zinc-400 text-sm mt-1">클래스 홍보를 위한 1분 하이라이트 구간을 선택하세요.</p>
+
+                            </div>
+                            <Button variant="ghost" onClick={() => setShowTrimmer(false)} className="text-zinc-400 hover:text-white">닫기</Button>
+                        </div>
+                        <VideoTrimmer
+                            file={previewVideoFile}
+                            onSave={handlePreviewSave}
+                            onCancel={() => setShowTrimmer(false)}
+                        />
                     </div>
                 </div>,
                 document.body

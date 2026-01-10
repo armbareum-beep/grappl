@@ -6,7 +6,11 @@
       "Bash(git checkout:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(npx supabase db execute:*)",
+      "Bash(git log:*)"
     ]
   }
 }

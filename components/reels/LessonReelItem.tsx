@@ -4,7 +4,8 @@ import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow } from '../../lib/api';
-import { ConfirmModal } from '../common/ConfirmModal';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
+import Player from '@vimeo/player';
 
 interface LessonReelItemProps {
     lesson: Lesson;
@@ -15,7 +16,8 @@ interface LessonReelItemProps {
 export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive, offset }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
@@ -23,7 +25,103 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
     const [likeCount, setLikeCount] = useState(0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [watchTime, setWatchTime] = useState(0);
+    const [progress, setProgress] = useState(0);
+    const [isPlayerReady, setIsPlayerReady] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Helper to get Vimeo ID from URL or ID string
+    const getVimeoId = (url: string) => {
+        if (!url) return null;
+        const trimmed = url.trim();
+        if (/^\d+$/.test(trimmed)) return trimmed;
+        if (trimmed.includes(':')) {
+            const [id] = trimmed.split(':');
+            return /^\d+$/.test(id) ? id : null;
+        }
+        const match = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : null;
+    };
+
+    const getVimeoHash = (url: string) => {
+        if (!url) return null;
+        const trimmed = url.trim();
+        if (trimmed.includes(':')) {
+            const [, hash] = trimmed.split(':');
+            return hash;
+        }
+        const match = trimmed.match(/[?&]h=([a-z0-9]+)/i);
+        return match ? match[1] : null;
+    };
+
+    const vimeoId = getVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
+    const vimeoHash = getVimeoHash(lesson.vimeoUrl || lesson.videoUrl || '');
+
+    // Initialize Vimeo Player
+    useEffect(() => {
+        if (!containerRef.current || !vimeoId) return;
+        if (offset !== 0) return;
+
+        if (!playerRef.current) {
+            // Build Player options
+            const options: any = {
+                responsive: true,
+                background: true,
+                loop: true,
+                autoplay: isActive,
+                muted: true,
+                controls: false,
+                playsinline: true
+            };
+
+            // Calculate the best initialization method
+            if (vimeoHash) {
+                // For private videos with hash, the full URL is the most reliable method
+                // format: https://vimeo.com/{id}/{hash}
+                options.url = `https://vimeo.com/${vimeoId}/${vimeoHash}`;
+                console.log('[LessonReel] Using Private URL:', options.url);
+            } else {
+                // Public videos can use ID directly
+                options.id = Number(vimeoId);
+                console.log('[LessonReel] Using Public ID:', options.id);
+            }
+
+            console.log('[LessonReel] Initializing with:', options);
+            const player = new Player(containerRef.current, options);
+
+            player.ready().then(() => {
+                setIsPlayerReady(true);
+                playerRef.current = player;
+            }).catch(err => console.error('Vimeo player error:', err));
+
+            player.on('timeupdate', (data: { percent: number }) => {
+                setProgress(data.percent * 100);
+            });
+        }
+
+        return () => {
+            if (playerRef.current && offset !== 0) {
+                playerRef.current.destroy();
+                playerRef.current = null;
+                setIsPlayerReady(false);
+            }
+        };
+    }, [vimeoId, vimeoHash, offset]);
+
+    // Play/Pause based on isActive
+    useEffect(() => {
+        if (!playerRef.current || !isPlayerReady) return;
+        if (isActive) {
+            playerRef.current.play().catch(() => { });
+        } else {
+            playerRef.current.pause().catch(() => { });
+        }
+    }, [isActive, isPlayerReady]);
+
+    // Mute/Unmute
+    useEffect(() => {
+        if (!playerRef.current || !isPlayerReady) return;
+        playerRef.current.setMuted(muted).catch(() => { });
+    }, [muted, isPlayerReady]);
 
     useEffect(() => {
         if (user && isActive && lesson.creatorId) {
@@ -44,11 +142,11 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 60) {
-                        // 60 seconds reached, show login modal
+                    if (newTime >= 5) {
+                        // 5 seconds reached, show login modal
                         setIsLoginModalOpen(true);
-                        if (videoRef.current) {
-                            videoRef.current.pause();
+                        if (playerRef.current) {
+                            playerRef.current.pause().catch(() => { });
                         }
                         if (timerRef.current) {
                             clearInterval(timerRef.current);
@@ -84,6 +182,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
 
     const handleFollow = async () => {
         if (!user) { navigate('/login'); return; }
+        if (!lesson.creatorId) return;
         setIsFollowed(!isFollowed);
         await toggleCreatorFollow(user.id, lesson.creatorId);
     };
@@ -95,14 +194,10 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         >
             <div className="w-full h-full relative flex items-start justify-center pt-24">
                 <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
-                    <video
-                        ref={videoRef}
-                        src={lesson.videoUrl}
-                        className="w-full h-full object-cover"
-                        loop
-                        playsInline
-                        muted={muted}
-                        autoPlay={isActive}
+                    <div
+                        ref={containerRef}
+                        className="w-full h-full [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover"
+                        style={{ pointerEvents: 'none' }}
                     />
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={() => setMuted(!muted)} />
                 </div>
@@ -191,29 +286,19 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 </div>
             </div>
 
+            {/* Progress Bar / Teaser Bar */}
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div
+                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${!user ? (watchTime / 5) * 100 : progress}%` }}
+                />
+            </div>
+
             {/* Login Modal for non-logged-in users */}
-            <ConfirmModal
+            <ReelLoginModal
                 isOpen={isLoginModalOpen}
-                onClose={() => {
-                    setIsLoginModalOpen(false);
-                    navigate('/');
-                }}
-                onConfirm={() => {
-                    setIsLoginModalOpen(false);
-                    navigate('/login', {
-                        state: {
-                            from: {
-                                pathname: '/watch',
-                                search: `?tab=lesson&id=${lesson.id}`
-                            }
-                        }
-                    });
-                }}
-                title="1분 무료 체험 종료"
-                message="계속 시청하려면 무료 회원가입이 필요합니다. 그랩플레이의 모든 릴스를 무료로 시청하고, 전문가의 클래스도 체험해보세요."
-                confirmText="무료로 시작하기"
-                cancelText="나중에"
-                variant="info"
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/watch?tab=lesson&id=${lesson.id}`}
             />
         </div>
     );

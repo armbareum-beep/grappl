@@ -317,7 +317,8 @@ export const Home: React.FC = () => {
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
                             <button className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
-                              <Play className="w-5 h-5 fill-current" /> 강좌 보기
+                              <Play className="w-5 h-5 fill-current" /> 클래스 보기
+
                             </button>
                           </div>
                         </div>
@@ -371,7 +372,7 @@ export const Home: React.FC = () => {
             {/* Carousel Navigation Indicators */}
             {slides.length > 1 && (
               <div className="absolute bottom-6 md:bottom-10 left-6 md:left-10 flex items-center gap-3 z-30">
-                {slides.map((slide, idx) => (
+                {slides.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={(e) => {

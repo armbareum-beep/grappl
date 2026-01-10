@@ -106,15 +106,35 @@ const VideoItem: React.FC<{
         setIsShareModalOpen(true);
     };
 
-    // Helper to get Vimeo ID
+    // Helper to get Vimeo ID and Hash
     const getVimeoId = (url: string) => {
         if (!url) return null;
+        // Pure numeric ID
         if (/^\d+$/.test(url)) return url;
+        // ID:hash format (e.g., "1139272530:3fdc00141c")
+        if (url.includes(':')) {
+            const [id] = url.split(':');
+            if (/^\d+$/.test(id)) return id;
+        }
+        // Full URL
         const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
         return match ? match[1] : null;
     };
 
+    const getVimeoHash = (url: string) => {
+        if (!url) return null;
+        // ID:hash format
+        if (url.includes(':')) {
+            const [id, hash] = url.split(':');
+            if (/^\d+$/.test(id) && hash) return hash;
+        }
+        // Full URL with hash parameter
+        const match = url.match(/[?&]h=([a-z0-9]+)/i);
+        return match ? match[1] : null;
+    };
+
     const vimeoId = getVimeoId(video.videoUrl);
+    const vimeoHash = getVimeoHash(video.videoUrl);
 
     // Initialize Player
     useEffect(() => {
@@ -124,8 +144,8 @@ const VideoItem: React.FC<{
             playerRef.current.destroy();
         }
 
-        const player = new Player(containerRef.current, {
-            id: Number(vimeoId),
+        const rawUrl = video.videoUrl || '';
+        const options: any = {
             width: window.innerWidth,
             background: true,
             loop: true,
@@ -133,7 +153,27 @@ const VideoItem: React.FC<{
             muted: true,
             controls: false,
             dnt: true
-        });
+        };
+
+        // Handle different URL formats
+        if (rawUrl.startsWith('http')) {
+            options.url = rawUrl;
+            console.log('[SparringFeed] Using full URL:', rawUrl);
+        } else if (rawUrl.includes(':')) {
+            const [id, hash] = rawUrl.split(':');
+            options.id = Number(id);
+            options.h = hash;
+            console.log('[SparringFeed] Using ID:hash format:', { id, hash });
+        } else if (/^\d+$/.test(rawUrl)) {
+            options.id = Number(rawUrl);
+            console.log('[SparringFeed] Using pure ID:', rawUrl);
+        } else {
+            options.url = `https://vimeo.com/${rawUrl}`;
+            console.log('[SparringFeed] Using fallback URL:', options.url);
+        }
+
+        console.log('[SparringFeed] Final options:', options);
+        const player = new Player(containerRef.current, options);
 
         player.ready().then(() => {
             setIsPlayerReady(true);
@@ -397,12 +437,10 @@ export const SparringFeed: React.FC<{
     const selectedCategory = internalCategory;
 
     const [selectedUniform, setSelectedUniform] = useState('All');
-    const [selectedDifficulty, setSelectedDifficulty] = useState('All');
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | null>(null);
+    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'ownership' | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
     const uniforms = ['All', 'Gi', 'No-Gi'];
     const ownershipOptions = ['All', 'Purchased', 'Not Purchased'];
 
@@ -412,7 +450,7 @@ export const SparringFeed: React.FC<{
     }, []);
 
     const loadVideos = async () => {
-        const { data } = await getSparringVideos();
+        const { data } = await getSparringVideos(100, undefined, true);
         if (data) {
             const shuffled = [...data];
             for (let i = shuffled.length - 1; i > 0; i--) {
@@ -462,18 +500,9 @@ export const SparringFeed: React.FC<{
             video.creator?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesUniform = selectedUniform === 'All' || video.uniformType === selectedUniform;
-        // Check for difficulty if it exists (it might not on SparringVideo types yet, so cautious check)
-        const matchesDifficulty = selectedDifficulty === 'All' || video.difficulty === selectedDifficulty;
 
         // Category mapping
-        let matchesCategory = selectedCategory === 'All';
-
-        if (selectedCategory === 'Standing') matchesCategory = (video.category as string) === 'Takedown' || video.category === 'Standing';
-        if (selectedCategory === 'Guard') matchesCategory = video.category === 'Guard';
-        if (selectedCategory === 'Passing') matchesCategory = video.category === 'Passing';
-        if (selectedCategory === 'Side') matchesCategory = (video.category as string) === 'Defense' || video.category === 'Side' || (video.category as string) === 'Side Control';
-        if (selectedCategory === 'Mount') matchesCategory = (video.category as string) === 'Submission' || video.category === 'Mount';
-        if (selectedCategory === 'Back') matchesCategory = video.category === 'Back' || (video.category as string) === 'Back Control';
+        let matchesCategory = selectedCategory === 'All' || video.category === selectedCategory;
 
         let matchesOwnership = true;
         if (selectedOwnership === 'Purchased') {
@@ -482,7 +511,7 @@ export const SparringFeed: React.FC<{
             matchesOwnership = !(user?.ownedVideoIds?.includes(video.id));
         }
 
-        return matchesSearch && matchesUniform && matchesCategory && matchesDifficulty && matchesOwnership;
+        return matchesSearch && matchesUniform && matchesCategory && matchesOwnership;
     });
 
     if (viewMode === 'reels') {
@@ -567,7 +596,7 @@ export const SparringFeed: React.FC<{
                         {/* Row 1: Primary Filter (Category) */}
                         <div className="flex items-center gap-3">
                             <div className="flex overflow-x-auto gap-2 no-scrollbar py-1">
-                                {['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'].map(cat => (
+                                {['All', 'Sparring', 'Competition'].map(cat => (
                                     <button
                                         key={cat}
                                         onClick={() => setInternalCategory(cat)}
@@ -623,42 +652,6 @@ export const SparringFeed: React.FC<{
                                 )}
                             </div>
 
-                            {/* Difficulty Dropdown */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setOpenDropdown(openDropdown === 'difficulty' ? null : 'difficulty')}
-                                    className={cn(
-                                        "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
-                                        selectedDifficulty !== 'All' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
-                                    )}
-                                >
-                                    <span className="whitespace-nowrap">Level: {selectedDifficulty}</span>
-                                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'difficulty' && "rotate-180")} />
-                                </button>
-
-                                {openDropdown === 'difficulty' && (
-                                    <>
-                                        <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />
-                                        <div className="absolute top-full left-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden z-20 py-1">
-                                            {difficulties.map(option => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => {
-                                                        setSelectedDifficulty(option);
-                                                        setOpenDropdown(null);
-                                                    }}
-                                                    className={cn(
-                                                        "w-full px-4 py-2.5 text-left text-xs hover:bg-zinc-800 transition-colors",
-                                                        selectedDifficulty === option ? "text-violet-500 font-bold bg-violet-500/5" : "text-zinc-400"
-                                                    )}
-                                                >
-                                                    {option}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
 
                             {/* Ownership Dropdown */}
                             <div className="relative">
@@ -698,12 +691,11 @@ export const SparringFeed: React.FC<{
                             </div>
 
                             {/* Reset Filter Button */}
-                            {(selectedCategory !== 'All' || searchTerm || selectedDifficulty !== 'All' || selectedUniform !== 'All' || selectedOwnership !== 'All') && (
+                            {(selectedCategory !== 'All' || searchTerm || selectedUniform !== 'All' || selectedOwnership !== 'All') && (
                                 <button
                                     onClick={() => {
                                         setInternalCategory('All');
                                         isEmbedded ? setInternalSearchTerm('') : setSearchParams({});
-                                        setSelectedDifficulty('All');
                                         setSelectedUniform('All');
                                         setSelectedOwnership('All');
                                     }}

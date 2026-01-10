@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
-import { ConfirmModal } from '../common/ConfirmModal';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -33,6 +33,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     // Login modal state for non-logged-in users
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [watchTime, setWatchTime] = useState(0);
+    const [progress, setProgress] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Check interaction status on load
@@ -113,15 +114,36 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         setIsShareModalOpen(true);
     };
 
-    // Helper to get Vimeo ID
+    // Helper to get Vimeo ID and Hash
     const getVimeoId = (url: string) => {
         if (!url) return null;
+        // Pure numeric ID
         if (/^\d+$/.test(url)) return url;
+        // ID:hash format (e.g., "1139272530:3fdc00141c")
+        if (url.includes(':')) {
+            const [id] = url.split(':');
+            if (/^\d+$/.test(id)) return id;
+        }
+        // Full URL
         const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
         return match ? match[1] : null;
     };
 
+    const getVimeoHash = (url: string) => {
+        if (!url) return null;
+        // ID:hash format
+        if (url.includes(':')) {
+            const [id, hash] = url.split(':');
+            if (/^\d+$/.test(id) && hash) return hash;
+        }
+        // Full URL with hash parameter
+        const match = url.match(/[?&]h=([a-z0-9]+)/i);
+        return match ? match[1] : null;
+    };
+
     const vimeoId = getVimeoId(video.videoUrl);
+    // vimeoHash is re-calculated inside useEffect for options construction to ensure freshness
+    // const vimeoHash = getVimeoHash(video.videoUrl);
 
     // Initialize Player
     useEffect(() => {
@@ -131,20 +153,47 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         if (playerRef.current) {
             // Keep if same
         } else {
-            const player = new Player(containerRef.current, {
-                id: Number(vimeoId),
-                width: window.innerWidth,
+            const rawUrl = video.videoUrl || '';
+            const options: any = {
+                responsive: true,
                 background: true,
                 loop: true,
                 autoplay: false,
                 muted: true,
                 controls: false,
-                dnt: true
-            });
+                playsinline: true
+            };
+
+            // Handle different URL formats
+            if (rawUrl.startsWith('http')) {
+                // Full URL
+                options.url = rawUrl;
+                console.log('[SparringReel] Using full URL:', rawUrl);
+            } else if (rawUrl.includes(':')) {
+                // ID:hash format (e.g., "1139272530:3fdc00141c")
+                const [id, hash] = rawUrl.split(':');
+                // Use full URL for private videos as it is more reliable
+                options.url = `https://vimeo.com/${id}/${hash}`;
+                console.log('[SparringReel] Using Private URL:', options.url);
+            } else if (/^\d+$/.test(rawUrl)) {
+                // Pure ID
+                options.id = Number(rawUrl);
+                console.log('[SparringReel] Using pure ID:', rawUrl);
+            } else {
+                // Fallback
+                options.url = `https://vimeo.com/${rawUrl}`;
+                console.log('[SparringReel] Using fallback URL:', options.url);
+            }
+
+            console.log('[SparringReel] Final options:', options);
+            const player = new Player(containerRef.current, options);
 
             player.ready().then(() => {
                 setIsPlayerReady(true);
                 playerRef.current = player;
+                player.on('timeupdate', (data) => {
+                    setProgress(data.percent * 100);
+                });
                 if (isActive) {
                     player.play().catch(console.error);
                 }
@@ -194,8 +243,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 60) {
-                        // 60 seconds reached, show login modal and pause video
+                    if (newTime >= 5) {
+                        // 5 seconds reached, show login modal and pause video
                         setIsLoginModalOpen(true);
                         if (playerRef.current) {
                             playerRef.current.pause().catch(console.error);
@@ -236,7 +285,11 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     };
 
     const renderVideoContent = () => {
-        if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
+        const isError = video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error');
+        // Processing means we have a vimeoId but no full URL AND no thumbnail yet
+        const isProcessing = vimeoId && !isPlayerReady && !isError && !video.thumbnailUrl;
+
+        if (isError) {
             return (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
                     <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
@@ -246,6 +299,32 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     <p className="text-sm text-center text-zinc-400 mb-4 max-w-xs break-all">
                         {video.videoUrl.replace('ERROR:', '').trim()}
                     </p>
+                </div>
+            );
+        }
+
+        if (isProcessing) {
+            return (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/80 backdrop-blur-md text-white p-6 z-50">
+                    <div className="relative w-20 h-20 mb-6">
+                        <div className="absolute inset-0 rounded-full border-4 border-violet-500/20"></div>
+                        <div className="absolute inset-0 rounded-full border-4 border-t-violet-500 animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Clapperboard className="w-8 h-8 text-violet-500" />
+                        </div>
+                    </div>
+                    <h3 className="text-2xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
+                        영상을 처리 중입니다
+                    </h3>
+                    <p className="text-base text-center text-zinc-400 max-w-xs leading-relaxed">
+                        Vimeo에서 고화질 인코딩을 진행하고 있습니다.<br />
+                        잠시 후면 감상하실 수 있습니다! ✨
+                    </p>
+                    <div className="mt-8 flex gap-2">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
+                        ))}
+                    </div>
                 </div>
             );
         }
@@ -280,6 +359,11 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 loop
                 playsInline
                 onClick={toggleMute}
+                onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    const percent = (video.currentTime / video.duration) * 100;
+                    setProgress(percent);
+                }}
             />
         );
     };
@@ -392,29 +476,19 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 </div>
             </div>
 
+            {/* Progress Bar / Teaser Bar */}
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div
+                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${!user ? (watchTime / 5) * 100 : progress}%` }}
+                />
+            </div>
+
             {/* Login Modal for non-logged-in users */}
-            <ConfirmModal
+            <ReelLoginModal
                 isOpen={isLoginModalOpen}
-                onClose={() => {
-                    setIsLoginModalOpen(false);
-                    navigate('/');
-                }}
-                onConfirm={() => {
-                    setIsLoginModalOpen(false);
-                    navigate('/login', {
-                        state: {
-                            from: {
-                                pathname: '/watch',
-                                search: `?tab=sparring&id=${video.id}`
-                            }
-                        }
-                    });
-                }}
-                title="1분 무료 체험 종료"
-                message="계속 시청하려면 무료 회원가입이 필요합니다. 그랩플레이의 모든 릴스를 무료로 시청하고, 전문가의 클래스도 체험해보세요."
-                confirmText="무료로 시작하기"
-                cancelText="나중에"
-                variant="info"
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/watch?tab=sparring&id=${video.id}`}
             />
         </div>
     );

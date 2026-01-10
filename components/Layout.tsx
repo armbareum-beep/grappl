@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Globe, Home } from 'lucide-react';
+import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -24,6 +24,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Global Modals State
   const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);
   const [titleEarnedData, setTitleEarnedData] = React.useState<{ titleName: string; description?: string; rarity?: 'common' | 'rare' | 'epic' | 'legendary' } | null>(null);
+
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+  const mobileMenuRef = React.useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Close menus when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // User Menu
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+
+      // Mobile Menu
+      // Check if click is outside both the menu and the toggle button
+      if (mobileMenuOpen &&
+        mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node) &&
+        mobileMenuButtonRef.current && !mobileMenuButtonRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userMenuOpen, mobileMenuOpen]);
 
   React.useEffect(() => {
     const handleLevelUp = (event: CustomEvent) => {
@@ -225,7 +252,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 )}
 
                 {user ? (
-                  <div className="relative">
+                  <div className="relative" ref={userMenuRef}>
                     <button
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
                       className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
@@ -240,12 +267,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           내 계정
                         </div>
                         <Link
-                          to="/my-library"
+                          to="/saved"
                           className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                           onClick={() => setUserMenuOpen(false)}
                         >
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          <span>내 라이브러리</span>
+                          <Bookmark className="mr-2 h-4 w-4" />
+                          <span>저장</span>
                         </Link>
                         <Link
                           to="/settings"
@@ -279,6 +306,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Mobile menu button */}
               <div className="md:hidden flex items-center">
                 <button
+                  ref={mobileMenuButtonRef}
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className="text-muted-foreground hover:text-foreground p-2"
                 >
@@ -290,7 +318,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-5 duration-200">
+            <div
+              ref={mobileMenuRef}
+              className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-5 duration-200 relative z-[99999]"
+            >
               <div className="px-4 pt-4 pb-6 space-y-2">
                 {/* Main Navigation removed from Mobile Menu (Moved to Bottom Bar) */}
 
@@ -482,13 +513,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
       )}
 
-      {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay below modals */}
-      {!isFullScreenMode && (
-        <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[40] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
+      {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay top of everything */}
+      {!isLandingPage && (
+        <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[99999] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
           <div className="grid grid-cols-5 h-full items-center relative">
             {[
               { name: '라이브러리', href: '/library', icon: BookOpen },
-              { name: '워치', href: '/watch', icon: Clapperboard },
+              { name: '피드', href: '/watch', icon: Clapperboard },
               { name: '홈', href: '/home', icon: Home, isSpecial: true },
               { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
               { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
@@ -519,8 +550,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     item.isSpecial
                       ? "text-violet-400"
                       : isActive
-                      ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
-                      : "text-zinc-500 active:text-zinc-300"
+                        ? "text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]"
+                        : "text-zinc-500 active:text-zinc-300"
                   )}
                 >
                   <Icon className={cn(

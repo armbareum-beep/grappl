@@ -63,16 +63,6 @@ export const DrillRoutineDetail: React.FC = () => {
     };
 
     const checkUser = async () => {
-        // First check if this is the daily routine (accessible to everyone)
-        if (id) {
-            import('../lib/api').then(async ({ getDailyRoutine }) => {
-                const { data: dailyRoutine } = await getDailyRoutine();
-                if (dailyRoutine && dailyRoutine.id === id) {
-                    setOwns(true);
-                }
-            });
-        }
-
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             setUser(user);

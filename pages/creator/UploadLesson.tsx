@@ -170,7 +170,11 @@ export const UploadLesson: React.FC = () => {
 
                 if (videoState.thumbnailBlob) {
                     const { url, error: thumbError } = await uploadThumbnail(videoState.thumbnailBlob);
-                    if (!thumbError && url) {
+                    if (thumbError) {
+                        console.error('Thumbnail upload failed:', thumbError);
+                        throw new Error('썸네일 업로드에 실패했습니다. (권한 또는 네트워크 오류)');
+                    }
+                    if (url) {
                         updatePayload.thumbnailUrl = url;
                     }
                 }
@@ -190,7 +194,11 @@ export const UploadLesson: React.FC = () => {
                 let thumbnailUrl = '';
                 if (videoState.thumbnailBlob) {
                     const { url, error: thumbError } = await uploadThumbnail(videoState.thumbnailBlob);
-                    if (!thumbError && url) {
+                    if (thumbError) {
+                        console.error('Thumbnail upload failed:', thumbError);
+                        throw new Error('썸네일 업로드에 실패했습니다. (권한 또는 네트워크 오류)');
+                    }
+                    if (url) {
                         thumbnailUrl = url;
                     }
                 }
@@ -223,7 +231,7 @@ export const UploadLesson: React.FC = () => {
 
                 await queueUpload(videoState.file, 'action', {
                     videoId: finalVideoId, // This is the UUID for the video file
-                    filename: `${finalVideoId}.${videoState.file.name.split('.').pop() || 'mp4'} `,
+                    filename: `${finalVideoId}.${videoState.file.name.split('.').pop() || 'mp4'}`,
                     cuts: videoState.cuts || [],
                     title: formData.title,
                     description: formData.description,

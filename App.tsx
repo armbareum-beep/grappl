@@ -11,7 +11,7 @@ import { Pricing } from './pages/Pricing';
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { UnifiedUploadModal } from './pages/creator/UnifiedUploadModal';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
-// import { UploadSparring } from './pages/creator/UploadSparring';
+import { UploadSparring } from './pages/creator/UploadSparring';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
@@ -57,6 +57,7 @@ import { Bundles } from './pages/Bundles';
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { Contact } from './pages/Contact';
+import { SparringDetail } from './pages/SparringDetail';
 // import { GlobalSearch } from './pages/GlobalSearch';
 import UserProfile from './pages/UserProfile';
 import MyRoutineSchedule from './pages/MyRoutineSchedule';
@@ -91,7 +92,7 @@ const RootRedirect: React.FC = () => {
   }
 
   if (user) {
-    return <Navigate to="/home" replace />;
+    return <Navigate to="/browse" replace />;
   }
 
   return <LandingPage />;
@@ -224,7 +225,6 @@ const App: React.FC = () => {
       <VersionChecker />
       <ToastProvider>
         <BackgroundUploadProvider>
-          <GlobalUploadProgress />
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <OAuthRedirectHandler />
             <ScrollToTop />
@@ -259,7 +259,8 @@ const App: React.FC = () => {
                 <Route path="/creator/:id" element={<CreatorProfile />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/agora" element={<Agora />} />
-                <Route path="/my-library" element={<MyLibrary />} />
+                <Route path="/saved" element={<MyLibrary />} />
+                <Route path="/my-library" element={<Navigate to="/saved" replace />} />
                 <Route path="/watch-test" element={<div className="h-screen w-full bg-green-500 flex items-center justify-center text-white text-4xl">WATCH TEST ROUTE WORKS</div>} />
                 <Route path="/watch" element={<Watch />} />
                 <Route path="/training-routines" element={<MyRoutines />} />
@@ -274,6 +275,7 @@ const App: React.FC = () => {
                 <Route path="/my-schedule" element={<MyRoutineSchedule />} />
                 <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                 <Route path="/completed-routines" element={<AllCompletedRoutines />} />
+                <Route path="/sparring/:id" element={<SparringDetail />} />
                 <Route path="/sparring" element={<Navigate to={`/watch${window.location.search}`} replace />} />
                 <Route path="/ai-coach" element={
                   <ProtectedRoute>
@@ -282,6 +284,7 @@ const App: React.FC = () => {
                 } />
                 <Route path="/skill-tree" element={<TechniqueSkillTree />} />
                 <Route path="/creator/sparring/new" element={<UnifiedUploadModal initialContentType="sparring" />} />
+                <Route path="/creator/sparring/:id/edit" element={<UploadSparring />} />
 
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                 <Route path="/lessons/:id" element={<LessonDetail />} />
@@ -372,6 +375,7 @@ const App: React.FC = () => {
               </Routes>
             </Layout>
           </Router>
+          <GlobalUploadProgress />
         </BackgroundUploadProvider>
       </ToastProvider>
     </ErrorBoundary>

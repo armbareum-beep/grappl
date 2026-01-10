@@ -8,6 +8,14 @@ const VIMEO_TOKEN = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACC
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+function checkEnv() {
+    const missing = [];
+    if (!SUPABASE_URL) missing.push('SUPABASE_URL');
+    if (!SUPABASE_KEY) missing.push('SUPABASE_KEY');
+    if (!VIMEO_TOKEN) missing.push('VIMEO_ACCESS_TOKEN');
+    return missing;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -22,6 +30,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const missingEnvs = checkEnv();
+    if (missingEnvs.length > 0) {
+        return res.status(500).json({ error: `Missing environment variables: ${missingEnvs.join(', ')}` });
     }
 
     try {
@@ -91,20 +104,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'complete_upload') {
             if (!vimeoId) throw new Error('vimeoId is required for completion');
 
+            // Fetch video info from Vimeo to get the embed hash
+            let vimeoUrlWithHash = vimeoId;
+            try {
+                const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+                if (videoInfoRes.ok) {
+                    const videoInfo = await videoInfoRes.json();
+                    // Extract hash from player_embed_url (e.g., "https://player.vimeo.com/video/123456?h=abc123")
+                    const embedUrl = videoInfo.player_embed_url;
+                    if (embedUrl) {
+                        const hashMatch = embedUrl.match(/[?&]h=([a-z0-9]+)/i);
+                        if (hashMatch) {
+                            vimeoUrlWithHash = `${vimeoId}:${hashMatch[1]}`;
+                            console.log('[Vercel] Found hash, storing:', vimeoUrlWithHash);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[Vercel] Could not fetch video hash, using ID only:', err);
+            }
+
             const finalThumbnailUrl = thumbnailUrl || `https://vumbnail.com/${vimeoId}.jpg`;
 
             if (contentType === 'lesson') {
-                await supabase.from('lessons').update({ vimeo_url: vimeoId, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
+                await supabase.from('lessons').update({ vimeo_url: vimeoUrlWithHash, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
             } else if (contentType === 'sparring') {
-                await supabase.from('sparring_videos').update({ video_url: vimeoId, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
+                await supabase.from('sparring_videos').update({ video_url: vimeoUrlWithHash, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
             } else if (contentType === 'drill') {
                 const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                const updateData: any = { [columnToUpdate]: vimeoId };
+                const updateData: any = { [columnToUpdate]: vimeoUrlWithHash };
                 if (videoType === 'action') updateData.thumbnail_url = finalThumbnailUrl;
                 await supabase.from('drills').update(updateData).eq('id', contentId);
             }
 
-            console.log('[Vercel] DB Updated:', { vimeoId, contentId });
+            console.log('[Vercel] DB Updated:', { vimeoUrlWithHash, contentId });
             return res.status(200).json({ success: true });
         }
 

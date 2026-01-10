@@ -61,37 +61,9 @@ export const VersionChecker: React.FC = () => {
 
         console.log(`Updating to version: ${latestVersion}...`);
 
-        // 1. Set the new version in localStorage (as a backup/legacy)
-        localStorage.setItem('app_version', latestVersion);
-        localStorage.setItem('version_reload_timestamp', Date.now().toString());
-
-        // 2. Unregister Service Workers (to ensure clean slate)
-        if ('serviceWorker' in navigator) {
-            try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const registration of registrations) {
-                    await registration.unregister();
-                }
-            } catch (err) {
-                console.error('Error unregistering service worker:', err);
-            }
-        }
-
-        // 3. Clear Cache Storage
-        if ('caches' in window) {
-            try {
-                const keys = await caches.keys();
-                await Promise.all(keys.map(key => caches.delete(key)));
-            } catch (err) {
-                console.error('Error clearing cache:', err);
-            }
-        }
-
-        // 4. Final Reload - Add cache-busting query parameter to force browser to re-fetch index.html
-        // This ensures the browser GET request bypasses internal disk cache
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('v', latestVersion);
-        window.location.href = currentUrl.toString();
+        // Standard reload is sufficient for most updates.
+        // The previous aggressive cache clearing was causing loops.
+        window.location.reload();
     };
 
     return (

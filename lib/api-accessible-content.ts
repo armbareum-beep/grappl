@@ -220,6 +220,11 @@ export async function getAccessibleLessons(userId: string | null, limit: number 
         return true;
       }
 
+      // 3. 내 콘텐츠: 내가 제작한 레슨은 언제나 접근 가능
+      if (userId && (lesson.creator_id === userId || lesson.course?.creator_id === userId)) {
+        return true;
+      }
+
       // 4. 구매한 강좌: 구매자만 접근 가능
       if (courseId && userInfo.purchasedItemIds.includes(courseId)) {
         return true;
@@ -279,7 +284,7 @@ export async function getAccessibleSparring(userId: string | null, limit: number
 
     // 권한에 따라 스파링 필터링
     const accessibleVideos = videos.filter(v => {
-      return canAccessContentSync({
+      return v.creator_id === userId || canAccessContentSync({
         contentId: v.id,
         isDailyFreeContent: false,
         isSubscriber: userInfo.isSubscriber,

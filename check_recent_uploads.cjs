@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -39,6 +39,26 @@ const supabase = createClient(supabaseUrl, supabaseKey);
             console.log('Desc Video URL:', drill.description_video_url || '❌ NULL');
             console.log('Thumbnail:', drill.thumbnail_url || '❌ NULL');
             console.log('Processing:', drill.is_processing ? '⏳ YES' : '✅ NO');
+        });
+    }
+
+    // Get latest routines
+    const { data: routines, error: routineError } = await supabase
+        .from('routines')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    if (routineError) {
+        console.error('Error fetching routines:', routineError);
+    } else {
+        console.log('\n=== Latest 10 Routines ===');
+        routines.forEach(routine => {
+            console.log('\n---');
+            console.log('ID:', routine.id);
+            console.log('Title:', routine.title);
+            console.log('Thumbnail:', routine.thumbnail_url || '❌ NULL');
+            console.log('Created:', new Date(routine.created_at).toLocaleString());
         });
     }
 

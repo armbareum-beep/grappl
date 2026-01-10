@@ -111,7 +111,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[10000] flex flex-col md:items-center md:justify-center">
+        <div className="fixed inset-0 z-[100000] flex flex-col md:items-center md:justify-center">
             {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}

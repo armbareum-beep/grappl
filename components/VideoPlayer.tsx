@@ -32,8 +32,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
-    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [hasReachedPreviewLimit, setHasReachedPreviewLimit] = useState(false);
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+    const onProgressRef = useRef(onProgress);
+    const maxPreviewDurationRef = useRef(maxPreviewDuration);
+    const isPreviewModeRef = useRef(isPreviewMode);
+    const hasReachedRef = useRef(false); // To track limit inside event listener
+
+    useEffect(() => {
+        onProgressRef.current = onProgress;
+        maxPreviewDurationRef.current = maxPreviewDuration;
+        isPreviewModeRef.current = isPreviewMode;
+    }, [onProgress, maxPreviewDuration, isPreviewMode]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -49,70 +60,122 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 title: false,
                 byline: false,
                 portrait: false,
-                controls: showControls, // Use showControls prop
-                color: 'ffffff', // White controls
-                dnt: true,
-                badge: false, // Hide Vimeo logo
+                controls: showControls,
+                color: 'ffffff',
+                badge: false,
             };
 
-            // Ensure vimeoId is a string for checking
             const vimeoIdStr = String(vimeoId || '').trim();
+            console.log('[VideoPlayer] Received vimeoId:', vimeoIdStr);
+
+            if (!vimeoIdStr) {
+                console.warn('[VideoPlayer] Empty vimeoId provided');
+                return;
+            }
 
             if (vimeoIdStr.startsWith('http')) {
                 options.url = vimeoIdStr;
-
-                // Extra safety: extract hash if present for some Vimeo API edge cases
                 const hashMatch = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
-                if (hashMatch) {
-                    options.h = hashMatch[1];
-                }
+                if (hashMatch) options.h = hashMatch[1];
             } else if (/^\d+$/.test(vimeoIdStr)) {
                 options.id = Number(vimeoIdStr);
-            } else if (vimeoIdStr.includes('/')) {
-                // Handle complex IDs like "12345/abcde"
-                const [id, h] = vimeoIdStr.split('/');
-                options.id = Number(id);
-                options.h = h;
+            } else if (vimeoIdStr.includes('/') || vimeoIdStr.includes(':')) {
+                const separator = vimeoIdStr.includes(':') ? ':' : '/';
+                const [id, h] = vimeoIdStr.split(separator);
+                if (/^\d+$/.test(id) && h) {
+                    const iframe = document.createElement('iframe');
+                    const params = new URLSearchParams();
+                    params.append('h', h);
+                    params.append('title', '0');
+                    params.append('byline', '0');
+                    params.append('portrait', '0');
+                    params.append('badge', '0');
+                    params.append('app_id', '122963');
+                    if (!showControls) params.append('controls', '0');
+
+                    iframe.src = `https://player.vimeo.com/video/${id}?${params.toString()}`;
+                    iframe.width = '100%';
+                    iframe.height = '100%';
+                    iframe.frameBorder = '0';
+                    iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                    // Try to fix "refused to connect" by enforcing origin referrer
+                    iframe.referrerPolicy = 'origin';
+
+                    if (containerRef.current) {
+                        containerRef.current.innerHTML = '';
+                        containerRef.current.appendChild(iframe);
+                        player = new Player(iframe);
+                    }
+                } else if (/^\d+$/.test(id)) {
+                    options.id = Number(id);
+                    delete options.url;
+                    player = new Player(containerRef.current, options);
+                } else {
+                    options.url = `https://vimeo.com/${vimeoIdStr}`;
+                    player = new Player(containerRef.current, options);
+                }
             } else {
-                options.url = vimeoIdStr; // Fallback
+                // Fallback
+                if (/^\d+$/.test(vimeoIdStr)) {
+                    options.id = Number(vimeoIdStr);
+                } else {
+                    options.url = `https://vimeo.com/${vimeoIdStr}`;
+                }
+                player = new Player(containerRef.current, options);
             }
 
-            player = new Player(containerRef.current, options);
+            // Remove legacy player assignment: player = new Player(...) -> handled above
             playerRef.current = player;
 
-            // Set initial time if provided
-            if (startTime && startTime > 0) {
-                player.setCurrentTime(startTime).catch(err => {
-                    console.warn('Failed to set initial time:', err);
+            if (player) {
+                if (startTime && startTime > 0) {
+                    player.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
+                }
+
+                player.on('ended', () => {
+                    if (onEnded) onEnded();
+                });
+
+                const checkTimeLimit = (seconds: number) => {
+                    const max = maxPreviewDurationRef.current;
+                    const isPreview = isPreviewModeRef.current;
+
+                    if (isPreview && max) {
+                        if (seconds >= max) {
+                            // Always force pause if over limit
+                            player?.pause().catch(console.warn);
+
+                            if (!hasReachedRef.current) {
+                                hasReachedRef.current = true;
+                                setHasReachedPreviewLimit(true);
+                                setShowUpgradeOverlay(true);
+                                if (onPreviewLimitReached) onPreviewLimitReached();
+                                if (onPreviewEnded) onPreviewEnded();
+                            }
+                        } else {
+                            // Allow reset if user seeks back to allowed range
+                            hasReachedRef.current = false;
+                        }
+                    }
+                };
+
+                player.on('seeked', (data) => {
+                    checkTimeLimit(data.seconds);
+                });
+
+                player.on('timeupdate', (data) => {
+                    const seconds = data.seconds;
+                    if (onProgressRef.current) onProgressRef.current(seconds);
+                    checkTimeLimit(seconds);
+
+                    const max = maxPreviewDurationRef.current;
+                    if (isPreviewModeRef.current && max) {
+                        const remaining = max - seconds;
+                        setTimeRemaining(Math.max(0, Math.ceil(remaining)));
+                    }
                 });
             }
 
-            // Add event listeners
-            player.on('ended', () => {
-                if (onEnded) onEnded();
-            });
-
-            player.on('timeupdate', (data) => {
-                const seconds = data.seconds;
-                if (onProgress) onProgress(seconds);
-
-                // Handle preview limit
-                if (isPreviewMode && maxPreviewDuration) {
-                    const remaining = maxPreviewDuration - seconds;
-                    setTimeRemaining(Math.max(0, Math.ceil(remaining)));
-
-                    // Pause at preview limit
-                    if (seconds >= maxPreviewDuration && !hasReachedPreviewLimit) {
-                        setHasReachedPreviewLimit(true);
-                        if (player) {
-                            player.pause().catch(err => console.warn('Failed to pause:', err));
-                        }
-                        setShowUpgradeOverlay(true);
-                        if (onPreviewLimitReached) onPreviewLimitReached();
-                        if (onPreviewEnded) onPreviewEnded();
-                    }
-                }
-            });
         } catch (err) {
             console.error('Failed to initialize Vimeo player:', err);
         }
@@ -121,12 +184,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (player) {
                 try {
                     player.destroy();
-                } catch (err) {
-                    // Silently fail if destruction fails (often happens with bad video IDs)
-                }
+                } catch (err) { }
             }
         };
-    }, [vimeoId, onEnded, onProgress]); // startTime is only used on init
+        // Re-run only if video ID changes. Other props are handled via refs.
+    }, [vimeoId]);
+
+    // Polling fallback to ensure preview limit is enforced
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const player = playerRef.current;
+            if (!player) return;
+
+            player.getCurrentTime().then((seconds) => {
+                if (typeof seconds === 'number') {
+                    if (onProgressRef.current) onProgressRef.current(seconds);
+
+                    const max = maxPreviewDurationRef.current;
+                    const isPreview = isPreviewModeRef.current;
+
+                    if (isPreview && max) {
+                        if (seconds >= max) {
+                            player.pause().catch(console.warn);
+
+                            if (!hasReachedRef.current) {
+                                hasReachedRef.current = true;
+                                setHasReachedPreviewLimit(true);
+                                setShowUpgradeOverlay(true);
+                                if (onPreviewLimitReached) onPreviewLimitReached();
+                                if (onPreviewEnded) onPreviewEnded();
+                            }
+                        } else {
+                            hasReachedRef.current = false;
+                        }
+                    }
+                }
+            }).catch(() => { });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
 
     // Handle external pause control
     useEffect(() => {
