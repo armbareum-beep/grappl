@@ -1,15 +1,20 @@
--- Function to notify subscribers when a new routine is created
+-- Function to notify subscribers when a new routine is created (paid only)
 CREATE OR REPLACE FUNCTION notify_subscribers_on_new_routine()
 RETURNS TRIGGER AS $$
 DECLARE
     subscriber_record RECORD;
     creator_name TEXT;
 BEGIN
+    -- Only send notification if the routine is paid (price > 0)
+    IF NEW.price <= 0 THEN
+        RETURN NEW;
+    END IF;
+
     -- Get creator name
     SELECT name INTO creator_name FROM public.creators WHERE id = NEW.creator_id;
 
     -- Loop through all subscribers of the creator
-    FOR subscriber_record IN 
+    FOR subscriber_record IN
         SELECT user_id FROM public.creator_subscriptions WHERE creator_id = NEW.creator_id
     LOOP
         -- Insert notification
@@ -23,7 +28,7 @@ BEGIN
             false
         );
     END LOOP;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -34,18 +39,23 @@ CREATE TRIGGER on_new_routine_notify
 AFTER INSERT ON public.routines
 FOR EACH ROW EXECUTE FUNCTION notify_subscribers_on_new_routine();
 
--- Function to notify subscribers when a new sparring video is uploaded
+-- Function to notify subscribers when a new sparring video is uploaded (paid only)
 CREATE OR REPLACE FUNCTION notify_subscribers_on_new_sparring()
 RETURNS TRIGGER AS $$
 DECLARE
     subscriber_record RECORD;
     creator_name TEXT;
 BEGIN
+    -- Only send notification if the sparring video is paid (price > 0)
+    IF NEW.price <= 0 THEN
+        RETURN NEW;
+    END IF;
+
     -- Get creator name
     SELECT name INTO creator_name FROM public.creators WHERE id = NEW.creator_id;
 
     -- Loop through all subscribers of the creator
-    FOR subscriber_record IN 
+    FOR subscriber_record IN
         SELECT user_id FROM public.creator_subscriptions WHERE creator_id = NEW.creator_id
     LOOP
         -- Insert notification
@@ -59,7 +69,7 @@ BEGIN
             false
         );
     END LOOP;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

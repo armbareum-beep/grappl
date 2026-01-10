@@ -57,11 +57,16 @@ DECLARE
     subscriber_record RECORD;
     creator_name TEXT;
 BEGIN
+    -- Only send notification if the course is paid (price > 0)
+    IF NEW.price <= 0 THEN
+        RETURN NEW;
+    END IF;
+
     -- Get creator name
     SELECT name INTO creator_name FROM public.creators WHERE id = NEW.creator_id;
 
     -- Loop through all subscribers of the creator
-    FOR subscriber_record IN 
+    FOR subscriber_record IN
         SELECT user_id FROM public.creator_subscriptions WHERE creator_id = NEW.creator_id
     LOOP
         -- Insert notification
@@ -75,7 +80,7 @@ BEGIN
             false
         );
     END LOOP;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
