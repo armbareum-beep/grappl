@@ -72,12 +72,20 @@ export async function processAndUploadVideo(params: {
             })
         });
 
-        if (!initResponse.ok) {
-            const err = await initResponse.json();
-            throw new Error(err.error || 'Failed to create upload link');
+        const initText = await initResponse.text();
+        let initResult;
+        try {
+            initResult = JSON.parse(initText);
+        } catch (e) {
+            console.error('[Process] Server returned non-JSON:', initText);
+            throw new Error(`서버 응답이 올바르지 않습니다 (Status: ${initResponse.status}). API 엔드포인트가 활성화되어 있는지 확인해주세요.`);
         }
 
-        const { uploadLink, vimeoId } = await initResponse.json();
+        if (!initResponse.ok) {
+            throw new Error(initResult.error || 'Vimeo 업로드 링크 생성 실패');
+        }
+
+        const { uploadLink, vimeoId } = initResult;
         console.log('[Process] Upload link received:', vimeoId);
 
         // 3. 브라우저에서 직접 Vimeo 업로드 (TUS - 대용량 전송)
@@ -114,15 +122,38 @@ export async function processAndUploadVideo(params: {
             })
         });
 
+        const completeText = await completeResponse.text();
+        let completeResult;
+        try {
+            completeResult = JSON.parse(completeText);
+        } catch (e) {
+            // Ignore parse error if ok, but strictly we expect JSON {success: true}
+        }
+
         if (!completeResponse.ok) {
-            const err = await completeResponse.json();
-            throw new Error(err.error || 'Failed to update database');
+            throw new Error(completeResult?.error || '데이터베이스 업데이트 실패');
+        }
+
+        // 5. 임시 파일 정리: Supabase Storage에서 삭제
+        console.log('[Process] Supabase 임시 파일 정리 중...');
+        try {
+            const { error: deleteError } = await supabase.storage
+                .from(bucketName)
+                .remove([filePath]);
+
+            if (deleteError) {
+                console.warn('[Process] 임시 파일 삭제 실패 (무시됨):', deleteError.message);
+            } else {
+                console.log('[Process] 임시 파일이 성공적으로 삭제되었습니다');
+            }
+        } catch (cleanupErr) {
+            console.warn('[Process] 정리 중 오류 발생 (무시됨):', cleanupErr);
         }
 
         if (onProgress) onProgress('upload', 100);
 
         const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
-        console.log('[Process] All complete!', { vimeoId });
+        console.log('[Process] 모든 처리 완료!', { vimeoId });
 
         return {
             vimeoId,
