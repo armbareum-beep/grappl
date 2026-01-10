@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse } from '../../lib/api';
 import { Course, Drill, Lesson, DrillRoutine, SparringVideo } from '../../types';
@@ -359,57 +358,7 @@ export const CreatorDashboard: React.FC = () => {
 
         fetchData();
 
-        // 실시간 구독 설정 - DB 변경 감지 (user가 있을 때만)
-        const channels: any[] = [];
-
-        if (user?.id) {
-            const drillsChannel = supabase
-                .channel('drills-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'drills', filter: `creator_id=eq.${user.id}` },
-                    () => {
-                        console.log('[Realtime] Drills 변경 감지, 새로고침 중...');
-                        getDrills(user.id).then(res => {
-                            const data = Array.isArray(res) ? res : (res as any)?.data;
-                            if (data) setDrills(data);
-                        }).catch(err => console.error('[Realtime] Drills error:', err));
-                    }
-                )
-                .subscribe();
-
-            const lessonsChannel = supabase
-                .channel('lessons-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'lessons', filter: `creator_id=eq.${user.id}` },
-                    () => {
-                        console.log('[Realtime] Lessons 변경 감지, 새로고침 중...');
-                        getAllCreatorLessons(user.id).then(res => {
-                            setLessons(res || []);
-                        }).catch(err => console.error('[Realtime] Lessons error:', err));
-                    }
-                )
-                .subscribe();
-
-            const sparringChannel = supabase
-                .channel('sparring-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'sparring_videos', filter: `creator_id=eq.${user.id}` },
-                    () => {
-                        console.log('[Realtime] Sparring 변경 감지, 새로고침 중...');
-                        getSparringVideos(100, user.id).then(res => {
-                            if (res.data) setSparringVideos(res.data);
-                        }).catch(err => console.error('[Realtime] Sparring error:', err));
-                    }
-                )
-                .subscribe();
-
-            channels.push(drillsChannel, lessonsChannel, sparringChannel);
-        }
-
-        // Fallback 폴링 (Realtime 연결 실패 시 대비)
+        // 폴링: 처리중인 항목들의 상태 업데이트 (1초 간격으로 빠르게 감지)
         const intervalId = setInterval(() => {
             if (user) {
                 // Check if there are any processing drills (vimeoUrl empty or error)
@@ -439,11 +388,10 @@ export const CreatorDashboard: React.FC = () => {
                     }).catch(err => console.error('[Polling] Sparring error:', err));
                 }
             }
-        }, 3000); // 3초 간격 - Realtime 실패 시 대비
+        }, 1000); // 1초 간격 - 빠른 상태 업데이트
 
         return () => {
             clearInterval(intervalId);
-            channels.forEach(ch => ch.unsubscribe());
         };
 
     }, [user?.id]); // FIX: Only re-run if user ID changes, preventing infinite loops on object reference updates
