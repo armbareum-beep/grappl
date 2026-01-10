@@ -6,7 +6,12 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const ffmpegPath = require('ffmpeg-static');
-require('dotenv').config({ path: '../.env' }); // Load from root .env
+// Load environment variables - Priority: .env.local > .env.production > .env
+// dotenv does not overwrite variables already set in process.env, 
+// so the first one to set a variable "wins".
+require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
+require('dotenv').config({ path: path.join(__dirname, '../.env.production') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -75,6 +80,39 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const app = express();
+
+// --- FILE LOGGER SETUP ---
+const DEBUG_LOG_PATH = path.join(__dirname, 'server_debug.log');
+function logToFile(message) {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${message}\n`;
+    try { fs.appendFileSync(DEBUG_LOG_PATH, logLine); } catch (e) { }
+}
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+function serializeArg(a) {
+    if (a instanceof Error) {
+        return `${a.name}: ${a.message}\n${a.stack}`;
+    }
+    return typeof a === 'object' ? JSON.stringify(a) : a;
+}
+
+console.log = function (...args) {
+    originalConsoleLog.apply(console, args);
+    logToFile(`INFO: ${args.map(serializeArg).join(' ')}`);
+};
+console.error = function (...args) {
+    originalConsoleError.apply(console, args);
+    logToFile(`ERROR: ${args.map(serializeArg).join(' ')}`);
+};
+
+console.log('[DEBUG] --- Backend Startup Check ---');
+console.log('[DEBUG] Current Working Directory:', process.cwd());
+console.log('[DEBUG] Supabase URL:', supabaseUrl);
+console.log('[DEBUG] Loading Priority: .env.local -> .env.production -> .env');
+// -------------------------
+
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3003;
 
 // Middleware (MUST be before routes)
@@ -92,6 +130,20 @@ const jobStatus = {};
 // Basic Health Check (Root)
 app.get('/', (req, res) => {
     res.send('Grappl Backend is Running!');
+});
+
+app.get('/debug-logs', (req, res) => {
+    try {
+        if (fs.existsSync(DEBUG_LOG_PATH)) {
+            const logs = fs.readFileSync(DEBUG_LOG_PATH, 'utf8');
+            res.set('Content-Type', 'text/plain');
+            res.send(logs);
+        } else {
+            res.send('No logs found.');
+        }
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 });
 
 // Verify Deployment Endpoint
@@ -311,33 +363,50 @@ app.post('/api/vimeo/upload-link', async (req, res) => {
     const vimeoSecret = process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET;
     const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
 
+    console.log('[Vimeo] Token sources:', {
+        VIMEO_ACCESS_TOKEN: !!process.env.VIMEO_ACCESS_TOKEN,
+        VITE_VIMEO_ACCESS_TOKEN: !!process.env.VITE_VIMEO_ACCESS_TOKEN,
+        selected: vimeoToken?.substring(0, 8) + '...'
+    });
+
     if (!vimeoToken) {
         return res.status(500).json({ error: 'Vimeo token not configured' });
     }
 
     try {
+        console.log('[Vimeo] Creating upload link for:', { name, fileSize });
+        console.log('[Vimeo] Token present:', !!vimeoToken, 'Length:', vimeoToken?.length);
+
         const response = await fetch('https://api.vimeo.com/me/videos', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${vimeoToken}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.vimeo.*+json;version=3.4'
             },
             body: JSON.stringify({
                 upload: {
                     approach: 'tus',
-                    size: fileSize
+                    size: fileSize > 0 ? fileSize : undefined
                 },
                 name,
-                description: description || 'Edited with Grappl Editor',
+                description: description || 'Uploaded from Grapplay',
                 privacy: {
-                    view: 'unlisted',
+                    view: 'anybody',
                     embed: 'public'
                 }
             })
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Vimeo API error');
+        console.log('[Vimeo] Response status:', response.status);
+        console.log('[Vimeo] Response data:', JSON.stringify(data, null, 2));
+
+        if (!response.ok) {
+            const errorMsg = data.error || data.error_description || data.developer_message || 'Vimeo API error';
+            console.error('[Vimeo] API Error:', errorMsg, 'Full response:', data);
+            throw new Error(errorMsg);
+        }
 
         res.json(data);
     } catch (error) {
@@ -484,20 +553,46 @@ app.post('/process', async (req, res) => {
                 console.log('[DEBUG] bucketName:', bucketName, 'fileKey:', fileKey);
                 logToDB(processId, 'info', `Downloading from ${bucketName}`, { fileKey });
 
-                // Use public URL since bucket is now public
-                console.log('[DEBUG] Getting public URL...');
-                const { data: publicUrlData } = supabase.storage
-                    .from(bucketName)
-                    .getPublicUrl(fileKey);
+                // Use authenticated download via Service Role for maximum reliability
+                console.log(`[DEBUG] Downloading ${fileKey} from bucket ${bucketName}...`);
+                logToDB(processId, 'info', `Source: ${bucketName}/${fileKey}`);
 
-                console.log('[DEBUG] publicUrlData:', publicUrlData);
-                if (!publicUrlData || !publicUrlData.publicUrl) {
-                    throw new Error(`Failed to get public URL for ${fileKey}`);
+                const maxDownloadRetries = 3;
+                let downloadSuccess = false;
+                let lastDownloadError = null;
+
+                for (let dAttempt = 1; dAttempt <= maxDownloadRetries && !downloadSuccess; dAttempt++) {
+                    try {
+                        console.log(`[DEBUG] Download attempt ${dAttempt}/${maxDownloadRetries}`);
+                        const { data, error } = await supabase.storage
+                            .from(bucketName)
+                            .download(fileKey);
+
+                        if (error) throw error;
+                        if (!data) throw new Error('No data received from Supabase');
+
+                        // In Node.js environment, the data is typically a Blob or Buffer
+                        const buffer = Buffer.from(await data.arrayBuffer());
+                        fs.writeFileSync(localInputPath, buffer);
+
+                        downloadSuccess = true;
+                    } catch (dErr) {
+                        console.warn(`[DEBUG] Download attempt ${dAttempt} failed:`);
+                        // Log full error object for debugging
+                        console.warn(dErr);
+
+                        lastDownloadError = dErr;
+                        if (dAttempt < maxDownloadRetries) {
+                            await new Promise(r => setTimeout(r, 2000 * dAttempt));
+                        }
+                    }
                 }
 
-                console.log('[DEBUG] Using public URL:', publicUrlData.publicUrl);
-                logToDB(processId, 'info', 'Using public URL', { url: publicUrlData.publicUrl });
-                await downloadFile(publicUrlData.publicUrl, localInputPath);
+                if (!downloadSuccess) {
+                    const errorDetails = lastDownloadError ? JSON.stringify(lastDownloadError, Object.getOwnPropertyNames(lastDownloadError)) : 'Unknown Error';
+                    throw new Error(`Failed to download from Supabase after ${maxDownloadRetries} attempts. Details: ${errorDetails}`);
+                }
+
                 console.log('[DEBUG] Download Complete');
                 logToDB(processId, 'info', 'Download Complete');
             } else {
@@ -674,17 +769,50 @@ app.post('/process', async (req, res) => {
                     logToDB(processId, 'info', 'Vimeo Upload Success', { uri, attempt });
 
                     const vimeoId = uri.split('/').pop();
-                    const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
+
+                    console.log(`[Vimeo] Immediate DB update SKIPPED for consistency. Waiting for validation or completion.`);
+                    // We DO NOT update DB here anymore to prevent "premature completion" UI on frontend.
+                    // The "Processing" state will remain until we confirm everything is ready.
+
+                    // Then wait for encoding (mainly for thumbnail)
+                    console.log(`[Vimeo] Waiting for encoding completion for video ${vimeoId}...`);
+                    const { waitForVimeoEncoding } = require('./vimeo-status-checker');
+                    const encodingResult = await waitForVimeoEncoding(vimeoId, 15); // Wait up to 15 min
+
+                    if (!encodingResult.success) {
+                        console.warn(`[Vimeo] Encoding timeout or error for ${vimeoId}, continuing with available data`);
+                    }
+
+                    // Use the thumbnail from Vimeo if available, else fallback to vumbnail
+                    const finalThumbnail = encodingResult.thumbnail || `https://vumbnail.com/${vimeoId}.jpg`;
 
                     // Update the correct table based on content type
                     if (isLesson) {
+                        // Check if existing thumbnail is custom
+                        const { data: currentLesson } = await supabase.from('lessons').select('thumbnail_url').eq('id', lessonId).single();
+
+                        const updateData = { vimeo_url: vimeoId };
+
+                        // Only update thumbnail if it's empty, placeholder, or generic vumbnail
+                        const isPlaceholder = !currentLesson?.thumbnail_url ||
+                            currentLesson.thumbnail_url.includes('placehold.co') ||
+                            currentLesson.thumbnail_url.includes('generated') ||
+                            currentLesson.thumbnail_url.includes('vumbnail.com');
+
+                        if (isPlaceholder) {
+                            updateData.thumbnail_url = finalThumbnail;
+                        }
+
                         // Update lessons table
-                        const { error: updateError } = await supabase.from('lessons')
-                            .update({
-                                vimeo_url: vimeoId,
-                                thumbnail_url: thumbnailUrl
-                            })
-                            .eq('id', lessonId);
+                        console.log(`[DEBUG] Updating lessons table for ID: ${lessonId} with`, updateData);
+                        const { data: updatedData, error: updateError } = await supabase.from('lessons')
+                            .update(updateData)
+                            .eq('id', lessonId)
+                            .select();
+
+                        if (updatedData && updatedData.length === 0) {
+                            console.error(`[DEBUG] CRITICAL: Lesson update returned 0 rows! ID ${lessonId} might be missing or RLS blocked.`);
+                        }
 
                         if (updateError) {
                             console.error('Supabase Update Error:', updateError);
@@ -698,13 +826,34 @@ app.post('/process', async (req, res) => {
                             });
                         }
                     } else if (isSparring) {
+                        // Check if existing thumbnail is custom
+                        const { data: currentSparring } = await supabase.from('sparring_videos').select('thumbnail_url').eq('id', sparringId).single();
+
+                        const updateData = {
+                            video_url: vimeoId,
+                            is_published: true
+                        };
+
+                        // Only update thumbnail if it's empty, placeholder, or generic vumbnail
+                        const isPlaceholder = !currentSparring?.thumbnail_url ||
+                            currentSparring.thumbnail_url.includes('placehold.co') ||
+                            currentSparring.thumbnail_url.includes('generated') ||
+                            currentSparring.thumbnail_url.includes('vumbnail.com');
+
+                        if (isPlaceholder) {
+                            updateData.thumbnail_url = finalThumbnail;
+                        }
+
                         // Update sparring_videos table
-                        const { error: updateError } = await supabase.from('sparring_videos')
-                            .update({
-                                video_url: vimeoId, // Note: using video_url specifically for sparring
-                                thumbnail_url: thumbnailUrl
-                            })
-                            .eq('id', sparringId);
+                        console.log(`[DEBUG] Updating sparring table for ID: ${sparringId} with`, updateData);
+                        const { data: updatedData, error: updateError } = await supabase.from('sparring_videos')
+                            .update(updateData)
+                            .eq('id', sparringId)
+                            .select();
+
+                        if (updatedData && updatedData.length === 0) {
+                            console.error(`[DEBUG] CRITICAL: Sparring update returned 0 rows! ID ${sparringId} might be missing or RLS blocked.`);
+                        }
 
                         if (updateError) {
                             console.error('Supabase Update Error:', updateError);
@@ -718,14 +867,33 @@ app.post('/process', async (req, res) => {
                             });
                         }
                     } else {
+                        // Check if existing thumbnail is custom
+                        const { data: currentDrill } = await supabase.from('drills').select('thumbnail_url').eq('id', drillId).single();
+
+                        // Only update thumbnail for 'action' type video, and only if it's a placeholder
+                        const isAction = videoType === 'action';
+                        const isPlaceholder = !currentDrill?.thumbnail_url ||
+                            currentDrill.thumbnail_url.includes('placehold.co') ||
+                            currentDrill.thumbnail_url.includes('generated') ||
+                            currentDrill.thumbnail_url.includes('vumbnail.com');
+
+                        const columnToUpdate = isAction ? 'vimeo_url' : 'description_video_url';
+                        const updateData = { [columnToUpdate]: vimeoId };
+
+                        if (isAction && isPlaceholder) {
+                            updateData.thumbnail_url = finalThumbnail;
+                        }
+
                         // Update drills table
-                        const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                        const { error: updateError } = await supabase.from('drills')
-                            .update({
-                                [columnToUpdate]: vimeoId,
-                                ...(videoType === 'action' ? { thumbnail_url: thumbnailUrl } : {})
-                            })
-                            .eq('id', drillId);
+                        console.log(`[DEBUG] Updating drills table for ID: ${drillId} with`, updateData);
+                        const { data: updatedData, error: updateError } = await supabase.from('drills')
+                            .update(updateData)
+                            .eq('id', drillId)
+                            .select();
+
+                        if (updatedData && updatedData.length === 0) {
+                            console.error(`[DEBUG] CRITICAL: Drill update returned 0 rows! ID ${drillId} might be missing or RLS blocked.`);
+                        }
 
                         if (updateError) {
                             console.error('Supabase Update Error:', updateError);

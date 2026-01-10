@@ -130,6 +130,8 @@ export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
     return lessons;
 }
 
+
+
 /**
  * Helper function to wrap Supabase promises with a timeout
  */
@@ -186,6 +188,7 @@ function transformCourse(data: any): Course {
         uniformType: data.uniform_type,
         isSubscriptionExcluded: data.is_subscription_excluded,
         published: data.published,
+        previewVimeoId: data.preview_vimeo_id,
     };
 }
 
@@ -295,39 +298,65 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 // Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
     try {
-        const { data, error } = await withTimeout(
+        console.log('🔍 getCourses: Starting fetch...');
+        // First, try to get courses with creator info (for authenticated users)
+        let { data, error } = await withTimeout(
             supabase
                 .from('courses')
                 .select(`
                     *,
-                    creator:creators(name, profile_image),
-                    lessons:lessons(count),
-                    preview_lessons:lessons(vimeo_url, lesson_number)
+                    creator:creators!creator_id(name, profile_image),
+                    lessons:lessons(vimeo_url, lesson_number)
                 `)
-                .eq('published', true) // Re-enable published filter
+                .eq('published', true)
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1),
             5000
         );
 
+        // If error due to RLS on creators, fetch without creator join
         if (error) {
-            console.error('getCourses Error Details:', error);
-            throw error;
+            console.warn('⚠️ getCourses with creator failed, retrying without creator:', error);
+            const fallback = await withTimeout(
+                supabase
+                    .from('courses')
+                    .select(`
+                        *,
+                        lessons:lessons(vimeo_url, lesson_number)
+                    `)
+                    .eq('published', true)
+                    .order('created_at', { ascending: false })
+                    .range(offset, offset + limit - 1),
+                5000
+            );
+
+            data = fallback.data;
+            error = fallback.error;
+
+            if (error) {
+                console.error('❌ getCourses Error Details:', error);
+                throw error;
+            }
         }
 
-        return (data || []).map((d: any) => {
-            // Find first lesson for preview
-            const firstLesson = d.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+        console.log('✅ getCourses: Raw data received:', data?.length, 'courses');
+
+        const transformed = (data || []).map((d: any) => {
+            const sortedLessons = (d.lessons || []).sort((a: any, b: any) => a.lesson_number - b.lesson_number);
+            const firstLesson = sortedLessons[0];
 
             return {
                 ...transformCourse(d),
-                lessonCount: d.lessons?.[0]?.count || 0,
+                lessonCount: d.lessons?.length || 0,
                 creatorProfileImage: d.creator?.profile_image || null,
                 previewVideoUrl: firstLesson?.vimeo_url
             };
         });
+
+        console.log('✅ getCourses: Transformed data:', transformed.length, 'courses');
+        return transformed;
     } catch (e) {
-        console.error('getCourses timeout/fail:', e);
+        console.error('❌ getCourses timeout/fail:', e);
         return [];
     }
 }
@@ -477,16 +506,17 @@ export async function searchContent(query: string) {
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {
-    const { data, error } = await supabase
-        .from('courses')
-        .select(`
+    const { data, error } = await withTimeout(
+        supabase
+            .from('courses')
+            .select(`
       *,
       creator:creators(name, profile_image),
       lessons:lessons(count),
       preview_lessons:lessons(vimeo_url, lesson_number)
     `)
-        .eq('id', id)
-        .maybeSingle();
+            .eq('id', id)
+            .maybeSingle(), 10000);
 
     if (error) {
         console.error('Error fetching course:', error);
@@ -534,11 +564,12 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
 
 // Lessons API
 export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
-    const { data, error } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('lesson_number', { ascending: true });
+    const { data, error } = await withTimeout(
+        supabase
+            .from('lessons')
+            .select('*')
+            .eq('course_id', courseId)
+            .order('lesson_number', { ascending: true }), 10000);
 
     if (error) {
         console.error('Error fetching lessons:', error);
@@ -661,31 +692,24 @@ export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]>
 
 export async function getLessonById(id: string): Promise<Lesson | null> {
     const { data, error } = await supabase
-        .rpc('get_lesson_content_v2', { p_lesson_id: id });
+        .rpc('get_lesson_secure_v2', { p_lesson_id: id }); // Trying get_lesson_secure_v2 as a potential alternative
 
     if (error) {
-        console.error('Error fetching secure lesson:', error);
-        // Fallback to direct fetch if RPC fails (e.g. not logged in)
+        if (error.code === 'PGRST202' || error.message.includes('not found')) {
+            // Likely RPC missing, fallback to direct fetch
+            console.log('[API] secure RPC missing or failed, trying direct fetch for lesson:', id);
+        } else {
+            console.error('Error fetching secure lesson:', error);
+        }
+
         const { data: directData } = await supabase.from('lessons').select('*').eq('id', id).maybeSingle();
         return directData ? transformLesson(directData) : null;
     }
 
-    const lesson = data?.[0];
+    const lesson = data?.[0] || data;
     if (!lesson) return null;
 
-    return {
-        id: lesson.id,
-        courseId: lesson.course_id,
-        title: lesson.title,
-        description: lesson.description,
-        lessonNumber: lesson.lesson_number,
-        vimeoUrl: lesson.vimeo_url,
-        length: lesson.length,
-        difficulty: lesson.difficulty,
-        createdAt: lesson.created_at,
-        isSubscriptionExcluded: lesson.is_subscription_excluded,
-        isPreview: lesson.is_preview
-    };
+    return transformLesson(lesson);
 }
 
 // Videos API (keep for backward compatibility)
@@ -958,6 +982,16 @@ export async function toggleSparringLike(userId: string, videoId: string): Promi
     }
 }
 
+export async function checkSparringLiked(userId: string, videoId: string): Promise<{ liked: boolean }> {
+    const { data } = await supabase
+        .from('user_sparring_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
+    return { liked: !!data };
+}
+
 export async function getSparringInteractionStatus(userId: string, videoId: string, creatorId: string) {
     const [likeData, followData, saveData] = await Promise.all([
         supabase.from('user_sparring_likes').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle(),
@@ -997,6 +1031,16 @@ export async function toggleSparringSave(userId: string, videoId: string) {
     }
 }
 
+export async function checkSparringSaved(userId: string, videoId: string): Promise<boolean> {
+    const { data } = await supabase
+        .from('user_saved_sparring')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
+    return !!data;
+}
+
 export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
     const { data } = await supabase
         .from('user_saved_sparring')
@@ -1008,6 +1052,7 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
             )
         `)
         .eq('user_id', userId)
+        .eq('sparring_videos.is_published', true)
         .order('created_at', { ascending: false });
 
     if (!data) return [];
@@ -1020,8 +1065,44 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
         videoUrl: item.sparring_videos.video_url,
         thumbnailUrl: item.sparring_videos.thumbnail_url,
         creatorId: item.sparring_videos.creator_id,
-        relatedItems: item.sparring_videos.related_items || []
+        relatedItems: item.sparring_videos.related_items || [],
+        isPublished: item.sparring_videos.is_published
     }));
+}
+
+export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
+    try {
+        // 1. Get purchase records
+        const { data: purchases } = await supabase
+            .from('purchases')
+            .select('product_id')
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+
+        if (!purchases || purchases.length === 0) return [];
+
+        const productIds = purchases.map(p => p.product_id);
+
+        // 2. Fetch corresponding sparring videos (regardless of published status)
+        const { data: videos, error } = await supabase
+            .from('sparring_videos')
+            .select(`
+                *,
+                creator:creators(*)
+            `)
+            .in('id', productIds)
+            .order('created_at', { ascending: false });
+
+        if (error || !videos) return [];
+
+        return videos.map((v: any) => ({
+            ...transformSparringVideo(v),
+            // Explicitly mark as owned/purchased if needed in UI, or just rely on list context
+        }));
+    } catch (e) {
+        console.error('Error fetching purchased sparring:', e);
+        return [];
+    }
 }
 
 export async function incrementCourseViews(courseId: string): Promise<void> {
@@ -1412,7 +1493,8 @@ export async function createCourse(courseData: Partial<Course>) {
         price: courseData.price,
         is_subscription_excluded: courseData.isSubscriptionExcluded,
         published: courseData.published,
-        uniform_type: courseData.uniformType, // Added
+        uniform_type: courseData.uniformType,
+        preview_vimeo_id: courseData.previewVimeoId,
     };
 
     const { data, error } = await supabase
@@ -1435,7 +1517,8 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
     if (courseData.published !== undefined) dbData.published = courseData.published;
-    if (courseData.uniformType) dbData.uniform_type = courseData.uniformType; // Added
+    if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
+    if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
 
     const { data, error } = await supabase
         .from('courses')
@@ -1451,12 +1534,10 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
 export async function createLesson(lessonData: Partial<Lesson>) {
     const dbData = {
         course_id: lessonData.courseId,
-        creator_id: lessonData.creatorId,
         title: lessonData.title,
         description: lessonData.description,
         lesson_number: lessonData.lessonNumber,
         vimeo_url: lessonData.vimeoUrl,
-        length: lessonData.length,
         difficulty: lessonData.difficulty,
         uniform_type: lessonData.uniformType, // Added
     };
@@ -1481,7 +1562,6 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.description) dbData.description = lessonData.description;
     if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
-    if (lessonData.length) dbData.length = lessonData.length;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
     if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType; // Added
 
@@ -4436,7 +4516,7 @@ export async function getLoginStreak(userId: string) {
 // Drill & Routine System
 // ============================================================================
 
-export async function getDrills(creatorId?: string, limit: number = 50) {
+export async function getDrills(creatorId?: string, limit: number = 50, forceRefresh: boolean = false) {
     let query = supabase
         .from('drills')
         .select('*')
@@ -4445,6 +4525,11 @@ export async function getDrills(creatorId?: string, limit: number = 50) {
 
     if (creatorId) {
         query = query.eq('creator_id', creatorId);
+    }
+
+    // Force cache bypass when explicitly requested (e.g., polling for updates)
+    if (forceRefresh) {
+        query = query.abortSignal(new AbortController().signal);
     }
 
     const { data: drills, error } = await query;
@@ -4501,7 +4586,6 @@ export async function createDrill(drillData: Partial<Drill>) {
         vimeo_url: drillData.vimeoUrl,
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
-        length: drillData.length,
         uniform_type: drillData.uniformType,
     };
 
@@ -4547,7 +4631,6 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
-    if (drillData.length) dbData.length = drillData.length;
     if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
 
     const { data, error } = await supabase
@@ -4582,22 +4665,33 @@ export async function deleteDrill(drillId: string) {
 // Sparring Video APIs
 
 function transformSparringVideo(data: any): SparringVideo {
+    if (!data) return {} as SparringVideo;
+
+    // Handle different join keys for creator info
+    // profiles, creators, users might be used depending on the query
+    const rawCreator = data.creators || data.profiles || data.users || data.creator;
+    const creatorData = Array.isArray(rawCreator) ? rawCreator[0] : rawCreator;
+
+    // Check if creator info looks valid before transforming
+    const creator = creatorData && (creatorData.id || creatorData.name) ? transformCreator(creatorData) : undefined;
+
     return {
         id: data.id,
         creatorId: data.creator_id,
-        title: data.title,
-        description: data.description,
-        videoUrl: data.video_url,
-        thumbnailUrl: data.thumbnail_url,
+        title: data.title || '',
+        description: data.description || '',
+        videoUrl: data.video_url || '',
+        thumbnailUrl: data.thumbnail_url || '',
         relatedItems: data.related_items || [],
-        views: data.views,
-        likes: data.likes,
-        creator: data.creators ? transformCreator(data.creators) : undefined,
+        views: data.views || 0,
+        likes: data.likes || 0,
+        creator: creator,
         createdAt: data.created_at,
         category: data.category,
         uniformType: data.uniform_type,
         difficulty: data.difficulty,
-        price: data.price || 0
+        price: data.price || 0,
+        isPublished: data.is_published ?? false
     };
 }
 
@@ -4612,6 +4706,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         category: videoData.category,
         difficulty: videoData.difficulty,
         uniform_type: videoData.uniformType,
+        is_published: false,
     };
 
     const { data, error } = await supabase
@@ -4639,6 +4734,9 @@ export async function getSparringVideos(limit = 10, creatorId?: string) {
         if (creatorId) {
             query = query.eq('creator_id', creatorId);
         }
+
+        // Hide soft-deleted videos from general lists
+        query = query.is('deleted_at', null);
 
         const { data: videos, error } = await query;
 
@@ -4703,20 +4801,47 @@ export async function getSparringVideos(limit = 10, creatorId?: string) {
 }
 
 export async function deleteSparringVideo(id: string) {
-    const { error } = await supabase
-        .from('sparring_videos')
-        .delete()
-        .eq('id', id);
+    try {
+        // 1. Check for purchases
+        const { count, error: countError } = await supabase
+            .from('purchases')
+            .select('*', { count: 'exact', head: true })
+            .eq('product_id', id)
+            .eq('status', 'completed');
 
-    if (error) {
+        if (countError) throw countError;
+
+        if (count && count > 0) {
+            // 2. Soft Delete (Archive)
+            const { error: updateError } = await supabase
+                .from('sparring_videos')
+                .update({
+                    is_published: false,
+                    // We assume the user applied the migration to add deleted_at
+                    deleted_at: new Date().toISOString()
+                } as any)
+                .eq('id', id);
+
+            if (updateError) throw updateError;
+            return { error: null, archived: true };
+        } else {
+            // 3. Hard Delete
+            const { error } = await supabase
+                .from('sparring_videos')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return { error: null, archived: false };
+        }
+    } catch (error) {
         console.error('Error deleting sparring video:', error);
         return { error };
     }
-
-    return { error: null };
 }
 
 export async function getSparringVideoById(id: string) {
+    // Try both creators and profiles just in case, but standardizing on what was there
     const { data, error } = await supabase
         .from('sparring_videos')
         .select('*, profiles(*)')
@@ -4724,11 +4849,21 @@ export async function getSparringVideoById(id: string) {
         .maybeSingle();
 
     if (error) {
-        console.error('Error fetching sparring video:', error);
+        console.error('Error fetching sparring video by ID:', id, error);
         return { data: null, error };
     }
 
-    return { data: transformSparringVideo(data), error: null };
+    if (!data) {
+        console.warn('Sparring video not found with ID:', id);
+        return { data: null, error: null };
+    }
+
+    try {
+        return { data: transformSparringVideo(data), error: null };
+    } catch (e) {
+        console.error('Transformation error for sparring video:', id, e);
+        return { data: null, error: e };
+    }
 }
 
 export async function updateSparringVideo(id: string, updates: Partial<SparringVideo>) {
@@ -4741,6 +4876,8 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.category) dbData.category = updates.category;
     if (updates.difficulty) dbData.difficulty = updates.difficulty;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
+    if (updates.price !== undefined) dbData.price = updates.price;
+    if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -4754,7 +4891,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
         return { data: null, error };
     }
 
-    return { data: transformSparringVideo(data), error: null };
+    return { data: data ? transformSparringVideo(data) : null, error: null };
 }
 
 export async function searchDrillsAndLessons(query: string) {
@@ -5057,7 +5194,7 @@ export async function getDailyFreeLesson() {
                         creator_id,
                         price,
                         is_subscription_excluded,
-                        creator:creators(name, profile_image)
+                        published
                     )
                 `)
                 .eq('course_id', featured.featured_id)
@@ -5082,29 +5219,51 @@ export async function getDailyFreeLesson() {
                         creator_id,
                         price,
                         is_subscription_excluded,
-                        creator:creators(name, profile_image)
+                        published
                     )
                 `)
                 .neq('vimeo_url', '')
                 .not('vimeo_url', 'like', 'ERROR%')
-                .order('id')
+                // Filter for published courses manually or via inner join if robust
                 .limit(20);
 
             if (error) throw error;
             if (!data || data.length === 0) return { data: null, error: null };
 
+            // Client-side filter for published courses
+            const publishedLessons = data.filter((l: any) => l.course?.published === true);
+            if (publishedLessons.length === 0) return { data: null, error: null };
+
             const todayObj = new Date();
             const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
             const x = Math.sin(seed + 789) * 10000;
-            const index = Math.floor((x - Math.floor(x)) * data.length);
-            selectedLesson = data[index];
+            const index = Math.floor((x - Math.floor(x)) * publishedLessons.length);
+            selectedLesson = publishedLessons[index];
         }
 
         if (!selectedLesson) return { data: null, error: null };
 
+        // 3. Fetch creator info manually
+        let creatorName = 'Grapplay Team';
+        let creatorProfileImage = undefined;
+        const creatorId = selectedLesson.course?.creator_id;
+
+        if (creatorId) {
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url')
+                .eq('id', creatorId)
+                .maybeSingle();
+
+            if (userData) {
+                creatorName = userData.name || creatorName;
+                creatorProfileImage = userData.avatar_url;
+            }
+        }
+
         const transformed = transformLesson(selectedLesson);
-        transformed.creatorName = selectedLesson.course?.creator?.name || 'Grapplay Team';
-        transformed.creatorProfileImage = selectedLesson.course?.creator?.profile_image || undefined;
+        transformed.creatorName = creatorName;
+        transformed.creatorProfileImage = creatorProfileImage;
 
         return {
             data: transformed,
@@ -5331,6 +5490,8 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         category: routineData.category,
         difficulty: routineData.difficulty,
         total_duration_minutes: routineData.totalDurationMinutes || 0,
+        related_items: routineData.relatedItems || [],
+        uniform_type: routineData.uniformType
     };
 
     const { data: routine, error: routineError } = await supabase
@@ -5371,6 +5532,8 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.description) dbData.description = updates.description;
     if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
     if (updates.price !== undefined) dbData.price = updates.price;
+    if (updates.relatedItems) dbData.related_items = updates.relatedItems;
+    if (updates.uniformType) dbData.uniform_type = updates.uniformType;
 
     const { data: routine, error: routineError } = await supabase
         .from('routines')
@@ -5647,6 +5810,8 @@ function transformDrillRoutine(data: any): DrillRoutine {
         totalDurationMinutes: data.total_duration_minutes || data.duration_minutes || data.drill_count || 0,
         drillCount: data.drill_count || 0,
         drills: [],
+        relatedItems: data.related_items || [],
+        uniformType: data.uniform_type,
         createdAt: data.created_at
     };
 }
@@ -5929,13 +6094,14 @@ export async function removeCourseRoutineBundle(courseId: string, routineId: str
  * Get drills bundled with a course
  */
 export async function getCourseDrillBundles(courseId: string) {
-    const { data, error } = await supabase
-        .from('course_drill_bundles')
-        .select(`
+    const { data, error } = await withTimeout(
+        supabase
+            .from('course_drill_bundles')
+            .select(`
             *,
             drill:drills(*)
         `)
-        .eq('course_id', courseId);
+            .eq('course_id', courseId), 10000);
 
     if (error) {
         console.error('Error fetching course drill bundles:', error);
@@ -7038,17 +7204,18 @@ export async function deleteTestimonial(id: string) {
  */
 export async function getCourseSparringVideos(courseId: string) {
     // Queries videos that have this course in related_items JSON array
-    const { data, error } = await supabase
-        .from('sparring_videos')
-        .select('*, profiles(*)')
-        .contains('related_items', JSON.stringify([{ type: 'course', id: courseId }]));
+    const { data, error } = await withTimeout(
+        supabase
+            .from('sparring_videos')
+            .select('*')
+            .contains('related_items', JSON.stringify([{ type: 'course', id: courseId }])), 10000);
 
     if (error) {
         console.error('Error fetching course sparring videos:', error);
         return { data: null, error };
     }
 
-    return { data: (data || []).map(transformSparringVideo), error: null };
+    return { data: (data || []).map(transformSparringVideo).filter(Boolean), error: null };
 }
 
 /**
@@ -7533,7 +7700,7 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
 export async function getNewCourses(limit = 6): Promise<Course[]> {
     const { data, error } = await supabase
         .from('courses')
-        .select('*')
+        .select('*, creator:creators(name, profile_image), lessons(count)')
         .eq('published', true)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -7543,7 +7710,10 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
         return [];
     }
 
-    return (data || []).map(transformCourse);
+    return (data || []).map((c: any) => ({
+        ...transformCourse(c),
+        lessonCount: c.lessons?.[0]?.count || 0
+    }));
 }
 
 export async function getTrendingCourses(limit = 6): Promise<Course[]> {
