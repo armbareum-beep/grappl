@@ -5466,7 +5466,6 @@ export async function getDailyFreeSparring() {
                 .from('sparring_videos')
                 .select('*')
                 .eq('is_published', true)
-                .gt('price', 0)
                 .neq('video_url', '')
                 .not('video_url', 'like', 'ERROR%')
                 .order('id')

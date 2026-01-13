@@ -74,8 +74,25 @@ export function RandomSparringShowcase() {
         }
     };
 
-    if (loading) return null;
-    if (!video || !vimeoId) return null;
+    if (loading) return <div className="text-white p-4">DEBUG: Loading sparring...</div>;
+
+    // DEBUG: Show why it might be null
+    if (!video || !vimeoId) {
+        return (
+            <div className="text-white bg-red-900/80 p-6 m-4 border border-red-500 rounded-lg z-50 relative">
+                <h3 className="font-bold text-xl mb-2">⚠️ DEBUG: Sparring Section Hidden</h3>
+                <p>Video Object: {video ? 'Present' : 'NULL'}</p>
+                <p>Vimeo ID: {vimeoId || 'NULL'}</p>
+                {video && (
+                    <div className="mt-2 text-xs font-mono bg-black/50 p-2 rounded">
+                        <p>Title: {video.title}</p>
+                        <p>Video URL: {video.videoUrl}</p>
+                        <p>Preview ID: {video.previewVimeoId}</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <section className="py-24 relative overflow-hidden">
