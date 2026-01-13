@@ -46,12 +46,49 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         )
 
-        const { paymentId, mode, id, userId } = await req.json()
+        const { paymentId, mode, id, userId, billingKey, amount } = await req.json()
 
-        console.log(`Verifying Portone payment: payment=${paymentId}, mode=${mode}, user=${userId}`)
+        console.log(`Verifying Portone payment: payment=${paymentId}, mode=${mode}, user=${userId}, billingKey=${billingKey ? 'present' : 'missing'}`)
 
-        // 1. Verify with Portone
-        const paymentDetails = await verifyPortonePayment(paymentId)
+        let paymentDetails;
+        let effectivePaymentId = paymentId;
+
+        // 1. Verify or Execute Payment
+        if (billingKey && amount) {
+            // 1a. Execute Payment with Billing Key (Recurring Initial Charge)
+            const accessToken = await getPortoneAccessToken();
+            const newPaymentId = `sub_${crypto.randomUUID()}`;
+
+            const payRes = await fetch(`https://api.portone.io/payments/${newPaymentId}/billing-key`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    billingKey,
+                    orderName: 'Monthly Subscription (Initial)',
+                    amount: {
+                        total: amount,
+                        currency: 'KRW'
+                    },
+                    customer: {
+                        id: userId
+                    }
+                })
+            });
+
+            if (!payRes.ok) {
+                const errText = await payRes.text();
+                throw new Error(`Billing Key Payment Failed: ${errText}`);
+            }
+
+            paymentDetails = await payRes.json();
+            effectivePaymentId = newPaymentId; // Update paymentId to the new one generated for this charge
+        } else {
+            // 1b. Standard Verification
+            paymentDetails = await verifyPortonePayment(paymentId)
+        }
 
         if (paymentDetails.status !== 'PAID') {
             throw new Error(`Payment status is ${paymentDetails.status}, not PAID`)
@@ -148,7 +185,8 @@ Deno.serve(async (req) => {
                     plan_interval: isYearly ? 'year' : 'month',
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
-                    portone_payment_id: paymentId
+                    portone_payment_id: effectivePaymentId,
+                    billing_key: billingKey || null // Store billing key if present
                 })
                 .select()
                 .single()

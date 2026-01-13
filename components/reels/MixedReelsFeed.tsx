@@ -7,6 +7,7 @@ import { SparringReelItem } from './SparringReelItem';
 import { LessonReelItem } from './LessonReelItem';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, getUserFollowedCreators, toggleCreatorFollow } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 export type MixedItem =
     | { type: 'drill'; data: Drill }
@@ -21,13 +22,15 @@ interface MixedReelsFeedProps {
         purchasedItemIds: string[];
     };
     isLoggedIn?: boolean;
+    dailyFreeDrillId?: string;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     items,
     initialIndex = 0,
     userPermissions: externalPermissions,
-    isLoggedIn: externalIsLoggedIn
+    isLoggedIn: externalIsLoggedIn,
+    dailyFreeDrillId
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -46,7 +49,42 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     // Mute state shared
     const [isMuted, setIsMuted] = useState(true);
 
+    // Login modal state for non-logged-in users (10-second timer)
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [watchTime, setWatchTime] = useState(0);
+    const loginTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // 10-second timer for non-logged-in users to show login modal
+    useEffect(() => {
+        if (!isLoggedIn) {
+            setWatchTime(0);
+            // Start 1-second interval to update progress
+            loginTimerRef.current = setInterval(() => {
+                setWatchTime((prev) => {
+                    const newTime = prev + 1;
+                    if (newTime >= 10) {
+                        setIsLoginModalOpen(true);
+                        if (loginTimerRef.current) clearInterval(loginTimerRef.current);
+                    }
+                    return newTime;
+                });
+            }, 1000);
+        } else {
+            // Clear timer if user is logged in
+            if (loginTimerRef.current) {
+                clearInterval(loginTimerRef.current);
+            }
+            setWatchTime(0);
+        }
+
+        return () => {
+            if (loginTimerRef.current) {
+                clearInterval(loginTimerRef.current);
+            }
+        };
+    }, [isLoggedIn]);
 
     // Fetch user interactions and permissions for drills
     useEffect(() => {
@@ -231,6 +269,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={isLoggedIn}
+                            isDailyFreeDrill={dailyFreeDrillId === item.data.id}
                         />
                     );
                 } else if (item.type === 'sparring') {
@@ -254,6 +293,23 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 }
                 return null;
             })}
+
+            {/* Login Modal for non-logged-in users */}
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl="/watch"
+            />
+
+            {/* 10-Second Progress Bar for non-logged-in users */}
+            {!isLoggedIn && !isLoginModalOpen && (
+                <div className="absolute bottom-0 left-0 right-0 z-[60] h-1.5 bg-violet-900/30">
+                    <div
+                        className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear duration-1000"
+                        style={{ width: `${(watchTime / 10) * 100}%` }}
+                    />
+                </div>
+            )}
         </div>
     );
 };

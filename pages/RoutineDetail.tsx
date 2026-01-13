@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime } from '../lib/api';
-import { Drill, DrillRoutine } from '../types';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines } from '../lib/api';
+import { Drill, DrillRoutine, Course } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
+import { cn } from '../lib/utils';
 
 // Internal component for Vimeo tracking
 const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentDrillId: string; videoType: string; muted: boolean }> = ({ vimeoId, onProgress, currentDrillId, videoType, muted }) => {
@@ -70,6 +71,8 @@ export const RoutineDetail: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(true);
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
+    const [relatedCourse, setRelatedCourse] = useState<Course | null>(null);
+    const [relatedRoutines, setRelatedRoutines] = useState<DrillRoutine[]>([]);
     const [currentDrillIndex, setCurrentDrillIndex] = useState(0);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
@@ -222,6 +225,13 @@ export const RoutineDetail: React.FC = () => {
                         routineData.drills = (routineData as any).items;
                     }
                     setRoutine(routineData);
+
+                    // Fetch similar routines
+                    if (routineData.category) {
+                        getRelatedRoutines(id, routineData.category).then(({ data: routines }) => {
+                            if (routines) setRelatedRoutines(routines);
+                        });
+                    }
                 }
 
                 // 2. Check Ownership & Progress
@@ -304,6 +314,22 @@ export const RoutineDetail: React.FC = () => {
         };
         checkFollow();
     }, [user, routine?.creatorId]);
+
+    useEffect(() => {
+        const loadRelatedCourse = async () => {
+            if (routine?.drills?.length) {
+                // Try to find a category from the first drill
+                const firstDrill = routine.drills[0];
+                const category = (typeof firstDrill !== 'string') ? firstDrill.category : null;
+
+                if (category) {
+                    const course = await getRelatedCourseByCategory(category);
+                    if (course) setRelatedCourse(course);
+                }
+            }
+        };
+        loadRelatedCourse();
+    }, [routine]);
 
     const handlePurchase = () => {
         if (!user) { navigate('/login'); return; }
@@ -488,6 +514,7 @@ export const RoutineDetail: React.FC = () => {
                                     );
                                 })}
                             </div>
+
                         </div>
 
                         {/* Mobile Access Pass Bottom Sheet */}
@@ -508,25 +535,75 @@ export const RoutineDetail: React.FC = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex items-center justify-between px-2">
-                                            <span className="text-sm text-zinc-400 font-bold uppercase tracking-wider">Access Pass</span>
+                                        <div className="flex items-center justify-between px-2 mb-1">
+                                            <span className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest">Access Pass</span>
                                             <span className="text-xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <button
                                                 onClick={handlePurchase}
-                                                className="w-full bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-3.5 font-black text-base shadow-[0_4px_12px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
+                                                className="w-full bg-white active:bg-zinc-200 text-black rounded-2xl py-4 font-black text-base shadow-lg shadow-white/5 flex items-center justify-center gap-2"
                                             >
                                                 <Lock className="w-5 h-5" /> 루틴 구매하기
                                             </button>
                                             <button
                                                 onClick={() => navigate('/pricing')}
-                                                className="w-full bg-zinc-800 active:bg-zinc-700 text-zinc-100 rounded-2xl py-3.5 font-bold text-sm border border-zinc-700 flex items-center justify-center gap-2"
+                                                className="w-full bg-violet-600 active:bg-violet-700 text-white rounded-2xl py-4 font-black text-base shadow-lg shadow-violet-900/40 flex items-center justify-center gap-2"
                                             >
-                                                <Zap className="w-4 h-4 text-violet-400" /> 멤버십 구독하고 전체 시청하기
+                                                <Zap className="w-5 h-5 fill-current" /> 멤버십 구독하고 전체 시청하기
                                             </button>
                                         </div>
                                     </>
+                                )}
+
+                                {relatedCourse && (
+                                    <div
+                                        onClick={() => navigate(`/courses/${relatedCourse.id}`)}
+                                        className="bg-zinc-800/50 backdrop-blur-sm border border-white/5 p-3 rounded-2xl relative overflow-hidden cursor-pointer active:scale-95 transition-transform mt-1"
+                                    >
+                                        <div className="relative z-10 flex gap-3 items-center">
+                                            <div className="w-12 h-12 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg">
+                                                {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} className="w-full h-full object-cover" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-[9px] font-bold text-violet-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                                                    <Zap className="w-2.5 h-2.5" /> Related Course
+                                                </div>
+                                                <h4 className="text-xs font-bold text-white leading-tight line-clamp-1">{relatedCourse.title}</h4>
+                                                <p className="text-[10px] text-zinc-500 line-clamp-1">심화 과정을 통해 완벽하게 마스터하세요</p>
+                                            </div>
+                                            <ChevronLeft className="w-4 h-4 text-zinc-500 rotate-180" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {relatedRoutines.length > 0 && (
+                                    <div className="mt-2 space-y-2">
+                                        <div className="flex items-center justify-between px-1">
+                                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">More Routines Like This</span>
+                                        </div>
+                                        <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                                            {relatedRoutines.slice(0, 3).map(r => (
+                                                <div
+                                                    key={r.id}
+                                                    onClick={() => navigate(`/routines/${r.id}`)}
+                                                    className="flex items-center gap-3 p-2 rounded-xl bg-zinc-800/30 border border-white/5 active:bg-zinc-800/50 transition-colors cursor-pointer"
+                                                >
+                                                    <div className="w-12 aspect-video rounded-lg overflow-hidden bg-zinc-900 shrink-0">
+                                                        {r.thumbnailUrl && <img src={r.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-[11px] font-bold text-zinc-200 truncate">{r.title}</h4>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[9px] text-zinc-500">{r.drillCount} Drills</span>
+                                                            <span className="text-[9px] text-violet-400 font-bold">{r.difficulty}</span>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronLeft className="w-3.5 h-3.5 text-zinc-600 rotate-180" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -580,17 +657,21 @@ export const RoutineDetail: React.FC = () => {
                                     </>
                                 ) : (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
-                                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 border border-white/20">
-                                            <Lock className="w-8 h-8 text-white" />
+                                        <div className="mb-6 relative">
+                                            <div className="absolute -inset-4 bg-violet-500/20 blur-xl rounded-full"></div>
+                                            <Lock className="w-12 h-12 text-zinc-400 relative z-10" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">루틴 구매 또는 구독이 필요합니다</h3>
-                                        <p className="text-zinc-400 text-sm mb-6">전체 드릴을 시청하려면 루틴을 소유하거나 멤버십을 구독하세요.</p>
-                                        <div className="flex flex-col w-full gap-2">
-                                            <Button onClick={handlePurchase} className="bg-violet-600 hover:bg-violet-500 text-white rounded-xl px-6 py-3 font-bold">
+                                        <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-zinc-500 mb-2">Access Needed</span>
+                                        <h3 className="text-2xl font-black text-white mb-2">루틴 구매 또는 구독이 필요합니다</h3>
+                                        <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[280px] leading-relaxed">
+                                            전체 드릴을 시청하려면 루틴을 소유하거나 멤버십을 구독하세요.
+                                        </p>
+                                        <div className="flex flex-col w-full gap-3">
+                                            <Button onClick={handlePurchase} className="bg-white hover:bg-zinc-200 text-black rounded-2xl py-4 font-black shadow-lg shadow-white/5 active:scale-95 text-lg">
                                                 ₩{routine.price.toLocaleString()}에 해제하기
                                             </Button>
-                                            <Button onClick={() => navigate('/pricing')} className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl px-6 py-3 font-bold border border-zinc-700">
-                                                멤버십 구독하기
+                                            <Button onClick={() => navigate('/pricing')} className="bg-violet-600 hover:bg-violet-500 text-white rounded-2xl py-4 font-black shadow-lg shadow-violet-900/40 active:scale-95 text-lg flex items-center justify-center gap-2">
+                                                <Zap className="w-5 h-5 fill-current" /> 멤버십 구독하기
                                             </Button>
                                         </div>
                                     </div>
@@ -700,6 +781,8 @@ export const RoutineDetail: React.FC = () => {
                         {/* Main Grid */}
                         <div className="max-w-7xl mx-auto w-full px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 z-10">
                             <div className="lg:col-span-8 space-y-6">
+
+
                                 <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
                                     <h3 className="text-xl font-semibold text-zinc-100 mb-6 flex items-center gap-2"><ListVideo className="w-5 h-5 text-violet-500" />Routine Curriculum</h3>
                                     <div className="flex flex-col gap-4">
@@ -723,7 +806,7 @@ export const RoutineDetail: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="lg:col-span-4 relative">
+                            <div className="lg:col-span-4 relative flex flex-col gap-6">
                                 <div className="sticky top-28 bg-zinc-900 border-2 border-zinc-800 rounded-3xl p-8 shadow-2xl">
                                     <h3 className="text-lg font-bold text-zinc-400 mb-6 uppercase tracking-wider">Access Pass</h3>
                                     <div className="space-y-8">
@@ -733,24 +816,88 @@ export const RoutineDetail: React.FC = () => {
                                         <div className="space-y-4">
                                             <button
                                                 onClick={hasFullAccess ? handleStartRoutine : handlePurchase}
-                                                className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-lg shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                                                className={cn(
+                                                    "w-full rounded-full py-4 font-black text-lg transition-all flex items-center justify-center gap-2 transform active:scale-95",
+                                                    hasFullAccess
+                                                        ? "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)]"
+                                                        : "bg-white hover:bg-zinc-200 text-black shadow-lg shadow-white/5"
+                                                )}
                                             >
                                                 {hasFullAccess ? <><Play className="w-5 h-5 md:w-6 md:h-6 fill-current" /> 루틴 시작하기</> : <><Lock className="w-5 h-5 md:w-6 md:h-6" /> 루틴 구매하기</>}
                                             </button>
-                                            {!hasFullAccess && (
-                                                <button
-                                                    onClick={() => navigate('/pricing')}
-                                                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-full py-4 font-bold text-base border border-zinc-700 transition-all flex items-center justify-center gap-2 transform active:scale-95"
-                                                >
-                                                    <Zap className="w-5 h-5 text-violet-400" /> 멤버십 구독하고 전체 시청하기
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => navigate('/pricing')}
+                                                className="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-full py-4 font-black text-base shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                                            >
+                                                <Zap className="w-5 h-5 fill-current" /> 멤버십 구독하고 전체 시청하기
+                                            </button>
                                             <p className="text-center text-xs text-zinc-500">{hasFullAccess ? 'Lifetime access active' : 'Includes lifetime access & updates'}</p>
                                         </div>
                                     </div>
                                 </div>
+
+                                {relatedCourse && (
+                                    <div
+                                        onClick={() => navigate(`/courses/${relatedCourse.id}`)}
+                                        className="bg-gradient-to-br from-violet-900/30 to-indigo-900/30 border border-violet-500/30 hover:border-violet-500/50 p-5 rounded-3xl relative overflow-hidden cursor-pointer group transition-all shadow-xl"
+                                    >
+                                        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/20 blur-[50px] rounded-full pointer-events-none group-hover:bg-violet-500/30 transition-colors"></div>
+                                        <div className="relative z-10 flex flex-col gap-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1">
+                                                    <div className="text-[10px] font-bold text-violet-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                                        <Zap className="w-3 h-3" /> Master This Skill
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-white leading-tight group-hover:text-violet-200 transition-colors">{relatedCourse.title}</h4>
+                                                </div>
+                                                <div className="w-16 h-16 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg group-hover:scale-105 transition-transform">
+                                                    {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-2">
+                                                <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors">Start full course</span>
+                                                <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <ChevronLeft className="w-4 h-4 rotate-180" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
+
+                        {/* Similar Routines Section */}
+                        {relatedRoutines.length > 0 && (
+                            <div className="max-w-7xl mx-auto w-full px-8 mt-24">
+                                <h3 className="text-xl font-bold text-white mb-6">More Routines Like This</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {relatedRoutines.map(r => (
+                                        <div
+                                            key={r.id}
+                                            onClick={() => navigate(`/routines/${r.id}`)}
+                                            className="group cursor-pointer"
+                                        >
+                                            <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
+                                                {r.thumbnailUrl ? (
+                                                    <img src={r.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
+                                                )}
+                                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {r.totalDurationMinutes}m
+                                                </div>
+                                            </div>
+                                            <h4 className="text-lg font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{r.title}</h4>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{r.difficulty}</span>
+                                                <span className="text-xs text-zinc-500">{r.drillCount} Drills</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="flex flex-row w-full h-[calc(100vh-80px)] bg-black relative overflow-hidden">
@@ -766,17 +913,21 @@ export const RoutineDetail: React.FC = () => {
                                         </>
                                     ) : (
                                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-8 text-center">
-                                            <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-white/20">
-                                                <Lock className="w-10 h-10 text-white" />
+                                            <div className="mb-8 relative">
+                                                <div className="absolute -inset-6 bg-violet-500/20 blur-2xl rounded-full"></div>
+                                                <Lock className="w-16 h-16 text-zinc-400 relative z-10 mx-auto" />
                                             </div>
-                                            <h3 className="text-2xl font-bold text-white mb-3">루틴 구매 또는 구독이 필요합니다</h3>
-                                            <p className="text-zinc-400 mb-8 max-w-xs">전체 루틴을 시청하고 훈련에 활용하려면 구매하거나 멤버십을 구독하세요.</p>
-                                            <div className="flex flex-col gap-3 w-full max-w-sm">
-                                                <Button onClick={handlePurchase} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-10 py-4 text-lg font-bold w-full">
+                                            <span className="text-[10px] font-extrabold uppercase tracking-[0.20em] text-zinc-500 mb-2">Access Needed</span>
+                                            <h3 className="text-3xl font-black text-white mb-3">루틴 구매 또는 구독이 필요합니다</h3>
+                                            <p className="text-sm text-zinc-400 font-medium mb-10 max-w-sm leading-relaxed mx-auto">
+                                                전체 루틴을 시청하고 훈련에 활용하려면 구매하거나 멤버십을 구독하세요.
+                                            </p>
+                                            <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
+                                                <Button onClick={handlePurchase} size="lg" className="bg-white hover:bg-zinc-200 text-black rounded-2xl h-16 text-lg font-black w-full active:scale-95 shadow-xl shadow-white/5">
                                                     ₩{routine.price.toLocaleString()}에 구매하기
                                                 </Button>
-                                                <Button onClick={() => navigate('/pricing')} size="lg" className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-full px-10 py-4 text-base font-bold w-full border border-zinc-700">
-                                                    멤버십 구독하기
+                                                <Button onClick={() => navigate('/pricing')} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-2xl h-16 text-lg font-black w-full active:scale-95 shadow-xl shadow-violet-900/40 flex items-center justify-center gap-2">
+                                                    <Zap className="w-6 h-6 fill-current" /> 멤버십 구독하기
                                                 </Button>
                                             </div>
                                         </div>
@@ -874,43 +1025,44 @@ export const RoutineDetail: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Desktop Player Sidebar */}
-                        <div className="w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full">
-                            <div className="p-6 border-b border-zinc-800 shrink-0">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <img
-                                            src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`}
-                                            className="w-10 h-10 rounded-full object-cover ring-2 ring-white/5"
-                                        />
-                                        <div>
-                                            <h4 className="text-white font-bold leading-tight">{routine.creatorName}</h4>
-                                            <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">Verified Instructor</p>
+
+                            {/* Desktop Player Sidebar */}
+                            <div className="w-[420px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full">
+                                <div className="p-6 border-b border-zinc-800 shrink-0">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <img
+                                                src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`}
+                                                className="w-10 h-10 rounded-full object-cover ring-2 ring-white/5"
+                                            />
+                                            <div>
+                                                <h4 className="text-white font-bold leading-tight">{routine.creatorName}</h4>
+                                                <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">Verified Instructor</p>
+                                            </div>
                                         </div>
                                     </div>
+                                    <h3 className="text-xl font-bold text-white mb-2">{routine.title}</h3>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <span className="text-zinc-500 text-sm">{currentDrillIndex + 1} / {routine.drills?.length}</span>
+                                    </div>
+                                    <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden"><div className="h-full bg-violet-600" style={{ width: `${progressPercent}%` }} /></div>
                                 </div>
-                                <h3 className="text-xl font-bold text-white mb-2">{routine.title}</h3>
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-zinc-500 text-sm">{currentDrillIndex + 1} / {routine.drills?.length}</span>
+                                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                                    {routine.drills?.map((d: any, idx) => (
+                                        <button key={idx} onClick={() => handleDrillSelect(idx)} className={`group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
+                                            <div className="relative w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0">
+                                                <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="text-left font-bold text-sm text-zinc-200 truncate">{d.title}</div>
+                                            <div className="ml-auto flex items-center gap-2">
+                                                {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500" />}
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
-                                <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden"><div className="h-full bg-violet-600" style={{ width: `${progressPercent}%` }} /></div>
+                                <div className="p-6 border-t border-zinc-800"><Button size="lg" onClick={handleDrillComplete} className="w-full bg-violet-600 active:bg-violet-700 text-white hover:bg-violet-500 shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-all">드릴 완료 & 다음</Button></div>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                                {routine.drills?.map((d: any, idx) => (
-                                    <button key={idx} onClick={() => handleDrillSelect(idx)} className={`group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
-                                        <div className="relative w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0">
-                                            <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
-                                        </div>
-                                        <div className="text-left font-bold text-sm text-zinc-200 truncate">{d.title}</div>
-                                        <div className="ml-auto flex items-center gap-2">
-                                            {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500" />}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="p-6 border-t border-zinc-800"><Button size="lg" onClick={handleDrillComplete} className="w-full bg-violet-600 active:bg-violet-700 text-white hover:bg-violet-500 shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-all">드릴 완료 & 다음</Button></div>
                         </div>
                     </div>
                 )}
@@ -950,6 +1102,6 @@ export const RoutineDetail: React.FC = () => {
                 continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '포스트 작성하기'}
             />
             {isShareModalOpen && shareModalData2 && <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={shareModalData2.title} text={shareModalData2.text} url={shareModalData2.url} imageUrl={currentDrill.thumbnailUrl} />}
-        </div>
+        </div >
     );
 };

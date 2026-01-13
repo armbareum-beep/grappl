@@ -38,7 +38,7 @@ export function RandomSparringShowcase() {
     if (loading) return null;
     if (!video) return null;
 
-    const vimeoId = getVimeoId(video.videoUrl);
+    const vimeoId = video.previewVimeoId || getVimeoId(video.videoUrl);
     if (!vimeoId) return null;
 
     return (
@@ -71,12 +71,12 @@ export function RandomSparringShowcase() {
                                 onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
-                                <span>ROLL</span>
+                                <span>풀 스파링 보기</span>
                             </button>
 
                             <button
                                 className="px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                onClick={() => navigate('/watch?tab=sparring')}
+                                onClick={() => navigate('/library?tab=sparring')}
                             >
                                 <span>더 많은 스파링</span>
                                 <ChevronRight className="w-4 h-4" />
@@ -123,12 +123,12 @@ export function RandomSparringShowcase() {
                                 onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
-                                <span>ROLL</span>
+                                <span>풀 스파링 보기</span>
                             </button>
 
                             <button
                                 className="flex-1 px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                onClick={() => navigate('/watch?tab=sparring')}
+                                onClick={() => navigate('/library?tab=sparring')}
                             >
                                 <span>더 많은 스파링</span>
                                 <ChevronRight className="w-4 h-4" />

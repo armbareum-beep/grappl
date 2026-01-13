@@ -34,6 +34,8 @@ export function Watch() {
         purchasedItemIds: []
     });
 
+    const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | undefined>(undefined);
+
     const tabs = [
         { id: 'mix' as const, label: '전체' },
         { id: 'lesson' as const, label: '레슨' },
@@ -152,6 +154,9 @@ export function Watch() {
             const dailyFreeLessonIds = dailyLessonRes.data?.id ? [dailyLessonRes.data.id] : [];
             const dailyFreeSparringIds = dailySparringRes.data?.id ? [dailySparringRes.data.id] : [];
 
+            // Store daily free drill ID in state
+            setDailyFreeDrillId(dailyDrillRes.data?.id);
+
             const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
                 // Also check if the video is actually processed (has a valid URL or Vimeo ID)
                 // lessons and drills use vimeo_url, sparring uses video_url
@@ -189,10 +194,12 @@ export function Watch() {
 
             // Transform & Filter
             if (drillsRes.data) {
-                // Drills are now "Freemium" - Action is free, Description is paid.
-                // So we show ALL drills in the feed, regardless of subscription status.
-                // The DrillReelItem handles the locking of the description.
-                const accessibleDrills = drillsRes.data;
+                // 드릴 접근 제어: 오늘의 무료 드릴 OR 구독자/구매자만
+                const accessibleDrills = drillsRes.data.filter((d: any) => {
+                    const isDailyFreeDrill = dailyFreeDrillIds.includes(d.id);
+                    // 오늘의 무료 드릴이거나 접근 가능한 드릴만 표시
+                    return isDailyFreeDrill || isAccessible('drill', d);
+                });
                 allItems = [...allItems, ...accessibleDrills.map((d: any) => ({
                     type: 'drill' as const,
                     data: {
@@ -358,6 +365,7 @@ export function Watch() {
                             items={items}
                             userPermissions={userPermissions}
                             isLoggedIn={!!user}
+                            dailyFreeDrillId={dailyFreeDrillId}
                         />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">

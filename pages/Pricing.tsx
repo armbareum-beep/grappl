@@ -1,11 +1,9 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Check, Zap, Crown } from 'lucide-react';
+import { Check, Zap, Crown, RefreshCw, CreditCard } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-
-
 
 type SubscriptionTier = 'basic' | 'premium';
 
@@ -39,7 +37,6 @@ export const Pricing: React.FC = () => {
       setCurrentTier(data.subscription_tier || null);
     }
   };
-
 
   // Pricing data with Stripe Price IDs
   const pricing = {
@@ -121,6 +118,11 @@ export const Pricing: React.FC = () => {
                 </span>
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
+
+              <div className="flex items-center justify-center lg:justify-start gap-1.5 mt-3 text-violet-400/80 font-bold text-xs bg-violet-500/10 inline-flex px-3 py-1 rounded-full border border-violet-500/20">
+                <RefreshCw className="w-3 h-3" />
+                <span>매월 자동 결제</span>
+              </div>
             </div>
 
             <ul className="space-y-4 flex-1 mb-10">
@@ -167,9 +169,15 @@ export const Pricing: React.FC = () => {
                 </span>
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
-              <p className="text-sm text-violet-400 font-bold mt-2">
-                연간 전체 {pricing.basic.yearly.price.toLocaleString()}원 (월 24,166원)
-              </p>
+              <div className="space-y-1 mt-2">
+                <p className="text-sm text-violet-400 font-bold">
+                  연간 전체 {pricing.basic.yearly.price.toLocaleString()}원 (월 24,166원)
+                </p>
+                <div className="flex items-center justify-center lg:justify-start gap-1.5 text-blue-400/80 font-bold text-xs bg-blue-500/10 inline-flex px-3 py-1 rounded-full border border-blue-500/20">
+                  <CreditCard className="w-3 h-3" />
+                  <span>1회 결제 (12개월 이용권)</span>
+                </div>
+              </div>
             </div>
 
             <ul className="space-y-4 flex-1 mb-10">

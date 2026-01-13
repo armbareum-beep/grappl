@@ -84,19 +84,17 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [mainVideo, setMainVideo] = useState<ProcessingState>(initialProcessingState);
     // Secondary video (used only for Drill-Description)
     const [descVideo, setDescVideo] = useState<ProcessingState>(initialProcessingState);
-    // Preview video (used for Course/Sparring)
-    const [previewVideo, setPreviewVideo] = useState<ProcessingState>(initialProcessingState);
 
     // Background Upload Hook
     const { queueUpload, tasks, cancelUpload } = useBackgroundUpload();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Editor State
-    const [activeEditor, setActiveEditor] = useState<'main' | 'desc' | 'preview' | null>(null);
+    const [activeEditor, setActiveEditor] = useState<'main' | 'desc' | null>(null);
     const [createdContentId, setCreatedContentId] = useState<string | null>(null);
 
-    // Tab State for Drill (Action vs Description) 및 Sparring (Main vs Preview)
-    const [activeTab, setActiveTab] = useState<'main' | 'desc' | 'preview'>('main');
+    // Tab State for Drill (Action vs Description)
+    const [activeTab, setActiveTab] = useState<'main' | 'desc'>('main');
 
     // Fetch data in edit mode
     useEffect(() => {
@@ -154,7 +152,6 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     useEffect(() => {
         setMainVideo(initialProcessingState);
         setDescVideo(initialProcessingState);
-        setPreviewVideo(initialProcessingState);
         setCreatedContentId(null);
     }, [contentType]);
 
@@ -165,11 +162,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         tasks.forEach(task => {
             const isMainMatch = mainVideo.videoId === task.id;
             const isDescMatch = descVideo.videoId === task.id;
-            const isPreviewMatch = previewVideo.videoId === task.id;
 
-            if (!isMainMatch && !isDescMatch && !isPreviewMatch) return;
+            if (!isMainMatch && !isDescMatch) return;
 
-            const updateFn = isMainMatch ? setMainVideo : (isDescMatch ? setDescVideo : setPreviewVideo);
+            const updateFn = isMainMatch ? setMainVideo : setDescVideo;
 
             updateFn(prev => {
                 const newStatus = task.status === 'uploading' ? 'ready' : (task.status as any);
@@ -188,10 +184,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     // Handle File Selection
     const handleFileUpload = async (
         file: File,
-        type: 'main' | 'desc' | 'preview',
+        type: 'main' | 'desc',
         setter: React.Dispatch<React.SetStateAction<ProcessingState>>
     ) => {
-        const currentState = type === 'main' ? mainVideo : (type === 'desc' ? descVideo : previewVideo);
+        const currentState = type === 'main' ? mainVideo : descVideo;
         if (currentState.videoId) cancelUpload(currentState.videoId);
 
         const objectUrl = URL.createObjectURL(file);
@@ -378,24 +374,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 });
             }
 
-            // Preview Video (Sparring)
-            if (contentType === 'sparring' && previewVideo.file && !previewVideo.isBackgroundUploading && !previewVideo.videoId) {
-                const videoId = `${crypto.randomUUID()}-${Date.now()}`;
-                const ext = previewVideo.file.name.split('.').pop()?.toLowerCase() || 'mp4';
-                const filename = `${videoId}.${ext}`;
 
-                console.log(`[Submit] Starting background upload for Sparring Preview Video`);
-
-                await queueUpload(previewVideo.file, 'sparring', {
-                    videoId,
-                    filename,
-                    cuts: previewVideo.cuts || [],
-                    title: `[SPARRING PREVIEW] ${formData.title}`,
-                    description: formData.description,
-                    sparringId: contentId,
-                    videoType: 'preview'
-                });
-            }
 
             success(`${CONTENT_LABELS[contentType]} 업로드/수정 완료!`);
 
@@ -413,10 +392,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     };
 
     // Render Video Box Helper
-    const renderVideoBox = (type: 'main' | 'desc' | 'preview', state: ProcessingState, label: string) => {
+    const renderVideoBox = (type: 'main' | 'desc', state: ProcessingState, label: string) => {
         const isMain = type === 'main';
-        const isDesc = type === 'desc';
-        const setter = isMain ? setMainVideo : (isDesc ? setDescVideo : setPreviewVideo);
+        // const isDesc = type === 'desc';
+        // const setter = isMain ? setMainVideo : (isDesc ? setDescVideo : setPreviewVideo);
+        const setter = isMain ? setMainVideo : setDescVideo;
 
         if (state.status === 'idle' || state.status === 'error') {
             return (
@@ -474,7 +454,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
     if (activeEditor) {
         // Video Editor View
-        const activeState = activeEditor === 'main' ? mainVideo : (activeEditor === 'desc' ? descVideo : previewVideo);
+        const activeState = activeEditor === 'main' ? mainVideo : descVideo;
         return (
             <div className="min-h-screen bg-zinc-950 p-4">
                 <div className="max-w-5xl mx-auto space-y-4">
@@ -644,18 +624,9 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 >
                                     스파링 영상
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('preview')}
-                                    className={`flex-1 py-4 font-bold transition-all ${activeTab === 'preview' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
-                                >
-                                    미리보기 영상
-                                </button>
                             </div>
                             <div className="p-6">
-                                {activeTab === 'main'
-                                    ? renderVideoBox('main', mainVideo, '스파링 영상')
-                                    : renderVideoBox('preview', previewVideo, '미리보기 영상')
-                                }
+                                {renderVideoBox('main', mainVideo, '스파링 영상')}
                             </div>
                         </>
                     ) : (

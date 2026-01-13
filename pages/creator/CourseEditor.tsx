@@ -229,14 +229,17 @@ export const CourseEditor: React.FC = () => {
 
 
     useEffect(() => {
-        if (!isNew && id) {
-            fetchCourseData(id);
+        if (user) {
             loadDrills();
-            loadBundledDrills();
             loadSparringVideos();
-            loadBundledSparringVideos();
+
+            if (!isNew && id) {
+                fetchCourseData(id);
+                loadBundledDrills();
+                loadBundledSparringVideos();
+            }
         }
-    }, [id, isNew]);
+    }, [id, isNew, user]);
 
     async function fetchCourseData(courseId: string) {
         try {
@@ -301,10 +304,12 @@ export const CourseEditor: React.FC = () => {
                 const { error } = await removeCourseDrillBundle(id, drill.id);
                 if (error) throw error;
                 setBundledDrills(prev => prev.filter(d => d.id !== drill.id));
+                success('드릴 연결이 해제되었습니다.');
             } else {
                 const { error } = await addCourseDrillBundle(id, drill.id);
                 if (error) throw error;
                 setBundledDrills(prev => [...prev, drill]);
+                success('드릴이 클래스에 연결되었습니다.');
             }
         } catch (error) {
             console.error('Error toggling drill bundle:', error);

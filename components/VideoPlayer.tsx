@@ -8,6 +8,7 @@ interface VideoPlayerProps {
     title: string;
     startTime?: number;
     isPaused?: boolean;
+    playing?: boolean; // New prop
     maxPreviewDuration?: number; // In seconds
     isPreviewMode?: boolean; // For compatibility
     onEnded?: () => void;
@@ -21,6 +22,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     vimeoId,
     startTime,
     isPaused = false,
+    playing = false,
     maxPreviewDuration,
     isPreviewMode = false,
     onEnded,
@@ -31,6 +33,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
+    const [playerError, setPlayerError] = useState<any>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
     const [hasReachedPreviewLimit, setHasReachedPreviewLimit] = useState(false);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -50,9 +53,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (!containerRef.current) return;
 
         let player: Player | null = null;
+        setPlayerError(null);
 
         try {
-            // Initialize player
             const options: any = {
                 autoplay: false,
                 loop: false,
@@ -70,6 +73,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             if (!vimeoIdStr) {
                 console.warn('[VideoPlayer] Empty vimeoId provided');
+                setPlayerError({ message: 'No video ID provided' });
                 return;
             }
 
@@ -77,8 +81,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 options.url = vimeoIdStr;
                 const hashMatch = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
                 if (hashMatch) options.h = hashMatch[1];
+                player = new Player(containerRef.current, options);
             } else if (/^\d+$/.test(vimeoIdStr)) {
                 options.id = Number(vimeoIdStr);
+                player = new Player(containerRef.current, options);
             } else if (vimeoIdStr.includes('/') || vimeoIdStr.includes(':')) {
                 const separator = vimeoIdStr.includes(':') ? ':' : '/';
                 const [id, h] = vimeoIdStr.split(separator);
@@ -98,7 +104,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     iframe.height = '100%';
                     iframe.frameBorder = '0';
                     iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                    // Try to fix "refused to connect" by enforcing origin referrer
                     iframe.referrerPolicy = 'origin';
 
                     if (containerRef.current) {
@@ -106,28 +111,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         containerRef.current.appendChild(iframe);
                         player = new Player(iframe);
                     }
-                } else if (/^\d+$/.test(id)) {
-                    options.id = Number(id);
-                    delete options.url;
-                    player = new Player(containerRef.current, options);
                 } else {
                     options.url = `https://vimeo.com/${vimeoIdStr}`;
                     player = new Player(containerRef.current, options);
                 }
             } else {
-                // Fallback
-                if (/^\d+$/.test(vimeoIdStr)) {
-                    options.id = Number(vimeoIdStr);
-                } else {
-                    options.url = `https://vimeo.com/${vimeoIdStr}`;
-                }
+                options.url = `https://vimeo.com/${vimeoIdStr}`;
                 player = new Player(containerRef.current, options);
             }
 
-            // Remove legacy player assignment: player = new Player(...) -> handled above
             playerRef.current = player;
 
             if (player) {
+                player.on('error', (data) => {
+                    console.error('Vimeo Player Error:', data);
+                    setPlayerError(data);
+                });
+
                 if (startTime && startTime > 0) {
                     player.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
                 }
@@ -142,9 +142,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                     if (isPreview && max) {
                         if (seconds >= max) {
-                            // Always force pause if over limit
                             player?.pause().catch(console.warn);
-
                             if (!hasReachedRef.current) {
                                 hasReachedRef.current = true;
                                 setHasReachedPreviewLimit(true);
@@ -153,7 +151,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 if (onPreviewEnded) onPreviewEnded();
                             }
                         } else {
-                            // Allow reset if user seeks back to allowed range
                             hasReachedRef.current = false;
                         }
                     }
@@ -176,18 +173,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 });
             }
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to initialize Vimeo player:', err);
+            setPlayerError(err);
         }
 
         return () => {
             if (player) {
-                try {
-                    player.destroy();
-                } catch (err) { }
+                try { player.destroy(); } catch (e) { }
             }
         };
-        // Re-run only if video ID changes. Other props are handled via refs.
     }, [vimeoId]);
 
     // Polling fallback to ensure preview limit is enforced
@@ -225,7 +220,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, []);
 
 
-    // Handle external pause control
+    // Handle external play/pause control
     useEffect(() => {
         if (!playerRef.current) return;
 
@@ -233,6 +228,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             playerRef.current.pause().catch(err => console.warn('Failed to pause player:', err));
         }
     }, [isPaused]);
+
+    useEffect(() => {
+        if (!playerRef.current) return;
+
+        if (playing) {
+            playerRef.current.play().catch(err => console.warn('Failed to play player:', err));
+        }
+    }, [playing]);
 
     const handleRestartPreview = async () => {
         if (!playerRef.current) return;
@@ -249,9 +252,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     return (
         <div
-            className="relative w-full cursor-pointer [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:w-full [&>iframe]:h-full"
+            className="relative w-full cursor-pointer"
             style={{ paddingBottom: '56.25%' }}
-            ref={containerRef}
             onClick={async () => {
                 if (!playerRef.current || showUpgradeOverlay) return;
                 const paused = await playerRef.current.getPaused();
@@ -262,6 +264,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }
             }}
         >
+            {/* Vimeo Player Container - Isolated to prevent overwriting overlays */}
+            <div
+                ref={containerRef}
+                className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full"
+            />
+
+            {/* Error Overlay */}
+            {playerError && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90 p-6 text-center backdrop-blur-sm">
+                    <div className="max-w-xs">
+                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                            <span className="text-xl">⚠️</span>
+                        </div>
+                        <p className="text-red-400 font-bold mb-2">영상 재생 오류</p>
+                        <p className="text-zinc-400 text-xs mb-4 leading-relaxed font-mono bg-black/50 p-2 rounded border border-zinc-800">
+                            {playerError.message || (typeof playerError === 'string' ? playerError : 'Unknown Error')}
+                            {playerError.name && ` (${playerError.name})`}
+                        </p>
+                        <p className="text-zinc-600 text-[10px]">ID: {vimeoId}</p>
+                    </div>
+                </div>
+            )}
+
             {/* 프리뷰 타이머 (재생 중 표시) */}
             {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && (
                 <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30">
@@ -298,7 +323,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 onClick={handleRestartPreview}
                                 className="w-full py-3 text-violet-400 hover:text-violet-300 font-medium text-sm transition-colors"
                             >
-                                프리뷰 다시보기
+                                무제한 시청하기
                             </button>
                         </div>
                     </div>

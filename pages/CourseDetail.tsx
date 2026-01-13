@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock } from 'lucide-react';
+import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock, Play, Zap, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -33,7 +33,8 @@ export const CourseDetail: React.FC = () => {
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
     const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
-    const [activeTab, setActiveTab] = useState<'lessons' | 'drills' | 'sparring'>('lessons');
+    const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
+    // activeTab state removed as tabs are no longer used
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [isFollowed, setIsFollowed] = useState(false);
@@ -74,8 +75,9 @@ export const CourseDetail: React.FC = () => {
 
                 // Fetch bundled drills
                 try {
-                    console.log('[CourseDetail] Fetching bundles...');
+                    console.log('[CourseDetail Debug] Fetching bundles for id:', id);
                     const { data: drillsData } = await getCourseDrillBundles(id);
+                    console.log('[CourseDetail Debug] Drills data:', drillsData); // DEBUG
                     if (drillsData) {
                         setBundledDrills(drillsData);
                     }
@@ -86,11 +88,20 @@ export const CourseDetail: React.FC = () => {
                 // Fetch bundled sparring videos
                 try {
                     const { data: sparringData } = await getCourseSparringVideos(id);
+                    console.log('[CourseDetail Debug] Sparring data:', sparringData); // DEBUG
                     if (sparringData) {
                         setBundledSparringVideos(sparringData);
                     }
                 } catch (e) {
                     console.warn('Failed to fetch bundled sparring videos:', e);
+                }
+
+                // Fetch related courses
+                if (courseData && courseData.category) {
+                    getRelatedCourses(id, courseData.category).then(({ data }) => {
+                        console.log('[CourseDetail Debug] Related courses:', data); // DEBUG
+                        if (data) setRelatedCourses(data);
+                    });
                 }
                 console.log('[CourseDetail] Bundles fetched.');
 
@@ -222,11 +233,13 @@ export const CourseDetail: React.FC = () => {
             return !!user;
         }
 
+        if (lesson.isPreview) return true;
+
         return false;
     };
 
     const isPreviewMode = React.useCallback((lesson: Lesson) => {
-        return false;
+        return !!lesson.isPreview;
     }, []);
 
     const handleProgress = React.useCallback(async (seconds: number) => {
@@ -420,8 +433,20 @@ export const CourseDetail: React.FC = () => {
         const hasVideo = selectedLesson && (!!vimeoIdToSend);
 
         // @ts-ignore
-        const previewIdToSend = course?.preview_video_url || course?.previewVimeoId;
+        const previewIdToSend = course?.previewVimeoId || (course as any)?.preview_vimeo_id;
         const hasPreview = !!previewIdToSend;
+
+        console.log('[DEBUG] Course object:', course);
+
+        if (!hasAccess) {
+            console.log('[DEBUG] CourseDetail Preview Check:', {
+                courseId: course?.id,
+                previewVimeoId: previewIdToSend,
+                hasPreview,
+                lessonIsPreview: selectedLesson?.isPreview,
+                lessonId: selectedLesson?.id
+            });
+        }
 
         return (
             <div className="relative rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl ring-1 ring-zinc-800 group mb-6 lg:mb-0">
@@ -450,37 +475,42 @@ export const CourseDetail: React.FC = () => {
                                 title={`[미리보기] ${course!.title}`}
                                 onEnded={() => setIsPaywallOpen(true)}
                                 isPaused={isPaywallOpen}
+                                maxPreviewDuration={60}
+                                isPreviewMode={true}
+                                onPreviewLimitReached={() => setIsPaywallOpen(true)}
                             />
                         </div>
                     ) : (
                         <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative p-6 text-center">
                             {!hasAccess ? (
                                 <>
-                                    <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mb-4">
-                                        <Lock className="w-8 h-8 text-zinc-500" />
+                                    <div className="mb-6 relative">
+                                        <div className="absolute -inset-4 bg-violet-500/20 blur-xl rounded-full"></div>
+                                        <Lock className="w-12 h-12 text-zinc-400 relative z-10 mx-auto" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-white mb-2">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-zinc-500 mb-2">Membership Only</span>
+                                    <h3 className="text-2xl font-black text-white mb-2">
                                         {selectedLesson?.id === dailyFreeLessonId && !user
                                             ? "오늘의 무료 레슨입니다"
                                             : "잠긴 레슨입니다"}
                                     </h3>
-                                    <p className="text-zinc-400 mb-6 max-w-sm">
+                                    <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[280px] leading-relaxed mx-auto">
                                         {selectedLesson?.id === dailyFreeLessonId && !user
                                             ? "로그인하면 오늘의 무료 레슨을 즉시 시청할 수 있습니다."
                                             : "이 레슨을 수강하려면 클래스를 구매하거나 그랩플레이 멤버십을 구독하세요."}
                                     </p>
-                                    <div className="flex gap-3">
+                                    <div className="flex justify-center gap-3">
                                         {selectedLesson?.id === dailyFreeLessonId && !user ? (
                                             <Button
                                                 onClick={() => navigate('/login')}
-                                                className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-6"
+                                                className="bg-violet-600 hover:bg-violet-500 text-white font-black rounded-2xl px-10 py-4 h-auto text-lg transition-all shadow-lg shadow-violet-900/40 active:scale-95"
                                             >
                                                 로그인하기
                                             </Button>
                                         ) : (
                                             <Button
                                                 onClick={() => navigate('/pricing')}
-                                                className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-6"
+                                                className="bg-violet-600 hover:bg-violet-500 text-white font-black rounded-2xl px-10 py-4 h-auto text-lg transition-all shadow-lg shadow-violet-900/40 active:scale-95"
                                             >
                                                 멤버십 보기
                                             </Button>
@@ -630,15 +660,103 @@ export const CourseDetail: React.FC = () => {
         </div>
     );
 
+    const renderBonusContent = () => {
+        if (bundledDrills.length === 0 && bundledSparringVideos.length === 0) return null;
+
+        return (
+            <div className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                <div className="bg-gradient-to-br from-zinc-900/40 to-zinc-950/40 rounded-3xl p-6 md:p-8 border border-zinc-800/50 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 blur-[80px] rounded-full pointer-events-none"></div>
+
+                    <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-3 relative z-10">
+                        <span className="text-2xl">🎁</span>
+                        Included Bonus Content
+                    </h3>
+
+                    <div className="space-y-8 relative z-10">
+                        {bundledDrills.length > 0 && (
+                            <div>
+                                <h4 className="text-violet-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    Bonus Drills
+                                </h4>
+                                <div className="space-y-2">
+                                    {bundledDrills.map(drill => (
+                                        <Link
+                                            key={drill.id}
+                                            to={`/drills/${drill.id}`}
+                                            className="group flex items-center gap-4 p-3 rounded-2xl bg-zinc-900/50 border border-zinc-800/50 hover:border-violet-500/30 transition-all"
+                                        >
+                                            <div className="w-20 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
+                                                {drill.thumbnailUrl ? (
+                                                    <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                                                        <Play className="w-4 h-4 text-zinc-600" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate">{drill.title}</h5>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] text-zinc-500 font-medium">{drill.category}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+                                                    <span className="text-[10px] text-zinc-500 font-medium capitalize">{drill.difficulty}</span>
+                                                </div>
+                                            </div>
+                                            <ChevronLeft className="w-4 h-4 text-zinc-600 rotate-180 group-hover:text-violet-400 transition-colors" />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {bundledSparringVideos.length > 0 && (
+                            <div>
+                                <h4 className="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    Sparring Analysis
+                                </h4>
+                                <div className="space-y-2">
+                                    {bundledSparringVideos.map(video => (
+                                        <Link
+                                            key={video.id}
+                                            to="/sparring"
+                                            state={{ highlightVideoId: video.id }}
+                                            className="group flex items-center gap-4 p-3 rounded-2xl bg-zinc-900/50 border border-zinc-800/50 hover:border-indigo-500/30 transition-all"
+                                        >
+                                            <div className="w-20 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
+                                                {video.thumbnailUrl ? (
+                                                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
+                                                        <Play className="w-4 h-4" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate">{video.title}</h5>
+                                                <p className="text-[10px] text-zinc-500 mt-1">{new Date(video.createdAt || '').toLocaleDateString()}</p>
+                                            </div>
+                                            <ChevronLeft className="w-4 h-4 text-zinc-600 rotate-180 group-hover:text-indigo-400 transition-colors" />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderPurchaseBox = () => (
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl shadow-black/50 overflow-hidden relative mb-6">
             <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-[60px] rounded-full pointer-events-none"></div>
 
             <div className="relative mb-6">
-                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Access Option</p>
-                <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-white">{formattedPrice}</span>
-                    {!isFree && <span className="text-zinc-500 text-sm font-medium">/ lifetime</span>}
+                <p className="text-zinc-500 text-[10px] font-extrabold uppercase tracking-widest mb-3 text-center">Lifetime Access</p>
+                <div className="flex flex-col items-center justify-center p-4 bg-zinc-950/50 rounded-2xl border border-zinc-800/50 mb-6">
+                    <span className="text-3xl font-black text-white mb-1">{formattedPrice}</span>
+                    {!isFree && <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">단품 평생 소장</span>}
                 </div>
             </div>
 
@@ -652,23 +770,31 @@ export const CourseDetail: React.FC = () => {
                     <Button
                         onClick={handlePurchase}
                         disabled={purchasing}
-                        className="w-full h-14 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-bold text-base shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)] transition-all duration-300"
+                        className="w-full h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black text-lg transition-all duration-300 active:scale-95"
                     >
-                        {purchasing ? 'Processing...' :
-                            course?.price === 0 ? 'Start Watching (Free)' : 'Buy Now'}
+                        {purchasing ? '처리 중...' :
+                            course?.price === 0 ? '지금 무료 소장하기' : '단품 평생 소장하기'}
                     </Button>
                 )}
 
                 {!course?.isSubscriptionExcluded && !ownsCourse && !isFree && (
-                    <Link to="/pricing" className="block">
-                        <Button variant="secondary" className="w-full h-12 rounded-full bg-transparent border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 hover:bg-zinc-800 transition-all font-semibold text-sm">
-                            또는 월 ₩29,000으로 구독하기
-                        </Button>
-                    </Link>
+                    <div className="relative pt-6">
+                        <div className="absolute inset-x-0 top-0 flex items-center justify-center">
+                            <span className="bg-zinc-900 px-3 text-[10px] font-extrabold text-zinc-600 uppercase tracking-widest">or</span>
+                        </div>
+                        <Link to="/pricing" className="block mt-2">
+                            <Button variant="secondary" className="w-full h-16 rounded-2xl bg-violet-600 border border-violet-500/50 text-white hover:bg-violet-500 transition-all font-black text-lg shadow-[0_4px_20px_rgba(124,58,237,0.3)] active:scale-95 flex items-center justify-center gap-2">
+                                <Zap className="w-5 h-5 fill-current" /> 멤버십 구독으로 전체 시청
+                            </Button>
+                        </Link>
+                        <p className="text-[11px] text-center text-zinc-500 mt-4 font-medium leading-relaxed">
+                            월 ₩29,000으로 그랩플레이의 모든 콘텐츠를 무제한 시청하세요.
+                        </p>
+                    </div>
                 )}
             </div>
 
-            <p className="text-center text-zinc-600 text-xs mt-6">
+            <p className="text-center text-zinc-600 text-[10px] mt-6 font-medium">
                 {isFree ? '무제한 스트리밍이 제공됩니다.' : '구매 시 평생 소장 및 무제한 스트리밍.'}
             </p>
         </div>
@@ -676,175 +802,78 @@ export const CourseDetail: React.FC = () => {
 
     const renderCurriculum = () => (
         <div className="bg-zinc-900/20 backdrop-blur-md border border-zinc-800/50 rounded-2xl overflow-hidden shadow-sm">
-            {/* Tabs */}
-            {(bundledDrills.length > 0 || bundledSparringVideos.length > 0) ? (
-                <div className="flex border-b border-zinc-800/50">
-                    <button
-                        onClick={() => setActiveTab('lessons')}
-                        className={cn("flex-1 py-4 text-xs font-bold uppercase tracking-wider text-center transition-colors",
-                            activeTab === 'lessons' ? "text-violet-400 bg-zinc-800/50" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
-                        )}
-                    >
-                        Curriculum
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('drills')}
-                        className={cn("flex-1 py-4 text-xs font-bold uppercase tracking-wider text-center transition-colors",
-                            activeTab === 'drills' ? "text-violet-400 bg-zinc-800/50" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
-                        )}
-                    >
-                        Drills
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('sparring')}
-                        className={cn("flex-1 py-4 text-xs font-bold uppercase tracking-wider text-center transition-colors",
-                            activeTab === 'sparring' ? "text-violet-400 bg-zinc-800/50" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
-                        )}
-                    >
-                        Sparring
-                    </button>
-                </div>
-            ) : (
-                <div className="px-6 py-4 border-b border-zinc-800/50 flex justify-between items-center">
-                    <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider">Curriculum</h3>
-                    <span className="text-xs text-zinc-500 font-medium">{lessons.length} Lessons</span>
-                </div>
-            )}
-
-            {/* List Content */}
+            {/* Only Lessons List - Tabs Removed */}
             <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent p-2 space-y-1">
-                {activeTab === 'lessons' && (
-                    lessons.map((lesson) => {
-                        const hasAccess = canWatchLesson(lesson);
-                        const isLocked = !hasAccess;
+                {lessons.map((lesson) => {
+                    const hasAccess = canWatchLesson(lesson);
+                    const isLocked = !hasAccess;
 
-                        return (
-                            <button
-                                key={lesson.id}
-                                onClick={() => hasAccess && handleLessonSelect(lesson)}
-                                disabled={isLocked}
-                                className={cn(
-                                    "w-full flex items-start gap-4 p-4 rounded-xl text-left transition-all border group relative overflow-hidden",
-                                    isLocked && "cursor-not-allowed opacity-60",
-                                    selectedLesson?.id === lesson.id
-                                        ? "bg-violet-600/10 border-violet-500/50"
-                                        : "bg-transparent border-transparent",
-                                    hasAccess && "hover:bg-zinc-800/50 hover:border-zinc-800"
-                                )}
-                            >
-                                {/* Left Indicator (Only active) */}
-                                {selectedLesson?.id === lesson.id && (
-                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500"></div>
-                                )}
+                    return (
+                        <button
+                            key={lesson.id}
+                            onClick={() => hasAccess && handleLessonSelect(lesson)}
+                            disabled={isLocked}
+                            className={cn(
+                                "w-full flex items-start gap-4 p-4 rounded-xl text-left transition-all border group relative overflow-hidden",
+                                isLocked && "cursor-not-allowed opacity-60",
+                                selectedLesson?.id === lesson.id
+                                    ? "bg-violet-600/10 border-violet-500/50"
+                                    : "bg-transparent border-transparent",
+                                hasAccess && "hover:bg-zinc-800/50 hover:border-zinc-800"
+                            )}
+                        >
+                            {/* Left Indicator (Only active) */}
+                            {selectedLesson?.id === lesson.id && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500"></div>
+                            )}
 
-                                <div className="shrink-0 pt-0.5">
-                                    {completedLessons.has(lesson.id) ? (
-                                        <CheckCircle className="w-5 h-5 text-violet-500" />
-                                    ) : isLocked ? (
-                                        <Lock className="w-5 h-5 text-zinc-600" />
-                                    ) : (
-                                        <div className={cn("w-5 h-5 rounded-full flex items-center justify-center border-2 text-[10px] font-bold",
-                                            selectedLesson?.id === lesson.id ? "border-violet-500 text-violet-400" : "border-zinc-700 text-zinc-500"
-                                        )}>
-                                            {lesson.lessonNumber}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    <h4 className={cn("text-sm font-medium mb-1 line-clamp-2 transition-colors",
-                                        selectedLesson?.id === lesson.id ? "text-violet-200" :
-                                            isLocked ? "text-zinc-500" : "text-zinc-300 group-hover:text-zinc-100"
+                            <div className="shrink-0 pt-0.5">
+                                {completedLessons.has(lesson.id) ? (
+                                    <CheckCircle className="w-5 h-5 text-violet-500" />
+                                ) : isLocked ? (
+                                    <Lock className="w-5 h-5 text-zinc-600" />
+                                ) : (
+                                    <div className={cn("w-5 h-5 rounded-full flex items-center justify-center border-2 text-[10px] font-bold",
+                                        selectedLesson?.id === lesson.id ? "border-violet-500 text-violet-400" : "border-zinc-700 text-zinc-500"
                                     )}>
-                                        {lesson.title}
-                                    </h4>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-zinc-500">{lesson.length}</span>
-                                        {isPreviewMode(lesson) && canWatchLesson(lesson) && lesson.id !== dailyFreeLessonId && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">
-                                                1분 프리뷰
-                                            </span>
-                                        )}
-                                        {lesson.id === dailyFreeLessonId && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold flex items-center gap-1">
-                                                <Clock className="w-2.5 h-2.5" /> 오늘의 무료 레슨 {user ? '' : '(1분 미리보기)'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Play Icon on Hover / Lock Icon */}
-                                {!isLocked && selectedLesson?.id !== lesson.id && (
-                                    <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                                            <svg className="w-3 h-3 text-zinc-300 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                                        </div>
+                                        {lesson.lessonNumber}
                                     </div>
                                 )}
-                            </button>
-                        );
-                    })
-                )}
+                            </div>
 
-                {/* Drills Tab */}
-                {activeTab === 'drills' && (
-                    bundledDrills.length > 0 ? (
-                        bundledDrills.map(drill => (
-                            <Link
-                                key={drill.id}
-                                to={`/drills/${drill.id}`}
-                                className="flex gap-4 p-3 rounded-xl hover:bg-zinc-800/50 transition-colors group"
-                            >
-                                <div className="w-24 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-600">
-                                    {drill.thumbnailUrl ? (
-                                        <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
-                                            <div className="w-2 h-2 rounded-full bg-zinc-600" />
-                                        </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className={cn("text-sm font-medium mb-1 line-clamp-2 transition-colors",
+                                    selectedLesson?.id === lesson.id ? "text-violet-200" :
+                                        isLocked ? "text-zinc-500" : "text-zinc-300 group-hover:text-zinc-100"
+                                )}>
+                                    {lesson.title}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-zinc-500">{lesson.length}</span>
+                                    {isPreviewMode(lesson) && canWatchLesson(lesson) && lesson.id !== dailyFreeLessonId && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">
+                                            1분 프리뷰
+                                        </span>
+                                    )}
+                                    {lesson.id === dailyFreeLessonId && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold flex items-center gap-1">
+                                            <Clock className="w-2.5 h-2.5" /> 오늘의 무료 레슨
+                                        </span>
                                     )}
                                 </div>
-                                <div className="min-w-0 flex-1 py-1">
-                                    <h4 className="text-sm font-medium text-zinc-300 group-hover:text-zinc-100 truncate mb-1">{drill.title}</h4>
-                                    <div className="flex gap-2">
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500">{drill.category}</span>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-zinc-500 text-sm">No affiliated drills.</div>
-                    )
-                )}
+                            </div>
 
-                {/* Sparring Tab */}
-                {activeTab === 'sparring' && (
-                    bundledSparringVideos.length > 0 ? (
-                        bundledSparringVideos.map(video => (
-                            <Link
-                                key={video.id}
-                                to="/sparring"
-                                state={{ highlightVideoId: video.id }}
-                                className="flex gap-4 p-3 rounded-xl hover:bg-zinc-800/50 transition-colors group"
-                            >
-                                <div className="w-24 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-600 relative">
-                                    {video.thumbnailUrl && <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />}
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                        <div className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                                            <svg className="w-2.5 h-2.5 text-white ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                                        </div>
+                            {/* Play Icon on Hover / Lock Icon */}
+                            {!isLocked && selectedLesson?.id !== lesson.id && (
+                                <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-zinc-300 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                                     </div>
                                 </div>
-                                <div className="min-w-0 flex-1 py-1">
-                                    <h4 className="text-sm font-medium text-zinc-300 group-hover:text-zinc-100 truncate mb-1">{video.title}</h4>
-                                    <span className="text-[10px] text-zinc-500">{new Date(video.createdAt || '').toLocaleDateString()}</span>
-                                </div>
-                            </Link>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-zinc-500 text-sm">No affiliated sparring videos.</div>
-                    )
-                )}
+                            )}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );
@@ -872,10 +901,11 @@ export const CourseDetail: React.FC = () => {
                 <div className="flex flex-col gap-6 lg:hidden">
                     {renderVideoPlayer()}
                     {renderHeaderInfo()}
+                    {renderAppDescription()}
                     {renderCurriculum()}
+                    {renderBonusContent()}
                     {renderInstructor()}
                     {renderPurchaseBox()}
-                    {renderAppDescription()}
                 </div>
 
                 {/* Desktop Layout (Original) */}
@@ -884,8 +914,9 @@ export const CourseDetail: React.FC = () => {
                     <div className="flex-1 min-w-0">
                         {renderVideoPlayer()}
                         {renderHeaderInfo()}
-                        {renderInstructor()}
                         {renderAppDescription()}
+                        {renderBonusContent()}
+                        {renderInstructor()}
                     </div>
 
                     {/* Right Column: Sidebar (Curriculum + Purchase) */}
@@ -896,58 +927,94 @@ export const CourseDetail: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+
+
+                {/* Recommended for You Section */}
+                {relatedCourses.length > 0 && (
+                    <div className="w-full mt-24">
+                        <h3 className="text-xl font-bold text-white mb-6">추천 클래스</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                            {relatedCourses.map(course => (
+                                <div
+                                    key={course.id}
+                                    onClick={() => navigate(`/courses/${course.id}`)}
+                                    className="group cursor-pointer"
+                                >
+                                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
+                                        {course.thumbnailUrl ? (
+                                            <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
+                                        )}
+                                        {course.price === 0 && (
+                                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 uppercase tracking-wide">Free</div>
+                                        )}
+                                    </div>
+                                    <h4 className="text-sm md:text-base font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{course.title}</h4>
+                                    <p className="text-xs text-zinc-500 mt-1">{course.creator?.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
 
 
-            {isShareModalOpen && course && (
-                <React.Suspense fallback={null}>
-                    <ShareModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => setIsShareModalOpen(false)}
-                        title={course.title}
-                        text={course.description}
-                        url={window.location.href}
-                        imageUrl={course.thumbnailUrl}
-                    />
-                </React.Suspense>
-            )}
 
-            {isPaywallOpen && (
-                <ConfirmModal
-                    isOpen={isPaywallOpen}
-                    onClose={() => setIsPaywallOpen(false)}
-                    onConfirm={() => {
-                        if (!user) {
-                            // Non-logged-in users: redirect to login with current course info
-                            navigate('/login', {
-                                state: {
-                                    from: {
-                                        pathname: `/courses/${id}`,
-                                        search: selectedLesson ? `?lessonId=${selectedLesson.id}` : ''
-                                    }
+                {
+                    isShareModalOpen && course && (
+                        <React.Suspense fallback={null}>
+                            <ShareModal
+                                isOpen={isShareModalOpen}
+                                onClose={() => setIsShareModalOpen(false)}
+                                title={course.title}
+                                text={course.description}
+                                url={window.location.href}
+                                imageUrl={course.thumbnailUrl}
+                            />
+                        </React.Suspense>
+                    )
+                }
+
+                {
+                    isPaywallOpen && (
+                        <ConfirmModal
+                            isOpen={isPaywallOpen}
+                            onClose={() => setIsPaywallOpen(false)}
+                            onConfirm={() => {
+                                if (!user) {
+                                    // Non-logged-in users: redirect to login with current course info
+                                    navigate('/login', {
+                                        state: {
+                                            from: {
+                                                pathname: `/courses/${id}`,
+                                                search: selectedLesson ? `?lessonId=${selectedLesson.id}` : ''
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    // Logged-in users: redirect to pricing with return URL
+                                    const returnUrl = `/courses/${id}${selectedLesson ? `?lessonId=${selectedLesson.id}` : ''}`;
+                                    navigate('/pricing', { state: { returnUrl } });
                                 }
-                            });
-                        } else {
-                            // Logged-in users: redirect to pricing with return URL
-                            const returnUrl = `/courses/${id}${selectedLesson ? `?lessonId=${selectedLesson.id}` : ''}`;
-                            navigate('/pricing', { state: { returnUrl } });
-                        }
-                    }}
-                    title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
-                    message={
-                        user
-                            ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
-                            : (selectedLesson?.id === dailyFreeLessonId)
-                                ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
-                                : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
-                    }
-                    confirmText={user ? "구독 요금제 보기" : "로그인하기"}
-                    cancelText="나중에 하기"
-                    variant="info"
-                />
-            )}
+                            }}
+                            title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
+                            message={
+                                user
+                                    ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                                    : (selectedLesson?.id === dailyFreeLessonId)
+                                        ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
+                                        : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
+                            }
+                            confirmText={user ? "구독 요금제 보기" : "로그인하기"}
+                            cancelText="나중에 하기"
+                            variant="info"
+                        />
+                    )
+                }
+            </div>
         </div>
+
     );
 };
 

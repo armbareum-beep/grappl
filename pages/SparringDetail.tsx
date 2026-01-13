@@ -7,12 +7,14 @@ import {
     toggleSparringSave,
     checkSparringSaved,
     toggleCreatorFollow,
-    getSparringInteractionStatus
+    getSparringInteractionStatus,
+    getDrillsByIds,
+    getSparringVideos
 } from '../lib/api';
-import { SparringVideo } from '../types';
+import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, CheckCircle, ChevronRight, X, LayoutGrid } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +29,8 @@ export const SparringDetail: React.FC = () => {
     const { success, error: toastError } = useToast();
 
     const [video, setVideo] = useState<SparringVideo | null>(null);
+    const [relatedDrills, setRelatedDrills] = useState<Drill[]>([]);
+    const [moreSparring, setMoreSparring] = useState<SparringVideo[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [owns, setOwns] = useState(false);
@@ -36,6 +40,8 @@ export const SparringDetail: React.FC = () => {
     const [saved, setSaved] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [showTechniques, setShowTechniques] = useState(false);
+    const [showMoreSparring, setShowMoreSparring] = useState(false);
 
     // Player State
     const [isPlaying, setIsPlaying] = useState(true);
@@ -93,6 +99,22 @@ export const SparringDetail: React.FC = () => {
             setVideo(data);
             checkOwnership(data);
             checkInteractions(data);
+
+            // Fetch related drills if any
+            if (data.relatedItems && data.relatedItems.length > 0) {
+                getDrillsByIds(data.relatedItems).then(({ data: drills }) => {
+                    if (drills) setRelatedDrills(drills);
+                });
+            }
+
+            // Fetch more sparring from same creator
+            if (data.creatorId) {
+                getSparringVideos(10, data.creatorId, true).then(({ data: videos }) => {
+                    if (videos) {
+                        setMoreSparring(videos.filter(v => v.id !== data.id));
+                    }
+                });
+            }
         } catch (err: any) {
             console.error(err);
             setError(err.message || '영상 로딩 중 오류 발생');
@@ -212,6 +234,17 @@ export const SparringDetail: React.FC = () => {
 
     const useVimeo = owns ? !!vimeoId : !!previewVimeoId;
     const currentVimeoId = owns ? vimeoId : previewVimeoId;
+
+    useEffect(() => {
+        if (!owns) {
+            console.log('[DEBUG] SparringDetail Preview Check:', {
+                videoId: video?.id,
+                previewVimeoId,
+                hasPreview: !!previewVimeoId,
+                videoPreviewIdRaw: video?.previewVimeoId
+            });
+        }
+    }, [owns, previewVimeoId, video]);
 
     const videoSrc = useVimeo
         ? `https://player.vimeo.com/video/${currentVimeoId}?autoplay=1&loop=1&autopause=0&muted=${muted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1`
@@ -336,8 +369,40 @@ export const SparringDetail: React.FC = () => {
                     )}
 
                     {!owns && useVimeo && (
-                        <div className="absolute inset-0 bg-transparent z-40" onClick={handlePurchase}>
-                            {/* Transparent overlay over the iframe so clicks trigger purchase or show lock */}
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+                            <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mb-4 border border-white/10 shadow-2xl">
+                                <Lock className="w-8 h-8 text-zinc-400" />
+                            </div>
+                            <h3 className="text-2xl font-black text-white mb-2">스파링 전체 시청하기</h3>
+                            <p className="text-zinc-400 text-sm mb-8 max-w-[280px] font-medium">
+                                이 스파링 영상의 뒷부분을 시청하시려면 단품으로 구매하거나 그랩플레이 멤버십을 구독하세요.
+                            </p>
+
+                            <div className="w-full max-w-[280px] space-y-3">
+                                <button
+                                    onClick={handlePurchase}
+                                    className="w-full py-4 bg-white text-black rounded-2xl font-black text-lg hover:bg-zinc-200 transition-all active:scale-95 shadow-xl"
+                                >
+                                    ₩{video?.price.toLocaleString()} 단품 구매
+                                </button>
+
+                                <div className="relative py-2">
+                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                                        <span className="bg-zinc-900 px-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">or</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => navigate('/pricing')}
+                                    className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-lg hover:bg-violet-500 transition-all active:scale-95 shadow-xl shadow-violet-500/20"
+                                >
+                                    멤버십 구독하기
+                                </button>
+                            </div>
+
+                            <p className="text-[10px] text-zinc-500 mt-6 max-w-[220px]">
+                                멤버십 구독 시 모든 클래스, 드릴, 스파링 영상을 무제한으로 시청할 수 있습니다.
+                            </p>
                         </div>
                     )}
 
@@ -392,10 +457,132 @@ export const SparringDetail: React.FC = () => {
                             >
                                 <Share2 className="w-6 h-6" />
                             </button>
+
+                            {/* Techniques Button */}
+                            {relatedDrills.length > 0 && (
+                                <button
+                                    onClick={() => setShowTechniques(true)}
+                                    className="p-3 md:p-4 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all active:scale-90 mt-2 animate-in slide-in-from-right duration-500"
+                                >
+                                    <List className="w-6 h-6" />
+                                </button>
+                            )}
+
+                            {/* More Sparring Button */}
+                            {moreSparring.length > 0 && (
+                                <button
+                                    onClick={() => setShowMoreSparring(true)}
+                                    className="p-3 md:p-4 rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-100 hover:bg-zinc-700 transition-all active:scale-90 mt-2 animate-in slide-in-from-right duration-500 delay-100"
+                                >
+                                    <LayoutGrid className="w-6 h-6" />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* More Sparring Sheet */}
+            {showMoreSparring && (
+                <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-sm flex justify-end" onClick={() => setShowMoreSparring(false)}>
+                    <div
+                        className="w-full max-w-sm h-full bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 backdrop-blur-xl">
+                            <div>
+                                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                    More Sparring
+                                </h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">{creatorName}님의 다른 스파링 영상</p>
+                            </div>
+                            <button onClick={() => setShowMoreSparring(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-zinc-400" />
+                            </button>
+                        </div>
+
+                        {/* List */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700">
+                            {moreSparring.map((v) => (
+                                <div
+                                    key={v.id}
+                                    onClick={() => { navigate(`/sparring/${v.id}`); setShowMoreSparring(false); }}
+                                    className="group flex gap-3 p-3 rounded-xl bg-black/40 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer items-center"
+                                >
+                                    <div className="w-24 aspect-[9/16] rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group-hover:border-zinc-600 shrink-0 relative">
+                                        {v.thumbnailUrl ? (
+                                            <img src={v.thumbnailUrl} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                        )}
+                                        {v.isPublished === false && <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-zinc-900/80 rounded text-[9px] text-zinc-400 font-bold border border-zinc-800">Private</div>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate transition-colors leading-tight line-clamp-2 white-space-normal">{v.title}</h4>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700">{v.views || 0} views</span>
+                                            {v.price > 0 && <span className="text-[10px] text-violet-400 font-bold">Paid</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Techniques Sheet/Sidebar Overlay */}
+            {showTechniques && (
+                <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-sm flex justify-end" onClick={() => setShowTechniques(false)}>
+                    <div
+                        className="w-full max-w-sm h-full bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 backdrop-blur-xl">
+                            <div>
+                                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                    Techniques Used <span className="text-violet-500 text-xs px-2 py-0.5 bg-violet-500/10 rounded-full border border-violet-500/20">{relatedDrills.length}</span>
+                                </h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">이 스파링에서 사용된 기술들입니다</p>
+                            </div>
+                            <button onClick={() => setShowTechniques(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-zinc-400" />
+                            </button>
+                        </div>
+
+                        {/* List */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700">
+                            {relatedDrills.map((drill) => (
+                                <div
+                                    key={drill.id}
+                                    onClick={() => navigate(`/drills/${drill.id}`)}
+                                    className="group flex gap-3 p-3 rounded-xl bg-black/40 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer items-center"
+                                >
+                                    <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group-hover:border-zinc-600 shrink-0 relative">
+                                        {drill.thumbnailUrl ? (
+                                            <img src={drill.thumbnailUrl} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all">
+                                            <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate transition-colors">{drill.title}</h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 group-hover:border-zinc-600 transition-colors uppercase tracking-wider">{drill.category || 'Technique'}</span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Bottom Info */}
             <div className="fixed left-0 right-0 w-full bottom-8 px-6 z-40 pointer-events-none">

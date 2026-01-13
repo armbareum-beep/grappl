@@ -4,11 +4,14 @@ import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, Play
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import {
+    getCourseDrillBundles, getCourseSparringVideos
+} from '../../lib/api';
+import {
     Course, Lesson, Drill, SparringVideo, DrillRoutine,
     VideoCategory, Difficulty, UniformType
 } from '../../types';
 import { ImageUploader } from '../ImageUploader';
-import { VideoTrimmer } from '../VideoTrimmer';
+import { VideoEditor } from '../VideoEditor';
 
 // Content Types
 type ContentType = 'course' | 'routine' | 'sparring';
@@ -35,7 +38,7 @@ const CONTENT_CONFIG = {
         color: 'violet',
         primaryItems: 'lessons' as const,
         primaryLabel: '레슨',
-        relatedLabel: '관련 스파링',
+        relatedLabel: '관련 드릴/스파링',
         hasPreview: true,
         hasDuration: false,
     },
@@ -100,6 +103,17 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
     const [saving, setSaving] = useState(false);
     const [showPreviewTrimmer, setShowPreviewTrimmer] = useState(false);
     const [previewVideoFile, setPreviewVideoFile] = useState<File | null>(null);
+    const [previewCuts, setPreviewCuts] = useState<{ start: number; end: number }[] | null>(null);
+    const [relatedFilter, setRelatedFilter] = useState<'lesson' | 'drill' | 'sparring' | null>(null);
+
+    // Initialize related filter when tab changes or content type changes
+    useEffect(() => {
+        if (activeTab === 'related') {
+            if (contentType === 'course') setRelatedFilter('sparring');
+            else if (contentType === 'routine') setRelatedFilter('lesson');
+            else if (contentType === 'sparring') setRelatedFilter('lesson');
+        }
+    }, [activeTab, contentType]);
 
     // Computed Values
     const totalDurationMinutes = contentType === 'routine'
@@ -123,15 +137,46 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             });
 
             // Load selected items based on content type
-            // Course lessons are passed via props, not stored in editingItem
+            if (contentType === 'course') {
+                // Initialize selected lessons from available lessons that belong to this course
+                const courseLessonIds = lessons
+                    .filter(l => l.courseId === editingItem.id)
+                    .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0))
+                    .map(l => l.id);
+                setSelectedLessonIds(courseLessonIds);
+
+                // Initialize related items (bundles) for courses
+                const loadCourseBundles = async () => {
+                    try {
+                        const drillsRes = await getCourseDrillBundles(editingItem.id);
+                        const sparringVideosRes = await getCourseSparringVideos(editingItem.id);
+
+                        const bundledDrills = (drillsRes.data || []).map((d: any) => ({ type: 'drill', id: d.id, title: d.title }));
+                        const bundledSparring = (sparringVideosRes.data || []).map((v: any) => ({ type: 'sparring', id: v.id, title: v.title }));
+
+                        const items = [...bundledDrills, ...bundledSparring];
+                        setRelatedItems(items);
+                        setSelectedDrillIds(prev => [...new Set([...prev, ...bundledDrills.map((d: any) => d.id)])]);
+                        setSelectedSparringIds(prev => [...new Set([...prev, ...bundledSparring.map((s: any) => s.id)])]);
+                    } catch (err) {
+                        console.error('Error loading course bundles in modal:', err);
+                    }
+                };
+                loadCourseBundles();
+            }
             if (contentType === 'routine' && (editingItem as DrillRoutine).drills) {
                 setSelectedDrillIds((editingItem as DrillRoutine).drills?.map(d => d.id) || []);
             }
             if ((editingItem as any).relatedItems) {
                 setRelatedItems((editingItem as any).relatedItems);
+
+                // Also sync selected IDs for legacy support if needed
+                const related = (editingItem as any).relatedItems as { type: string; id: string }[];
+                setSelectedDrillIds(prev => [...new Set([...prev, ...related.filter(r => r.type === 'drill').map(r => r.id)])]);
+                setSelectedSparringIds(prev => [...new Set([...prev, ...related.filter(r => r.type === 'sparring').map(r => r.id)])]);
             }
         }
-    }, [editingItem, contentType]);
+    }, [editingItem, contentType, lessons]);
 
     // Reset on close
     useEffect(() => {
@@ -217,6 +262,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 selectedDrillIds,
                 selectedSparringIds,
                 relatedItems,
+                previewCuts,
+                previewVideoFile,
             };
             await onSave(saveData);
             onClose();
@@ -298,6 +345,28 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 <div className="flex-1 overflow-y-auto p-6">
                     {activeTab === 'basic' && (
                         <div className="space-y-6 max-w-2xl">
+                            {/* Content Summary Card */}
+                            {isEditMode && (
+                                <div className="grid grid-cols-3 gap-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl">
+                                    <div className="text-center p-2">
+                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">레슨</p>
+                                        <p className="text-lg font-black text-white">{selectedLessonIds.length}개</p>
+                                    </div>
+                                    <div className="text-center p-2 border-x border-zinc-800/50">
+                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">드릴</p>
+                                        <p className="text-lg font-black text-white">
+                                            {contentType === 'routine' ? selectedDrillIds.length : relatedItems.filter(i => i.type === 'drill').length}개
+                                        </p>
+                                    </div>
+                                    <div className="text-center p-2">
+                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">스파링</p>
+                                        <p className="text-lg font-black text-white">
+                                            {contentType === 'sparring' ? 0 : relatedItems.filter(i => i.type === 'sparring').length}개
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Title */}
                             <div>
                                 <label className="block text-sm font-semibold text-zinc-400 mb-2">제목</label>
@@ -594,33 +663,60 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                 {contentType === 'sparring' && '이 스파링에서 사용된 기술과 관련된 레슨/드릴을 태그하세요.'}
                             </p>
 
-                            {/* Related items tabs for routine and sparring */}
-                            {(contentType === 'routine' || contentType === 'sparring') && (
-                                <div className="flex gap-2 mb-4">
+                            {/* Search Input for Related Items */}
+                            <div className="relative mb-4">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="관련 항목 검색..."
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
+                                />
+                            </div>
+
+                            {/* Related items tabs */}
+                            <div className="flex gap-2 mb-4">
+                                {(contentType === 'routine' || contentType === 'sparring') && (
                                     <button
-                                        onClick={() => setSearchQuery('')}
-                                        className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-white"
+                                        onClick={() => { setSearchQuery(''); setRelatedFilter('lesson'); }}
+                                        className={cn(
+                                            "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                                            relatedFilter === 'lesson'
+                                                ? "bg-white text-black"
+                                                : "bg-zinc-800 text-white hover:bg-zinc-700"
+                                        )}
                                     >
                                         레슨
                                     </button>
-                                    {contentType === 'sparring' && (
-                                        <button
-                                            onClick={() => setSearchQuery('')}
-                                            className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-white"
-                                        >
-                                            드릴
-                                        </button>
-                                    )}
-                                    {contentType === 'routine' && (
-                                        <button
-                                            onClick={() => setSearchQuery('')}
-                                            className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-white"
-                                        >
-                                            스파링
-                                        </button>
-                                    )}
-                                </div>
-                            )}
+                                )}
+                                {(contentType === 'course' || contentType === 'sparring') && (
+                                    <button
+                                        onClick={() => { setSearchQuery(''); setRelatedFilter('drill'); }}
+                                        className={cn(
+                                            "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                                            relatedFilter === 'drill'
+                                                ? "bg-white text-black"
+                                                : "bg-zinc-800 text-white hover:bg-zinc-700"
+                                        )}
+                                    >
+                                        드릴
+                                    </button>
+                                )}
+                                {(contentType === 'course' || contentType === 'routine') && (
+                                    <button
+                                        onClick={() => { setSearchQuery(''); setRelatedFilter('sparring'); }}
+                                        className={cn(
+                                            "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                                            relatedFilter === 'sparring'
+                                                ? "bg-white text-black"
+                                                : "bg-zinc-800 text-white hover:bg-zinc-700"
+                                        )}
+                                    >
+                                        스파링
+                                    </button>
+                                )}
+                            </div>
 
                             {/* Selected related items */}
                             {relatedItems.length > 0 && (
@@ -647,8 +743,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
 
                             {/* Available items to add */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[350px] overflow-y-auto">
-                                {contentType === 'course' && filteredSparring.map(video => {
-                                    const isSelected = relatedItems.some(i => i.id === video.id);
+                                {relatedFilter === 'sparring' && filteredSparring.map(video => {
+                                    const isSelected = relatedItems.some(i => i.id === video.id && i.type === 'sparring');
                                     return (
                                         <button
                                             key={video.id}
@@ -676,95 +772,100 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                         </button>
                                     );
                                 })}
-
-                                {(contentType === 'routine' || contentType === 'sparring') && (
-                                    <>
-                                        {filteredLessons.map(lesson => {
-                                            const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
-                                            return (
-                                                <button
-                                                    key={lesson.id}
-                                                    onClick={() => toggleRelatedItem(lesson, 'lesson')}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                                                        isSelected
-                                                            ? "border-blue-500/50 bg-blue-600/10"
-                                                            : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
-                                                    )}
-                                                >
-                                                    <PlayCircle className="w-5 h-5 text-zinc-500 flex-shrink-0" />
-                                                    <p className="text-sm font-medium text-white truncate flex-1">{lesson.title}</p>
-                                                    {isSelected && <CheckCircle className="w-4 h-4 text-blue-500" />}
-                                                </button>
-                                            );
-                                        })}
-                                        {contentType === 'sparring' && filteredDrills.map(drill => {
-                                            const isSelected = relatedItems.some(i => i.id === drill.id && i.type === 'drill');
-                                            return (
-                                                <button
-                                                    key={drill.id}
-                                                    onClick={() => toggleRelatedItem(drill, 'drill')}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                                                        isSelected
-                                                            ? "border-emerald-500/50 bg-emerald-600/10"
-                                                            : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
-                                                    )}
-                                                >
-                                                    <Grid className="w-5 h-5 text-zinc-500 flex-shrink-0" />
-                                                    <p className="text-sm font-medium text-white truncate flex-1">{drill.title}</p>
-                                                    {isSelected && <CheckCircle className="w-4 h-4 text-emerald-500" />}
-                                                </button>
-                                            );
-                                        })}
-                                    </>
-                                )}
+                                {relatedFilter === 'drill' && filteredDrills.map(drill => {
+                                    const isSelected = relatedItems.some(i => i.id === drill.id && i.type === 'drill');
+                                    return (
+                                        <button
+                                            key={drill.id}
+                                            onClick={() => toggleRelatedItem(drill, 'drill')}
+                                            className={cn(
+                                                "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                                                isSelected
+                                                    ? "border-emerald-500/50 bg-emerald-600/10"
+                                                    : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
+                                            )}
+                                        >
+                                            <Grid className="w-5 h-5 text-zinc-500 flex-shrink-0" />
+                                            <p className="text-sm font-medium text-white truncate flex-1">{drill.title}</p>
+                                            {isSelected && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                                        </button>
+                                    );
+                                })}
+                                {relatedFilter === 'lesson' && filteredLessons.map(lesson => {
+                                    const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
+                                    return (
+                                        <button
+                                            key={lesson.id}
+                                            onClick={() => toggleRelatedItem(lesson, 'lesson')}
+                                            className={cn(
+                                                "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                                                isSelected
+                                                    ? "border-blue-500/50 bg-blue-600/10"
+                                                    : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
+                                            )}
+                                        >
+                                            <BookOpen className="w-5 h-5 text-zinc-500 flex-shrink-0" />
+                                            <p className="text-sm font-medium text-white truncate flex-1">{lesson.title}</p>
+                                            {isSelected && <CheckCircle className="w-4 h-4 text-blue-500" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
 
-                    {activeTab === 'preview' && config.hasPreview && (
-                        <div className="space-y-6 max-w-xl mx-auto">
-                            <div className="text-center">
-                                <h3 className="text-lg font-bold text-white mb-2">1분 미리보기 영상</h3>
-                                <p className="text-sm text-zinc-500">
-                                    {contentType === 'course' && '클래스를 구매하지 않은 사용자에게 보여줄 미리보기 영상입니다.'}
-                                    {contentType === 'sparring' && '스파링 하이라이트 미리보기 영상입니다.'}
-                                </p>
-                            </div>
-
-                            {/* Preview Upload Area */}
-                            <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center hover:border-violet-500 hover:bg-zinc-800/30 transition-all cursor-pointer relative">
-                                <input
-                                    type="file"
-                                    accept="video/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            setPreviewVideoFile(file);
-                                            setShowPreviewTrimmer(true);
-                                        }
-                                    }}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Upload className="w-8 h-8 text-zinc-400" />
+                    {
+                        activeTab === 'preview' && config.hasPreview && (
+                            <div className="space-y-6 max-w-xl mx-auto">
+                                <div className="text-center">
+                                    <h3 className="text-lg font-bold text-white mb-2">1분 미리보기 영상</h3>
+                                    <p className="text-sm text-zinc-500">
+                                        {contentType === 'course' && '클래스를 구매하지 않은 사용자에게 보여줄 미리보기 영상입니다.'}
+                                        {contentType === 'sparring' && '스파링 하이라이트 미리보기 영상입니다.'}
+                                    </p>
                                 </div>
-                                <p className="font-bold text-white mb-1">영상 파일 선택</p>
-                                <p className="text-sm text-zinc-500">1분 내외의 하이라이트 구간을 추출합니다</p>
-                            </div>
 
-                            <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl">
-                                <p className="text-xs text-violet-400/80">
-                                    💡 미리보기 영상은 구매 전환율을 높이는 데 효과적입니다. 가장 인상적인 부분을 선택하세요.
-                                </p>
+                                {/* Preview Upload Area */}
+                                <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center hover:border-violet-500 hover:bg-zinc-800/30 transition-all cursor-pointer relative">
+                                    <input
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setPreviewVideoFile(file);
+                                                setShowPreviewTrimmer(true);
+                                            }
+                                        }}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                    <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Upload className="w-8 h-8 text-zinc-400" />
+                                    </div>
+                                    <p className="font-bold text-white mb-1">영상 파일 선택</p>
+                                    <p className="text-sm text-zinc-500">1분 내외의 하이라이트 구간을 추출합니다</p>
+                                </div>
+
+                                <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl">
+                                    {previewCuts ? (
+                                        <div className="flex items-center gap-3 text-emerald-400">
+                                            <CheckCircle className="w-5 h-5" />
+                                            <p className="font-semibold">미리보기 편집이 설정되었습니다. 저장 시 업로드가 처리됩니다.</p>
+                                            <Button size="sm" variant="ghost" onClick={() => { setPreviewCuts(null); setPreviewVideoFile(null); }}>다시 선택</Button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-violet-400/80">
+                                            💡 미리보기 영상은 구매 전환율을 높이는 데 효과적입니다. 가장 인상적인 부분을 선택하세요.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )
+                    }
+                </div >
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-zinc-800 bg-zinc-900/50">
+                < div className="flex items-center justify-between p-6 border-t border-zinc-800 bg-zinc-900/50" >
                     <div className="text-sm text-zinc-500">
                         {contentType === 'course' && selectedLessonIds.length > 0 && `${selectedLessonIds.length}개 레슨`}
                         {contentType === 'routine' && selectedDrillIds.length > 0 && `${selectedDrillIds.length}개 드릴 • ${totalDurationMinutes}분`}
@@ -785,34 +886,39 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                             {saving ? '저장 중...' : (isEditMode ? '수정하기' : '만들기')}
                         </Button>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
-            {/* Video Trimmer Modal */}
-            {showPreviewTrimmer && previewVideoFile && createPortal(
-                <div className="fixed inset-0 z-[70000] bg-black/95 flex flex-col items-center justify-center p-4">
-                    <div className="w-full max-w-4xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">미리보기 추출</h2>
-                                <p className="text-zinc-400 text-sm mt-1">1분 하이라이트 구간을 선택하세요</p>
+            {/* Video Editor Modal */}
+            {
+                showPreviewTrimmer && previewVideoFile && createPortal(
+                    <div className="fixed inset-0 z-[70000] bg-black/95 overflow-y-auto">
+                        <div className="min-h-full flex items-center justify-center p-4 py-8">
+                            <div className="w-full max-w-3xl relative">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white">미리보기 편집</h2>
+                                        <p className="text-zinc-400 text-sm mt-1">1분 하이라이트 구간을 선택하세요</p>
+                                    </div>
+                                    <Button variant="ghost" onClick={() => setShowPreviewTrimmer(false)}>닫기</Button>
+                                </div>
+                                <VideoEditor
+                                    videoUrl={URL.createObjectURL(previewVideoFile)}
+                                    onSave={(cuts) => {
+                                        setPreviewCuts(cuts);
+                                        setShowPreviewTrimmer(false);
+                                    }}
+                                    onCancel={() => setShowPreviewTrimmer(false)}
+                                    aspectRatio="16:9"
+                                    maxDuration={60}
+                                />
                             </div>
-                            <Button variant="ghost" onClick={() => setShowPreviewTrimmer(false)}>닫기</Button>
                         </div>
-                        <VideoTrimmer
-                            file={previewVideoFile}
-                            onSave={(blob) => {
-                                // Handle preview save
-                                console.log('Preview blob:', blob);
-                                setShowPreviewTrimmer(false);
-                            }}
-                            onCancel={() => setShowPreviewTrimmer(false)}
-                        />
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div>,
+                    </div>,
+                    document.body
+                )
+            }
+        </div >,
         document.body
     );
 };

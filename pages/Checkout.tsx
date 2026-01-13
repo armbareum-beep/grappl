@@ -8,7 +8,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { validateCoupon } from '../lib/api';
 import { Button } from '../components/Button';
-import { Ticket, Tag, Check, AlertCircle, ShieldCheck, CreditCard, Globe, ArrowLeft } from 'lucide-react';
+import { Ticket, Tag, Check, AlertCircle, ShieldCheck, CreditCard, Globe, ArrowLeft, RefreshCw } from 'lucide-react';
 
 export const Checkout: React.FC = () => {
     const { type, id } = useParams<{ type: string; id: string }>();
@@ -31,6 +31,8 @@ export const Checkout: React.FC = () => {
     const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
     const [couponError, setCouponError] = useState<string | null>(null);
     const [discountedAmount, setDiscountedAmount] = useState(0);
+
+    const isYearly = productTitle.includes('(연간)');
 
     useEffect(() => {
         if (user) {
@@ -186,7 +188,26 @@ export const Checkout: React.FC = () => {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-8 shadow-2xl">
                             <h1 className="text-3xl font-black text-white mb-2 tracking-tight italic uppercase transform -skew-x-2">Checkout</h1>
-                            <p className="text-zinc-400 mb-8 font-medium">{productTitle}</p>
+                            <p className="text-zinc-400 mb-6 font-medium">{productTitle}</p>
+
+                            {type === 'subscription' && (
+                                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold mb-8 border ${isYearly
+                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                    : 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                                    }`}>
+                                    {isYearly ? (
+                                        <>
+                                            <CreditCard className="w-3.5 h-3.5" />
+                                            <span>1회 결제 (12개월 이용권)</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                            <span>매월 자동 결제</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="space-y-4 mb-8">
                                 <div className="flex justify-between items-center text-zinc-500 font-medium">
@@ -377,28 +398,50 @@ export const Checkout: React.FC = () => {
                                                 return;
                                             }
                                             try {
-                                                const response = await PortOne.requestPayment({
-                                                    storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                    channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
-                                                    paymentId: `payment-${Date.now()}`,
-                                                    orderName: productTitle,
-                                                    totalAmount: discountedAmount,
-                                                    currency: "KRW",
-                                                    payMethod: "CARD",
-                                                    customer: {
-                                                        email: user?.email,
-                                                        phoneNumber: phoneNumber || undefined,
-                                                        fullName: fullName || undefined,
-                                                    },
-                                                });
+                                                const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
+
+                                                let response;
+                                                // Monthly Subscription -> Issue Billing Key
+                                                if (isMonthlySubscription) {
+                                                    response = await PortOne.requestIssueBillingKey({
+                                                        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+                                                        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                        billingKeyMethod: "CARD",
+                                                        issueName: productTitle,
+                                                        customer: {
+                                                            email: user?.email,
+                                                            phoneNumber: phoneNumber || undefined,
+                                                            fullName: fullName || undefined,
+                                                        },
+                                                    });
+                                                }
+                                                // Yearly Pass & Others -> One-time Payment
+                                                else {
+                                                    response = await PortOne.requestPayment({
+                                                        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+                                                        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                        paymentId: `payment-${Date.now()}`,
+                                                        orderName: productTitle,
+                                                        totalAmount: discountedAmount,
+                                                        currency: "KRW",
+                                                        payMethod: "CARD",
+                                                        customer: {
+                                                            email: user?.email,
+                                                            phoneNumber: phoneNumber || undefined,
+                                                            fullName: fullName || undefined,
+                                                        },
+                                                    });
+                                                }
 
                                                 if (response?.code != null) {
-                                                    alert(`결제 실패: ${response.message}`);
+                                                    alert(`결제/빌링키 발급 실패: ${response.message}`);
                                                     return;
                                                 }
 
                                                 const { data: { session } } = await supabase.auth.getSession();
                                                 if (!session) throw new Error('Not authenticated');
+
+                                                const anyResponse = response as any;
 
                                                 const verifyResponse = await fetch(
                                                     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-portone-payment`,
@@ -409,28 +452,32 @@ export const Checkout: React.FC = () => {
                                                             'Authorization': `Bearer ${session.access_token}`,
                                                         },
                                                         body: JSON.stringify({
-                                                            paymentId: response?.paymentId || '',
+                                                            paymentId: anyResponse?.paymentId || '',
+                                                            billingKey: anyResponse?.billingKey || '', // Send billingKey if exists
                                                             mode: type,
                                                             id: id,
                                                             userId: user?.id,
-                                                            couponCode: appliedCoupon?.code
+                                                            couponCode: appliedCoupon?.code,
+                                                            amount: isMonthlySubscription ? discountedAmount : undefined // Send amount for initial charge
                                                         }),
                                                     }
                                                 );
 
                                                 if (!verifyResponse.ok) {
-                                                    throw new Error('결제 검증 실패');
+                                                    const errData = await verifyResponse.json();
+                                                    throw new Error(errData.error || '결제 검증 실패');
                                                 }
 
                                                 // Pass returnUrl to payment complete page
                                                 navigate('/payment/complete', { state: { returnUrl } });
                                             } catch (err: any) {
-                                                setError(`국내 결제 초기화 실패: ${err.message || JSON.stringify(err)}`);
+                                                console.error(err);
+                                                setError(`결제 처리 실패: ${err.message || JSON.stringify(err)}`);
                                             }
                                         }}
                                         className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg"
                                     >
-                                        결제하기
+                                        {type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기'}
                                     </button>
                                 </div>
                             </div>
@@ -438,11 +485,16 @@ export const Checkout: React.FC = () => {
 
                         {/* Terms Section */}
                         <div className="p-6 bg-zinc-900/50 rounded-3xl border border-zinc-800/50">
-                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Refund Policy</h3>
+                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Refund Policy & Terms</h3>
                             <div className="space-y-3 text-[10px] text-zinc-500 leading-relaxed font-medium">
-                                <p>• 강좌 구매 후 7일 이내, 수강 진도율 10% 미만인 경우 전액 환불이 가능합니다.</p>
+                                {(type === 'course' || type === 'bundle') && (
+                                    <p className="text-zinc-400">
+                                        • 본 상품은 평생 소장 상품입니다. 단, 결제일로부터 1년은 유료 서비스 기간, 그 이후는 무료 서비스 제공 기간으로 산정됩니다.
+                                    </p>
+                                )}
+                                <p>• 강좌/디지털 콘텐츠 구매 후 7일 이내, 이용 기록이 없는 경우 전액 환불 가능합니다.</p>
                                 <p>• 구독 서비스는 결제일로부터 7일 이내 미사용 시 전액 환불됩니다.</p>
-                                <p>• 환불은 고객센터를 통해 신청해주시기 바랍니다.</p>
+                                <p>• 환불 문의는 고객센터 채널을 이용해 주시기 바랍니다.</p>
                             </div>
                         </div>
                     </div>

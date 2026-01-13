@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { cn } from '../lib/utils';
@@ -25,18 +25,25 @@ const VideoItem: React.FC<{
     const [isFollowed, setIsFollowed] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [owns, setOwns] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
     const navigate = useNavigate();
 
     // Check interaction status on load
     useEffect(() => {
         if (user && video.creatorId) {
-            import('../lib/api').then(({ getSparringInteractionStatus }) => {
+            import('../lib/api').then(({ getSparringInteractionStatus, checkSparringOwnership }) => {
                 getSparringInteractionStatus(user.id, video.id, video.creatorId)
                     .then(status => {
                         setIsFollowed(status.followed);
                         setIsLiked(status.liked);
                         setIsSaved(status.saved);
+                    })
+                    .catch(console.error);
+
+                checkSparringOwnership(user.id, video.id)
+                    .then(hasPurchased => {
+                        setOwns(hasPurchased);
                     })
                     .catch(console.error);
             });
@@ -121,20 +128,7 @@ const VideoItem: React.FC<{
         return match ? match[1] : null;
     };
 
-    const getVimeoHash = (url: string) => {
-        if (!url) return null;
-        // ID:hash format
-        if (url.includes(':')) {
-            const [id, hash] = url.split(':');
-            if (/^\d+$/.test(id) && hash) return hash;
-        }
-        // Full URL with hash parameter
-        const match = url.match(/[?&]h=([a-z0-9]+)/i);
-        return match ? match[1] : null;
-    };
-
     const vimeoId = getVimeoId(video.videoUrl);
-    const vimeoHash = getVimeoHash(video.videoUrl);
 
     // Initialize Player
     useEffect(() => {
@@ -233,24 +227,57 @@ const VideoItem: React.FC<{
     };
 
     const isDailyFree = dailyFreeId === video.id;
-    // Allow access if: Daily Free OR (User Logged In AND (Subscribed OR Admin OR Creator of global video? usually no creator check for viewing unless own))
+    // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video? usually no creator check for viewing unless own))
     // Actually creator should see own videos.
-    const hasAccess = isDailyFree || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+    const hasAccess = isDailyFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
 
     const renderVideoContent = () => {
         if (!hasAccess) {
+            const canPurchase = video.price && video.price > 0;
+
             return (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md z-50 p-6 text-center select-none" onClick={e => e.stopPropagation()}>
-                    <Lock className="w-12 h-12 text-zinc-500 mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">멤버십 전용 콘텐츠</h3>
-                    <p className="text-sm text-zinc-400 mb-6">
-                        이 스파링 영상은 구독 후 시청할 수 있습니다.
-                        <br />
-                        {isDailyFree && <span className="text-violet-400 font-bold block mt-1">(오늘의 무료 영상!)</span>}
+                    <div className="mb-6 relative">
+                        <div className="absolute -inset-4 bg-violet-500/20 blur-xl rounded-full"></div>
+                        <Lock className="w-12 h-12 text-zinc-400 relative z-10" />
+                    </div>
+
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-zinc-500 mb-2">Membership or Purchase</span>
+                    <h3 className="text-2xl font-black text-white mb-2">
+                        {canPurchase ? '유료 스파링 영상' : '멤버십 전용 콘텐츠'}
+                    </h3>
+                    <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[240px] leading-relaxed">
+                        {canPurchase
+                            ? '이 영상을 시청하려면 단품으로 구매하거나 멤버십을 구독하세요.'
+                            : '이 스파링 영상은 구독 후 시청할 수 있습니다.'}
+                        {isDailyFree && <span className="text-violet-400 font-black block mt-2">(오늘의 무료 영상!)</span>}
                     </p>
-                    <Link to="/pricing" className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-900/20">
-                        지금 구독하기
-                    </Link>
+
+                    <div className="w-full max-w-[240px] space-y-3">
+                        {canPurchase && (
+                            <Link
+                                to={`/checkout/sparring/${video.id}?price=${video.price}`}
+                                className="flex items-center justify-center w-full h-14 bg-white text-black font-black rounded-2xl transition-all shadow-lg active:scale-95 text-lg"
+                            >
+                                ₩{video.price.toLocaleString()} 단품 구매
+                            </Link>
+                        )}
+
+                        {canPurchase && (
+                            <div className="relative py-2">
+                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                                    <span className="bg-zinc-950 px-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">or</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <Link
+                            to="/pricing"
+                            className="flex items-center justify-center w-full h-14 bg-violet-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-violet-900/40 active:scale-95 text-lg gap-2"
+                        >
+                            <Zap className="w-5 h-5 fill-current" /> 멤버십 구독하기
+                        </Link>
+                    </div>
                 </div>
             );
         }

@@ -794,12 +794,17 @@ app.post('/process', async (req, res) => {
 
                         const updateData = { vimeo_url: vimeoId };
 
+                        if (videoType === 'preview') {
+                            updateData.is_preview = true;
+                        }
+
                         // Only update thumbnail if it's empty, placeholder, or generic vumbnail
                         const isPlaceholder = !currentLesson?.thumbnail_url ||
                             currentLesson.thumbnail_url.includes('placehold.co') ||
                             currentLesson.thumbnail_url.includes('generated') ||
                             currentLesson.thumbnail_url.includes('vumbnail.com');
 
+                        // For previews, we still update thumbnail if needed
                         if (isPlaceholder) {
                             updateData.thumbnail_url = finalThumbnail;
                         }

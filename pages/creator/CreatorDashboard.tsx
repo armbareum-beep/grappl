@@ -6,7 +6,7 @@ import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, ge
 import { Course, Drill, Lesson, DrillRoutine, SparringVideo } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Trash2, Layers, Pencil, Clapperboard, X } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X } from 'lucide-react';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
@@ -14,15 +14,18 @@ import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTa
 import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 import { LoadingScreen } from '../../components/LoadingScreen';
+import { ContentCard } from '../../components/creator/ContentCard';
 import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from '../../components/common/DataControls';
 import { UnifiedContentModal } from '../../components/creator/UnifiedContentModal';
 import { useToast } from '../../contexts/ToastContext';
-import { createCourse, updateCourse, createRoutine, updateRoutine, updateSparringVideo } from '../../lib/api';
+import { createCourse, updateCourse, createRoutine, updateRoutine, updateSparringVideo, updateCourseLessons, updateCourseBundles } from '../../lib/api';
+import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 export const CreatorDashboard: React.FC = () => {
     const { user } = useAuth();
     const { success, error: toastError } = useToast();
     const navigate = useNavigate();
+    const { queueUpload } = useBackgroundUpload();
     const [searchParams, setSearchParams] = useSearchParams();
     const [courses, setCourses] = useState<Course[]>([]);
     const [drills, setDrills] = useState<Drill[]>([]);
@@ -71,6 +74,8 @@ export const CreatorDashboard: React.FC = () => {
 
         try {
             if (contentModalType === 'course') {
+                let courseId = editingContent?.id;
+
                 if (editingContent) {
                     await updateCourse(editingContent.id, {
                         title: data.title,
@@ -85,7 +90,7 @@ export const CreatorDashboard: React.FC = () => {
                     });
                     success('클래스가 수정되었습니다.');
                 } else {
-                    await createCourse({
+                    const result = await createCourse({
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -97,8 +102,43 @@ export const CreatorDashboard: React.FC = () => {
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: user.id,
                     });
+                    if (result.data) courseId = result.data.id;
                     success('클래스가 생성되었습니다.');
                 }
+
+                // Handle Curriculum (Lessons)
+                if (courseId && data.selectedLessonIds) {
+                    const { error: lessonError } = await updateCourseLessons(courseId, data.selectedLessonIds);
+                    if (lessonError) {
+                        toastError('커리큘럼 저장 중 오류가 발생했습니다.');
+                        console.error('Lessons update error:', lessonError);
+                    }
+                }
+
+                // Handle Bundled Content (Drills & Sparring)
+                if (courseId && data.relatedItems) {
+                    const { error: bundleError } = await updateCourseBundles(courseId, data.relatedItems, data.title);
+                    if (bundleError) {
+                        toastError('연결된 컨텐츠(드릴/스파링) 저장 중 오류가 발생했습니다.');
+                        console.error('Bundles update error:', bundleError);
+                    }
+                }
+
+                // Handle Preview Upload
+                if (data.previewVideoFile && data.previewCuts && courseId) {
+                    const previewId = `${crypto.randomUUID()}-${Date.now()}`;
+                    await queueUpload(data.previewVideoFile, 'preview', {
+                        videoId: previewId,
+                        filename: `preview-${courseId}.mp4`,
+                        title: `[Preview] ${data.title}`,
+                        description: `Preview video for course ${data.title}`,
+                        videoType: 'preview',
+                        courseId: courseId,
+                        cuts: data.previewCuts
+                    });
+                    success('미리보기 영상 업로드가 시작되었습니다.');
+                }
+
                 // Refresh courses
                 const coursesData = await getCreatorCourses(user.id);
                 setCourses(coursesData || []);
@@ -147,6 +187,22 @@ export const CreatorDashboard: React.FC = () => {
                         relatedItems: data.relatedItems,
                         isPublished: data.published,
                     });
+
+                    // Handle Preview Upload for Sparring
+                    if (data.previewVideoFile && data.previewCuts) {
+                        const previewId = `${crypto.randomUUID()}-${Date.now()}`;
+                        await queueUpload(data.previewVideoFile, 'preview', {
+                            videoId: previewId,
+                            filename: `preview-${editingContent.id}.mp4`,
+                            title: `[Preview] ${data.title}`,
+                            description: `Preview video for sparring ${data.title}`,
+                            videoType: 'preview',
+                            sparringId: editingContent.id,
+                            cuts: data.previewCuts
+                        });
+                        success('미리보기 영상 업로드가 시작되었습니다.');
+                    }
+
                     success('스파링 정보가 수정되었습니다.');
                     // Refresh sparring
                     const sparringData = await getSparringVideos(100, user.id);
@@ -604,63 +660,25 @@ export const CreatorDashboard: React.FC = () => {
                                                 <Button variant="outline" onClick={() => openCourseModal()}>첫 클래스 만들기</Button>
                                             )}
                                         </div>
-
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {courseControls.paginatedData.map((course) => (
-                                                    <div key={course.id} className="group overflow-hidden bg-zinc-900/40 border border-zinc-800 rounded-xl hover:border-violet-500/30 hover:bg-zinc-900/60 transition-all">
-                                                        <div className="p-4 flex flex-col sm:flex-row gap-4">
-                                                            <div className="w-full sm:w-48 h-32 sm:h-28 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 relative">
-                                                                <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                                            </div>
-
-                                                            <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-                                                                <div>
-                                                                    <h3 className="font-bold text-lg text-white truncate group-hover:text-violet-400 transition-colors">{course.title}</h3>
-                                                                    <p className="text-sm text-zinc-500 line-clamp-2 mt-1">{course.description}</p>
-                                                                </div>
-                                                                <div className="flex items-center gap-4 mt-4 text-sm text-zinc-400">
-                                                                    <span className="flex items-center gap-1.5 bg-zinc-800/50 px-2 py-1 rounded">
-                                                                        <BookOpen className="w-3.5 h-3.5" />
-                                                                        {course.lessonCount || 0} 레슨
-                                                                    </span>
-                                                                    <span className="flex items-center gap-1.5 bg-zinc-800/50 px-2 py-1 rounded">
-                                                                        <Eye className="w-3.5 h-3.5" />
-                                                                        {course.views.toLocaleString()}
-                                                                    </span>
-                                                                    <span className={cn("font-medium px-2 py-1 rounded", course.price === 0 ? "text-emerald-400 bg-emerald-500/10" : "text-violet-400 bg-violet-500/10")}>
-                                                                        {course.price === 0 ? '무료' : `₩${course.price.toLocaleString()}`}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex sm:flex-col justify-end gap-2 mt-2 sm:mt-0">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => openCourseModal(course)}
-                                                                    className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                                                    title="수정"
-                                                                >
-                                                                    <Pencil className="w-5 h-5" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleDeleteCourse(course.id, course.title)}
-                                                                    className="h-9 w-9 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
-                                                                    title="삭제"
-                                                                >
-                                                                    <Trash2 className="w-5 h-5" />
-                                                                </Button>
-                                                            </div>
-
-                                                        </div>
-                                                    </div>
+                                                    <ContentCard
+                                                        key={course.id}
+                                                        type="course"
+                                                        title={course.title}
+                                                        description={course.description}
+                                                        thumbnailUrl={course.thumbnailUrl}
+                                                        price={course.price}
+                                                        views={course.views}
+                                                        count={course.lessonCount}
+                                                        onEdit={() => openCourseModal(course)}
+                                                        onDelete={() => handleDeleteCourse(course.id, course.title)}
+                                                    />
                                                 ))}
                                             </div>
-                                            <div className="pt-4">
+                                            <div className="pt-6">
                                                 <Pagination
                                                     currentPage={courseControls.currentPage}
                                                     totalPages={courseControls.totalPages}
@@ -714,55 +732,23 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {routineControls.paginatedData.map((routine) => (
-                                                    <div key={routine.id} className="group bg-zinc-900/40 border border-zinc-800 rounded-xl overflow-hidden hover:border-violet-500/30 hover:bg-zinc-900/60 transition-all flex flex-col">
-                                                        <div className="aspect-video w-full bg-zinc-800 relative overflow-hidden">
-                                                            {routine.thumbnailUrl ? (
-                                                                <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                                                                    <Layers className="w-8 h-8 text-zinc-600" />
-                                                                </div>
-                                                            )}
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
-                                                            <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
-                                                                <span className="text-xs font-medium bg-black/50 text-white px-2 py-1 rounded backdrop-blur-sm border border-white/10">
-                                                                    {routine.drillCount || 0} 드릴
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="p-4 flex-1 flex flex-col">
-                                                            <h3 className="font-bold text-white text-lg truncate mb-2 group-hover:text-violet-400 transition-colors">{routine.title}</h3>
-                                                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-800/50">
-                                                                <div className="text-sm text-zinc-400">
-                                                                    {routine.views.toLocaleString()} 조회
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => openRoutineModal(routine)}
-                                                                        className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                                                    >
-                                                                        <Pencil className="w-4 h-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleDeleteRoutine(routine.id, routine.title)}
-                                                                        className="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <ContentCard
+                                                        key={routine.id}
+                                                        type="routine"
+                                                        title={routine.title}
+                                                        description={routine.description}
+                                                        thumbnailUrl={routine.thumbnailUrl}
+                                                        price={routine.price}
+                                                        views={routine.views}
+                                                        count={routine.drillCount}
+                                                        onEdit={() => openRoutineModal(routine)}
+                                                        onDelete={() => handleDeleteRoutine(routine.id, routine.title)}
+                                                    />
                                                 ))}
                                             </div>
-                                            <div className="pt-4">
+                                            <div className="pt-6">
                                                 <Pagination
                                                     currentPage={routineControls.currentPage}
                                                     totalPages={routineControls.totalPages}
@@ -802,42 +788,19 @@ export const CreatorDashboard: React.FC = () => {
                                     </div>
 
                                     {/* Filter sparring videos where price > 0 */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {salesSparringControls.paginatedData.map((video) => (
-                                            <div key={video.id} className="group overflow-hidden bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-violet-500/50 hover:bg-zinc-900 transition-all">
-                                                <div className="aspect-video w-full bg-zinc-800 relative">
-                                                    {video.thumbnailUrl ? (
-                                                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                                            <Clapperboard className="w-8 h-8" />
-                                                        </div>
-                                                    )}
-                                                    <div className="absolute top-2 right-2 bg-violet-600/90 text-white px-2 py-1 rounded text-xs font-bold backdrop-blur-sm shadow-sm">
-                                                        판매중
-                                                    </div>
-                                                </div>
-                                                <div className="p-3">
-                                                    <h3 className="text-sm font-medium text-white truncate" title={video.title}>{video.title}</h3>
-                                                    <div className="flex justify-between items-center mt-2 text-xs text-zinc-500">
-                                                        <span>{new Date(video.createdAt || '').toLocaleDateString()}</span>
-                                                        <span>{video.views?.toLocaleString()} 조회</span>
-                                                    </div>
-                                                    <div className="mt-2 flex justify-between items-center">
-                                                        <span className="text-sm font-bold text-violet-400">
-                                                            ₩{video.price.toLocaleString()}
-                                                        </span>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => openSparringModal(video)}
-                                                            className="h-7 text-xs px-2 border-zinc-700 text-zinc-300"
-                                                        >
-                                                            수정
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <ContentCard
+                                                key={video.id}
+                                                type="sparring"
+                                                title={video.title}
+                                                description={video.description}
+                                                thumbnailUrl={video.thumbnailUrl}
+                                                price={video.price}
+                                                views={video.views}
+                                                onEdit={() => openSparringModal(video)}
+                                                onDelete={() => handleDeleteSparringVideo(video.id, video.title)}
+                                            />
                                         ))}
                                     </div>
                                     {salesSparringControls.filteredData.length === 0 && (
@@ -912,65 +875,39 @@ export const CreatorDashboard: React.FC = () => {
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2">
-                                            {lessonControls.paginatedData.map((lesson) => (
-                                                <div
-                                                    key={lesson.id}
-                                                    onClick={() => {
-                                                        if (!lesson.vimeoUrl) {
-                                                            alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
-                                                            return;
-                                                        }
-                                                        navigate(`/lessons/${lesson.id}`);
-                                                    }}
-                                                    className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-colors group cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                        <div className="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0 overflow-hidden text-zinc-500 group-hover:text-violet-400 transition-colors">
-                                                            {(lesson.thumbnailUrl || (lesson as any).course?.thumbnailUrl) ? (
-                                                                <img src={lesson.thumbnailUrl || (lesson as any).course?.thumbnailUrl} alt={lesson.title} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <PlayCircle className="w-5 h-5" />
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-medium text-white truncate group-hover:text-violet-400 transition-colors">{lesson.title}</h3>
-                                                            <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                                                <span>{new Date(lesson.createdAt).toLocaleDateString()}</span>
-                                                                {lesson.durationMinutes && <span>• {lesson.durationMinutes}분</span>}
-                                                                {!lesson.vimeoUrl && <span className="text-amber-500">• 처리 중</span>}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Link to={`/creator/lessons/${lesson.id}/edit`} onClick={(e) => {
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {lessonControls.paginatedData.map((lesson) => (
+                                                    <ContentCard
+                                                        key={lesson.id}
+                                                        type="lesson"
+                                                        title={lesson.title}
+                                                        description={lesson.description}
+                                                        thumbnailUrl={lesson.thumbnailUrl || (lesson as any).course?.thumbnailUrl}
+                                                        views={0} // Logic for lesson views can be added later
+                                                        duration={lesson.durationMinutes}
+                                                        createdAt={lesson.createdAt}
+                                                        isProcessing={!lesson.vimeoUrl}
+                                                        onClick={() => {
                                                             if (!lesson.vimeoUrl) {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                alert('영상 처리 중에는 수정할 수 없습니다.');
-                                                            } else {
-                                                                e.stopPropagation();
+                                                                alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
+                                                                return;
                                                             }
-                                                        }}>
-                                                            <Button variant="ghost" size="icon" className={`h-8 w-8 ${!lesson.vimeoUrl ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                                <Pencil className="w-4 h-4" />
-                                                            </Button>
-                                                        </Link>
-                                                        <Button variant="ghost" size="icon" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteLesson(lesson.id, lesson.title);
-                                                        }} className="h-8 w-8 hover:text-red-400">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <Pagination
-                                                currentPage={lessonControls.currentPage}
-                                                totalPages={lessonControls.totalPages}
-                                                onPageChange={lessonControls.setCurrentPage}
-                                            />
-                                        </div>
+                                                            navigate(`/lessons/${lesson.id}`);
+                                                        }}
+                                                        onEdit={() => navigate(`/creator/lessons/${lesson.id}/edit`)}
+                                                        onDelete={() => handleDeleteLesson(lesson.id, lesson.title)}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="pt-6">
+                                                <Pagination
+                                                    currentPage={lessonControls.currentPage}
+                                                    totalPages={lessonControls.totalPages}
+                                                    onPageChange={lessonControls.setCurrentPage}
+                                                />
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -997,69 +934,47 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        {drillControls.paginatedData.map((drill) => (
-                                            <div
-                                                key={drill.id}
-                                                onClick={() => {
-                                                    if (!drill.vimeoUrl) {
-                                                        alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
-                                                        return;
-                                                    }
-                                                    navigate(`/drills/${drill.id}`);
-                                                }}
-                                                className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-colors group cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                    <div className="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0 text-zinc-500 group-hover:text-violet-400 transition-colors overflow-hidden">
-                                                        {drill.thumbnailUrl ? (
-                                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <Grid className="w-5 h-5" />
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <h3 className="font-medium text-white truncate group-hover:text-violet-400 transition-colors">{drill.title}</h3>
-                                                        <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                                            <span>{drill.createdAt ? new Date(drill.createdAt).toLocaleDateString() : ''}</span>
-                                                            <span>• {drill.views.toLocaleString()} 조회</span>
-                                                            {(!drill.vimeoUrl || drill.vimeoUrl?.trim() === '') && <span className="text-amber-500 font-medium">• 처리 중</span>}
-                                                            {drill.vimeoUrl?.startsWith('ERROR:') && <span className="text-red-500 font-medium">• 처리 실패</span>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Link to={`/creator/drills/${drill.id}/edit`} onClick={(e) => {
-                                                        if (!drill.vimeoUrl || !drill.thumbnailUrl) {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            alert('영상 처리 중에는 수정할 수 없습니다.');
-                                                        } else {
-                                                            e.stopPropagation();
-                                                        }
-                                                    }}>
-                                                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${!drill.vimeoUrl ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                            <Pencil className="w-4 h-4" />
-                                                        </Button>
-                                                    </Link>
-                                                    <Button variant="ghost" size="icon" onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteDrill(drill.id, drill.title);
-                                                    }} className="h-8 w-8 hover:text-red-400">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
+                                    {drillControls.filteredData.length === 0 ? (
+                                        <div className="text-center py-12 border border-dashed border-zinc-800 rounded-lg">
+                                            <p className="text-zinc-500">
+                                                {drills.length === 0 ? '업로드한 드릴이 없습니다.' : '검색 결과가 없습니다.'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {drillControls.paginatedData.map((drill) => (
+                                                    <ContentCard
+                                                        key={drill.id}
+                                                        type="drill"
+                                                        title={drill.title}
+                                                        description={drill.description}
+                                                        thumbnailUrl={drill.thumbnailUrl}
+                                                        views={drill.views}
+                                                        createdAt={drill.createdAt}
+                                                        isProcessing={!!(!drill.vimeoUrl || drill.vimeoUrl?.trim() === '')}
+                                                        isError={!!(drill.vimeoUrl?.startsWith('ERROR:'))}
+                                                        onClick={() => {
+                                                            if (!drill.vimeoUrl) {
+                                                                alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
+                                                                return;
+                                                            }
+                                                            navigate(`/drills/${drill.id}`);
+                                                        }}
+                                                        onEdit={() => navigate(`/creator/drills/${drill.id}/edit`)}
+                                                        onDelete={() => handleDeleteDrill(drill.id, drill.title)}
+                                                    />
+                                                ))}
                                             </div>
-                                        ))}
-                                        {drillControls.filteredData.length === 0 && (
-                                            <div className="text-center py-8 text-zinc-500 text-sm">드릴이 없습니다.</div>
-                                        )}
-                                        <Pagination
-                                            currentPage={drillControls.currentPage}
-                                            totalPages={drillControls.totalPages}
-                                            onPageChange={drillControls.setCurrentPage}
-                                        />
-                                    </div>
+                                            <div className="pt-6">
+                                                <Pagination
+                                                    currentPage={drillControls.currentPage}
+                                                    totalPages={drillControls.totalPages}
+                                                    onPageChange={drillControls.setCurrentPage}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
 
@@ -1085,14 +1000,24 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {materialsSparringControls.paginatedData.map((video) => {
                                             const isError = video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error');
                                             const isProcessing = !video.videoUrl || (!isError && !video.thumbnailUrl);
 
                                             return (
-                                                <div
+                                                <ContentCard
                                                     key={video.id}
+                                                    type="sparring"
+                                                    title={video.title}
+                                                    description={video.description}
+                                                    thumbnailUrl={video.thumbnailUrl}
+                                                    views={video.views}
+                                                    createdAt={video.createdAt}
+                                                    category={video.category === 'Competition' ? '대회' : '스파링'}
+                                                    uniformType={video.uniformType}
+                                                    isProcessing={isProcessing}
+                                                    isError={isError}
                                                     onClick={() => {
                                                         if (isProcessing) {
                                                             alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
@@ -1100,76 +1025,16 @@ export const CreatorDashboard: React.FC = () => {
                                                         }
                                                         navigate(`/sparring/${video.id}`);
                                                     }}
-                                                    className="group overflow-hidden bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-zinc-700 hover:bg-zinc-900 transition-all cursor-pointer"
-                                                >
-                                                    <div className="aspect-video w-full bg-zinc-800 relative">
-                                                        {video.thumbnailUrl && !isProcessing && !isError ? (
-                                                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                                                {isProcessing ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-500"></div> : <Clapperboard className="w-8 h-8" />}
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute top-2 right-2 flex gap-1">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (isProcessing) {
-                                                                        alert('영상 처리 중에는 수정할 수 없습니다.');
-                                                                        return;
-                                                                    }
-                                                                    openSparringModal(video);
-                                                                }}
-                                                                className={`h-7 w-7 bg-black/50 border-transparent text-white hover:bg-violet-600 ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            >
-                                                                <Pencil className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="icon"
-                                                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteSparringVideo(video.id, video.title);
-                                                                }}
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3">
-                                                        <h3 className="text-sm font-medium text-white truncate" title={video.title}>{video.title}</h3>
-                                                        <div className="flex justify-between items-center mt-2 text-xs text-zinc-500">
-                                                            <div className="flex items-center gap-2">
-                                                                {video.category && (
-                                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${video.category === 'Competition'
-                                                                        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                                                                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                                                                        }`}>
-                                                                        {video.category === 'Competition' ? '대회' : '스파링'}
-                                                                    </span>
-                                                                )}
-                                                                <span>{video.createdAt ? new Date(video.createdAt).toLocaleDateString() : ''}</span>
-                                                                {isProcessing && <span className="text-amber-500 font-medium">• 처리 중</span>}
-                                                            </div>
-                                                            <span>{video.views?.toLocaleString()} 조회</span>
-                                                        </div>
-                                                        <div className="mt-2 flex justify-between items-center text-[10px] text-zinc-600 font-medium italic">
-                                                            <div>
-                                                                {video.uniformType || 'No-Gi'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    onEdit={() => openSparringModal(video)}
+                                                    onDelete={() => handleDeleteSparringVideo(video.id, video.title)}
+                                                />
                                             );
                                         })}
                                     </div>
                                     {materialsSparringControls.filteredData.length === 0 && (
                                         <div className="text-center py-8 text-zinc-500 text-sm">업로드된 스파링 영상이 없습니다.</div>
                                     )}
-                                    <div className="mt-4">
+                                    <div className="pt-6">
                                         <Pagination
                                             currentPage={materialsSparringControls.currentPage}
                                             totalPages={materialsSparringControls.totalPages}

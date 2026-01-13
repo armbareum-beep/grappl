@@ -1,56 +1,32 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Clapperboard } from 'lucide-react';
 import { Drill } from '../types';
 import { getDrills } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { VideoPlayer } from './VideoPlayer';
 
 const DrillCard = ({ drill }: { drill: Drill }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [previewEnded, setPreviewEnded] = useState(false);
     const { isSubscribed, isAdmin } = useAuth();
     const canWatchFull = isSubscribed || isAdmin;
 
-    useEffect(() => {
-        if (videoRef.current) {
-            if (isHovered) {
-                if (previewEnded) return;
-                // Try to play
-                const playPromise = videoRef.current.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log('Autoplay prevented or failed:', error);
-                    });
-                }
-            } else {
-                videoRef.current.pause();
-                videoRef.current.currentTime = 0;
-            }
-        }
-    }, [isHovered, previewEnded]);
+    const getVimeoId = (url?: string) => {
+        if (!url) return null;
+        if (/^\d+$/.test(url)) return url;
+        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        return match ? match[1] : null;
+    };
+
+    const vimeoId = getVimeoId(drill.vimeoUrl);
 
     useEffect(() => {
         if (!isHovered) {
             setPreviewEnded(false);
         }
     }, [isHovered]);
-
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video || canWatchFull) return;
-
-        const handleTimeUpdate = () => {
-            if (video.currentTime >= 10) {
-                video.pause();
-                setPreviewEnded(true);
-            }
-        };
-
-        video.addEventListener('timeupdate', handleTimeUpdate);
-        return () => video.removeEventListener('timeupdate', handleTimeUpdate);
-    }, [canWatchFull]);
 
     return (
         <div
@@ -69,20 +45,21 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                 loading="lazy"
             />
 
-            {/* Video layer - Only rendered/active if we have a videoUrl */}
-            {drill.videoUrl && (
-                <video
-                    ref={videoRef}
-                    src={drill.videoUrl}
-                    muted
-                    loop={canWatchFull}
-                    playsInline
-                    className={cn(
-                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-                        isHovered && !previewEnded ? "opacity-100" : "opacity-0"
-                    )}
+            {/* Video layer using VideoPlayer */}
+            <div className={cn(
+                "absolute inset-0 w-full h-full bg-black transition-opacity duration-300",
+                isHovered && !previewEnded ? "opacity-100" : "opacity-0"
+            )}>
+                <VideoPlayer
+                    vimeoId={vimeoId || ''}
+                    title={drill.title}
+                    playing={isHovered}
+                    maxPreviewDuration={canWatchFull ? undefined : 10}
+                    onPreviewLimitReached={() => setPreviewEnded(true)}
+                    showControls={false}
+                    isPaused={!isHovered || previewEnded}
                 />
-            )}
+            </div>
 
             {/* Preview Ended Overlay */}
             {previewEnded && (
@@ -125,13 +102,20 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
 
 export const DrillReelsSection: React.FC = () => {
     const navigate = useNavigate();
-    const [drills, setDrills] = useState<Drill[]>([]);
+    const [dailyDrill, setDailyDrill] = useState<Drill | null>(null);
 
     useEffect(() => {
         const fetchDrills = async () => {
-            // Fetch random drills or top drills. Since getDrills sorts by created_at, it's latest.
-            const data = await getDrills(undefined, 10);
-            setDrills(data);
+            // Fetch a batch of drills to select from
+            const data = await getDrills(undefined, 50);
+
+            if (data.length > 0) {
+                // Select a drill based on the current date (Daily Rotation)
+                const today = new Date();
+                const seed = Math.floor(today.getTime() / (1000 * 60 * 60 * 24)); // Days since epoch
+                const index = seed % data.length;
+                setDailyDrill(data[index]);
+            }
         };
         fetchDrills();
     }, []);
@@ -159,20 +143,21 @@ export const DrillReelsSection: React.FC = () => {
                     </p>
                 </div>
 
-                {/* Drills Scroll Container */}
-                <div className="flex overflow-x-auto gap-4 pb-8 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-                    {drills.map((drill) => (
-                        <div key={drill.id} onClick={() => navigate(`/drills`)}>
-                            <DrillCard drill={drill} />
+                {/* Single Daily Drill Display */}
+                <div className="flex justify-center pb-8">
+                    {dailyDrill ? (
+                        <div onClick={() => navigate(`/drills`)}>
+                            {/* Scale up the single card slightly for emphasis */}
+                            <div className="transform scale-110">
+                                <DrillCard drill={dailyDrill} />
+                            </div>
                         </div>
-                    ))}
-
-                    {/* Placeholder skeletons if loading or empty */}
-                    {drills.length === 0 && Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="flex-none w-[280px] aspect-[9/16] bg-zinc-900 rounded-3xl border border-zinc-800 animate-pulse flex items-center justify-center">
+                    ) : (
+                        /* Skeleton */
+                        <div className="flex-none w-[280px] aspect-[9/16] bg-zinc-900 rounded-3xl border border-zinc-800 animate-pulse flex items-center justify-center transform scale-110">
                             <div className="w-10 h-10 rounded-full bg-zinc-800" />
                         </div>
-                    ))}
+                    )}
                 </div>
 
                 {/* CTA */}

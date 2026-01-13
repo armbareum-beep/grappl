@@ -475,7 +475,7 @@ export const MyLibrary: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {purchasedSparring.map((video) => (
                     <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <Link to={`/sparring/${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
                         <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
@@ -488,7 +488,7 @@ export const MyLibrary: React.FC = () => {
                         </div>
                       </Link>
                       <div className="px-1">
-                        <Link to={`/sparring?id=${video.id}`}>
+                        <Link to={`/sparring/${video.id}`}>
                           <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
                         </Link>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
@@ -525,7 +525,7 @@ export const MyLibrary: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {savedSparring.map((video) => (
                     <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/sparring?id=${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <Link to={`/sparring/${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
                         <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
@@ -535,7 +535,7 @@ export const MyLibrary: React.FC = () => {
                         </div>
                       </Link>
                       <div className="px-1">
-                        <Link to={`/sparring?id=${video.id}`}>
+                        <Link to={`/sparring/${video.id}`}>
                           <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
                         </Link>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">

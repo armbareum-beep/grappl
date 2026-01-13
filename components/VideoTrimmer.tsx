@@ -144,6 +144,14 @@ export const VideoTrimmer: React.FC<VideoTrimmerProps> = ({ file, onSave, onCanc
         setIsPlaying(!isPlaying);
     };
 
+    const [videoSrc, setVideoSrc] = useState<string>('');
+
+    useEffect(() => {
+        const url = URL.createObjectURL(file);
+        setVideoSrc(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
     return (
         <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 flex flex-col max-h-[80vh]">
             <div className="relative bg-black flex-1 min-h-[300px] flex items-center justify-center">
@@ -164,7 +172,7 @@ export const VideoTrimmer: React.FC<VideoTrimmerProps> = ({ file, onSave, onCanc
 
                 <video
                     ref={videoRef}
-                    src={URL.createObjectURL(file)}
+                    src={videoSrc}
                     className="max-h-full max-w-full"
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}

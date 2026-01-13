@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ChevronLeft, ChevronRight, Play, Sparkles } from 'lucide-react';
-import { getCourses } from '../lib/api';
+import { Play, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { getCourses, getDailyFreeLesson } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
 import { VideoPlayer } from './VideoPlayer';
@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 export const ClassShowcase: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
+    const [playingId, setPlayingId] = useState<string | null>(null);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const navigate = useNavigate();
     const { isSubscribed, isAdmin } = useAuth();
@@ -44,13 +45,50 @@ export const ClassShowcase: React.FC = () => {
 
     const fetchFeaturedCourses = async () => {
         try {
-            const data = await getCourses(12);
-            // Filter courses that have preview videos
-            const validCourses = data.filter(course => {
-                return getVimeoId(course.previewVideoUrl);
+            console.log('🔍 ClassShowcase: Fetching featured courses...');
+
+            // Fetch both in parallel
+            const [dailyRes, data] = await Promise.all([
+                getDailyFreeLesson(),
+                getCourses(12)
+            ]);
+
+            let finalCourses: Course[] = [];
+
+            // 1. Transform Daily Free Lesson to a Course if it exists
+            if (dailyRes.data) {
+                const lesson = dailyRes.data;
+                const dailyCourse: Course = {
+                    id: lesson.courseId || lesson.id,
+                    title: lesson.title,
+                    description: lesson.description || '',
+                    creatorId: lesson.creatorId || '',
+                    creatorName: lesson.creatorName || 'Instructor',
+                    creatorProfileImage: lesson.creatorProfileImage,
+                    category: (lesson.category as any) || 'Gi',
+                    difficulty: lesson.difficulty || 'All Levels',
+                    thumbnailUrl: lesson.thumbnailUrl || '',
+                    price: 0,
+                    views: lesson.views || 0,
+                    lessonCount: (lesson as any).course?.lessonCount || 1,
+                    createdAt: lesson.createdAt,
+                    previewVideoUrl: lesson.vimeoUrl,
+                    published: true
+                };
+                finalCourses.push(dailyCourse);
+            }
+
+            // 2. Add other courses with previews, avoiding duplicate with daily course
+            const otherCourses = data.filter(course => {
+                const hasVimeo = getVimeoId(course.previewVideoUrl);
+                const isNotDaily = !dailyRes.data || (course.id !== dailyRes.data.courseId);
+                return hasVimeo && isNotDaily;
             });
 
-            setCourses(validCourses);
+            finalCourses = [...finalCourses, ...otherCourses];
+
+            console.log('✅ ClassShowcase: Final items:', finalCourses.length);
+            setCourses(finalCourses);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching featured courses:', error);
@@ -81,11 +119,11 @@ export const ClassShowcase: React.FC = () => {
                             MASTERY PREVIEW
                         </span>
                     </div>
-                    <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight">
+                    <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight break-keep">
                         블랙벨트의 독점 <br className="md:hidden" />
                         <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span>
                     </h2>
-                    <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium">
+                    <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium break-keep">
                         오늘의 프리패스로 맛보고, 전체 시스템으로 완성하세요. <br className="md:hidden" />
                         단순한 나열이 아닌 성장을 보장하는 체계적인 가이드를 제공합니다.
                     </p>
@@ -95,49 +133,56 @@ export const ClassShowcase: React.FC = () => {
                 <div className="relative">
                     <div className="overflow-visible" ref={emblaRef}>
                         <div className="flex">
-                            {courses.map((course) => (
-                                <div key={course.id} className="flex-[0_0_100%] md:flex-[0_0_90%] lg:flex-[0_0_80%] min-w-0 px-4 md:px-8">
-                                    <div className="flex flex-col md:relative md:aspect-video rounded-3xl md:rounded-[3rem] overflow-hidden bg-zinc-900/50 md:bg-zinc-900 ring-1 ring-white/5 shadow-2xl group/card transition-all">
-                                        {/* Video Frame */}
-                                        <div className="relative aspect-video md:absolute md:inset-0">
-                                            <VideoPlayer
-                                                vimeoId={course.previewVideoUrl || ''}
-                                                title={course.title}
-                                                maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
-                                                onPreviewLimitReached={() => setIsPaywallOpen(true)}
-                                                showControls={false}
-                                                isPaused={isPaywallOpen}
-                                            />
-                                        </div>
+                            {courses.map((course) => {
+                                const isPlaying = playingId === course.id;
+                                return (
+                                    <div key={course.id} className="flex-[0_0_100%] md:flex-[0_0_90%] lg:flex-[0_0_80%] min-w-0 px-4 md:px-8">
+                                        <div className="flex flex-col md:relative md:aspect-video rounded-3xl md:rounded-[3rem] overflow-hidden bg-zinc-900/50 md:bg-zinc-900 ring-1 ring-white/5 shadow-2xl group/card transition-all">
+                                            {/* Video Frame */}
+                                            <div className="relative aspect-video md:absolute md:inset-0">
+                                                <VideoPlayer
+                                                    vimeoId={course.previewVideoUrl || ''}
+                                                    title={course.title}
+                                                    maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
+                                                    onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                                    showControls={isPlaying}
+                                                    playing={isPlaying}
+                                                    isPaused={isPaywallOpen || (playingId !== null && !isPlaying)}
+                                                />
 
-                                        {/* Overlay Content (Desktop Only) */}
-                                        <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none opacity-60 group-hover/card:opacity-40 transition-opacity"></div>
+                                                {/* Centered Action Button - Hidden when playing */}
+                                                {!isPlaying && (
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
+                                                        <button
+                                                            onClick={() => setPlayingId(course.id)}
+                                                            className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn"
+                                                        >
+                                                            <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1 group-hover:rotate-12 transition-transform" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                        {/* Info - Bottom Left (Responsive) */}
-                                        <div className="relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none">
-                                            <div className="max-w-3xl transform md:translate-y-4 group-hover/card:translate-y-0 transition-transform duration-500">
-                                                <h3 className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-1 drop-shadow-2xl">
-                                                    {course.title}
-                                                </h3>
-                                                <div className="flex items-center gap-3 text-white font-bold opacity-80 md:opacity-0 group-hover/card:opacity-100 transition-all duration-500 delay-100">
-                                                    <span className="text-xs md:text-xl tracking-tight">{course.creatorName}</span>
-                                                    <div className="w-1 h-1 rounded-full bg-white/40" />
-                                                    <span className="text-xs md:text-xl font-medium">{course.lessonCount} Lessons</span>
+                                            {/* Overlay Content (Desktop Only) - fade out when playing */}
+                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}></div>
+
+                                            {/* Info - Bottom Left (Responsive) - fade out when playing */}
+                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
+                                                <div className="max-w-3xl">
+                                                    <h3 className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep">
+                                                        {course.title}
+                                                    </h3>
+                                                    <div className="flex items-center gap-3 text-white font-bold opacity-80">
+                                                        <span className="text-xs md:text-xl tracking-tight">{course.creatorName}</span>
+                                                        <div className="w-1 h-1 rounded-full bg-white/40" />
+                                                        <span className="text-xs md:text-xl font-medium">{course.lessonCount} Lessons</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {/* Action Button - Bottom Right */}
-                                        <div className="absolute top-6 right-6 md:bottom-10 md:right-10 z-30 pointer-events-auto">
-                                            <Link to={`/courses/${course.id}`}>
-                                                <button className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-white/10 hover:bg-white/20 md:bg-violet-600 md:hover:bg-violet-500 text-white backdrop-blur-md md:backdrop-blur-none border border-white/20 md:border-none shadow-2xl flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn">
-                                                    <Play className="w-5 h-5 md:w-8 md:h-8 fill-current ml-0.5 md:ml-1 group-hover:rotate-12 transition-transform" />
-                                                </button>
-                                            </Link>
-                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 

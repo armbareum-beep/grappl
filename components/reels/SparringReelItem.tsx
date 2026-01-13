@@ -444,18 +444,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                     <div className="mb-2">
                                         <h3 className="font-black text-xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
                                     </div>
-                                    <p className="text-sm text-white/90 line-clamp-1 drop-shadow-sm md:text-base cursor-pointer" onClick={(e) => {
-                                        e.stopPropagation();
-                                        import('../../lib/api').then(({ getOriginalVideoUrl }: any) => {
-                                            if (getOriginalVideoUrl) {
-                                                getOriginalVideoUrl(video.videoUrl).then((url: string) => {
-                                                    if (url) window.open(url, '_blank');
-                                                });
-                                            }
-                                        });
-                                    }}>
-                                        오리지널 영상 보기 →
-                                    </p>
+
                                 </div>
                             </div>
                         </div>

@@ -363,6 +363,52 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
     }
 }
 
+export async function getRelatedCourseByCategory(category: string) {
+    try {
+        const { data, error } = await supabase
+            .from('courses')
+            .select(`
+                *,
+                creator:creators!creator_id(name, profile_image)
+            `)
+            .eq('published', true)
+            .eq('category', category)
+            .limit(1)
+            .maybeSingle();
+
+        if (error || !data) return null;
+        return transformCourse(data);
+    } catch (e) {
+        return null; // Fail silently
+    }
+}
+
+export async function getRelatedCourses(currentCourseId: string, category: string, limit = 4) {
+    try {
+        const { data, error } = await supabase
+            .from('courses')
+            .select(`
+                *,
+                creator:creators!creator_id(name, profile_image)
+            `)
+            .eq('published', true)
+            .eq('category', category)
+            .neq('id', currentCourseId) // Exclude current course
+            .limit(limit);
+
+        if (error) {
+            console.error('Error fetching related courses:', error);
+            return { data: [], error };
+        }
+
+        const courses = (data || []).map((item: any) => transformCourse(item));
+        return { data: courses, error: null };
+    } catch (e: any) {
+        console.error('getRelatedCourses exception:', e);
+        return { data: [], error: e };
+    }
+}
+
 export async function searchContent(query: string) {
     try {
         // Sanitize query to avoid PostgREST syntax errors (remove parens, commas, etc)
@@ -844,7 +890,8 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     category: v.category,
                     uniformType: v.uniform_type,
                     difficulty: v.difficulty,
-                    price: v.price || 0
+                    price: v.price || 0,
+                    previewVimeoId: v.preview_vimeo_id // Added preview ID
                 };
             });
 
@@ -1110,6 +1157,31 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
     } catch (e) {
         console.error('Error fetching purchased sparring:', e);
         return [];
+    }
+}
+
+/**
+ * Check if a user has purchased a specific sparring video
+ */
+export async function checkSparringOwnership(userId: string, videoId: string): Promise<boolean> {
+    try {
+        const { data, error } = await supabase
+            .from('purchases')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('product_id', videoId)
+            .eq('status', 'completed')
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error checking sparring ownership:', error);
+            return false;
+        }
+
+        return !!data;
+    } catch (e) {
+        console.error('Exception checking sparring ownership:', e);
+        return false;
     }
 }
 
@@ -1584,6 +1656,37 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     return { data: transformLesson(data), error: null };
 }
 
+
+export async function updateCourseLessons(courseId: string, lessonIds: string[]) {
+    // 1. First, dissociate all lessons currently linked to this course
+    const { error: resetError } = await supabase
+        .from('lessons')
+        .update({ course_id: null })
+        .eq('course_id', courseId);
+
+    if (resetError) return { error: resetError };
+
+    // 2. Associate the selected lessons
+    if (lessonIds.length > 0) {
+        const { error: updateError } = await supabase
+            .from('lessons')
+            .update({ course_id: courseId })
+            .in('id', lessonIds);
+
+        if (updateError) return { error: updateError };
+
+        // 3. Ensure lesson numbers are sequential (optional but recommended)
+        // We can just set them based on the order in lessonIds
+        for (let i = 0; i < lessonIds.length; i++) {
+            await supabase
+                .from('lessons')
+                .update({ lesson_number: i + 1 })
+                .eq('id', lessonIds[i]);
+        }
+    }
+
+    return { error: null };
+}
 
 // ==================== Support API ====================
 
@@ -2888,6 +2991,9 @@ export async function updateTrainingLog(id: string, logData: Partial<TrainingLog
 /**
  * Get public training logs (Community Feed) with pagination
  */
+/**
+ * Get public training logs (Community Feed) with pagination
+ */
 export async function getPublicTrainingLogs(page: number = 1, limit: number = 10) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -2904,10 +3010,30 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             page_size: limit
         });
 
+    // Parallel fetch: Get free sparring videos (Daily Sparring)
+    const sparringPromise = supabase
+        .from('sparring_videos')
+        .select(`
+            *,
+            creator:creators(name, profile_image)
+        `)
+        .eq('is_published', true)
+        .eq('price', 0) // Free items only
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
     let data, count, error;
+    let sparringData = [];
 
     try {
-        const result = await fetchPromise;
+        const [result, sparringResult] = await Promise.all([
+            fetchPromise,
+            sparringPromise
+        ]);
+
+        if (sparringResult.data) {
+            sparringData = sparringResult.data;
+        }
 
         // If RPC fails (e.g. function doesn't exist yet), fallback to standard query
         if (result.error) {
@@ -2933,6 +3059,42 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
             count = totalCount;
             error = null;
         }
+
+        // --- MERGE SPARRING VIDEOS INTO LOGS ---
+        if (sparringData && sparringData.length > 0) {
+            const mappedSparring = sparringData.map((video: any) => ({
+                id: video.id,
+                user_id: video.creator_id,
+                date: video.created_at,
+                notes: video.title || video.description || 'New Sparring Video',
+                media_url: video.video_url,
+                type: 'sparring',
+                location: '__FEED__sparring',
+                duration_minutes: 0,
+                techniques: [],
+                sparring_rounds: 0,
+                is_public: true,
+                created_at: video.created_at,
+                // Attach creator info if available immediately, though we fetch users later too
+                user: video.creator ? {
+                    name: video.creator.name,
+                    avatar_url: video.creator.profile_image
+                } : undefined,
+                // Extra metadata for sparring
+                title: video.title,
+                thumbnail_url: video.thumbnail_url
+            }));
+
+            // Merge and sort
+            const combined = [...(data || []), ...mappedSparring];
+            // Sort descending by created_at
+            combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            // Re-slice to match limit (heuristic)
+            // Note: This logic is imperfect for pagination across mixed sources but works for simple feeds.
+            data = combined.slice(0, limit);
+        }
+
     } catch (e) {
         console.error('getPublicTrainingLogs failed:', e);
         return { data: null, count: 0, error: e };
@@ -2950,20 +3112,26 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     // 2. Extract user IDs
     const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
 
-    // 3. Fetch user names from users table
-    const userMap: Record<string, string> = {};
+    // 3. Fetch user names from users table (only for those missing user info)
+    const missingUserIds = userIds.filter((id: any) => {
+        const item = data.find((d: any) => d.user_id === id);
+        return !item?.user; // Only fetch if we don't have user object attached already
+    });
+
+    // Always fetch users to be safe or if mapping didn't have full data
+    // But let's check map logic.
+    const userMap: Record<string, any> = {};
+
     try {
         if (userIds.length > 0) {
             const { data: usersData, error: usersError } = await supabase
                 .from('users')
-                .select('id, name')
+                .select('id, name, avatar_url') // Added avatar_url
                 .in('id', userIds);
 
             if (!usersError && usersData) {
                 usersData.forEach((u: any) => {
-                    if (u.name) {
-                        userMap[u.id] = u.name;
-                    }
+                    userMap[u.id] = u;
                 });
             } else {
                 console.warn('Failed to fetch users for feed:', usersError);
@@ -2979,7 +3147,7 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         if (userIds.length > 0) {
             const { data } = await supabase
                 .from('creators')
-                .select('id, name')
+                .select('id, name, profile_image') // Added profile_image
                 .in('id', userIds);
             creators = data;
         }
@@ -5484,7 +5652,36 @@ export async function getRoutineById(id: string) {
         })) || []
     };
 
+
+
     return { data: routine as DrillRoutine, error: null };
+}
+
+export async function getRelatedRoutines(currentRoutineId: string, category: string, limit = 4) {
+    try {
+        let query = supabase
+            .from('routines')
+            .select('*')
+            .neq('id', currentRoutineId) // Exclude current
+            .limit(limit);
+
+        if (category) {
+            query = query.eq('category', category);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching related routines:', error);
+            return { data: [], error };
+        }
+
+        const routines = (data || []).map((item: any) => transformDrillRoutine(item));
+        return { data: routines, error: null };
+    } catch (e: any) {
+        console.error('getRelatedRoutines exception:', e);
+        return { data: [], error: e };
+    }
 }
 
 export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds: string[]) {
@@ -5901,6 +6098,51 @@ export async function getDrillById(id: string) {
     } catch (e: any) {
         console.error(`[getDrillById] Failed/timeout for drill ${id}:`, e);
         return { error: e.message || 'Request timed out. Please check your connection and try again.' };
+    }
+}
+
+export async function getDrillsByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return { data: [], error: null };
+
+    try {
+        const { data, error } = await supabase
+            .from('drills')
+            .select('*')
+            .in('id', ids);
+
+        if (error) {
+            console.error('Error fetching drills by IDs:', error);
+            return { data: [], error };
+        }
+
+        // Fetch Creators Manually for proper attribution
+        const creatorIds = (data || []).map((d: any) => d.creator_id).filter(Boolean);
+        let creatorsMap: Record<string, any> = {};
+
+        if (creatorIds.length > 0) {
+            const { data: creators } = await supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .in('id', creatorIds);
+
+            if (creators) {
+                creators.forEach((c: any) => { creatorsMap[c.id] = c; });
+            }
+        }
+
+        const drills = (data || []).map((d: any) => {
+            const creator = creatorsMap[d.creator_id];
+            const enriched = {
+                ...d,
+                creator: creator ? { name: creator.name, profile_image: creator.avatar_url } : null
+            };
+            return transformDrill(enriched);
+        });
+
+        return { data: drills, error: null };
+    } catch (e) {
+        console.error('Error in getDrillsByIds:', e);
+        return { data: [], error: e };
     }
 }
 
@@ -7295,6 +7537,76 @@ export async function getCourseLikeCount(courseId: string): Promise<number> {
         .eq('course_id', courseId);
 
     return count || 0;
+}
+/**
+ * Update all bundles for a course (Drills and Sparring Videos)
+ */
+export async function updateCourseBundles(
+    courseId: string,
+    relatedItems: { type: string; id: string; title: string }[],
+    courseTitle: string
+) {
+    try {
+        // 1. Handle Drills (via course_drill_bundles table)
+        const drillIds = relatedItems.filter(i => i.type === 'drill').map(i => i.id);
+        console.log(`Updating drills for course ${courseId}:`, drillIds);
+
+        // Delete existing drill bundles
+        const { error: delError } = await supabase.from('course_drill_bundles').delete().eq('course_id', courseId);
+        if (delError) {
+            console.error('Error deleting drill bundles:', delError);
+            return { error: delError };
+        }
+
+        // Insert new drill bundles
+        if (drillIds.length > 0) {
+            const courseDrills = drillIds.map(drillId => ({
+                course_id: courseId,
+                drill_id: drillId
+            }));
+            const { error: insError } = await supabase.from('course_drill_bundles').insert(courseDrills);
+            if (insError) {
+                console.error('Error inserting drill bundles:', insError);
+                return { error: insError };
+            }
+        }
+
+        // 2. Handle Sparring Videos (via related_items in sparring_videos table)
+        const newSparringIds = relatedItems.filter(i => i.type === 'sparring').map(i => i.id);
+        console.log(`Updating sparring for course ${courseId}:`, newSparringIds);
+
+        // Get all sparring videos currently linked to this course
+        const { data: currentSparring, error: fetchSparError } = await supabase
+            .from('sparring_videos')
+            .select('id, related_items')
+            .contains('related_items', JSON.stringify([{ type: 'course', id: courseId }]));
+
+        if (fetchSparError) {
+            console.error('Error fetching current sparring bundles:', fetchSparError);
+            return { error: fetchSparError };
+        }
+
+        const currentSparringIds = currentSparring?.map(v => v.id) || [];
+
+        // Remove course from videos that are no longer linked
+        const removedIds = currentSparringIds.filter(id => !newSparringIds.includes(id));
+        for (const id of removedIds) {
+            const { error: remError } = await removeCourseSparringVideo(courseId, id);
+            if (remError) console.error(`Failed to remove course from sparring video ${id}:`, remError);
+        }
+
+        // Add course to newly linked videos
+        const addedIds = newSparringIds.filter(id => !currentSparringIds.includes(id));
+        for (const id of addedIds) {
+            const { error: addError } = await addCourseSparringVideo(courseId, id, courseTitle);
+            if (addError) console.error(`Failed to add course to sparring video ${id}:`, addError);
+        }
+
+        return { error: null };
+    } catch (error) {
+        console.error('Unexpected error in updateCourseBundles:', error);
+        return { error };
+    }
 }
 
 /**

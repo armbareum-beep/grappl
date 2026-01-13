@@ -13,9 +13,11 @@ interface VideoEditorProps {
     onSave: (cuts: { start: number; end: number }[], thumbnailBlob?: Blob) => void;
     onCancel: () => void;
     aspectRatio?: '16:9' | '9:16';
+    maxDuration?: number; // Max duration in seconds (for total selection or single cut)
+    maxCuts?: number;     // Max number of cuts allowed
 }
 
-export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9' }) => {
+export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9', maxDuration, maxCuts }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -74,14 +76,35 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
         }
     };
 
+    const totalCutsDuration = cuts.reduce((acc, cut) => acc + (cut.end - cut.start), 0);
+
     const handleSetEnd = () => {
         if (selectionStart !== null && currentTime > selectionStart) {
+            // Check max duration constraint (Total duration of existing cuts + current selection)
+            if (maxDuration) {
+                const currentSelectionDuration = currentTime - selectionStart;
+                if (totalCutsDuration + currentSelectionDuration > maxDuration) {
+                    alert(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다. (현재 총합: ${(totalCutsDuration + currentSelectionDuration).toFixed(1)}초)`);
+                    return;
+                }
+            }
             setSelectionEnd(currentTime);
         }
     };
 
     const handleAddCut = () => {
+        // Check max cuts constraint
+        if (maxCuts && cuts.length >= maxCuts) {
+            alert(`최대 ${maxCuts}개의 구간만 선택할 수 있습니다.`);
+            return;
+        }
+
         if (selectionStart !== null && selectionEnd !== null) {
+            // Double check total duration before adding
+            if (maxDuration && (totalCutsDuration + (selectionEnd - selectionStart)) > maxDuration) {
+                alert(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다.`);
+                return;
+            }
             setCuts([
                 ...cuts,
                 {
@@ -104,13 +127,34 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
         if (!video) return;
 
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+
+        // Calculate dimensions maintaining aspect ratio with max width/height
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 720;
+        let width = video.videoWidth;
+        let height = video.videoHeight;
+
+        if (width > height) {
+            if (width > MAX_WIDTH) {
+                height = height * (MAX_WIDTH / width);
+                width = MAX_WIDTH;
+            }
+        } else {
+            if (height > MAX_HEIGHT) {
+                width = width * (MAX_HEIGHT / height);
+                height = MAX_HEIGHT;
+            }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, width, height);
 
+        // Compress quality slightly to 0.8
         canvas.toBlob((blob) => {
             if (blob) {
                 setThumbnailBlob(blob);
