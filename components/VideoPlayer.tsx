@@ -126,6 +126,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             if (player) {
                 player.on('error', (data) => {
+                    // Filter out harmless playback interruption errors
+                    if (data?.name === 'AbortError' || data?.name === 'PlayInterrupted') {
+                        console.log('[VideoPlayer] Playback interrupted (expected behavior during rapid interaction)');
+                        return;
+                    }
                     console.error('Vimeo Player Error:', data);
                     setPlayerError(data);
                 });
@@ -222,22 +227,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, []);
 
 
-    // Handle external play/pause control
+    // Handle external play/pause control with a single robust effect
     useEffect(() => {
-        if (!playerRef.current) return;
+        const player = playerRef.current;
+        if (!player) return;
 
-        if (isPaused) {
-            playerRef.current.pause().catch(err => console.warn('Failed to pause player:', err));
-        }
-    }, [isPaused]);
+        const syncPlaybackState = async () => {
+            try {
+                // If paused prop or preview limit reached, we should pause
+                if (isPaused || hasReachedPreviewLimit) {
+                    await player.pause();
+                } else if (playing) {
+                    // Only play if 'playing' is true and not reached limit
+                    await player.play();
+                }
+            } catch (err: any) {
+                // Check if it's an expected interruption error
+                if (err?.name === 'AbortError' || err?.name === 'PlayInterrupted') {
+                    // Silently ignore interruptions from rapid state changes
+                    return;
+                }
+                console.warn('[VideoPlayer] Playback sync error:', err);
+            }
+        };
 
-    useEffect(() => {
-        if (!playerRef.current) return;
-
-        if (playing) {
-            playerRef.current.play().catch(err => console.warn('Failed to play player:', err));
-        }
-    }, [playing]);
+        syncPlaybackState();
+    }, [isPaused, playing, hasReachedPreviewLimit]);
 
     const handleRestartPreview = async () => {
         if (!playerRef.current) return;

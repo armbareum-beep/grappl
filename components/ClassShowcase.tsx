@@ -72,17 +72,19 @@ export const ClassShowcase: React.FC = () => {
                     views: lesson.views || 0,
                     lessonCount: (lesson as any).course?.lessonCount || 1,
                     createdAt: lesson.createdAt,
-                    previewVideoUrl: lesson.vimeoUrl,
+                    previewVimeoId: (lesson as any).course?.preview_vimeo_id,
                     published: true
                 };
-                finalCourses.push(dailyCourse);
+                if (dailyCourse.previewVimeoId) {
+                    finalCourses.push(dailyCourse);
+                }
             }
 
-            // 2. Add other courses with previews, avoiding duplicate with daily course
+            // 2. Add other courses with dedicated previews, avoiding duplicate with daily course
             const otherCourses = data.filter(course => {
-                const hasVimeo = getVimeoId(course.previewVideoUrl);
+                const hasPreview = !!course.previewVimeoId;
                 const isNotDaily = !dailyRes.data || (course.id !== dailyRes.data.courseId);
-                return hasVimeo && isNotDaily;
+                return hasPreview && isNotDaily;
             });
 
             finalCourses = [...finalCourses, ...otherCourses];
@@ -141,8 +143,9 @@ export const ClassShowcase: React.FC = () => {
                                             {/* Video Frame */}
                                             <div className="relative aspect-video md:absolute md:inset-0">
                                                 <VideoPlayer
-                                                    vimeoId={course.previewVideoUrl || ''}
+                                                    vimeoId={course.previewVimeoId || ''}
                                                     title={course.title}
+                                                    isPreviewMode={true}
                                                     maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
                                                     onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                                     showControls={isPlaying}
