@@ -5265,7 +5265,7 @@ export async function getDailyFreeDrill() {
             const { data: routineDrills, error } = await supabase
                 .from('routine_drills')
                 .select('drill_id, drills!inner(*), routines!inner(price)')
-                .gt('routines.price', 0)
+                // Removed price restriction to allow free content
                 .neq('drills.vimeo_url', '')
                 .not('drills.vimeo_url', 'like', 'ERROR%');
 
@@ -5383,7 +5383,7 @@ export async function getDailyFreeLesson() {
                         preview_vimeo_id
                     )
                 `)
-                .gt('course.price', 0)
+                .gt('course.price', -1) // Allow all prices
                 .neq('vimeo_url', '')
                 .not('vimeo_url', 'like', 'ERROR%')
                 // Filter for published courses manually or via inner join if robust
