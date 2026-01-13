@@ -10,6 +10,7 @@ import { ConfirmModal } from './common/ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 
 export const ClassShowcase: React.FC = () => {
+    console.log('🎬 ClassShowcase: Component mounted');
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [playingId, setPlayingId] = useState<string | null>(null);
@@ -32,17 +33,6 @@ export const ClassShowcase: React.FC = () => {
         if (emblaApi) emblaApi.scrollNext();
     }, [emblaApi]);
 
-    const getVimeoId = (url?: string) => {
-        if (!url) return null;
-        if (/^\d+$/.test(url)) return url;
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
-    };
-
-    useEffect(() => {
-        fetchFeaturedCourses();
-    }, []);
-
     const fetchFeaturedCourses = async () => {
         try {
             console.log('🔍 ClassShowcase: Fetching featured courses...');
@@ -55,7 +45,7 @@ export const ClassShowcase: React.FC = () => {
 
             let finalCourses: Course[] = [];
 
-            // 1. Transform Daily Free Lesson to a Course if it exists
+            // 1. Transform Daily Free Lesson to a Course if it exists and has preview
             if (dailyRes.data) {
                 const lesson = dailyRes.data;
                 const dailyCourse: Course = {
@@ -80,23 +70,35 @@ export const ClassShowcase: React.FC = () => {
                 }
             }
 
-            // 2. Add other courses with dedicated previews, avoiding duplicate with daily course
-            const otherCourses = data.filter(course => {
+            // 2. Add ALL courses with dedicated previews
+            const allCoursesWithPreview = data.filter(course => {
                 const hasPreview = !!course.previewVimeoId;
-                const isNotDaily = !dailyRes.data || (course.id !== dailyRes.data.courseId);
-                return hasPreview && isNotDaily;
+                console.log(`📹 Course: "${course.title}" | previewVimeoId: ${course.previewVimeoId} | hasPreview: ${hasPreview}`);
+                return hasPreview;
             });
 
-            finalCourses = [...finalCourses, ...otherCourses];
+            // 3. Deduplicate: only exclude if we actually added the daily course
+            const dailyCourseId = (dailyRes.data && finalCourses.length > 0) ? dailyRes.data.courseId : null;
+            const uniqueOtherCourses = allCoursesWithPreview.filter(course => course.id !== dailyCourseId);
+
+            finalCourses = [...finalCourses, ...uniqueOtherCourses];
 
             console.log('✅ ClassShowcase: Final items:', finalCourses.length);
+            console.log('📋 Final courses:', finalCourses.map(c => ({ title: c.title, previewVimeoId: c.previewVimeoId })));
+            console.log('🔍 DEBUG: allCoursesWithPreview count:', allCoursesWithPreview.length);
+            console.log('🔍 DEBUG: uniqueOtherCourses count:', uniqueOtherCourses.length);
+            console.log('🔍 DEBUG: data from getCourses:', data.map(c => ({ title: c.title, previewVimeoId: c.previewVimeoId })));
             setCourses(finalCourses);
             setLoading(false);
         } catch (error) {
-            console.error('Error fetching featured courses:', error);
+            console.error('❌ ClassShowcase: Error fetching featured courses:', error);
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchFeaturedCourses();
+    }, []);
 
     if (loading) {
         return (

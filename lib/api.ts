@@ -347,11 +347,13 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             const sortedLessons = (d.lessons || []).sort((a: any, b: any) => a.lesson_number - b.lesson_number);
             const firstLesson = sortedLessons[0];
 
+            const course = transformCourse(d);
             return {
-                ...transformCourse(d),
+                ...course,
                 lessonCount: d.lessons?.length || 0,
                 creatorProfileImage: d.creator?.profile_image || null,
-                previewVideoUrl: firstLesson?.vimeo_url
+                previewVideoUrl: firstLesson?.vimeo_url,
+                // previewVimeoId is already included from transformCourse
             };
         });
 

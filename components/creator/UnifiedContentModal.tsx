@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, PlayCircle, Grid, Upload, Search } from 'lucide-react';
+import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, PlayCircle, Grid, Upload, Search, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../types';
 import { ImageUploader } from '../ImageUploader';
 import { VideoEditor } from '../VideoEditor';
+import { Scissors } from 'lucide-react'; // Import Scissors
 
 // Content Types
 type ContentType = 'course' | 'routine' | 'sparring';
@@ -104,6 +105,9 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
     const [showPreviewTrimmer, setShowPreviewTrimmer] = useState(false);
     const [previewVideoFile, setPreviewVideoFile] = useState<File | null>(null);
     const [previewCuts, setPreviewCuts] = useState<{ start: number; end: number }[] | null>(null);
+    const [mainVideoFile, setMainVideoFile] = useState<File | null>(null);
+    const [mainVideoCuts, setMainVideoCuts] = useState<{ start: number; end: number }[] | null>(null);
+    const [showMainTrimmer, setShowMainTrimmer] = useState(false);
     const [relatedFilter, setRelatedFilter] = useState<'lesson' | 'drill' | 'sparring' | null>(null);
 
     // Initialize related filter when tab changes or content type changes
@@ -199,6 +203,9 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             setRelatedItems([]);
             setActiveTab('basic');
             setSearchQuery('');
+            setMainVideoFile(null);
+            setMainVideoCuts(null);
+            setShowMainTrimmer(false);
         }
     }, [isOpen]);
 
@@ -236,16 +243,70 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         });
     };
 
-    const handleAutoThumbnail = () => {
+    const moveItem = (index: number, direction: 'up' | 'down', type: 'lesson' | 'drill') => {
+        const setter = type === 'lesson' ? setSelectedLessonIds : setSelectedDrillIds;
+        setter(prev => {
+            const newArray = [...prev];
+            if (direction === 'up') {
+                if (index === 0) return prev;
+                [newArray[index - 1], newArray[index]] = [newArray[index], newArray[index - 1]];
+            } else {
+                if (index === prev.length - 1) return prev;
+                [newArray[index], newArray[index + 1]] = [newArray[index + 1], newArray[index]];
+            }
+            return newArray;
+        });
+    };
+
+    // Auto-select thumbnail when content changes or tab changes, if thumbnail is empty
+    useEffect(() => {
+        // Only run if we don't have a thumbnail yet, or if we want to be smarter
+        if (formData.thumbnailUrl) return;
+
         if (contentType === 'course' && selectedLessonIds.length > 0) {
-            const firstLesson = lessons.find(l => l.id === selectedLessonIds[0]);
-            if (firstLesson?.thumbnailUrl) {
-                setFormData(prev => ({ ...prev, thumbnailUrl: firstLesson.thumbnailUrl! }));
+            // Find the first lesson with a thumbnail
+            const validLesson = lessons
+                .filter(l => selectedLessonIds.includes(l.id))
+                .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0)) // Try to follow order
+                .find(l => l.thumbnailUrl);
+
+            if (validLesson?.thumbnailUrl) {
+                setFormData(prev => ({ ...prev, thumbnailUrl: validLesson.thumbnailUrl! }));
             }
         } else if (contentType === 'routine' && selectedDrillIds.length > 0) {
-            const firstDrill = drills.find(d => d.id === selectedDrillIds[0]);
-            if (firstDrill?.thumbnailUrl) {
-                setFormData(prev => ({ ...prev, thumbnailUrl: firstDrill.thumbnailUrl }));
+            // Find the first drill with a thumbnail
+            const validDrill = drills
+                .filter(d => selectedDrillIds.includes(d.id))
+                .find(d => d.thumbnailUrl);
+
+            if (validDrill?.thumbnailUrl) {
+                setFormData(prev => ({ ...prev, thumbnailUrl: validDrill.thumbnailUrl }));
+            }
+        }
+    }, [selectedLessonIds, selectedDrillIds, contentType, lessons, drills, formData.thumbnailUrl]);
+
+    const handleAutoThumbnail = () => {
+        if (contentType === 'course' && selectedLessonIds.length > 0) {
+            // Find the first lesson with a thumbnail
+            const validLesson = lessons
+                .filter(l => selectedLessonIds.includes(l.id))
+                .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0))
+                .find(l => l.thumbnailUrl);
+
+            if (validLesson?.thumbnailUrl) {
+                setFormData(prev => ({ ...prev, thumbnailUrl: validLesson.thumbnailUrl! }));
+            } else {
+                alert('선택된 레슨 중 썸네일이 있는 레슨이 없습니다.');
+            }
+        } else if (contentType === 'routine' && selectedDrillIds.length > 0) {
+            const validDrill = drills
+                .filter(d => selectedDrillIds.includes(d.id))
+                .find(d => d.thumbnailUrl);
+
+            if (validDrill?.thumbnailUrl) {
+                setFormData(prev => ({ ...prev, thumbnailUrl: validDrill.thumbnailUrl }));
+            } else {
+                alert('선택된 드릴 중 썸네일이 있는 드릴이 없습니다.');
             }
         }
     };
@@ -264,6 +325,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 relatedItems,
                 previewCuts,
                 previewVideoFile,
+                mainVideoCuts,
+                mainVideoFile,
             };
             await onSave(saveData);
             onClose();
@@ -537,11 +600,165 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                     </label>
                                 </div>
                             )}
+
+                            {/* Main Video Upload for Sparring (Creation Mode) */}
+                            {contentType === 'sparring' && !isEditMode && (
+                                <div className="mt-8 pt-8 border-t border-zinc-800">
+                                    <h3 className="text-lg font-bold text-violet-400 mb-4">스파링 영상</h3>
+                                    {!mainVideoFile ? (
+                                        <div className="w-full h-48 border-2 border-dashed border-zinc-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-violet-500 hover:bg-violet-500/5 transition-all relative group">
+                                            <input
+                                                type="file"
+                                                accept="video/*"
+                                                onChange={(e) => {
+                                                    if (e.target.files?.[0]) {
+                                                        setMainVideoFile(e.target.files[0]);
+                                                    }
+                                                }}
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                            />
+                                            <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                                <Upload className="w-6 h-6 text-zinc-400 group-hover:text-violet-400" />
+                                            </div>
+                                            <p className="font-bold text-zinc-300">스파링 영상 업로드</p>
+                                            <p className="text-xs text-zinc-500 mt-1">탭하여 동영상 선택</p>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+                                            <div className="aspect-video bg-black relative group">
+                                                <video
+                                                    src={URL.createObjectURL(mainVideoFile)}
+                                                    className="w-full h-full object-contain"
+                                                    controls
+                                                />
+                                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => setShowMainTrimmer(true)}
+                                                        className="p-2 bg-black/60 backdrop-blur rounded-lg text-white hover:bg-violet-600 transition-colors"
+                                                    >
+                                                        <Scissors className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setMainVideoFile(null);
+                                                            setMainVideoCuts(null);
+                                                        }}
+                                                        className="p-2 bg-black/60 backdrop-blur rounded-lg text-white hover:bg-red-600 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="p-4 flex items-center justify-between bg-zinc-900/50">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                                                        <Clapperboard className="w-5 h-5 text-violet-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white text-sm">{mainVideoFile.name}</p>
+                                                        <p className="text-xs text-zinc-500">{(mainVideoFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                                    </div>
+                                                </div>
+                                                {mainVideoCuts && (
+                                                    <span className="text-xs text-emerald-400 font-medium px-2 py-1 bg-emerald-500/10 rounded-full">
+                                                        편집됨
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {showMainTrimmer && mainVideoFile && (
+                                        <VideoEditor
+                                            videoUrl={URL.createObjectURL(mainVideoFile)}
+                                            onSave={(cuts) => {
+                                                setMainVideoCuts(cuts);
+                                                setShowMainTrimmer(false);
+                                            }}
+                                            onCancel={() => setShowMainTrimmer(false)}
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {activeTab === 'content' && (
                         <div className="space-y-4">
+                            {/* Selected Items Reordering */}
+                            {(contentType === 'course' || contentType === 'routine') && (
+                                <div className="mb-6 p-4 bg-zinc-950 rounded-xl border border-zinc-800">
+                                    <h4 className="text-sm font-bold text-zinc-400 mb-3">
+                                        선택된 {config.primaryLabel} 순서 ({contentType === 'course' ? selectedLessonIds.length : selectedDrillIds.length})
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {contentType === 'course' && selectedLessonIds.map((id, idx) => {
+                                            const item = lessons.find(l => l.id === id);
+                                            if (!item) return null;
+                                            return (
+                                                <div key={id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800">
+                                                    <span className="w-6 h-6 flex items-center justify-center bg-zinc-700 rounded text-xs font-bold text-zinc-300">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <div className="flex-1 truncate">
+                                                        <span className="text-sm font-medium text-zinc-200">{item.title}</span>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            onClick={() => moveItem(idx, 'up', 'lesson')}
+                                                            disabled={idx === 0}
+                                                            className="p-1 hover:bg-zinc-700 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                        >
+                                                            <ArrowUp className="w-4 h-4 text-zinc-400" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => moveItem(idx, 'down', 'lesson')}
+                                                            disabled={idx === selectedLessonIds.length - 1}
+                                                            className="p-1 hover:bg-zinc-700 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                        >
+                                                            <ArrowDown className="w-4 h-4 text-zinc-400" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {contentType === 'routine' && selectedDrillIds.map((id, idx) => {
+                                            const item = drills.find(d => d.id === id);
+                                            if (!item) return null;
+                                            return (
+                                                <div key={id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800">
+                                                    <span className="w-6 h-6 flex items-center justify-center bg-zinc-700 rounded text-xs font-bold text-zinc-300">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <div className="flex-1 truncate">
+                                                        <span className="text-sm font-medium text-zinc-200">{item.title}</span>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            onClick={() => moveItem(idx, 'up', 'drill')}
+                                                            disabled={idx === 0}
+                                                            className="p-1 hover:bg-zinc-700 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                        >
+                                                            <ArrowUp className="w-4 h-4 text-zinc-400" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => moveItem(idx, 'down', 'drill')}
+                                                            disabled={idx === selectedDrillIds.length - 1}
+                                                            className="p-1 hover:bg-zinc-700 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                        >
+                                                            <ArrowDown className="w-4 h-4 text-zinc-400" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {(contentType === 'course' ? selectedLessonIds.length === 0 : selectedDrillIds.length === 0) && (
+                                            <p className="text-sm text-zinc-500 text-center py-2">선택된 항목이 없습니다.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Search */}
                             <div className="relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />

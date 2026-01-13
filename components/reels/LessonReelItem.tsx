@@ -7,6 +7,9 @@ import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleC
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 import Player from '@vimeo/player';
 
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../social/ShareModal'));
+
 interface LessonReelItemProps {
     lesson: Lesson;
     isActive: boolean;
@@ -27,7 +30,11 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
     const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Helper to get Vimeo ID from URL or ID string
     const getVimeoId = (url: string) => {
@@ -107,15 +114,15 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         };
     }, [vimeoId, vimeoHash, offset]);
 
-    // Play/Pause based on isActive
+    // Play/Pause based on isActive and isPaused
     useEffect(() => {
         if (!playerRef.current || !isPlayerReady) return;
-        if (isActive) {
+        if (isActive && !isPaused) {
             playerRef.current.play().catch(() => { });
         } else {
             playerRef.current.pause().catch(() => { });
         }
-    }, [isActive, isPlayerReady]);
+    }, [isActive, isPlayerReady, isPaused]);
 
     // Mute/Unmute
     useEffect(() => {
@@ -187,6 +194,27 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         await toggleCreatorFollow(user.id, lesson.creatorId);
     };
 
+    // Click Handling for Play/Pause and Like
+    const handleVideoClick = () => {
+        if (clickTimeoutRef.current) {
+            // Double click detected
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+
+            // Trigger like
+            handleLike();
+            setShowLikeAnimation(true);
+            setTimeout(() => setShowLikeAnimation(false), 800);
+        } else {
+            // Single click - wait to see if double click follows
+            clickTimeoutRef.current = setTimeout(() => {
+                clickTimeoutRef.current = null;
+                // Toggle play/pause
+                setIsPaused(!isPaused);
+            }, 250);
+        }
+    };
+
     return (
         <div
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
@@ -199,7 +227,17 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                         className="w-full h-full [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover"
                         style={{ pointerEvents: 'none' }}
                     />
-                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={() => setMuted(!muted)} />
+                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
+
+                    {/* Like Animation */}
+                    {showLikeAnimation && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                            <Heart
+                                className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                                style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
@@ -257,7 +295,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                         >
                                             <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
                                         </button>
-                                        <button className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                        <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
                                             <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                         </button>
                                     </div>
@@ -303,6 +341,20 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 onClose={() => setIsLoginModalOpen(false)}
                 redirectUrl={`/watch?tab=lesson&id=${lesson.id}`}
             />
+
+            {/* Share Modal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={lesson.title}
+                        text={`${lesson.creatorName}님의 레슨을 확인해보세요`}
+                        imageUrl={lesson.thumbnailUrl}
+                        url={`${window.location.origin}/watch?tab=lesson&id=${lesson.id}`}
+                    />
+                )}
+            </React.Suspense>
         </div>
     );
 };

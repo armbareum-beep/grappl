@@ -20,7 +20,7 @@ import { ContentCard } from '../../components/creator/ContentCard';
 import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from '../../components/common/DataControls';
 import { UnifiedContentModal } from '../../components/creator/UnifiedContentModal';
 import { useToast } from '../../contexts/ToastContext';
-import { createCourse, updateCourse, createRoutine, updateRoutine, updateSparringVideo, updateCourseLessons, updateCourseBundles } from '../../lib/api';
+import { createCourse, updateCourse, createRoutine, updateRoutine, createSparringVideo, updateSparringVideo, updateCourseLessons, updateCourseBundles } from '../../lib/api';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 export const CreatorDashboard: React.FC = () => {
@@ -42,7 +42,7 @@ export const CreatorDashboard: React.FC = () => {
     const initialContentTab = (searchParams.get('contentTab') as any) || 'courses';
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
     const initialMaterialsTab = (searchParams.get('materialsTab') as any) || 'lessons';
-    const [activeMaterialsTab, setActiveMaterialsTab] = useState<'lessons' | 'drills' | 'sparring'>(initialMaterialsTab);
+    const [activeMaterialsTab, setActiveMaterialsTab] = useState<'lessons' | 'drills'>(initialMaterialsTab);
     const [activePerformanceTab, setActivePerformanceTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
     const [showSparringSelectModal, setShowSparringSelectModal] = useState(false);
     const [modalSearchQuery, setModalSearchQuery] = useState('');
@@ -207,10 +207,60 @@ export const CreatorDashboard: React.FC = () => {
                     }
 
                     success('스파링 정보가 수정되었습니다.');
-                    // Refresh sparring
-                    const sparringData = await getSparringVideos(100, user.id);
-                    setSparringVideos(sparringData?.data || []);
+                } else {
+                    // Create New Sparring
+                    const result = await createSparringVideo({
+                        title: data.title,
+                        description: data.description,
+                        category: data.category,
+                        difficulty: data.difficulty,
+                        uniformType: data.uniformType,
+                        price: data.price,
+                        relatedItems: data.relatedItems,
+                        isPublished: data.published,
+                        creatorId: user.id
+                    });
+
+                    if (result.data) {
+                        const sparringId = result.data.id;
+
+                        // Handle Main Video Upload
+                        if (data.mainVideoFile) {
+                            const videoId = `${crypto.randomUUID()}-${Date.now()}`;
+                            const ext = data.mainVideoFile.name.split('.').pop()?.toLowerCase() || 'mp4';
+                            await queueUpload(data.mainVideoFile, 'sparring', {
+                                videoId,
+                                filename: `${videoId}.${ext}`,
+                                title: `[SPARRING] ${data.title}`,
+                                description: data.description,
+                                sparringId: sparringId,
+                                videoType: 'sparring',
+                                cuts: data.mainVideoCuts || []
+                            });
+                            success('스파링 영상 업로드가 시작되었습니다.');
+                        } else {
+                            success('스파링이 생성되었습니다. 영상을 나중에 업로드해주세요.');
+                        }
+
+                        // Handle Preview Upload (same as update)
+                        if (data.previewVideoFile && data.previewCuts) {
+                            const previewId = `${crypto.randomUUID()}-${Date.now()}`;
+                            await queueUpload(data.previewVideoFile, 'preview', {
+                                videoId: previewId,
+                                filename: `preview-${sparringId}.mp4`,
+                                title: `[Preview] ${data.title}`,
+                                description: `Preview video for sparring ${data.title}`,
+                                videoType: 'preview',
+                                sparringId: sparringId,
+                                cuts: data.previewCuts
+                            });
+                        }
+                    }
                 }
+
+                // Refresh sparring
+                const sparringData = await getSparringVideos(100, user.id);
+                setSparringVideos(sparringData?.data || []);
             }
         } catch (err: any) {
             console.error('Save error:', err);
@@ -281,18 +331,13 @@ export const CreatorDashboard: React.FC = () => {
     });
 
     const salesSparringControls = useDataControls<SparringVideo>({
-        data: sparringVideos.filter(v => (v.price || 0) > 0),
+        data: sparringVideos, // Show ALL sparring videos in "내 컨텐츠"
         searchKeys: ['title', 'description'],
         sortOptions: commonSortOptions,
         itemsPerPage: 6
     });
 
-    const materialsSparringControls = useDataControls<SparringVideo>({
-        data: sparringVideos.filter(v => (v.price || 0) === 0),
-        searchKeys: ['title', 'description'],
-        sortOptions: commonSortOptions,
-        itemsPerPage: 10
-    });
+
 
     const lessonControls = useDataControls<Lesson>({
         data: lessons,
@@ -393,6 +438,7 @@ export const CreatorDashboard: React.FC = () => {
                     courses: coursesData?.length,
                     drills: Array.isArray(drillsData) ? drillsData.length : (drillsData as any)?.data?.length,
                     sparring: sparringData?.data?.length,
+                    sparringDetails: sparringData?.data?.map(s => ({ id: s.id, title: s.title, price: s.price })),
                     earnings: earningsData
                 });
 
@@ -783,9 +829,9 @@ export const CreatorDashboard: React.FC = () => {
                                             <Button
                                                 size="sm"
                                                 className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
-                                                onClick={() => setShowSparringSelectModal(true)}
+                                                onClick={() => openSparringModal()}
                                             >
-                                                재료에서 선택하여 공개하기
+                                                내 스파링 올리기
                                             </Button>
                                         </div>
                                     </div>
@@ -836,15 +882,6 @@ export const CreatorDashboard: React.FC = () => {
                                         }`}
                                 >
                                     내 드릴 (Drills)
-                                </button>
-                                <button
-                                    onClick={() => setActiveMaterialsTab('sparring')}
-                                    className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeMaterialsTab === 'sparring'
-                                        ? 'bg-zinc-800 text-white shadow-md'
-                                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
-                                        }`}
-                                >
-                                    내 스파링 (Sparring)
                                 </button>
                             </div>
 
@@ -978,72 +1015,6 @@ export const CreatorDashboard: React.FC = () => {
                                             </div>
                                         </>
                                     )}
-                                </div>
-                            )}
-
-                            {activeMaterialsTab === 'sparring' && (
-                                <div className="bg-zinc-900/30 rounded-xl border border-zinc-800 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                                        <div>
-                                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                                <Clapperboard className="w-5 h-5 text-zinc-400" />
-                                                내 스파링 (전체 자료)
-                                            </h2>
-                                            <p className="text-zinc-400 text-sm mt-1">업로드한 원본 스파링 영상입니다. '내 콘텐츠' 탭에서 이 자료를 가져와 판매용 상품으로 구성할 수 있습니다.</p>
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row gap-2">
-                                            <SearchInput
-                                                value={materialsSparringControls.searchQuery}
-                                                onChange={materialsSparringControls.setSearchQuery}
-                                                placeholder="스파링 검색..."
-                                            />
-                                            <Link to="/creator/sparring/new">
-                                                <Button size="sm" className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200">새 스파링 업로드</Button>
-                                            </Link>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {materialsSparringControls.paginatedData.map((video) => {
-                                            const isError = video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error');
-                                            const isProcessing = !video.videoUrl || (!isError && !video.thumbnailUrl);
-
-                                            return (
-                                                <ContentCard
-                                                    key={video.id}
-                                                    type="sparring"
-                                                    title={video.title}
-                                                    description={video.description}
-                                                    thumbnailUrl={video.thumbnailUrl}
-                                                    views={video.views}
-                                                    createdAt={video.createdAt}
-                                                    category={video.category === 'Competition' ? '대회' : '스파링'}
-                                                    uniformType={video.uniformType}
-                                                    isProcessing={isProcessing}
-                                                    isError={isError}
-                                                    onClick={() => {
-                                                        if (isProcessing) {
-                                                            alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
-                                                            return;
-                                                        }
-                                                        navigate(`/sparring/${video.id}`);
-                                                    }}
-                                                    onEdit={() => openSparringModal(video)}
-                                                    onDelete={() => handleDeleteSparringVideo(video.id, video.title)}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                    {materialsSparringControls.filteredData.length === 0 && (
-                                        <div className="text-center py-8 text-zinc-500 text-sm">업로드된 스파링 영상이 없습니다.</div>
-                                    )}
-                                    <div className="pt-6">
-                                        <Pagination
-                                            currentPage={materialsSparringControls.currentPage}
-                                            totalPages={materialsSparringControls.totalPages}
-                                            onPageChange={materialsSparringControls.setCurrentPage}
-                                        />
-                                    </div>
                                 </div>
                             )}
                         </div>

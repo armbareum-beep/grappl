@@ -218,10 +218,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
         await toggleCreatorFollow(user.id, drill.creatorId);
     };
 
-    const handleShare = async (item: any) => {
-        console.log('Share', item);
-    };
-
     const handleViewRoutine = async (drill: Drill) => {
         try {
             const { getRoutineByDrillId } = await import('../../lib/api');
@@ -263,7 +259,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             onSave={() => handleDrillSave(item.data)}
                             isFollowed={followingCreators.has(item.data.creatorId)}
                             onFollow={() => handleDrillFollow(item.data)}
-                            onShare={() => handleShare(item.data)}
                             onViewRoutine={() => handleViewRoutine(item.data)}
                             offset={offset}
                             isSubscriber={userPermissions.isSubscriber}

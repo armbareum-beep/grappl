@@ -34,7 +34,10 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Check interaction status on load
     useEffect(() => {
@@ -214,7 +217,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     useEffect(() => {
         if (!playerRef.current || !isPlayerReady) return;
 
-        if (isActive) {
+        if (isActive && !isPaused) {
             playerRef.current.play().catch(() => {
                 playerRef.current?.setVolume(0);
                 setMuted(true);
@@ -224,7 +227,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             playerRef.current.pause().catch(console.error);
             playerRef.current.setCurrentTime(0).catch(console.error);
         }
-    }, [isActive, isPlayerReady]);
+    }, [isActive, isPlayerReady, isPaused]);
 
     // Record View History
     useEffect(() => {
@@ -281,6 +284,27 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         } else if (containerRef.current) {
             const videoEl = containerRef.current.querySelector('video');
             if (videoEl) videoEl.muted = newMuteState;
+        }
+    };
+
+    // Click Handling for Play/Pause and Like
+    const handleVideoClick = () => {
+        if (clickTimeoutRef.current) {
+            // Double click detected
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+
+            // Trigger like
+            handleLike();
+            setShowLikeAnimation(true);
+            setTimeout(() => setShowLikeAnimation(false), 800);
+        } else {
+            // Single click - wait to see if double click follows
+            clickTimeoutRef.current = setTimeout(() => {
+                clickTimeoutRef.current = null;
+                // Toggle play/pause
+                setIsPaused(!isPaused);
+            }, 250);
         }
     };
 
@@ -376,7 +400,17 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             <div className="w-full h-full relative flex items-start justify-center pt-24">
                 <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     {renderVideoContent()}
-                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
+                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
+
+                    {/* Like Animation */}
+                    {showLikeAnimation && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                            <Heart
+                                className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                                style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Background Blur Effect */}

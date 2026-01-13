@@ -5,6 +5,9 @@ import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, 
 import { useNavigate, Link } from 'react-router-dom';
 import Player from '@vimeo/player';
 
+// Lazy load ShareModal
+const ShareModal = React.lazy(() => import('../social/ShareModal'));
+
 // --- Helper Functions ---
 const extractVimeoId = (url?: string) => {
     if (!url) return undefined;
@@ -35,6 +38,7 @@ interface SingleVideoPlayerProps {
     isVisible: boolean; // Is this specific video type (Main/Desc) currently visible
     shouldLoad: boolean; // Should we load the video (Active or Neighbor)
     isMuted: boolean;
+    isPaused: boolean; // User-triggered pause state
     onReady: () => void;
     onProgress: (percent: number) => void;
     onError: (msg: string) => void;
@@ -47,6 +51,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     isVisible,
     shouldLoad,
     isMuted,
+    isPaused,
     onReady,
     onProgress,
     onError
@@ -119,12 +124,12 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         const player = playerRef.current;
         const videoEl = videoRef.current;
 
-        // Play only if: Active Item AND Visible Type (Action/Desc) AND Ready
+        // Play only if: Active Item AND Visible Type (Action/Desc) AND Ready AND Not Paused
         // Preloading: If !isActive or !isVisible, we pause.
         // Wait: The requirement is to preload neighbors. Neighbors should be loaded but PAUSED.
         // Active item: Currently visible type -> PLAY. Hidden type -> PAUSE (background).
 
-        const shouldPlay = isActive && isVisible;
+        const shouldPlay = isActive && isVisible && !isPaused;
 
         if (useVimeo && player && ready) {
             if (shouldPlay) {
@@ -141,7 +146,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             }
             videoEl.muted = isMuted;
         }
-    }, [isActive, isVisible, ready, useVimeo, isMuted, shouldLoad]);
+    }, [isActive, isVisible, ready, useVimeo, isMuted, shouldLoad, isPaused]);
 
     // --- Render ---
     if (!shouldLoad) return null; // Unload completely
@@ -190,7 +195,6 @@ interface DrillReelItemProps {
     onSave: () => void;
     isFollowed: boolean;
     onFollow: () => void;
-    onShare: () => void;
     onViewRoutine: () => void;
     offset: number; // -1, 0, 1 for sliding effect
     isSubscriber: boolean;
@@ -211,7 +215,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     onSave,
     isFollowed,
     onFollow,
-    onShare,
     onViewRoutine,
     offset,
     isSubscriber,
@@ -227,8 +230,12 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [progress, setProgress] = useState(0);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [isVideoReady, setIsVideoReady] = useState(false); // Valid if CURRENT visible video is ready
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
 
     const navigate = useNavigate();
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Reset view to main when scrolling away (cleanup)
     useEffect(() => {
@@ -261,6 +268,27 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     // const rawVimeoUrl = isActionVideo ? drill.vimeoUrl : (drill.descriptionVideoUrl || drill.vimeoUrl);
     // So if desc is missing, use main.
     const finalDescUrl = drill.descriptionVideoUrl || drill.vimeoUrl;
+
+    // --- Click Handling for Play/Pause and Like ---
+    const handleVideoClick = () => {
+        if (clickTimeoutRef.current) {
+            // Double click detected
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+
+            // Trigger like
+            onLike();
+            setShowLikeAnimation(true);
+            setTimeout(() => setShowLikeAnimation(false), 800);
+        } else {
+            // Single click - wait to see if double click follows
+            clickTimeoutRef.current = setTimeout(() => {
+                clickTimeoutRef.current = null;
+                // Toggle play/pause
+                setIsPaused(!isPaused);
+            }, 250);
+        }
+    };
 
     // --- Touch Handling ---
     const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -319,6 +347,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         isVisible={currentVideoType === 'main'}
                         shouldLoad={shouldLoad}
                         isMuted={isMuted}
+                        isPaused={isPaused}
                         onReady={() => { if (currentVideoType === 'main') setIsVideoReady(true); }}
                         onProgress={(p) => { if (currentVideoType === 'main') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
@@ -332,10 +361,27 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         isVisible={currentVideoType === 'description'}
                         shouldLoad={shouldLoad} // Load both!
                         isMuted={isMuted}
+                        isPaused={isPaused}
                         onReady={() => { if (currentVideoType === 'description') setIsVideoReady(true); }}
                         onProgress={(p) => { if (currentVideoType === 'description') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
                     />
+
+                    {/* Click Handler Overlay */}
+                    <div
+                        className="absolute inset-0 z-30 cursor-pointer"
+                        onClick={handleVideoClick}
+                    />
+
+                    {/* Like Animation */}
+                    {showLikeAnimation && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                            <Heart
+                                className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                                style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                            />
+                        </div>
+                    )}
 
                     {/* Loading Overlay (only if current video not ready) */}
                     {shouldLoad && !isVideoReady && !loadError && (
@@ -434,7 +480,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
                                     <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
+                                <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
                                     <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                 </button>
                             </div>
@@ -445,18 +491,18 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
             {/* Metadata Footer */}
             <div className="absolute left-0 right-0 w-full bottom-24 px-6 z-40 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
+                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
                     <div className="flex-1 pr-16">
                         <div className="inline-block px-2 py-0.5 bg-yellow-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">DRILL</div>
                         <div className="flex items-center gap-3 mb-3">
-                            <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 hover:opacity-80">
+                            <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 hover:opacity-80 pointer-events-auto">
                                 {(drill as any).creatorProfileImage && (
                                     <img src={(drill as any).creatorProfileImage} alt="" className="w-8 h-8 rounded-full border border-white/20 object-cover" />
                                 )}
                                 <span className="text-white font-bold text-sm drop-shadow-sm">{drill.creatorName || 'Instructor'}</span>
                             </Link>
                             <span className="text-white/60 text-xs">•</span>
-                            <button onClick={(e) => { e.stopPropagation(); onFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                            <button onClick={(e) => { e.stopPropagation(); onFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 pointer-events-auto ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
                                 {isFollowed ? 'Following' : 'Follow'}
                             </button>
                         </div>
@@ -479,6 +525,20 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             <div className="absolute bottom-0 left-0 right-0 z-50 h-[2px] bg-zinc-800/50">
                 <div className="h-full bg-violet-400 transition-all duration-100 ease-linear" style={{ width: `${progress}%` }} />
             </div>
+
+            {/* Share Modal */}
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={drill.title}
+                        text={`${drill.creatorName || 'Instructor'}님의 드릴을 확인해보세요`}
+                        imageUrl={drill.thumbnailUrl}
+                        url={`${window.location.origin}/watch?tab=drill&id=${drill.id}`}
+                    />
+                )}
+            </React.Suspense>
 
         </div>
     );

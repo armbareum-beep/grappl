@@ -77,6 +77,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         level: ContentLevel.Beginner,
         uniformType: UniformType.Gi,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
+        price: 0,
     });
 
     // Video States
@@ -121,6 +122,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         level: (data.difficulty as ContentLevel) || ContentLevel.Beginner,
                         uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                         sparringType: contentType === 'sparring' ? (data.category as any) || 'Sparring' : 'Sparring',
+                        price: data.price || 0,
                     });
 
                     // Populate videos
@@ -246,7 +248,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             if (!targetCourseId) throw new Error('코스를 찾거나 생성할 수 없습니다.');
             result = await createLesson({ ...commonData, courseId: targetCourseId, lessonNumber: 1 });
         } else if (contentType === 'sparring') {
-            result = await createSparringVideo({ ...commonData });
+            result = await createSparringVideo({ ...commonData, price: formData.price });
         }
 
         if (result?.error || !result?.data) throw result?.error;
@@ -329,7 +331,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 const { error } = await updateLesson(contentId, commonData);
                 if (error) throw error;
             } else if (contentType === 'sparring') {
-                const { error } = await updateSparringVideo(contentId, commonData);
+                const { error } = await updateSparringVideo(contentId, { ...commonData, price: formData.price });
                 if (error) throw error;
             }
 
@@ -489,7 +491,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         </h1>
                         {!isEditMode && (
                             <div className="flex gap-2 mt-2">
-                                {(['drill', 'lesson', 'sparring'] as ContentType[]).map(type => (
+                                {(['drill', 'lesson'] as ContentType[]).map(type => (
                                     <button
                                         key={type}
                                         onClick={() => setContentType(type)}
@@ -522,17 +524,32 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {contentType === 'sparring' ? (
-                                <div>
-                                    <label className="block text-sm font-semibold text-zinc-400 mb-2">스파링 종류 (Category)</label>
-                                    <select
-                                        value={formData.sparringType}
-                                        onChange={e => setFormData({ ...formData, sparringType: e.target.value as any })}
-                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
-                                    >
-                                        <option value="Sparring">스파링 (Sparring)</option>
-                                        <option value="Competition">컴페티션 (Competition)</option>
-                                    </select>
-                                </div>
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">스파링 종류 (Category)</label>
+                                        <select
+                                            value={formData.sparringType}
+                                            onChange={e => setFormData({ ...formData, sparringType: e.target.value as any })}
+                                            className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                                        >
+                                            <option value="Sparring">스파링 (Sparring)</option>
+                                            <option value="Competition">컴페티션 (Competition)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">가격 (Price)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1000"
+                                            value={formData.price}
+                                            onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                                            placeholder="0 (무료 자료)"
+                                        />
+                                        <p className="text-xs text-zinc-500 mt-1">0원 = 무료 자료, 0원 초과 = 판매 상품</p>
+                                    </div>
+                                </>
                             ) : (
                                 <>
                                     <div>

@@ -102,7 +102,7 @@ export const VersionChecker: React.FC = () => {
                         <div className="flex-grow">
                             <h3 className="text-white font-black text-sm uppercase tracking-wider italic">Update Available</h3>
                             <p className="text-zinc-400 text-[11px] font-medium leading-relaxed mt-0.5">
-                                최신 기능이 추가되었습니다.<br />최적의 환경을 위해 업데이트하세요.
+                                최신 기능이 추가되었습니다.<br />업데이트 후 <strong>앱을 껐다 켜주세요.</strong>
                             </p>
                         </div>
 
