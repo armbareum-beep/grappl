@@ -164,14 +164,14 @@ export const DrillReelsSection: React.FC = () => {
                 {/* CTA */}
                 <div className="mt-12 text-center">
                     <button
-                        onClick={() => navigate('/drills')}
+                        onClick={() => navigate('/library?tab=routines')}
                         className="relative group bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300 overflow-hidden"
                     >
-                        <span className="relative z-10">드릴 전체 보기</span>
+                        <span className="relative z-10">루틴 전체 보기</span>
                         <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">
-                        1,000개 이상의 드릴을 손끝에서 만나보세요.
+                        체계적으로 구성된 루틴으로 훈련하세요.
                     </p>
                 </div>
             </div>

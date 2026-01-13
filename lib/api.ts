@@ -5230,47 +5230,6 @@ export async function getDailyRoutine() {
     }
 }
 
-/**
- * Fetches a course to be featured as "Free for Today" based on the current date.
- */
-export async function getDailyFreeCourse() {
-    try {
-        const { data, error } = await supabase
-            .from('courses')
-            .select(`
-                *,
-                creator:creators(name, profile_image),
-                lessons:lessons(count)
-            `)
-            .eq('published', true)
-            .order('id') // Added stable order
-            .limit(20);
-
-        if (error) throw error;
-        if (!data || data.length === 0) return { data: null, error: null };
-
-        // Deterministic selection based on date (Matching Landing Page)
-        const today = new Date();
-        const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-        const x = Math.sin(seed) * 10000;
-        const index = Math.floor((x - Math.floor(x)) * data.length);
-
-        console.log(`[getDailyFreeCourse] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
-        const course = data[index];
-
-        return {
-            data: {
-                ...transformCourse(course),
-                lessonCount: course.lessons?.[0]?.count || 0,
-                creatorProfileImage: course.creator?.profile_image || null,
-            } as Course,
-            error: null
-        };
-    } catch (error) {
-        console.error('Error fetching daily free course:', error);
-        return { data: null, error };
-    }
-}
 
 /**
  * Get a drill for the day (changes daily based on date)
@@ -5300,10 +5259,11 @@ export async function getDailyFreeDrill() {
 
         // 2. Fallback to deterministic random if no featured drill or not found
         if (!selectedDrill) {
-            // Only select drills that are part of routines
+            // Only select drills that are part of paid routines (Price > 0)
             const { data: routineDrills, error } = await supabase
                 .from('routine_drills')
-                .select('drill_id, drills!inner(*)')
+                .select('drill_id, drills!inner(*), routines!inner(price)')
+                .gt('routines.price', 0)
                 .neq('drills.vimeo_url', '')
                 .not('drills.vimeo_url', 'like', 'ERROR%');
 
@@ -5391,7 +5351,8 @@ export async function getDailyFreeLesson() {
                         creator_id,
                         price,
                         is_subscription_excluded,
-                        published
+                        published,
+                        preview_vimeo_id
                     )
                 `)
                 .eq('course_id', featured.featured_id)
@@ -5409,16 +5370,18 @@ export async function getDailyFreeLesson() {
                 .from('lessons')
                 .select(`
                     *,
-                    course:courses (
+                    course:courses!inner (
                         id,
                         title,
                         thumbnail_url,
                         creator_id,
                         price,
                         is_subscription_excluded,
-                        published
+                        published,
+                        preview_vimeo_id
                     )
                 `)
+                .gt('course.price', 0)
                 .neq('vimeo_url', '')
                 .not('vimeo_url', 'like', 'ERROR%')
                 // Filter for published courses manually or via inner join if robust
@@ -5501,6 +5464,7 @@ export async function getDailyFreeSparring() {
                 .from('sparring_videos')
                 .select('*')
                 .eq('is_published', true)
+                .gt('price', 0)
                 .neq('video_url', '')
                 .not('video_url', 'like', 'ERROR%')
                 .order('id')
