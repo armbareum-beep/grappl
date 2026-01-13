@@ -5507,6 +5507,7 @@ export async function getDailyFreeSparring() {
         return {
             data: {
                 ...transformSparringVideo(selectedSparring),
+                previewVimeoId: selectedSparring.preview_vimeo_id,
                 creator: creatorInfo
             },
             error: null

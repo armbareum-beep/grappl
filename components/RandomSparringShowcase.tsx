@@ -39,7 +39,8 @@ export function RandomSparringShowcase() {
         fetchVideo();
     }, []);
 
-    const vimeoId = video ? (video.previewVimeoId || getVimeoId(video.videoUrl)) : null;
+    // User requested "Just daily free sparring" -> show full video
+    const vimeoId = video ? getVimeoId(video.videoUrl) : null;
 
     useEffect(() => {
         if (!iframeRef.current || !vimeoId) return;
