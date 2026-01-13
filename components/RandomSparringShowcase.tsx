@@ -14,11 +14,19 @@ export function RandomSparringShowcase() {
     const playerRef = useRef<Player | null>(null);
 
     // Helper to extract Vimeo ID
-    const getVimeoId = (url: string) => {
-        if (!url) return null;
-        if (/^\d+$/.test(url)) return url; // Already an ID
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
+    // Helper to extract Vimeo ID and Hash
+    const getVimeoDetails = (url: string) => {
+        if (!url) return { id: null, hash: null };
+        if (/^\d+$/.test(url)) return { id: url, hash: null }; // Already an ID
+
+        const idMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        const hashMatch = url.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
+
+        return {
+            id: idMatch ? idMatch[1] : null,
+            hash: hashMatch ? hashMatch[1] : null,
+            original: url
+        };
     };
 
 
@@ -27,7 +35,8 @@ export function RandomSparringShowcase() {
             try {
                 const { data } = await getDailyFreeSparring();
 
-                if (data && getVimeoId(data.videoUrl)) {
+                const details = getVimeoDetails(data?.videoUrl || '');
+                if (data && details.id) {
                     setVideo(data);
                 }
             } catch (error) {
@@ -40,7 +49,7 @@ export function RandomSparringShowcase() {
     }, []);
 
     // User requested "Just daily free sparring" -> show full video
-    const vimeoId = video ? getVimeoId(video.videoUrl) : null;
+    const { id: vimeoId, hash: vimeoHash } = video ? getVimeoDetails(video.videoUrl) : { id: null, hash: null };
 
     useEffect(() => {
         if (!iframeRef.current || !vimeoId) return;
@@ -145,7 +154,7 @@ export function RandomSparringShowcase() {
                         >
                             <iframe
                                 ref={iframeRef}
-                                src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1`}
+                                src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1${vimeoHash ? `&h=${vimeoHash}` : ''}`}
                                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.77%] h-full transform scale-105 transition-transform duration-700 group-hover:scale-100 pointer-events-none"
                                 frameBorder="0"
                                 allow="autoplay; fullscreen; picture-in-picture"
