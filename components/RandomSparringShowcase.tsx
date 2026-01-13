@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ChevronRight, VolumeX, Activity } from 'lucide-react';
+import { Play, ChevronRight, VolumeX, Volume2, Activity } from 'lucide-react';
+import Player from '@vimeo/player';
 import { getDailyFreeSparring } from '../lib/api';
 import { SparringVideo } from '../types';
 
@@ -8,6 +9,9 @@ export function RandomSparringShowcase() {
     const navigate = useNavigate();
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isMuted, setIsMuted] = useState(true);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const playerRef = useRef<Player | null>(null);
 
     // Helper to extract Vimeo ID
     const getVimeoId = (url: string) => {
@@ -35,11 +39,42 @@ export function RandomSparringShowcase() {
         fetchVideo();
     }, []);
 
-    if (loading) return null;
-    if (!video) return null;
+    const vimeoId = video ? (video.previewVimeoId || getVimeoId(video.videoUrl)) : null;
 
-    const vimeoId = video.previewVimeoId || getVimeoId(video.videoUrl);
-    if (!vimeoId) return null;
+    useEffect(() => {
+        if (!iframeRef.current || !vimeoId) return;
+
+        try {
+            const player = new Player(iframeRef.current);
+            playerRef.current = player;
+
+            player.ready().then(() => {
+                player.setMuted(true);
+                player.setVolume(0);
+            }).catch(console.error);
+
+        } catch (e) {
+            console.error("Vimeo player init failed", e);
+        }
+
+    }, [vimeoId]);
+
+    const toggleMute = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!playerRef.current) return;
+
+        try {
+            const nextMuted = !isMuted;
+            await playerRef.current.setMuted(nextMuted);
+            await playerRef.current.setVolume(nextMuted ? 0 : 1);
+            setIsMuted(nextMuted);
+        } catch (error) {
+            console.error('Failed to toggle mute:', error);
+        }
+    };
+
+    if (loading) return null;
+    if (!video || !vimeoId) return null;
 
     return (
         <section className="py-24 relative overflow-hidden">
@@ -91,6 +126,7 @@ export function RandomSparringShowcase() {
                             onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                         >
                             <iframe
+                                ref={iframeRef}
                                 src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1`}
                                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.77%] h-full transform scale-105 transition-transform duration-700 group-hover:scale-100 pointer-events-none"
                                 frameBorder="0"
@@ -111,8 +147,15 @@ export function RandomSparringShowcase() {
                             </div>
 
                             {/* Unmute Hint */}
-                            <div className="absolute top-5 right-5 bg-black/50 backdrop-blur-md p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                <VolumeX className="w-5 h-5 text-white" />
+                            <div
+                                className="absolute top-5 right-5 bg-black/50 backdrop-blur-md p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-black/70 z-20"
+                                onClick={toggleMute}
+                            >
+                                {isMuted ? (
+                                    <VolumeX className="w-5 h-5 text-white" />
+                                ) : (
+                                    <Volume2 className="w-5 h-5 text-white" />
+                                )}
                             </div>
                         </div>
 

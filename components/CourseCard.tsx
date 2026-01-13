@@ -8,9 +8,10 @@ import { cn } from '../lib/utils';
 interface CourseCardProps {
     course: Course;
     className?: string;
+    isDailyFree?: boolean;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, className }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -122,6 +123,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className }) => 
                         alt={course.title}
                         className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering ? 'scale-110' : 'scale-100')}
                     />
+
+                    {isDailyFree && (
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-20 pointer-events-none">
+                            <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
+                        </div>
+                    )}
 
                     {showVideo && vimeoId && (
                         <div className="absolute inset-0 z-10 bg-black animate-fade-in">

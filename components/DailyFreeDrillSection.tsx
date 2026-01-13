@@ -56,26 +56,23 @@ export const DailyFreeDrillSection: React.FC = () => {
 
     if (!drill || !lesson || !sparring) return null;
 
-    // Define Aspect Ratio "Weights" for Flex-Grow
-    // Desktop (Width): Lesson(Wide) > Sparring(Square) > Drill(Tall)
-    // Mobile (Height): Drill(Tall) > Sparring(Square) > Lesson(Wide)
+    // Define strict Aspect Ratios
+    // activeRatio string will be directly used in the style prop
     const items = [
         {
             id: 'drill',
             type: 'DRILL',
             data: drill,
             img: drill.thumbnailUrl,
-            desktopFlex: 4, // 4:5 -> Narrower
-            mobileFlex: 5,  // Tall -> Taller
-            link: `/drills/${drill.id}`
+            activeRatio: '4/5', // Narrow & Tall
+            link: `/watch?tab=drill&id=${drill.id}`
         },
         {
             id: 'lesson',
             type: 'LESSON',
             data: lesson,
             img: lesson.thumbnailUrl,
-            desktopFlex: 6, // 5:4 -> Wider
-            mobileFlex: 4,  // Wide -> Shorter
+            activeRatio: '5/4', // Wide & Short
             link: '/watch?tab=lesson'
         },
         {
@@ -83,8 +80,7 @@ export const DailyFreeDrillSection: React.FC = () => {
             type: 'SPARRING',
             data: sparring,
             img: sparring.thumbnailUrl,
-            desktopFlex: 5, // 5:5 -> Medium
-            mobileFlex: 5,  // Square -> Medium
+            activeRatio: '1/1', // Square
             link: `/watch?tab=sparring&id=${sparring.id}`
         },
     ];
@@ -116,26 +112,27 @@ export const DailyFreeDrillSection: React.FC = () => {
                 </div>
 
                 {/* Accordion Layout */}
-                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full h-[800px] md:h-[600px]">
+                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full h-[600px] md:h-[600px]">
                     {items.map((item) => {
                         const isActive = activeId === item.id;
-
-                        // Dynamic Flex Calculation
-                        const desktopFlexVal = isActive ? item.desktopFlex : 1;
-                        const mobileFlexVal = isActive ? item.mobileFlex : 1;
 
                         return (
                             <div
                                 key={item.id}
                                 onMouseEnter={() => setActiveId(item.id)}
-                                onClick={() => setActiveId(item.id)} // Touch support
+                                onClick={() => setActiveId(item.id)}
                                 style={{
-                                    // Use CSS variables or inline styles for dynamic flex values
-                                    flexGrow: window.innerWidth >= 768 ? desktopFlexVal : mobileFlexVal
+                                    // STRICT ASPECT RATIO LOGIC:
+                                    // If Active: flex-grow: 0, flex-shrink: 0, aspect-ratio defines size.
+                                    // If Inactive: flex-grow: 1, shrink allowed, no fixed aspect ratio.
+                                    flex: isActive ? '0 0 auto' : '1 1 0',
+                                    aspectRatio: isActive ? item.activeRatio : 'auto',
                                 } as React.CSSProperties}
                                 className={`relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer
                                     ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-80'}
                                     md:flex-row flex-col
+                                    min-h-[100px] md:min-w-[100px]
+                                    ${isActive ? 'contrast-100' : 'contrast-75'}
                                 `}
                             >
                                 {/* Aspect Ratio Preservation Strategy: Object-Cover + Alignment */}
@@ -152,7 +149,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                                 <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                                     <div className={`transition-all duration-500 transform ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                                         <span className="text-violet-400 font-black tracking-widest text-sm mb-2 block">{item.type}</span>
-                                        <h3 className={`font-bold leading-tight mb-4 text-white ${isActive ? 'text-2xl md:text-4xl' : 'text-xl'}`}>
+                                        <h3 className={`font-bold leading-tight mb-4 text-white ${isActive ? 'text-2xl md:text-3xl' : 'text-xl'}`}>
                                             {isActive ? item.data.title : ''}
                                         </h3>
                                         {isActive && (

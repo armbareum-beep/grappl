@@ -16,6 +16,7 @@ interface VideoPlayerProps {
     onPreviewLimitReached?: () => void;
     onPreviewEnded?: () => void; // For compatibility
     showControls?: boolean;
+    fillContainer?: boolean;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -29,7 +30,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onProgress,
     onPreviewLimitReached,
     onPreviewEnded,
-    showControls = true
+    showControls = true,
+    fillContainer = false
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
@@ -252,8 +254,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     return (
         <div
-            className="relative w-full cursor-pointer"
-            style={{ paddingBottom: '56.25%' }}
+            className={`relative w-full cursor-pointer ${fillContainer ? 'h-full' : ''}`}
+            style={{ paddingBottom: fillContainer ? '0' : '56.25%' }}
             onClick={async () => {
                 if (!playerRef.current || showUpgradeOverlay) return;
                 const paused = await playerRef.current.getPaused();

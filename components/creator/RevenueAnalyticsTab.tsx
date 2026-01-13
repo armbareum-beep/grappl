@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { calculateCreatorEarnings, getCreatorRevenueStats, getCreatorBalance, submitPayout } from '../../lib/api';
+import { calculateCreatorEarnings, getCreatorRevenueStats, getCreatorBalance, submitPayout, getPayoutRequests } from '../../lib/api';
 import { DollarSign, TrendingUp, Download, Wallet, ArrowRight } from 'lucide-react';
 import { Button } from '../Button';
 import { useToast } from '../../contexts/ToastContext';
@@ -11,6 +11,17 @@ interface MonthlyStat {
     status: string;
 }
 
+interface PayoutRequest {
+    id: string;
+    amount: number;
+    status: 'pending' | 'completed' | 'rejected';
+    requested_at: string;
+    processed_at?: string;
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
+}
+
 export const RevenueAnalyticsTab: React.FC = () => {
     const { user } = useAuth();
     const { success, error: toastError } = useToast();
@@ -19,6 +30,7 @@ export const RevenueAnalyticsTab: React.FC = () => {
     const [availableBalance, setAvailableBalance] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
+    const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
     const [period, setPeriod] = useState<'all' | '6m' | '1y'>('6m');
 
     useEffect(() => {
@@ -46,6 +58,13 @@ export const RevenueAnalyticsTab: React.FC = () => {
             if (stats) {
                 setMonthlyStats(stats);
             }
+
+            // 4. Get Payout Requests
+            const { data: payoutData } = await getPayoutRequests(user.id);
+            if (payoutData) {
+                setPayouts(payoutData);
+            }
+
         } catch (error) {
             console.error('Error loading revenue data:', error);
         } finally {
@@ -165,7 +184,7 @@ export const RevenueAnalyticsTab: React.FC = () => {
                 </div>
             </div>
             {/* Monthly Breakdown Table */}
-            <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden">
+            <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden mb-8">
                 <div className="p-6 border-b border-zinc-800">
                     <h3 className="text-lg font-bold text-white">월별 수익 내역</h3>
                 </div>
@@ -180,27 +199,88 @@ export const RevenueAnalyticsTab: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
-                            {monthlyStats.map((stat, index) => (
-                                <tr key={index} className="hover:bg-zinc-800/30 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                                        {stat.period}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                                        {formatCurrency(stat.amount)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-md border ${stat.status === 'paid'
-                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                            }`}>
-                                            {stat.status === 'paid' ? '지급 완료' : '정산 예정'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                                        {stat.status === 'paid' ? `${stat.period}-15` : '익월 15일'}
-                                    </td>
+                            {monthlyStats.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-8 text-center text-zinc-500">수익 내역이 없습니다.</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                monthlyStats.map((stat, index) => (
+                                    <tr key={index} className="hover:bg-zinc-800/30 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                                            {stat.period}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                                            {formatCurrency(stat.amount)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-md border ${stat.status === 'paid'
+                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                }`}>
+                                                {stat.status === 'paid' ? '지급 완료' : '정산 예정'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                                            {stat.status === 'paid' ? `${stat.period}-15` : '익월 15일'}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Payout Request History Table */}
+            <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-white">정산(출금) 신청 내역</h3>
+                    <Button variant="ghost" size="sm" onClick={loadData}>새로고침</Button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-zinc-900/80">
+                            <tr>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">신청일</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">요청 금액</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">계좌 정보</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">상태</th>
+                                <th className="px-6 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wider">처리일</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800">
+                            {payouts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-zinc-500">정산 신청 내역이 없습니다.</td>
+                                </tr>
+                            ) : (
+                                payouts.map((payout) => (
+                                    <tr key={payout.id} className="hover:bg-zinc-800/30 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">
+                                            {new Date(payout.requested_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-white">
+                                            {formatCurrency(payout.amount)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">
+                                            {payout.bank_name} {payout.account_number} ({payout.account_holder})
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-md border ${payout.status === 'completed'
+                                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                                : payout.status === 'rejected'
+                                                    ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                    : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                                                }`}>
+                                                {payout.status === 'completed' ? '입금 완료' : payout.status === 'rejected' ? '거절됨' : '처리 대기중'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                                            {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : '-'}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

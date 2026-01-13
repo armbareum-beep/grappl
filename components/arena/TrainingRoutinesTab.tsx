@@ -79,70 +79,21 @@ export const TrainingRoutinesTab: React.FC = () => {
                 }
             } else {
                 // For non-logged-in users
-                // If we already have saved drills in localStorage, use them and don't fetch random ones
-                // This prevents the drills from changing (and clearing selection) when window focus changes
-                if (localSaved.length > 0) {
-                    setSavedDrills(localSaved);
-                    setLoading(false);
-                    return;
-                }
+                // Fetch ONLY today's free drill if storage is empty
+                if (localSaved.length === 0) {
+                    try {
+                        const { getDailyFreeDrill } = await import('../../lib/api');
+                        const res = await getDailyFreeDrill();
 
-                // fetch 3 random drills as demo ONLY if storage is empty
-                try {
-                    const { data: randomDrills, error } = await supabase
-                        .from('drills')
-                        .select('*')
-                        .limit(50);
-
-                    if (!error && randomDrills && randomDrills.length > 0) {
-                        const creatorIds = [...new Set(randomDrills.map((d: any) => d.creator_id).filter(Boolean))];
-
-                        // Fetch creator details directly from users table
-                        let creatorsMap: Record<string, { name: string, avatarUrl: string }> = {};
-                        if (creatorIds.length > 0) {
-                            const { data: users } = await supabase
-                                .from('users')
-                                .select('id, name, avatar_url')
-                                .in('id', creatorIds);
-
-                            if (users) {
-                                users.forEach((u: any) => {
-                                    creatorsMap[u.id] = { name: u.name, avatarUrl: u.avatar_url };
-                                });
-                            }
+                        if (res.data) {
+                            const dailyDrill = res.data;
+                            setSavedDrills([dailyDrill]);
+                            // Save to local storage
+                            localStorage.setItem('saved_drills', JSON.stringify([dailyDrill]));
                         }
-
-                        const enrichedDrills = randomDrills.map((d: any) => ({
-                            id: d.id,
-                            title: d.title,
-                            description: d.description,
-                            creatorId: d.creator_id,
-                            creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
-                            creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || '',
-                            category: d.category,
-                            difficulty: d.difficulty,
-                            thumbnailUrl: d.thumbnail_url,
-                            videoUrl: d.video_url,
-                            vimeoUrl: d.vimeo_url,
-                            descriptionVideoUrl: d.description_video_url,
-                            views: d.views || 0,
-                            duration: d.duration || '0:00',
-                            price: d.price || 0,
-                            likes: d.likes || 0,
-                            createdAt: d.created_at,
-                            tags: d.tags || [],
-                            aspectRatio: '9:16' as const,
-                            durationMinutes: 0
-                        }));
-
-                        const shuffled = [...enrichedDrills].sort(() => Math.random() - 0.5);
-                        const randomThree = shuffled.slice(0, 3);
-                        setSavedDrills(randomThree);
-                        // Save to local storage so they persist
-                        localStorage.setItem('saved_drills', JSON.stringify(randomThree));
+                    } catch (error) {
+                        console.error('Error loading daily free drill:', error);
                     }
-                } catch (error) {
-                    console.error('Error loading random drills:', error);
                 }
             }
         };
@@ -188,56 +139,8 @@ export const TrainingRoutinesTab: React.FC = () => {
             setError(null);
 
             if (!user) {
-                // For non-logged-in users, fetch random routines as demo
-                const { data: publicRoutines, error: publicError } = await supabase
-                    .from('routines')
-                    .select('*')
-                    .limit(20);
-
-                let enrichedPublicRoutines: any[] = [];
-
-                if (!publicError && publicRoutines) {
-                    // Fetch creator details manually
-                    const creatorIds = [...new Set(publicRoutines.map((r: any) => r.creator_id).filter(Boolean))];
-                    let creatorsMap: Record<string, { name: string, avatarUrl: string }> = {};
-
-                    if (creatorIds.length > 0) {
-                        const { data: users } = await supabase
-                            .from('users')
-                            .select('id, name, avatar_url')
-                            .in('id', creatorIds);
-
-                        if (users) {
-                            users.forEach((u: any) => {
-                                creatorsMap[u.id] = { name: u.name, avatarUrl: u.avatar_url };
-                            });
-                        }
-                    }
-
-                    // Shuffle and pick 3
-                    const shuffled = [...publicRoutines].sort(() => Math.random() - 0.5);
-                    enrichedPublicRoutines = shuffled.slice(0, 3).map(r => ({
-                        ...r,
-                        // Ensure we use camelCase for internal use if needed, but Routine type might match DB? 
-                        // Let's manually map important fields to stay safe
-                        id: r.id,
-                        title: r.title,
-                        description: r.description,
-                        thumbnailUrl: r.thumbnail_url || '', // Fix thumbnail
-                        difficulty: r.difficulty,
-                        category: r.category,
-                        totalDurationMinutes: r.total_duration_minutes || r.duration_minutes || 0,
-                        drillCount: r.drill_count || 0,
-                        creatorId: r.creator_id,
-                        // Use fetched name or fallback
-                        creatorName: creatorsMap[r.creator_id]?.name || 'Instructor',
-                        creatorProfileImage: creatorsMap[r.creator_id]?.avatarUrl || '',
-                        price: r.price || 0,
-                        views: r.views || 0,
-                        createdAt: r.created_at,
-                        drills: [] // Demo routines don't need drills loaded immediately
-                    }));
-                }
+                // For non-logged-in users: NO random routines anymore.
+                // Just load locally saved custom routines.
 
                 // Load and Fix Custom Routines
                 const localCustomRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
@@ -248,7 +151,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                     creatorId: 'guest'
                 }));
 
-                const combined = [...fixedCustomRoutines, ...enrichedPublicRoutines];
+                const combined = [...fixedCustomRoutines];
                 // Sort by creation date new -> old
                 combined.sort((a: any, b: any) => {
                     const timeA = new Date(a.createdAt || 0).getTime();

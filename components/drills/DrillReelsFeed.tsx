@@ -7,7 +7,7 @@ import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrill
 import { DrillReelItem } from './DrillReelItem';
 
 // Lazy load Modal to avoid circular dependency or bundle issues if needed
-const ShareModal = React.lazy(() => import('../social/ShareModal'));
+import ShareModal from '../social/ShareModal';
 
 interface DrillReelsFeedProps {
     drills: Drill[];
@@ -283,22 +283,20 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                 );
             })}
 
-            {/* Share Modal Portal */}
-            <React.Suspense fallback={null}>
-                {isShareModalOpen && currentDrill && (
-                    <ShareModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => {
-                            setIsShareModalOpen(false);
-                            setCurrentDrill(null);
-                        }}
-                        title={currentDrill.title}
-                        text={currentDrill.description || `Check out this drill: ${currentDrill.title}`}
-                        url={`${window.location.origin}/drills/${currentDrill.id}`}
-                        imageUrl={currentDrill.thumbnailUrl}
-                    />
-                )}
-            </React.Suspense>
+            {/* Share Modal Portal - Removed Suspense as we now import directly */}
+            {isShareModalOpen && currentDrill && (
+                <ShareModal
+                    isOpen={isShareModalOpen}
+                    onClose={() => {
+                        setIsShareModalOpen(false);
+                        setCurrentDrill(null);
+                    }}
+                    title={currentDrill.title}
+                    text={currentDrill.description || `Check out this drill: ${currentDrill.title}`}
+                    url={`${window.location.origin}/drills/${currentDrill.id}`}
+                    imageUrl={currentDrill.thumbnailUrl}
+                />
+            )}
         </div>
     );
 };

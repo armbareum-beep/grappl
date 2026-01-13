@@ -2110,6 +2110,14 @@ export async function submitPayout(amount: number) {
     return { data, error };
 }
 
+export async function getPayoutRequests(creatorId: string) {
+    return await supabase
+        .from('payout_requests')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('requested_at', { ascending: false });
+}
+
 // ==================== ADMIN COURSE MANAGEMENT ====================
 
 /**
@@ -5492,6 +5500,7 @@ export async function getDailyFreeSparring() {
             const { data, error } = await supabase
                 .from('sparring_videos')
                 .select('*')
+                .eq('is_published', true)
                 .neq('video_url', '')
                 .not('video_url', 'like', 'ERROR%')
                 .order('id')
@@ -8159,4 +8168,16 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
             createdAt: full.created_at
         } as SparringVideo;
     });
+}
+
+export async function incrementRoutineView(id: string) {
+    const { error } = await supabase.rpc('increment_routine_views', { p_routine_id: id });
+    if (error) console.error('Error incrementing routine view:', error);
+    return { error };
+}
+
+export async function incrementSparringView(id: string) {
+    const { error } = await supabase.rpc('increment_sparring_view', { p_id: id });
+    if (error) console.error('Error incrementing sparring view:', error);
+    return { error };
 }

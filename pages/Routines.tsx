@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchCreatorsByIds, fetchRoutines } from '../lib/api';
+import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
 import { Search, PlayCircle, ChevronDown } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -33,11 +34,25 @@ export const Routines: React.FC<{
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [dailyFreeRoutineIds, setDailyFreeRoutineIds] = useState<string[]>([]);
 
     const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
 
     useEffect(() => {
         loadRoutines();
+        // Fetch daily free drill and find which routines contain it
+        getDailyFreeDrill().then(async (res) => {
+            if (res.data) {
+                const { data: relations } = await supabase
+                    .from('routine_drills')
+                    .select('routine_id')
+                    .eq('drill_id', res.data.id);
+
+                if (relations) {
+                    setDailyFreeRoutineIds(relations.map(r => r.routine_id));
+                }
+            }
+        });
     }, []);
 
     const loadRoutines = async () => {
@@ -321,6 +336,11 @@ export const Routines: React.FC<{
                                 "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
                                 isEmbedded ? "aspect-[9/16]" : "aspect-video"
                             )}>
+                                {dailyFreeRoutineIds.includes(routine.id) && (
+                                    <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-10 pointer-events-none">
+                                        <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
+                                    </div>
+                                )}
                                 {routine.thumbnailUrl ? (
                                     <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                                 ) : (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
@@ -243,6 +243,11 @@ export const RoutineDetail: React.FC = () => {
                         if (isOwned) setOwns(true);
                     }
                     await getCompletedRoutinesToday(user.id);
+                }
+
+                // Increment view count
+                if (!id.startsWith('custom-')) {
+                    incrementRoutineView(id);
                 }
             } catch (error) {
                 console.error('Error in RoutineDetail load:', error);

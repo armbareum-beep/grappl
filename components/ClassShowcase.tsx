@@ -124,8 +124,8 @@ export const ClassShowcase: React.FC = () => {
                         <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span>
                     </h2>
                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium break-keep">
-                        오늘의 프리패스로 맛보고, 전체 시스템으로 완성하세요. <br className="md:hidden" />
-                        단순한 나열이 아닌 성장을 보장하는 체계적인 가이드를 제공합니다.
+                        1분 미리보기로 강의 스타일을 확인하고, 자신에게 맞는 기술을 찾으세요. <br className="md:hidden" />
+                        기초부터 심화까지 이어지는 블랙벨트의 완성된 로드맵을 제시합니다.
                     </p>
                 </div>
 

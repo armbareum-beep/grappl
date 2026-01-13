@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getLessonById, getCourseById, checkCourseOwnership } from '../lib/api';
+import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink } from 'lucide-react';
 import { Lesson, Course } from '../types';
@@ -25,6 +25,48 @@ export const LessonDetail: React.FC = () => {
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const [isDailyFree, setIsDailyFree] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
+
+    const lastTickRef = React.useRef<number>(0);
+    const accumulatedTimeRef = React.useRef<number>(0);
+
+    const handleProgress = React.useCallback(async (seconds: number) => {
+        setCurrentTime(seconds);
+
+        if (!user || !lesson) return;
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        if (elapsed > 0 && elapsed < 5) {
+            accumulatedTimeRef.current += elapsed;
+        }
+
+        // Record platform watch time (every 10 seconds of active viewing)
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+
+            // Only record for subscribers who don't own the course (since owners already paid)
+            // Or should we record for everyone for analytics? Let's record for everyone, 
+            // but the settlement logic will filter by subscription.
+            // Actually, existing logic in CourseDetail checks: if (user.isSubscriber && !ownsCourse)
+            // Let's stick to that pattern for consistency, or maybe just record for all subscribers?
+            // The recordWatchTime function is generic. 
+            // Let's match CourseDetail logic: record if subscribed and not owned.
+            // Wait, daily free lesson users should probably not count for subscription revenue
+            // unless they ARE subscribers. 
+
+            if (user.isSubscriber && !owns) {
+                recordWatchTime(user.id, timeToSend, undefined, lesson.id);
+            }
+        }
+    }, [user, lesson, owns]);
 
     useEffect(() => {
         async function fetchData() {
@@ -140,7 +182,7 @@ export const LessonDetail: React.FC = () => {
                                         onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                         isPaused={isPaywallOpen}
                                         onEnded={() => { }}
-                                        onProgress={(seconds) => setCurrentTime(seconds)}
+                                        onProgress={handleProgress}
                                     />
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">

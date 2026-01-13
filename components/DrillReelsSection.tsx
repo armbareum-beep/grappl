@@ -58,6 +58,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     onPreviewLimitReached={() => setPreviewEnded(true)}
                     showControls={false}
                     isPaused={!isHovered || previewEnded}
+                    fillContainer={true}
                 />
             </div>
 

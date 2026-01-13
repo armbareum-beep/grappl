@@ -432,7 +432,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                     {video.creator && (
                                         <div className="flex items-center gap-3 mb-3">
                                             <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
                                                 <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
                                             </Link>
                                             <span className="text-white/60 text-xs mt-0.5">•</span>

@@ -269,6 +269,9 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                     <div className="inline-block px-2 py-0.5 bg-violet-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">LESSON</div>
                                     <div className="flex items-center gap-3 mb-3">
                                         <Link to={`/creator/${lesson.creatorId}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                            {lesson.creatorProfileImage && (
+                                                <img src={lesson.creatorProfileImage} alt={lesson.creatorName} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                                            )}
                                             <span className="text-white font-bold text-sm drop-shadow-sm">{lesson.creatorName}</span>
                                         </Link>
                                         <span className="text-white/60 text-xs mt-0.5">•</span>

@@ -274,6 +274,19 @@ export function Watch() {
                 })];
             }
 
+            // Ensure Daily Free Sparring is included (even if not in the latest 20 fetch)
+            // This is critical for Guest users who can ONLY see this video
+            if ((activeTab === 'mix' || activeTab === 'sparring') && dailySparringRes.data) {
+                const dailyItem = dailySparringRes.data;
+                const exists = allItems.some(item => item.data.id === dailyItem.id);
+                if (!exists) {
+                    allItems.push({
+                        type: 'sparring',
+                        data: dailyItem as any
+                    });
+                }
+            }
+
             // Shuffle
             const shuffleArray = (array: MixedItem[]) => {
                 const newArray = [...array];

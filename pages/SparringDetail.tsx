@@ -9,7 +9,8 @@ import {
     toggleCreatorFollow,
     getSparringInteractionStatus,
     getDrillsByIds,
-    getSparringVideos
+    getSparringVideos,
+    incrementSparringView
 } from '../lib/api';
 import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
@@ -115,6 +116,9 @@ export const SparringDetail: React.FC = () => {
                     }
                 });
             }
+
+            // Increment view count
+            incrementSparringView(id);
         } catch (err: any) {
             console.error(err);
             setError(err.message || '영상 로딩 중 오류 발생');

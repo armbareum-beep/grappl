@@ -99,8 +99,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Check for explicit fullscreen query param
+  const isQueryFullScreen = new URLSearchParams(location.search).get('fullscreen') === 'true';
+
   // Define which pages hide the top header and mobile bottom nav
-  const isFullScreenMode = [
+  const isFullScreenMode = isQueryFullScreen || [
     '/watch',
     // '/skill-tree',
     '/drills',
@@ -110,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ].some(path => location.pathname.startsWith(path));
 
   // Pages that need fixed viewport (no window scroll, internal scroll or canvas)
-  const isFixedLayout = [
+  const isFixedLayout = isQueryFullScreen || [
     '/skill-tree'
   ].some(path => location.pathname.startsWith(path));
 
@@ -262,17 +265,68 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </button>
 
                     {userMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-3 py-2 text-xs font-bold text-zinc-500 border-b border-zinc-800/50 mb-1 uppercase tracking-wider">
-                          내 계정
+                      <div className="absolute right-0 mt-2 w-64 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-4 py-3 border-b border-zinc-800/50 mb-1">
+                          <p className="text-sm font-bold text-white truncate">{user.user_metadata?.name || user.email?.split('@')[0]}</p>
+                          <p className="text-xs text-zinc-500 truncate">{user.email}</p>
                         </div>
+
+                        {isAdmin && (
+                          <Link
+                            to="/admin/dashboard"
+                            className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-violet-500/10 text-violet-400 hover:text-violet-300 mx-2 font-medium"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>관리자 대시보드</span>
+                          </Link>
+                        )}
+
+                        {isCreator ? (
+                          <Link
+                            to="/creator"
+                            className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            <span>인스트럭터 대시보드</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/become-creator"
+                            className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            <span>인스트럭터 신청</span>
+                          </Link>
+                        )}
+
+                        <div className="h-px bg-zinc-800/50 my-1 mx-2" />
+
                         <Link
                           to="/saved"
                           className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                           onClick={() => setUserMenuOpen(false)}
                         >
                           <Bookmark className="mr-2 h-4 w-4" />
-                          <span>저장</span>
+                          <span>저장됨</span>
+                        </Link>
+                        <Link
+                          to="/pricing"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          <span>요금제</span>
+                        </Link>
+                        <Link
+                          to="/contact"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <HelpCircle className="mr-2 h-4 w-4" />
+                          <span>문의하기</span>
                         </Link>
                         <Link
                           to="/settings"
@@ -282,7 +336,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           <Settings className="mr-2 h-4 w-4" />
                           <span>설정</span>
                         </Link>
+
                         <div className="h-px bg-zinc-800/50 my-2 mx-2" />
+
                         <button
                           onClick={() => {
                             signOut();
@@ -303,8 +359,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 )}
               </div>
 
-              {/* Mobile menu button */}
-              <div className="md:hidden flex items-center">
+              {/* Mobile menu button and notifications */}
+              <div className="md:hidden flex items-center space-x-1">
+                {user && <NotificationDropdown />}
                 <button
                   ref={mobileMenuButtonRef}
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -327,7 +384,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                 {user ? (
                   <>
-                    {!isCreator && (
+                    <div className="px-3 py-3 border-b border-zinc-800/50 mb-2">
+                      <p className="text-sm font-bold text-white truncate">{user.user_metadata?.name || user.email?.split('@')[0]}</p>
+                      <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                    </div>
+
+                    {isAdmin && (
+                      <Link
+                        to="/admin/dashboard"
+                        className="block px-3 py-2.5 rounded-md text-base font-medium text-violet-400 hover:bg-violet-500/10 flex items-center space-x-3"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Settings className="w-5 h-5" />
+                        <span>관리자 대시보드</span>
+                      </Link>
+                    )}
+
+                    {isCreator ? (
+                      <Link
+                        to="/creator"
+                        className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Upload className="w-5 h-5" />
+                        <span>인스트럭터 대시보드</span>
+                      </Link>
+                    ) : (
                       <Link
                         to="/become-creator"
                         className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
@@ -338,24 +420,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                     )}
 
-                    {isCreator && (
-                      <Link
-                        to="/creator"
-                        className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Upload className="w-5 h-5" />
-                        <span>대시보드</span>
-                      </Link>
-                    )}
+                    <div className="h-px bg-zinc-800/50 my-2 mx-3" />
 
                     <Link
-                      to="/contact"
+                      to="/saved"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <HelpCircle className="w-5 h-5" />
-                      <span>문의하기</span>
+                      <Bookmark className="w-5 h-5" />
+                      <span>저장됨</span>
                     </Link>
 
                     <Link
@@ -368,6 +441,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Link>
 
                     <Link
+                      to="/contact"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <HelpCircle className="w-5 h-5" />
+                      <span>문의하기</span>
+                    </Link>
+
+                    <Link
                       to="/settings"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
                       onClick={() => setMobileMenuOpen(false)}
@@ -375,6 +457,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <Settings className="w-5 h-5" />
                       <span>설정</span>
                     </Link>
+
+                    <div className="h-px bg-zinc-800/50 my-2 mx-3" />
 
                     <button
                       onClick={() => {
@@ -514,7 +598,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay top of everything */}
-      {!isLandingPage && (
+      {!isLandingPage && !isFullScreenMode && (
         <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[99999] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
           <div className="grid grid-cols-5 h-full items-center relative">
             {[

@@ -75,10 +75,10 @@ export const NotificationDropdown: React.FC = () => {
 
     const getTypeColor = (type: string) => {
         switch (type) {
-            case 'success': return 'text-violet-600 bg-violet-50';
-            case 'warning': return 'text-amber-600 bg-amber-50';
-            case 'error': return 'text-rose-600 bg-rose-50';
-            default: return 'text-indigo-600 bg-indigo-50';
+            case 'success': return 'text-emerald-400 bg-emerald-500/10';
+            case 'warning': return 'text-amber-400 bg-amber-500/10';
+            case 'error': return 'text-rose-400 bg-rose-500/10';
+            default: return 'text-violet-400 bg-violet-500/10';
         }
     };
 
@@ -91,44 +91,47 @@ export const NotificationDropdown: React.FC = () => {
                     setIsOpen(!isOpen);
                     if (!isOpen) loadNotifications();
                 }}
-                className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
+                className="relative p-2 text-zinc-400 hover:text-zinc-100 transition-colors"
             >
-                <Bell className="w-6 h-6" />
+                <Bell className="w-5 h-5 flex-shrink-0" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                    <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold leading-none text-white bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.5)]">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-[11002] max-h-[500px] overflow-hidden flex flex-col">
-                    <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-900">알림</h3>
+                <div className="absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-96 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 z-[11002] max-h-[500px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-zinc-800/50 flex justify-between items-center bg-zinc-950/20">
+                        <h3 className="font-bold text-zinc-100">알림</h3>
                         {unreadCount > 0 && (
                             <button
                                 onClick={handleMarkAllAsRead}
-                                className="text-sm text-violet-600 hover:text-violet-700 font-bold"
+                                className="text-sm text-violet-400 hover:text-violet-300 font-bold"
                             >
                                 모두 읽음
                             </button>
                         )}
                     </div>
-
-                    <div className="overflow-y-auto flex-1">
+                    -
+                    <div className="overflow-y-auto flex-1 custom-scrollbar">
                         {loading ? (
-                            <div className="p-8 text-center text-slate-500">로딩 중...</div>
+                            <div className="p-8 text-center text-zinc-500">
+                                <div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full mx-auto mb-2" />
+                                로딩 중...
+                            </div>
                         ) : notifications.length === 0 ? (
-                            <div className="p-8 text-center text-slate-500">
-                                <Bell className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                                <p>새로운 알림이 없습니다</p>
+                            <div className="p-10 text-center text-zinc-500">
+                                <Bell className="w-12 h-12 mx-auto mb-3 text-zinc-800" />
+                                <p className="text-sm">새로운 알림이 없습니다</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-zinc-800/50">
                                 {notifications.map((notification) => (
                                     <div
                                         key={notification.id}
-                                        className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-violet-50/50' : ''
+                                        className={`p-4 transition-colors cursor-pointer ${!notification.isRead ? 'bg-violet-500/5' : 'hover:bg-zinc-800/30'
                                             }`}
                                         onClick={() => {
                                             if (!notification.isRead) {
@@ -156,19 +159,19 @@ export const NotificationDropdown: React.FC = () => {
 };
 
 const NotificationContent: React.FC<{ notification: AppNotification; getTypeColor: (type: string) => string }> = ({ notification, getTypeColor }) => (
-    <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-full ${getTypeColor(notification.type)}`}>
+    <div className="flex items-start gap-4">
+        <div className={`p-2 rounded-full flex-shrink-0 ${getTypeColor(notification.type)}`}>
             <Bell className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-                <p className="font-medium text-sm text-slate-900">{notification.title}</p>
+                <p className={`font-bold text-sm ${notification.isRead ? 'text-zinc-300' : 'text-zinc-100'}`}>{notification.title}</p>
                 {!notification.isRead && (
-                    <div className="w-2 h-2 bg-violet-600 rounded-full flex-shrink-0 mt-1" />
+                    <div className="w-2 h-2 bg-violet-500 rounded-full flex-shrink-0 mt-1.5 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                 )}
             </div>
-            <p className="text-sm text-slate-600 mt-1">{notification.message}</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-sm text-zinc-400 mt-1 leading-relaxed">{notification.message}</p>
+            <p className="text-[10px] text-zinc-600 mt-2 font-medium uppercase tracking-wider">
                 {new Date(notification.createdAt).toLocaleString('ko-KR')}
             </p>
         </div>

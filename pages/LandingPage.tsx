@@ -296,13 +296,11 @@ export const LandingPage: React.FC = () => {
             <ClassShowcase />
 
             <DrillReelsSection />
+            <RandomSparringShowcase />
 
             {/* 학습 시스템 블록 - 체계적인 성장 경로 제시 */}
             <CapsuleRoadmapSection />
             <RoutinePromotionSection />
-
-            {/* 실전 증거 블록 - 소셜 증거 준비 */}
-            <RandomSparringShowcase />
 
             {/* 7 & 8. Unified Social Proof & Final CTA Area */}
             <div className="relative overflow-hidden">

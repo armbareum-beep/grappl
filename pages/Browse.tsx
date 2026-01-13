@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Course } from '../types';
-import { getCourses } from '../lib/api';
+import { getCourses, getDailyFreeLesson } from '../lib/api';
 import { Search, ChevronDown } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -22,6 +22,7 @@ export const Browse: React.FC<{
   const [selectedUniform, setSelectedUniform] = useState<string>('All');
   const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
   const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | null>(null);
+  const [dailyFreeCourseId, setDailyFreeCourseId] = useState<string | null>(null);
 
   const searchTerm = internalSearchTerm;
   const selectedCategory = internalCategory;
@@ -46,6 +47,7 @@ export const Browse: React.FC<{
       }
     };
     fetchCourses();
+    getDailyFreeLesson().then(res => res.data && setDailyFreeCourseId(res.data.courseId || null));
   }, []);
 
   const filteredCourses = courses.filter(course => {
@@ -283,7 +285,7 @@ export const Browse: React.FC<{
           {filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {filteredCourses.map(course => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard key={course.id} course={course} isDailyFree={dailyFreeCourseId === course.id} />
               ))}
             </div>
           ) : (

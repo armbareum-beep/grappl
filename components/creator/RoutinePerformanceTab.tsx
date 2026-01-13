@@ -1,0 +1,230 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getUserCreatedRoutines } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
+import { DrillRoutine } from '../../types';
+import { TrendingUp, Eye, DollarSign, Clock } from 'lucide-react';
+
+interface RoutinePerformance extends DrillRoutine {
+    directRevenue: number;
+    totalRevenue: number;
+    watchTimeMinutes: number;
+    salesCount: number;
+}
+
+export const RoutinePerformanceTab: React.FC = () => {
+    const { user } = useAuth();
+    const [routines, setRoutines] = useState<RoutinePerformance[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [sortBy, setSortBy] = useState<'revenue' | 'views' | 'watchTime'>('revenue');
+
+    useEffect(() => {
+        if (user) {
+            loadRoutines();
+        }
+    }, [user]);
+
+    const loadRoutines = async () => {
+        if (!user) return;
+        setLoading(true);
+
+        try {
+            const { data: routinesData } = await getUserCreatedRoutines(user.id);
+
+            if (!routinesData) {
+                setRoutines([]);
+                return;
+            }
+
+            // Get real performance data for each routine
+            const performanceData: RoutinePerformance[] = await Promise.all(
+                routinesData.map(async (routine) => {
+                    // Get sales count directly from payments (or user_routine_purchases)
+                    // We use payments table for revenue and count
+                    const { data: purchases } = await supabase
+                        .from('payments')
+                        .select('amount')
+                        .eq('mode', 'routine')
+                        .eq('target_id', routine.id)
+                        .eq('status', 'completed');
+
+                    const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+                    const salesCount = purchases?.length || 0;
+
+                    // Get watch time for this routine's drills
+                    // 1. Get drill IDs in this routine
+                    const { data: routineDrills } = await supabase
+                        .from('routine_drills')
+                        .select('drill_id')
+                        .eq('routine_id', routine.id);
+
+                    const drillIds = routineDrills?.map(rd => rd.drill_id) || [];
+
+                    let watchTimeMinutes = 0;
+                    if (drillIds.length > 0) {
+                        const { data: watchLogs } = await supabase
+                            .from('video_watch_logs')
+                            .select('watch_seconds')
+                            .in('drill_id', drillIds);
+
+                        const totalSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
+                        watchTimeMinutes = Math.floor(totalSeconds / 60);
+                    }
+
+                    return {
+                        ...routine,
+                        directRevenue,
+                        totalRevenue: directRevenue, // No subscription revenue split calculated for individual items yet
+                        watchTimeMinutes,
+                        salesCount
+                    };
+                })
+            );
+
+            setRoutines(performanceData);
+        } catch (error) {
+            console.error('Error loading routine performance:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const sortedRoutines = [...routines].sort((a, b) => {
+        switch (sortBy) {
+            case 'revenue':
+                return b.totalRevenue - a.totalRevenue;
+            case 'views':
+                return b.views - a.views;
+            case 'watchTime':
+                return b.watchTimeMinutes - a.watchTimeMinutes;
+            default:
+                return 0;
+        }
+    });
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
+    };
+
+    const formatTime = (minutes: number) => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}시간 ${mins}분`;
+    };
+
+    const totalRevenue = routines.reduce((sum, c) => sum + c.totalRevenue, 0);
+    const totalViews = routines.reduce((sum, c) => sum + c.views, 0);
+    const totalWatchTime = routines.reduce((sum, c) => sum + c.watchTimeMinutes, 0);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">루틴별 성과 분석</h2>
+                    <p className="text-zinc-400 mt-1">각 루틴의 수익, 조회수, 시청 시간을 확인하세요.</p>
+                </div>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                    <option value="revenue">수익순</option>
+                    <option value="views">조회수순</option>
+                    <option value="watchTime">시청시간순</option>
+                </select>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-zinc-400">총 수익</p>
+                        <DollarSign className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
+                </div>
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-zinc-400">총 조회수</p>
+                        <Eye className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{totalViews.toLocaleString()}</p>
+                </div>
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-zinc-400">총 시청 시간</p>
+                        <Clock className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{formatTime(totalWatchTime)}</p>
+                </div>
+            </div>
+
+            {/* Routines Table */}
+            <div className="bg-zinc-900/40 rounded-lg border border-zinc-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-zinc-900/80 border-b border-zinc-800">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    루틴명
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    조회수
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    구매 건수
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    시청 시간
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    직접 판매 액
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                                        <div className="flex justify-center items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
+                                            로딩 중...
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : sortedRoutines.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                                        <TrendingUp className="w-12 h-12 mx-auto mb-2 text-zinc-700" />
+                                        <p>아직 루틴이 없습니다.</p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                sortedRoutines.map((routine) => (
+                                    <tr key={routine.id} className="hover:bg-zinc-800/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-white">{routine.title}</div>
+                                            <div className="text-sm text-zinc-500">{routine.category} · {routine.difficulty}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
+                                            {routine.views.toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
+                                            {routine.salesCount.toLocaleString()}건
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
+                                            {formatTime(routine.watchTimeMinutes)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-emerald-400">
+                                            {formatCurrency(routine.directRevenue)}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};

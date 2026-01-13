@@ -113,6 +113,8 @@ const VideoItem: React.FC<{
         setIsShareModalOpen(true);
     };
 
+    const [previewEnded, setPreviewEnded] = useState(false);
+
     // Helper to get Vimeo ID and Hash
     const getVimeoId = (url: string) => {
         if (!url) return null;
@@ -130,43 +132,47 @@ const VideoItem: React.FC<{
 
     const vimeoId = getVimeoId(video.videoUrl);
 
+    const isDailyFree = dailyFreeId === video.id;
+    // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video))
+    const hasAccess = isDailyFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+
+    // Determine which video to play
+    // If has access -> Main Video
+    // If no access -> Preview Video (if available and not ended)
+    const activeVimeoId = hasAccess
+        ? vimeoId
+        : (video.previewVimeoId && !previewEnded ? video.previewVimeoId : null);
+
     // Initialize Player
     useEffect(() => {
-        if (!containerRef.current || !vimeoId) return;
+        if (!containerRef.current || !activeVimeoId) return;
 
         if (playerRef.current) {
             playerRef.current.destroy();
         }
 
-        const rawUrl = video.videoUrl || '';
+        const sourceUrlOrId = activeVimeoId;
+
         const options: any = {
             width: window.innerWidth,
             background: true,
-            loop: true,
+            loop: hasAccess, // Only loop main video, not preview
             autoplay: false,
             muted: true,
             controls: false,
             dnt: true
         };
 
-        // Handle different URL formats
-        if (rawUrl.startsWith('http')) {
-            options.url = rawUrl;
-            console.log('[SparringFeed] Using full URL:', rawUrl);
-        } else if (rawUrl.includes(':')) {
-            const [id, hash] = rawUrl.split(':');
+        if (String(sourceUrlOrId).startsWith('http')) {
+            options.url = sourceUrlOrId;
+        } else if (String(sourceUrlOrId).includes(':')) {
+            const [id, hash] = String(sourceUrlOrId).split(':');
             options.id = Number(id);
             options.h = hash;
-            console.log('[SparringFeed] Using ID:hash format:', { id, hash });
-        } else if (/^\d+$/.test(rawUrl)) {
-            options.id = Number(rawUrl);
-            console.log('[SparringFeed] Using pure ID:', rawUrl);
         } else {
-            options.url = `https://vimeo.com/${rawUrl}`;
-            console.log('[SparringFeed] Using fallback URL:', options.url);
+            options.id = Number(sourceUrlOrId);
         }
 
-        console.log('[SparringFeed] Final options:', options);
         const player = new Player(containerRef.current, options);
 
         player.ready().then(() => {
@@ -175,6 +181,14 @@ const VideoItem: React.FC<{
             if (isActive) {
                 player.play().catch(console.error);
             }
+
+            // Set up preview ended handler
+            if (!hasAccess && video.previewVimeoId) {
+                player.on('ended', () => {
+                    setPreviewEnded(true);
+                });
+            }
+
         }).catch(err => {
             console.error('Vimeo player init error:', err);
         });
@@ -184,7 +198,7 @@ const VideoItem: React.FC<{
                 playerRef.current.destroy();
             }
         };
-    }, [vimeoId]);
+    }, [activeVimeoId, hasAccess]); // Re-run if access changes or ID changes
 
     // Handle Active State Changes
     useEffect(() => {
@@ -205,8 +219,6 @@ const VideoItem: React.FC<{
     // Record View History
     useEffect(() => {
         if (isActive && user && video.id) {
-            // Use a small timeout or check to avoid duplicate recordings if necessary, 
-            // but for now, simple activation is enough.
             import('../lib/api').then(({ recordSparringView }) => {
                 recordSparringView(user.id, video.id).catch(console.error);
             });
@@ -226,13 +238,13 @@ const VideoItem: React.FC<{
         }
     };
 
-    const isDailyFree = dailyFreeId === video.id;
-    // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video? usually no creator check for viewing unless own))
-    // Actually creator should see own videos.
-    const hasAccess = isDailyFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
-
     const renderVideoContent = () => {
-        if (!hasAccess) {
+        // Show Lock Screen ONLY if:
+        // 1. User has NO access
+        // 2. AND (No preview available OR Preview has ended)
+        const showLockScreen = !hasAccess && (!video.previewVimeoId || previewEnded);
+
+        if (showLockScreen) {
             const canPurchase = video.price && video.price > 0;
 
             return (
@@ -281,6 +293,7 @@ const VideoItem: React.FC<{
                 </div>
             );
         }
+
         if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
             return (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
@@ -298,7 +311,7 @@ const VideoItem: React.FC<{
             );
         }
 
-        if (vimeoId) {
+        if (activeVimeoId) {
             return (
                 <div
                     ref={containerRef}
@@ -472,21 +485,35 @@ export const SparringFeed: React.FC<{
     const ownershipOptions = ['All', 'Purchased', 'Not Purchased'];
 
     useEffect(() => {
-        getDailyFreeSparring().then(res => res.data && setDailyFreeId(res.data.id));
-        loadVideos();
-    }, []);
+        const init = async () => {
+            // Fetch daily free and videos in parallel
+            const [dailyRes, videosRes] = await Promise.all([
+                getDailyFreeSparring(),
+                getSparringVideos(100, undefined, true)
+            ]);
 
-    const loadVideos = async () => {
-        const { data } = await getSparringVideos(100, undefined, true);
-        if (data) {
-            const shuffled = [...data];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            let loadedVideos = videosRes.data || [];
+
+            if (dailyRes.data) {
+                setDailyFreeId(dailyRes.data.id);
+                // Ensure daily free video is in the list
+                const exists = loadedVideos.some(v => v.id === dailyRes.data!.id);
+                if (!exists) {
+                    loadedVideos = [dailyRes.data as unknown as SparringVideo, ...loadedVideos];
+                }
             }
-            setVideos(shuffled);
-        }
-    };
+
+            if (loadedVideos.length > 0) {
+                const shuffled = [...loadedVideos];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                setVideos(shuffled);
+            }
+        };
+        init();
+    }, []);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -764,6 +791,11 @@ export const SparringFeed: React.FC<{
                                         alt={video.title}
                                         className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                     />
+                                    {dailyFreeId === video.id && (
+                                        <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-10">
+                                            <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
+                                        </div>
+                                    )}
                                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
                                         <PlaySquare className="w-4 h-4" />

@@ -12,6 +12,8 @@ import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTa
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
 import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTab';
 import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
+import { RoutinePerformanceTab } from '../../components/creator/RoutinePerformanceTab';
+import { SparringPerformanceTab } from '../../components/creator/SparringPerformanceTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { ContentCard } from '../../components/creator/ContentCard';
@@ -41,6 +43,7 @@ export const CreatorDashboard: React.FC = () => {
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
     const initialMaterialsTab = (searchParams.get('materialsTab') as any) || 'lessons';
     const [activeMaterialsTab, setActiveMaterialsTab] = useState<'lessons' | 'drills' | 'sparring'>(initialMaterialsTab);
+    const [activePerformanceTab, setActivePerformanceTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
     const [showSparringSelectModal, setShowSparringSelectModal] = useState(false);
     const [modalSearchQuery, setModalSearchQuery] = useState('');
 
@@ -1058,8 +1061,38 @@ export const CreatorDashboard: React.FC = () => {
                         <div className="space-y-8">
                             <RevenueAnalyticsTab />
                             <div className="border-t border-zinc-800 pt-8">
-                                <h3 className="text-xl font-bold text-white mb-6">클래스별 성과</h3>
-                                <CoursePerformanceTab />
+                                <div className="flex items-center gap-1 p-1 bg-zinc-900/50 rounded-xl border border-zinc-800 w-fit mb-6">
+                                    <button
+                                        onClick={() => setActivePerformanceTab('courses')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'courses'
+                                            ? 'bg-zinc-800 text-white shadow-md'
+                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                            }`}
+                                    >
+                                        클래스 성과
+                                    </button>
+                                    <button
+                                        onClick={() => setActivePerformanceTab('routines')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'routines'
+                                            ? 'bg-zinc-800 text-white shadow-md'
+                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                            }`}
+                                    >
+                                        루틴 성과
+                                    </button>
+                                    <button
+                                        onClick={() => setActivePerformanceTab('sparring')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'sparring'
+                                            ? 'bg-zinc-800 text-white shadow-md'
+                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                            }`}
+                                    >
+                                        스파링 성과
+                                    </button>
+                                </div>
+                                {activePerformanceTab === 'courses' && <CoursePerformanceTab />}
+                                {activePerformanceTab === 'routines' && <RoutinePerformanceTab />}
+                                {activePerformanceTab === 'sparring' && <SparringPerformanceTab />}
                             </div>
                         </div>
                     ) : (

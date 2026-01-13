@@ -61,8 +61,27 @@ export const VersionChecker: React.FC = () => {
 
         console.log(`Updating to version: ${latestVersion}...`);
 
-        // Standard reload is sufficient for most updates.
-        // The previous aggressive cache clearing was causing loops.
+        try {
+            // 1. Unregister Service Workers
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+            }
+
+            // 2. Clear Cache Storage
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(
+                    keys.map((key) => caches.delete(key))
+                );
+            }
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+        }
+
+        // 3. Force Reload
         window.location.reload();
     };
 
