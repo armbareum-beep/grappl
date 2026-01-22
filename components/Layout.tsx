@@ -237,14 +237,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Link>
                   </>
                 )}
-                {user && !isCreator && (
-                  <Link to="/become-creator">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
-                      <Upload className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden lg:inline">인스트럭터 신청</span>
-                    </Button>
-                  </Link>
-                )}
+
                 {user && isCreator && (
                   <Link to="/creator">
                     <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 hover:border-zinc-600 font-bold transition-all duration-300">
@@ -282,7 +275,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           </Link>
                         )}
 
-                        {isCreator ? (
+                        {isCreator && (
                           <Link
                             to="/creator"
                             className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
@@ -290,15 +283,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           >
                             <Upload className="mr-2 h-4 w-4" />
                             <span>인스트럭터 대시보드</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            to="/become-creator"
-                            className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            <span>인스트럭터 신청</span>
                           </Link>
                         )}
 
@@ -400,7 +384,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                     )}
 
-                    {isCreator ? (
+                    {isCreator && (
                       <Link
                         to="/creator"
                         className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
@@ -408,15 +392,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       >
                         <Upload className="w-5 h-5" />
                         <span>인스트럭터 대시보드</span>
-                      </Link>
-                    ) : (
-                      <Link
-                        to="/become-creator"
-                        className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Upload className="w-5 h-5" />
-                        <span>인스트럭터 신청</span>
                       </Link>
                     )}
 
@@ -489,14 +464,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <HelpCircle className="w-5 h-5" />
                       <span>문의하기</span>
                     </Link>
-                    <Link
-                      to="/become-creator"
-                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Upload className="w-5 h-5" />
-                      <span>인스트럭터 신청</span>
-                    </Link>
+
                     <div className="pt-2">
                       <Link
                         to="/login"
@@ -545,7 +513,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <ul className="space-y-4 text-sm">
                     <li><Link to="/browse" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
                     <li><Link to="/pricing" className="text-zinc-400 hover:text-violet-400 transition-colors">요금제</Link></li>
-                    <li><Link to="/become-creator" className="text-zinc-400 hover:text-violet-400 transition-colors">인스트럭터 신청</Link></li>
+
                   </ul>
                 </div>
                 <div>

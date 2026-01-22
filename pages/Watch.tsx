@@ -13,7 +13,7 @@ interface UserPermissions {
     purchasedItemIds: string[];
 }
 
-type WatchTab = 'mix' | 'lesson' | 'drill' | 'sparring';
+type WatchTab = 'mix' | 'lesson' | 'drill' | 'sparring' | 'routine';
 
 export function Watch() {
     const { user } = useAuth();
@@ -41,6 +41,7 @@ export function Watch() {
         { id: 'lesson' as const, label: '레슨' },
         { id: 'drill' as const, label: '드릴' },
         { id: 'sparring' as const, label: '스파링' },
+        { id: 'routine' as const, label: '루틴' },
     ];
 
     const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
@@ -131,6 +132,12 @@ export function Watch() {
                 .order('created_at', { ascending: false })
                 .limit(50);
 
+            // Filter Routines
+            let routineQuery = supabase.from('drill_routines')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
             const queries: any[] = [];
             if (activeTab === 'mix' || activeTab === 'drill') queries.push(drillQuery);
             else queries.push(Promise.resolve({ data: [] }));
@@ -141,7 +148,10 @@ export function Watch() {
             if (activeTab === 'mix' || activeTab === 'lesson') queries.push(lessonQuery);
             else queries.push(Promise.resolve({ data: [] }));
 
-            const [drillsRes, sparringRes, lessonsRes] = await Promise.all(queries);
+            if (activeTab === 'mix' || activeTab === 'routine') queries.push(routineQuery);
+            else queries.push(Promise.resolve({ data: [] }));
+
+            const [drillsRes, sparringRes, lessonsRes, routinesRes] = await Promise.all(queries);
 
             // Get daily free content IDs
             const [dailyDrillRes, dailyLessonRes, dailySparringRes] = await Promise.all([
@@ -157,22 +167,31 @@ export function Watch() {
             // Store daily free drill ID in state
             setDailyFreeDrillId(dailyDrillRes.data?.id);
 
-            const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
-                // Also check if the video is actually processed (has a valid URL or Vimeo ID)
-                // lessons and drills use vimeo_url, sparring uses video_url
-                const url = contentType === 'sparring' ? content.video_url : content.vimeo_url;
-                // Valid if: URL starts with http, OR is a pure Vimeo ID (numeric string), OR is ID:hash format
-                const isValidVideoUrl = url && !url.includes('ERROR') && (
-                    url.startsWith('http') ||
-                    /^\d+$/.test(url) ||
-                    /^\d+:[a-z0-9]+$/i.test(url) // ID:hash format like "1139272530:3fdc00141c"
-                );
-                if (!isValidVideoUrl) return false;
+            const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson' | 'routine', content: any) => {
+                // Routines are free for everyone currently, or follow specific logic?
+                // Assuming routines are accessible if public, or maybe same as drills.
+                // For now, let's treat routines as generally accessible or check for daily free drill inclusion
+
+                // For other content types video/vimeo url check
+                if (contentType !== 'routine') {
+                    // lessons and drills use vimeo_url, sparring uses video_url
+                    const url = contentType === 'sparring' ? content.video_url : content.vimeo_url;
+                    // Valid if: URL starts with http, OR is a pure Vimeo ID (numeric string), OR is ID:hash format
+                    const isValidVideoUrl = url && !url.includes('ERROR') && (
+                        url.startsWith('http') ||
+                        /^\d+$/.test(url) ||
+                        /^\d+:[a-z0-9]+$/i.test(url) // ID:hash format like "1139272530:3fdc00141c"
+                    );
+                    if (!isValidVideoUrl) return false;
+                }
 
                 let isDailyFree = false;
                 if (contentType === 'drill') isDailyFree = dailyFreeDrillIds.includes(content.id);
                 else if (contentType === 'lesson') isDailyFree = dailyFreeLessonIds.includes(content.id);
                 else if (contentType === 'sparring') isDailyFree = dailyFreeSparringIds.includes(content.id);
+
+                // Routines don't have a specific isDailyFree flag on the routine itself often, 
+                // but if it contains the daily free drill it is "Special" -> handled in rendering
 
                 return canAccessContentSync({
                     contentId: content.id,
@@ -189,6 +208,7 @@ export function Watch() {
             if (drillsRes.data) drillsRes.data.forEach((d: any) => d.creator_id && allCreatorIds.push(d.creator_id));
             if (lessonsRes.data) lessonsRes.data.forEach((l: any) => (l.course?.creator_id || l.creator_id) && allCreatorIds.push(l.course?.creator_id || l.creator_id));
             if (sparringRes.data) sparringRes.data.forEach((s: any) => s.creator_id && allCreatorIds.push(s.creator_id));
+            if (routinesRes.data) routinesRes.data.forEach((r: any) => r.creator_id && allCreatorIds.push(r.creator_id));
 
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
@@ -273,6 +293,29 @@ export function Watch() {
                     };
                 })];
             }
+
+            if (routinesRes.data) {
+                // Routines don't strict access control yet, but we can filter if needed
+                // For now, include all routines
+                allItems = [...allItems, ...routinesRes.data.map((r: any) => ({
+                    type: 'routine' as const,
+                    data: {
+                        ...r,
+                        id: r.id,
+                        title: r.title,
+                        description: r.description,
+                        thumbnailUrl: r.thumbnail_url,
+                        creatorId: r.creator_id,
+                        creatorName: creatorsMap[r.creator_id]?.name || 'Instructor',
+                        creatorProfileImage: creatorsMap[r.creator_id]?.avatarUrl || undefined,
+                        // Add other fields as needed for display
+                        difficulty: r.difficulty,
+                        category: r.category,
+                        views: r.views || 0,
+                    }
+                }))];
+            }
+
 
             // Ensure Daily Free Sparring is included (even if not in the latest 20 fetch)
             // This is critical for Guest users who can ONLY see this video

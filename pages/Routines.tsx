@@ -43,14 +43,18 @@ export const Routines: React.FC<{
         // Fetch daily free drill and find which routines contain it
         getDailyFreeDrill().then(async (res) => {
             if (res.data) {
+                console.log('[Routines] Daily Free Drill:', res.data.id, res.data.title);
                 const { data: relations } = await supabase
                     .from('routine_drills')
                     .select('routine_id')
                     .eq('drill_id', res.data.id);
 
                 if (relations) {
+                    console.log('[Routines] Found related routines:', relations);
                     setDailyFreeRoutineIds(relations.map(r => r.routine_id));
                 }
+            } else {
+                console.log('[Routines] No daily free drill found');
             }
         });
     }, []);

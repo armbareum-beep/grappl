@@ -143,14 +143,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                     )}
                 </Link>
 
-                {/* Video Play Marker */}
-                {!isHovering && (
-                    <div className="absolute bottom-2 right-2 z-10">
-                        <div className="bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white/90 border border-white/10">
-                            16:9
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Progress/Seek Bar */}
                 {showVideo && isHovering && (

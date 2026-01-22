@@ -185,7 +185,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             } else {
                 // Fallback
                 options.url = `https://vimeo.com/${rawUrl}`;
-                console.log('[SparringReel] Using fallback URL:', options.url);
+                console.log('[SparringReel] Using fallback URL:', options.url, rawUrl);
             }
 
             console.log('[SparringReel] Final options:', options);
