@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { RoutineReelItem } from './RoutineReelItem';
-import { Drill, SparringVideo, Lesson, DrillRoutine } from '../../types';
+import { Drill, SparringVideo, Lesson } from '../../types';
 import { DrillReelItem } from '../drills/DrillReelItem';
 import { SparringReelItem } from './SparringReelItem';
 import { LessonReelItem } from './LessonReelItem';
@@ -13,8 +12,7 @@ import { ReelLoginModal } from '../auth/ReelLoginModal';
 export type MixedItem =
     | { type: 'drill'; data: Drill }
     | { type: 'sparring'; data: SparringVideo }
-    | { type: 'lesson'; data: Lesson }
-    | { type: 'routine'; data: DrillRoutine };
+    | { type: 'lesson'; data: Lesson };
 
 interface MixedReelsFeedProps {
     items: MixedItem[];
@@ -283,15 +281,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                         <LessonReelItem
                             key={`lesson-${item.data.id}`}
                             lesson={item.data}
-                            isActive={isActive}
-                            offset={offset}
-                        />
-                    );
-                } else if (item.type === 'routine') {
-                    return (
-                        <RoutineReelItem
-                            key={`routine-${item.data.id}`}
-                            routine={item.data}
                             isActive={isActive}
                             offset={offset}
                         />
