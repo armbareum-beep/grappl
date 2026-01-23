@@ -19,6 +19,7 @@ const VideoItem: React.FC<{
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
+    const [relatedDrills, setRelatedDrills] = useState<any[]>([]);
 
     // Interaction State
     const { user, isSubscribed, isAdmin } = useAuth();
@@ -49,6 +50,18 @@ const VideoItem: React.FC<{
             });
         }
     }, [user, video.id, video.creatorId]);
+
+    // Fetch related drills
+    useEffect(() => {
+        if (isActive && video.relatedItems && video.relatedItems.length > 0) {
+            import('../lib/api').then(({ getDrillsByIds }) => {
+                const ids = video.relatedItems.map((item: any) => typeof item === 'string' ? item : item.id);
+                getDrillsByIds(ids).then(({ data: drills }) => {
+                    if (drills) setRelatedDrills(drills);
+                });
+            });
+        }
+    }, [isActive, video.relatedItems]);
 
     // Handlers
     const handleFollow = async () => {
@@ -404,7 +417,7 @@ const VideoItem: React.FC<{
                                 <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
                                     <div className="flex flex-col items-center gap-1">
                                         <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                            <Heart className={`w-5 h-5 md:w-6 md:h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                         </button>
                                         <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                                     </div>
@@ -417,41 +430,75 @@ const VideoItem: React.FC<{
                                 </div>
 
                                 {/* Bottom Info: Attached to Video Bottom */}
-                                <div className="absolute -bottom-24 md:-bottom-28 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                    <div className="w-full pointer-events-auto pr-16">
-                                        {/* Learn This */}
-                                        {video.relatedItems && video.relatedItems.length > 0 && (
-                                            <div className="w-full pointer-events-auto mb-4">
-                                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 no-scrollbar snap-x">
-                                                    {video.relatedItems.map((item, idx) => (
-                                                        <Link key={idx} to={item.type === 'drill' ? `/drills/${item.id}` : `/courses/${item.id}`} className="snap-start flex items-center justify-between gap-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 min-w-[200px] hover:bg-zinc-900 transition-all active:scale-95 group shadow-2xl">
-                                                            <div className="flex flex-col min-w-0">
-                                                                <span className="text-[10px] text-violet-400 font-black tracking-wider uppercase mb-0.5">Learn This</span>
-                                                                <span className="text-sm font-bold text-white truncate leading-tight group-hover:text-violet-300 transition-colors uppercase">{item.title}</span>
+                                <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-4 pointer-events-none">
+                                    {/* LEARN THIS Cards (Horizontal Scroll) */}
+                                    {relatedDrills.length > 0 && (
+                                        <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
+                                            {relatedDrills.map((drill) => (
+                                                <div
+                                                    key={drill.id}
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/drills/${drill.id}`); }}
+                                                    className="flex-shrink-0 w-44 md:w-56 p-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 hover:border-violet-500/50 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex gap-3">
+                                                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0 flex items-center justify-center relative">
+                                                            {drill.thumbnailUrl ? (
+                                                                <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                                            ) : (
+                                                                <PlaySquare className="w-4 h-4 text-white/30" />
+                                                            )}
+                                                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <PlaySquare className="w-6 h-6 text-white fill-white/20" />
                                                             </div>
-                                                            <ChevronRight className="w-4 h-4 text-violet-400 group-hover:text-white transition-colors shrink-0" />
-                                                        </Link>
-                                                    ))}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                            <span className="text-[10px] md:text-[11px] font-black text-violet-400 uppercase tracking-widest mb-0.5">LEARN THIS</span>
+                                                            <h4 className="text-[12px] md:text-sm font-bold text-white leading-tight line-clamp-2">{drill.title}</h4>
+                                                        </div>
+                                                        <div className="flex items-center">
+                                                            <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white transition-colors" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/60 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                        {video.category && (
+                                            <div className="mb-2">
+                                                <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${video.category === 'Competition'
+                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                    : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                    }`}>
+                                                    {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
                                                 </div>
                                             </div>
                                         )}
+                                        <div className="mb-2">
+                                            <h3 className="font-black text-2xl md:text-4xl leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] line-clamp-2 uppercase tracking-tight">{video.title}</h3>
+                                        </div>
 
                                         {video.creator && (
-                                            <div className="flex items-center gap-3 mb-3">
+                                            <div className="flex items-center gap-3 mb-4">
                                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
-                                                    <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
+                                                    <div className="relative">
+                                                        <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover shadow-xl" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-zinc-400 font-bold text-sm md:text-base drop-shadow-md hover:text-white transition-colors">{video.creator.name}</span>
+                                                    </div>
                                                 </Link>
-                                                <span className="text-white/60 text-xs mt-0.5">•</span>
-                                                <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                                                <span className="text-white/40 text-xs mt-0.5">•</span>
+                                                <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-3 py-1 rounded-full text-[10px] font-black border transition-all active:scale-95 ${isFollowed ? 'bg-white/10 text-zinc-400 border-white/10' : 'bg-transparent text-violet-400 border-violet-500/50 hover:bg-violet-600 hover:text-white'}`}>
                                                     {isFollowed ? 'Following' : 'Follow'}
                                                 </button>
                                             </div>
                                         )}
-                                        <div className="mb-4">
-                                            <h3 className="font-black text-2xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
-                                        </div>
-                                        <p className="text-sm text-white/90 line-clamp-1 drop-shadow-sm md:text-base" onClick={(e) => e.stopPropagation()}>{video.description}</p>
+
+                                        {video.description && (
+                                            <p className="text-sm md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

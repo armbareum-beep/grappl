@@ -5147,6 +5147,8 @@ export async function searchDrillsAndLessons(query: string) {
     return { data: results, error: null };
 }
 
+
+
 export async function getRoutines(creatorId?: string) {
     let query = supabase
         .from('routines')

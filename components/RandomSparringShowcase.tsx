@@ -86,7 +86,6 @@ export function RandomSparringShowcase() {
                     <div className="flex-1 w-full max-w-2xl">
                         <div
                             className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
-                            onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                         >
                             <VideoPlayer
                                 vimeoId={vimeoIdToSend}
