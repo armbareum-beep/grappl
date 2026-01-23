@@ -189,6 +189,11 @@ export function Watch() {
             if (sparringRes.data) sparringRes.data.forEach((s: any) => s.creator_id && allCreatorIds.push(s.creator_id));
             if (sparringRes.data) sparringRes.data.forEach((s: any) => s.creator_id && allCreatorIds.push(s.creator_id));
 
+            // Add Daily Content Creator IDs
+            if (dailyDrillRes.data && dailyDrillRes.data.creatorId) allCreatorIds.push(dailyDrillRes.data.creatorId);
+            if (dailyLessonRes.data && (dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).course?.creator_id)) allCreatorIds.push(dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).course?.creator_id);
+            if (dailySparringRes.data && dailySparringRes.data.creatorId) allCreatorIds.push(dailySparringRes.data.creatorId);
+
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
             // Transform & Filter
@@ -233,10 +238,26 @@ export function Watch() {
                     return isDailyFree || isFree || isOwner || isAccessible('sparring', s);
                 });
 
-                allItems = [...allItems, ...availableSparring.map((s: any) => ({
-                    type: 'sparring' as const,
-                    data: transformSparringVideo(s)
-                }))];
+                allItems = [...allItems, ...availableSparring.map((s: any) => {
+                    const transformed = transformSparringVideo(s);
+                    const creatorInfo = creatorsMap[s.creator_id];
+
+                    // Inject creator info if available so profile/follow buttons appear
+                    if (creatorInfo && s.creator_id) {
+                        transformed.creator = {
+                            id: s.creator_id,
+                            name: creatorInfo.name || 'Unknown',
+                            profileImage: creatorInfo.avatarUrl || '',
+                            bio: '',
+                            subscriberCount: 0
+                        };
+                    }
+
+                    return {
+                        type: 'sparring' as const,
+                        data: transformed
+                    };
+                })];
             }
 
             if (lessonsRes.data) {
@@ -279,9 +300,22 @@ export function Watch() {
                 const dailyItem = dailySparringRes.data;
                 const exists = allItems.some(item => item.data.id === dailyItem.id);
                 if (!exists) {
+                    const creatorInfo = creatorsMap[dailyItem.creatorId];
+                    const enrichedDailyItem = { ...dailyItem };
+
+                    if (creatorInfo && dailyItem.creatorId) {
+                        enrichedDailyItem.creator = {
+                            id: dailyItem.creatorId,
+                            name: creatorInfo.name || 'Unknown',
+                            profileImage: creatorInfo.avatarUrl || '',
+                            bio: '',
+                            subscriberCount: 0
+                        };
+                    }
+
                     allItems.push({
                         type: 'sparring',
-                        data: dailyItem as any
+                        data: enrichedDailyItem as any
                     });
                 }
             }

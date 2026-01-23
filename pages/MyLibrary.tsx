@@ -553,7 +553,7 @@ export const MyLibrary: React.FC = () => {
                             </span>
                           )}
                           <img
-                            src={video.creatorProfileImage || video.creator?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
+                            src={(video.creator as any)?.avatar_url || (video.creator as any)?.image || (video.creator as any)?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
                             className="w-4 h-4 rounded-full object-cover"
                             alt=""
                           />

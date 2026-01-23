@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard, List, ChevronRight, Play, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
@@ -16,9 +16,11 @@ interface SparringReelItemProps {
     isActive: boolean;
     offset: number;
     isDailyFreeSparring?: boolean;
+    isSubscriber?: boolean;
+    purchasedItemIds?: string[];
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring }) => {
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring, isSubscriber, purchasedItemIds = [] }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
@@ -30,6 +32,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
+    const [relatedDrills, setRelatedDrills] = useState<any[]>([]);
     const navigate = useNavigate();
 
     // Login modal state for non-logged-in users
@@ -41,20 +44,68 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Check interaction status on load
+    // Check interaction status and fetch related drills/lessons on load
     useEffect(() => {
-        if (user && video.creatorId) {
-            import('../../lib/api').then(({ getSparringInteractionStatus }) => {
-                getSparringInteractionStatus(user.id, video.id, video.creatorId)
-                    .then(status => {
-                        setIsFollowed(status.followed);
-                        setIsLiked(status.liked);
-                        setIsSaved(status.saved);
-                    })
-                    .catch(console.error);
-            });
+        if (isActive) {
+            if (user && video.creatorId) {
+                import('../../lib/api').then(({ getSparringInteractionStatus, getDrillsByIds, getLessonsByIds }) => {
+                    getSparringInteractionStatus(user.id, video.id, video.creatorId)
+                        .then(status => {
+                            setIsFollowed(status.followed);
+                            setIsLiked(status.liked);
+                            setIsSaved(status.saved);
+                        })
+                        .catch(console.error);
+
+
+                    // Fetch related drills and lessons if any
+                    if (video.relatedItems && video.relatedItems.length > 0) {
+                        const allIds = video.relatedItems.map((item: any) => typeof item === 'string' ? item : item.id);
+
+                        // Try fetching as both drills and lessons since type info might be missing
+                        Promise.all([
+                            getDrillsByIds(allIds),
+                            getLessonsByIds(allIds)
+                        ]).then(([drillsRes, lessonsRes]) => {
+                            const combined = [
+                                ...(drillsRes.data || []).map((d: any) => ({ ...d, _type: 'drill' })),
+                                ...(lessonsRes.data || []).map((l: any) => ({ ...l, _type: 'lesson' }))
+                            ];
+                            setRelatedDrills(combined);
+                        });
+                    }
+                });
+            } else if (video.relatedItems && video.relatedItems.length > 0) {
+                // Not logged in but still try to show related items
+                import('../../lib/api').then(({ getDrillsByIds, getLessonsByIds }) => {
+                    const drillIds: string[] = [];
+                    const lessonIds: string[] = [];
+
+                    video.relatedItems.forEach((item: any) => {
+                        const id = typeof item === 'string' ? item : item.id;
+                        const type = typeof item === 'string' ? 'drill' : item.type;
+
+                        if (type === 'lesson') {
+                            lessonIds.push(id);
+                        } else {
+                            drillIds.push(id);
+                        }
+                    });
+
+                    Promise.all([
+                        drillIds.length > 0 ? getDrillsByIds(drillIds) : Promise.resolve({ data: [] }),
+                        lessonIds.length > 0 ? getLessonsByIds(lessonIds) : Promise.resolve({ data: [] })
+                    ]).then(([drillsRes, lessonsRes]) => {
+                        const combined = [
+                            ...(drillsRes.data || []).map((d: any) => ({ ...d, _type: 'drill' })),
+                            ...(lessonsRes.data || []).map((l: any) => ({ ...l, _type: 'lesson' }))
+                        ];
+                        setRelatedDrills(combined);
+                    });
+                });
+            }
         }
-    }, [user, video.id, video.creatorId]);
+    }, [user, video.id, video.creatorId, isActive]);
 
     // Handlers
     const handleFollow = async () => {
@@ -142,7 +193,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         } else {
             const rawUrl = video.videoUrl || '';
             const options: any = {
-                responsive: true,
                 background: true,
                 loop: true,
                 autoplay: false,
@@ -167,13 +217,18 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 params.append('player_id', containerRef.current.id || `vimeo-${vimeoId}`);
 
                 iframe.src = `https://player.vimeo.com/video/${vimeoId}?${params.toString()}`;
-                iframe.style.width = '177.78%'; // 16:9 aspect ratio in 1:1 container
-                iframe.style.height = '100%';
-                iframe.style.position = 'absolute';
-                iframe.style.top = '50%';
-                iframe.style.left = '50%';
-                iframe.style.transform = 'translate(-50%, -50%)';
-                iframe.style.pointerEvents = 'none';
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.frameBorder = '0';
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                iframe.className = 'w-full h-full'; // Remove static scale class
+                iframe.style.setProperty('position', 'absolute', 'important');
+                iframe.style.setProperty('top', '50%', 'important');
+                iframe.style.setProperty('left', '50%', 'important');
+                iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                iframe.style.setProperty('width', '177.78%', 'important');
+                iframe.style.setProperty('height', '177.78%', 'important');
+                iframe.style.setProperty('object-fit', 'cover', 'important');
 
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
@@ -212,6 +267,27 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     if (isActive) {
                         player.play().catch(console.error);
                     }
+
+                    // Force 1:1 aspect ratio on SDK-created iframe
+                    const applySquareCrop = () => {
+                        const iframe = containerRef.current?.querySelector('iframe');
+                        if (iframe) {
+                            iframe.style.setProperty('position', 'absolute', 'important');
+                            iframe.style.setProperty('top', '50%', 'important');
+                            iframe.style.setProperty('left', '50%', 'important');
+                            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                            iframe.style.setProperty('width', '177.78%', 'important');
+                            iframe.style.setProperty('height', '177.78%', 'important');
+                            iframe.style.setProperty('object-fit', 'cover', 'important');
+                            console.log('[SparringReel] Applied 1:1 crop');
+                        }
+                    };
+
+                    // Apply multiple times to ensure stability
+                    applySquareCrop();
+                    setTimeout(applySquareCrop, 100);
+                    setTimeout(applySquareCrop, 300);
+                    setTimeout(applySquareCrop, 600);
                 }).catch(err => {
                     console.error('Vimeo player init error (SDK):', err);
                 });
@@ -251,16 +327,16 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         }
     }, [isActive, user, video.id]);
 
-    // Watch time tracking for non-logged-in users
+    // Watch time tracking for preview limit (1 min)
     useEffect(() => {
-        if (!user && isActive && !isDailyFreeSparring) {
+        if (!user && isActive) {
             // Start timer
             setWatchTime(0);
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 60) {
-                        // 60 seconds reached (updated from 5s to match 1-min preview)
+                    if (newTime >= 30) {
+                        // 30 seconds reached (updated from 60s)
                         setIsLoginModalOpen(true);
                         if (playerRef.current) {
                             playerRef.current.pause().catch(console.error);
@@ -370,7 +446,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-[177.78%] [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:top-1/2 [&>iframe]:left-1/2 [&>iframe]:-translate-x-1/2 [&>iframe]:-translate-y-1/2 [&>iframe]:pointer-events-none"
+                    className="absolute inset-0 w-full h-full overflow-hidden"
                     onClick={toggleMute}
                 />
             );
@@ -448,41 +524,87 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                 <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
                                     {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                 </button>
-
                             </div>
 
                             {/* Middle-Right Group: Heart, Save, Share */}
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="relative w-full aspect-square">
-                                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                                <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                            </button>
-                                            <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
-                                        </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
-                                        </button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                        </button>
-                                    </div>
+                            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
+                                <div className="flex flex-col items-center gap-1">
+                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                        <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                    </button>
+                                    <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                                 </div>
+                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                    <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                    <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                                </button>
                             </div>
 
-                            {/* Bottom Info - Moved out of aspect-square to stay at screen bottom */}
-                            <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+
+                            {/* Bottom Info - Related Items & Metadata */}
+                            <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-4 pointer-events-none">
+                                {/* LEARN THIS Cards (Horizontal Scroll) */}
+                                {relatedDrills.length > 0 && (
+                                    <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
+                                        {relatedDrills.map((item: any) => {
+                                            const isDrill = item._type === 'drill';
+                                            const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
+
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={(e) => { e.stopPropagation(); navigate(targetUrl); }}
+                                                    className="group flex-shrink-0 w-64 md:w-72 flex gap-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
+                                                >
+                                                    <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
+                                                        {item.thumbnailUrl ? (
+                                                            <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                            <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-white line-clamp-2 drop-shadow-sm">{item.title}</h4>
+                                                        <div className="flex items-center gap-2 mt-1.5">
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
+                                                                {isDrill ? 'DRILL' : 'LESSON'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/60 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        {video.category && (
+                                            <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border mb-2 ${video.category === 'Competition'
+                                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                }`}>
+                                                {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {video.creator && (
                                         <div className="flex items-center gap-3 mb-3">
                                             <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <img
-                                                    src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || (video.creator as any).profile_image || `https://ui-avatars.com/api/?name=${video.creator.name}`}
-                                                    className="w-8 h-8 rounded-full border border-white/20 object-cover"
-                                                    alt={video.creator.name}
-                                                />
-                                                <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
+                                                <div className="relative">
+                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
+                                                </div>
                                             </Link>
                                             <span className="text-white/60 text-xs mt-0.5">•</span>
                                             <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
@@ -493,39 +615,44 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                     <div className="mb-2">
                                         <h3 className="font-black text-xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
                                     </div>
+                                    {video.description && (
+                                        <p className="text-sm md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
-
-                        <React.Suspense fallback={null}>
-                            {isShareModalOpen && (
-                                <ShareModal
-                                    isOpen={isShareModalOpen}
-                                    onClose={() => setIsShareModalOpen(false)}
-                                    title={video.title}
-                                    text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
-                                    imageUrl={video.thumbnailUrl}
-                                    url={`${window.location.origin}/sparring?id=${video.id}`}
-                                />
-                            )}
-                        </React.Suspense>
                     </div>
-                </div>
 
-                {/* Progress Bar / Teaser Bar */}
-                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
-                    <div
-                        className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                        style={{ width: `${!user && !isDailyFreeSparring ? (watchTime / 60) * 100 : progress}%` }}
-                    />
+                    <React.Suspense fallback={null}>
+                        {isShareModalOpen && (
+                            <ShareModal
+                                isOpen={isShareModalOpen}
+                                onClose={() => setIsShareModalOpen(false)}
+                                title={video.title}
+                                text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                                imageUrl={video.thumbnailUrl}
+                                url={`${window.location.origin}/sparring?id=${video.id}`}
+                            />
+                        )}
+                    </React.Suspense>
                 </div>
+            </div>
 
-                {/* Login Modal for non-logged-in users */}
-                <ReelLoginModal
-                    isOpen={isLoginModalOpen}
-                    onClose={() => setIsLoginModalOpen(false)}
-                    redirectUrl={`/watch?tab=sparring&id=${video.id}`}
+            {/* Progress Bar / Teaser Bar */}
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div
+                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
                 />
             </div>
-            );
+
+            {/* Login Modal for non-logged-in users */}
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/watch?tab=sparring&id=${video.id}`}
+            />
+
+        </div>
+    );
 };

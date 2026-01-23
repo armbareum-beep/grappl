@@ -1,14 +1,504 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { getSparringVideos, getDailyFreeSparring } from '../lib/api';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Search, ChevronDown, Play } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { cn } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
 
-import { SparringReelItem } from '../components/reels/SparringReelItem';
+import Player from '@vimeo/player';
+
+const VideoItem: React.FC<{
+    video: SparringVideo;
+    isActive: boolean;
+    dailyFreeId?: string | null;
+}> = ({ video, isActive, dailyFreeId }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const playerRef = useRef<Player | null>(null);
+    const [muted, setMuted] = useState(true);
+    const [isPlayerReady, setIsPlayerReady] = useState(false);
+
+    // Interaction State
+    const { user, isSubscribed, isAdmin } = useAuth();
+    const [isFollowed, setIsFollowed] = useState(false);
+    const [isLiked, setIsLiked] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+    const [owns, setOwns] = useState(false);
+    const [localLikes, setLocalLikes] = useState(video.likes || 0);
+    const navigate = useNavigate();
+
+    // Check interaction status on load
+    useEffect(() => {
+        if (user && video.creatorId) {
+            import('../lib/api').then(({ getSparringInteractionStatus, checkSparringOwnership }) => {
+                getSparringInteractionStatus(user.id, video.id, video.creatorId)
+                    .then(status => {
+                        setIsFollowed(status.followed);
+                        setIsLiked(status.liked);
+                        setIsSaved(status.saved);
+                    })
+                    .catch(console.error);
+
+                checkSparringOwnership(user.id, video.id)
+                    .then(hasPurchased => {
+                        setOwns(hasPurchased);
+                    })
+                    .catch(console.error);
+            });
+        }
+    }, [user, video.id, video.creatorId]);
+
+    // Handlers
+    const handleFollow = async () => {
+        if (!user) { navigate('/login'); return; }
+        if (!video.creatorId) return;
+
+        // Optimistic UI
+        const newStatus = !isFollowed;
+        setIsFollowed(newStatus);
+
+        try {
+            const { toggleCreatorFollow } = await import('../lib/api');
+            const result = await toggleCreatorFollow(user.id, video.creatorId);
+            setIsFollowed(result.followed);
+        } catch (error) {
+            console.error('Follow failed', error);
+            setIsFollowed(!newStatus); // Revert
+        }
+    };
+
+    const handleLike = async () => {
+        if (!user) { navigate('/login'); return; }
+
+        // Optimistic UI
+        const newStatus = !isLiked;
+        setIsLiked(newStatus);
+        setLocalLikes(prev => newStatus ? prev + 1 : prev - 1);
+
+        try {
+            const { toggleSparringLike } = await import('../lib/api');
+            const result = await toggleSparringLike(user.id, video.id);
+            setIsLiked(result.liked);
+        } catch (error) {
+            console.error('Like failed', error);
+            setIsLiked(!newStatus); // Revert
+            setLocalLikes(prev => !newStatus ? prev + 1 : prev - 1);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!user) { navigate('/login'); return; }
+
+        // Optimistic UI
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+
+        try {
+            const { toggleSparringSave } = await import('../lib/api');
+            const result = await toggleSparringSave(user.id, video.id);
+            setIsSaved(result.saved);
+        } catch (error) {
+            console.error('Save failed', error);
+            setIsSaved(!newStatus); // Revert
+        }
+    };
+
+    // Share Modal State
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    const handleShare = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setIsShareModalOpen(true);
+    };
+
+    const [previewEnded, setPreviewEnded] = useState(false);
+
+    // Helper to get Vimeo ID and Hash
+    const vimeoFullId = extractVimeoId(video.videoUrl);
+
+    const isDailyFree = dailyFreeId === video.id;
+    // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video))
+    const hasAccess = isDailyFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+
+    // Determine which video to play
+    // If has access -> Main Video
+    // If no access -> NULL (Do not play preview in feed, show lock screen/thumbnail only)
+    const activeVimeoId = hasAccess ? vimeoFullId : null;
+
+    // Initialize Player
+    useEffect(() => {
+        if (!containerRef.current || !activeVimeoId || activeVimeoId === 'undefined' || activeVimeoId === 'null') return;
+
+        // Ensure ID is valid number or string with hash
+        if (isNaN(Number(activeVimeoId)) && !String(activeVimeoId).includes(':')) {
+            return;
+        }
+
+        if (playerRef.current) {
+            playerRef.current.destroy();
+        }
+
+        const sourceUrlOrId = activeVimeoId;
+
+        // Manual Iframe Strategy for Private Videos
+        const isPrivateWithHash = String(sourceUrlOrId).includes(':');
+
+        if (isPrivateWithHash) {
+            const [id, hash] = String(sourceUrlOrId).split(':');
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=1&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
+            iframe.setAttribute('frameborder', '0');
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+
+            // Force 1:1 aspect ratio
+            iframe.style.setProperty('width', '177.78%', 'important');
+            iframe.style.setProperty('height', '177.78%', 'important');
+            iframe.style.setProperty('position', 'absolute', 'important');
+            iframe.style.setProperty('top', '50%', 'important');
+            iframe.style.setProperty('left', '50%', 'important');
+            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+            iframe.style.setProperty('object-fit', 'cover', 'important');
+
+            containerRef.current.appendChild(iframe);
+            const player = new Player(iframe);
+
+            player.ready().then(() => {
+                setIsPlayerReady(true);
+                playerRef.current = player;
+                if (isActive) player.play().catch(console.error);
+                if (!hasAccess && video.previewVimeoId) {
+                    player.on('ended', () => setPreviewEnded(true));
+                }
+            });
+        } else {
+            const options: any = {
+                id: Number(sourceUrlOrId),
+                width: window.innerWidth,
+                background: true,
+                loop: hasAccess,
+                autoplay: false,
+                muted: true,
+                controls: false,
+                dnt: true
+            };
+
+            const player = new Player(containerRef.current, options);
+            player.ready().then(() => {
+                setIsPlayerReady(true);
+                playerRef.current = player;
+
+                // Force 1:1 aspect ratio on SDK-created iframe
+                const applySquareCrop = () => {
+                    const iframe = containerRef.current?.querySelector('iframe');
+                    if (iframe) {
+                        iframe.style.setProperty('width', '177.78%', 'important');
+                        iframe.style.setProperty('height', '177.78%', 'important');
+                        iframe.style.setProperty('position', 'absolute', 'important');
+                        iframe.style.setProperty('top', '50%', 'important');
+                        iframe.style.left = '50%', 'important';
+                        iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                        iframe.style.setProperty('object-fit', 'cover', 'important');
+                        console.log('[SparringFeed] Applied 1:1 crop');
+                    }
+                };
+
+                // Apply immediately and retry with delays
+                applySquareCrop();
+                setTimeout(applySquareCrop, 100);
+                setTimeout(applySquareCrop, 300);
+
+                if (isActive) player.play().catch(console.error);
+                if (!hasAccess && video.previewVimeoId) {
+                    player.on('ended', () => setPreviewEnded(true));
+                }
+            }).catch(err => console.error('Vimeo player init error:', err));
+        }
+
+        return () => {
+            if (playerRef.current) {
+                playerRef.current.destroy();
+            }
+            if (containerRef.current) containerRef.current.innerHTML = '';
+        };
+    }, [activeVimeoId, hasAccess]); // Re-run if access changes or ID changes
+
+    // Handle Active State Changes
+    useEffect(() => {
+        if (!playerRef.current || !isPlayerReady) return;
+
+        if (isActive) {
+            playerRef.current.play().catch(() => {
+                playerRef.current?.setVolume(0);
+                setMuted(true);
+                playerRef.current?.play().catch(console.error);
+            });
+        } else {
+            playerRef.current.pause().catch(console.error);
+            playerRef.current.setCurrentTime(0).catch(console.error);
+        }
+    }, [isActive, isPlayerReady]);
+
+    // Record View History
+    useEffect(() => {
+        if (isActive && user && video.id) {
+            import('../lib/api').then(({ recordSparringView }) => {
+                recordSparringView(user.id, video.id).catch(console.error);
+            });
+        }
+    }, [isActive, user, video.id]);
+
+    const toggleMute = async () => {
+        const newMuteState = !muted;
+        setMuted(newMuteState);
+
+        if (playerRef.current) {
+            await playerRef.current.setVolume(newMuteState ? 0 : 1);
+            await playerRef.current.setMuted(newMuteState);
+        } else if (containerRef.current) {
+            const videoEl = containerRef.current.querySelector('video');
+            if (videoEl) videoEl.muted = newMuteState;
+        }
+    };
+
+    const renderVideoContent = () => {
+        // Show Lock Screen ONLY if:
+        // 1. User has NO access
+        // 2. AND (No preview available OR Preview has ended)
+        const showLockScreen = !hasAccess && (!video.previewVimeoId || previewEnded);
+
+        if (showLockScreen) {
+            const canPurchase = video.price && video.price > 0;
+
+            return (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md z-50 p-6 text-center select-none" onClick={e => e.stopPropagation()}>
+                    <div className="mb-6 relative">
+                        <div className="absolute -inset-4 bg-violet-500/20 blur-xl rounded-full"></div>
+                        <Lock className="w-12 h-12 text-zinc-400 relative z-10" />
+                    </div>
+
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-zinc-500 mb-2">Membership or Purchase</span>
+                    <h3 className="text-2xl font-black text-white mb-2">
+                        {canPurchase ? '유료 스파링 영상' : '멤버십 전용 콘텐츠'}
+                    </h3>
+                    <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[240px] leading-relaxed">
+                        {canPurchase
+                            ? '이 영상을 시청하려면 단품으로 구매하거나 멤버십을 구독하세요.'
+                            : '이 스파링 영상은 구독 후 시청할 수 있습니다.'}
+                        {isDailyFree && <span className="text-violet-400 font-black block mt-2">(오늘의 무료 영상!)</span>}
+                    </p>
+
+                    <div className="w-full max-w-[240px] space-y-3">
+                        {canPurchase && (
+                            <Link
+                                to={`/checkout/sparring/${video.id}?price=${video.price}`}
+                                className="flex items-center justify-center w-full h-14 bg-white text-black font-black rounded-2xl transition-all shadow-lg active:scale-95 text-lg"
+                            >
+                                ₩{video.price.toLocaleString()} 단품 구매
+                            </Link>
+                        )}
+
+                        {canPurchase && (
+                            <div className="relative py-2">
+                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                                    <span className="bg-zinc-950 px-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">or</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <Link
+                            to="/pricing"
+                            className="flex items-center justify-center w-full h-14 bg-violet-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-violet-900/40 active:scale-95 text-lg gap-2"
+                        >
+                            <Zap className="w-5 h-5 fill-current" /> 멤버십 구독하기
+                        </Link>
+                    </div>
+                </div>
+            );
+        }
+
+        if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
+            return (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
+                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-2xl">⚠️</span>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">영상 처리 실패</h3>
+                    <p className="text-sm text-center text-zinc-400 mb-4 max-w-xs break-all">
+                        {video.videoUrl.replace('ERROR:', '').trim()}
+                    </p>
+                    <div className="text-xs text-zinc-500 text-center">
+                        영상을 처리할 수 없습니다. 대시보드에서 삭제 후 다시 시도해주세요.
+                    </div>
+                </div>
+            );
+        }
+
+        if (activeVimeoId) {
+            return (
+                <div
+                    ref={containerRef}
+                    className="absolute inset-0 w-full h-full overflow-hidden"
+                    onClick={toggleMute}
+                />
+            );
+        }
+
+        return (
+            <video
+                ref={(el) => {
+                    if (el && isActive) {
+                        el.play().catch(() => {
+                            setMuted(true);
+                            if (el) el.muted = true;
+                            if (el) el.play();
+                        });
+                        el.muted = muted;
+                    } else if (el) {
+                        el.pause();
+                        el.currentTime = 0;
+                    }
+                }}
+                src={video.videoUrl}
+                className="w-full h-full object-cover"
+                loop
+                playsInline
+                onClick={toggleMute}
+            />
+        );
+    };
+
+    return (
+        <>
+            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-24">
+                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+                    {renderVideoContent()}
+                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
+                <div className="absolute inset-0 pointer-events-none z-40">
+                    <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-200px))]">
+                        {/* Top-Left Group: Back Button - Sticks to top left INSIDE container */}
+                        <div className="absolute top-8 left-4 z-[100] pointer-events-auto">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
+                            >
+                                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
+                        </div>
+
+                        {/* Top-Right Group: Speaker & Grid View - Sticks to top right INSIDE container */}
+                        <div className="absolute top-8 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
+                            <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
+                                {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                            </button>
+
+                        </div>
+
+                        {/* Video Overlay Layer (Bottom parts) */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="relative w-full aspect-square">
+                                {/* Middle-Right Group: Heart, Save, Share */}
+                                <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                            <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                        </button>
+                                        <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                        <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                        <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Bottom Info: Attached to Video Bottom */}
+                                <div className="absolute -bottom-24 md:-bottom-28 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
+                                    <div className="w-full pointer-events-auto pr-16">
+                                        {/* Learn This */}
+                                        {video.relatedItems && video.relatedItems.length > 0 && (
+                                            <div className="w-full pointer-events-auto mb-4">
+                                                <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 no-scrollbar snap-x">
+                                                    {video.relatedItems.map((item: any, idx) => {
+                                                        const isDrill = item.type === 'drill';
+                                                        const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
+
+                                                        return (
+                                                            <Link
+                                                                key={idx}
+                                                                to={targetUrl}
+                                                                className="snap-start group flex-shrink-0 w-64 md:w-72 flex gap-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
+                                                            >
+                                                                <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
+                                                                    {item.thumbnailUrl ? (
+                                                                        <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700">
+                                                                            <PlaySquare className="w-6 h-6" />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                                        <PlaySquare className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all" />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-sm font-bold text-white line-clamp-2 drop-shadow-sm">{item.title}</h4>
+                                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
+                                                                            {isDrill ? 'DRILL' : 'LESSON'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
+                                                            </Link>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {video.creator && (
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                                                    <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
+                                                </Link>
+                                                <span className="text-white/60 text-xs mt-0.5">•</span>
+                                                <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                                                    {isFollowed ? 'Following' : 'Follow'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="mb-4">
+                                            <h3 className="font-black text-2xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
+                                        </div>
+                                        <p className="text-sm text-white/90 line-clamp-1 drop-shadow-sm md:text-base" onClick={(e) => e.stopPropagation()}>{video.description}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <React.Suspense fallback={null}>
+                    {isShareModalOpen && (
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={video.title}
+                            text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                            imageUrl={video.thumbnailUrl}
+                            url={`${window.location.origin}/sparring?id=${video.id}`}
+                        />
+                    )}
+                </React.Suspense>
+            </div>
+        </>
+    );
+};
 
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
@@ -21,29 +511,10 @@ export const SparringFeed: React.FC<{
     forceViewMode?: 'grid' | 'reels';
 }> = ({ isEmbedded, activeTab, onTabChange, forceViewMode }) => {
     const [videos, setVideos] = useState<SparringVideo[]>([]);
-    const { user, isSubscribed, isAdmin } = useAuth();
+    const { user } = useAuth();
     const [activeIndex, setActiveIndex] = useState(0);
     const [dailyFreeId, setDailyFreeId] = useState<string | null>(null);
     const [searchParams, setSearchParams] = useSearchParams();
-    const [purchasedItemIds, setPurchasedItemIds] = useState<string[]>([]);
-
-    // Fetch user purchases
-    useEffect(() => {
-        if (user) {
-            import('../lib/supabase').then(({ supabase }) => {
-                supabase
-                    .from('purchases')
-                    .select('product_id')
-                    .eq('user_id', user.id)
-                    .eq('status', 'completed')
-                    .then(({ data }) => {
-                        if (data) {
-                            setPurchasedItemIds(data.map((p: any) => p.product_id));
-                        }
-                    });
-            });
-        }
-    }, [user]);
 
     const initialView = searchParams.get('view') === 'grid' ? 'grid' : 'reels';
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>(forceViewMode || (isEmbedded ? 'grid' : initialView));
@@ -159,14 +630,11 @@ export const SparringFeed: React.FC<{
                             Here we use filteredVideos if we have them, else all. */}
                         {(searchTerm ? filteredVideos : videos).length > 0 ? (
                             (searchTerm ? filteredVideos : videos).map((video, idx) => (
-                                <SparringReelItem
+                                <VideoItem
                                     key={video.id}
                                     video={video}
                                     isActive={idx === activeIndex}
-                                    offset={idx - activeIndex}
-                                    isDailyFreeSparring={dailyFreeId === video.id}
-                                    isSubscriber={isSubscribed || isAdmin}
-                                    purchasedItemIds={purchasedItemIds}
+                                    dailyFreeId={dailyFreeId}
                                 />
                             ))
                         ) : (
@@ -379,7 +847,7 @@ export const SparringFeed: React.FC<{
                                     )}
                                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
-                                        <Play className="w-4 h-4" />
+                                        <PlaySquare className="w-4 h-4" />
                                     </div>
                                 </div>
                                 <div className="px-1">

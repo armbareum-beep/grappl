@@ -41,7 +41,6 @@ export const SparringDetail: React.FC = () => {
     const [saved, setSaved] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [showTechniques, setShowTechniques] = useState(false);
     const [showMoreSparring, setShowMoreSparring] = useState(false);
 
     // Player State
@@ -101,10 +100,22 @@ export const SparringDetail: React.FC = () => {
             checkOwnership(data);
             checkInteractions(data);
 
-            // Fetch related drills if any
+            // Fetch related drills and lessons if any
             if (data.relatedItems && data.relatedItems.length > 0) {
-                getDrillsByIds(data.relatedItems).then(({ data: drills }) => {
-                    if (drills) setRelatedDrills(drills);
+                import('../lib/api').then(({ getDrillsByIds, getLessonsByIds }) => {
+                    const allIds = data.relatedItems.map((item: any) => typeof item === 'string' ? item : item.id);
+
+                    // Try fetching as both drills and lessons since type info might be missing
+                    Promise.all([
+                        getDrillsByIds(allIds),
+                        getLessonsByIds(allIds)
+                    ]).then(([drillsRes, lessonsRes]) => {
+                        const combined = [
+                            ...(drillsRes.data || []).map((d: any) => ({ ...d, _type: 'drill' })),
+                            ...(lessonsRes.data || []).map((l: any) => ({ ...l, _type: 'lesson' }))
+                        ];
+                        setRelatedDrills(combined);
+                    });
                 });
             }
 
@@ -462,15 +473,6 @@ export const SparringDetail: React.FC = () => {
                                 <Share2 className="w-6 h-6" />
                             </button>
 
-                            {/* Techniques Button */}
-                            {relatedDrills.length > 0 && (
-                                <button
-                                    onClick={() => setShowTechniques(true)}
-                                    className="p-3 md:p-4 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all active:scale-90 mt-2 animate-in slide-in-from-right duration-500"
-                                >
-                                    <List className="w-6 h-6" />
-                                </button>
-                            )}
 
                             {/* More Sparring Button */}
                             {moreSparring.length > 0 && (
@@ -536,92 +538,81 @@ export const SparringDetail: React.FC = () => {
                 </div>
             )}
 
-            {/* Techniques Sheet/Sidebar Overlay */}
-            {showTechniques && (
-                <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-sm flex justify-end" onClick={() => setShowTechniques(false)}>
-                    <div
-                        className="w-full max-w-sm h-full bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 backdrop-blur-xl">
-                            <div>
-                                <h3 className="text-lg font-black text-white flex items-center gap-2">
-                                    Techniques Used <span className="text-violet-500 text-xs px-2 py-0.5 bg-violet-500/10 rounded-full border border-violet-500/20">{relatedDrills.length}</span>
-                                </h3>
-                                <p className="text-xs text-zinc-500 mt-0.5">이 스파링에서 사용된 기술들입니다</p>
-                            </div>
-                            <button onClick={() => setShowTechniques(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-zinc-400" />
-                            </button>
-                        </div>
-
-                        {/* List */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700">
-                            {relatedDrills.map((drill) => (
-                                <div
-                                    key={drill.id}
-                                    onClick={() => navigate(`/drills/${drill.id}`)}
-                                    className="group flex gap-3 p-3 rounded-xl bg-black/40 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer items-center"
-                                >
-                                    <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group-hover:border-zinc-600 shrink-0 relative">
-                                        {drill.thumbnailUrl ? (
-                                            <img src={drill.thumbnailUrl} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
-                                        )}
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all">
-                                            <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate transition-colors">{drill.title}</h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 group-hover:border-zinc-600 transition-colors uppercase tracking-wider">{drill.category || 'Technique'}</span>
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Bottom Info */}
             <div className="fixed left-0 right-0 w-full bottom-8 px-6 z-40 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
-                    <div className="flex-1 pr-16 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-xl">
-                        <div className="flex flex-row items-center gap-2 mb-2">
-                            <span className="font-bold text-sm text-white cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/creator/${video.creatorId}`); }}>
-                                {creatorName}
-                            </span>
-                            <span className="text-white/60 text-xs">•</span>
-                            <button
-                                onClick={handleFollow}
-                                className={`px-2 py-0.5 rounded text-xs font-semibold border ${isFollowing ? 'border-white/20 bg-white/10 text-white/60' : 'border-white/40 bg-transparent text-white'}`}
-                            >
-                                {isFollowing ? '팔로잉' : '팔로우'}
-                            </button>
+                <div className="max-w-[56.25vh] mx-auto flex flex-col gap-4">
+                    {/* LEARN THIS Cards (Horizontal Scroll) */}
+                    {relatedDrills.length > 0 && (
+                        <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
+                            {relatedDrills.map((item: any) => {
+                                const isDrill = item._type === 'drill';
+                                const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={(e) => { e.stopPropagation(); navigate(targetUrl); }}
+                                        className="group flex-shrink-0 w-64 md:w-72 flex gap-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
+                                    >
+                                        <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
+                                            {item.thumbnailUrl ? (
+                                                <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-white line-clamp-2 drop-shadow-sm">{item.title}</h4>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
+                                                    {isDrill ? 'DRILL' : 'LESSON'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
+                                    </div>
+                                );
+                            })}
                         </div>
-                        <h3 className="font-bold text-xl text-white mb-1 line-clamp-2">{video.title}</h3>
-                        <p className="text-white/80 text-sm line-clamp-2">{video.description}</p>
+                    )}
+
+                    <div className="flex items-end justify-between pointer-events-auto">
+                        <div className="flex-1 pr-16 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-xl">
+                            <div className="flex flex-row items-center gap-2 mb-2">
+                                <span className="font-bold text-sm text-white cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/creator/${video.creatorId}`); }}>
+                                    {creatorName}
+                                </span>
+                                <span className="text-white/60 text-xs">•</span>
+                                <button
+                                    onClick={handleFollow}
+                                    className={`px-2 py-0.5 rounded text-xs font-semibold border ${isFollowing ? 'border-white/20 bg-white/10 text-white/60' : 'border-white/40 bg-transparent text-white'}`}
+                                >
+                                    {isFollowing ? '팔로잉' : '팔로우'}
+                                </button>
+                            </div>
+                            <h3 className="font-bold text-xl text-white mb-1 line-clamp-2">{video.title}</h3>
+                            <p className="text-white/80 text-sm line-clamp-2">{video.description}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Share Modal */}
-            {isShareModalOpen && (
-                <React.Suspense fallback={null}>
-                    <ShareModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => setIsShareModalOpen(false)}
-                        title={video.title}
-                        url={window.location.href}
-                        text={`Check out this sparring video: ${video.title}`}
-                    />
-                </React.Suspense>
-            )}
+                {/* Share Modal */}
+                {isShareModalOpen && (
+                    <React.Suspense fallback={null}>
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={video.title}
+                            url={window.location.href}
+                            text={`Check out this sparring video: ${video.title}`}
+                        />
+                    </React.Suspense>
+                )}
+            </div>
         </div>
     );
 };

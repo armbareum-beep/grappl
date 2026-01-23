@@ -1147,16 +1147,10 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
 
     if (!data) return [];
 
-    // Transform to flat SparringVideo array
-    return data.map((item: any) => ({
+    // Transform using transformSparringVideo to ensure proper thumbnail fallback
+    return data.map((item: any) => transformSparringVideo({
         ...item.sparring_videos,
-        creator: item.sparring_videos.creator,
-        // Ensure camelCase
-        videoUrl: item.sparring_videos.video_url,
-        thumbnailUrl: item.sparring_videos.thumbnail_url,
-        creatorId: item.sparring_videos.creator_id,
-        relatedItems: item.sparring_videos.related_items || [],
-        isPublished: item.sparring_videos.is_published
+        creator: item.sparring_videos.creator
     }));
 }
 
@@ -4889,12 +4883,9 @@ export function transformSparringVideo(data: any): SparringVideo {
 
     // Enhanced Thumbnail Fallback
     let thumb = data.thumbnail_url || '';
-    if (!thumb && data.video_url) {
-        // If it's a numeric ID, we can use vumbnail
-        if (/^\d+(\/[a-zA-Z0-9]+)?$/.test(data.video_url)) {
-            const idOnly = data.video_url.split('/')[0];
-            thumb = `https://vumbnail.com/${idOnly}.jpg`;
-        }
+    // Fallback to creator profile image if no thumbnail (matching Lesson's fallback to course thumbnail)
+    if (!thumb && creatorData) {
+        thumb = creatorData.profile_image || creatorData.avatar_url || '';
     }
 
     return {
@@ -4908,6 +4899,7 @@ export function transformSparringVideo(data: any): SparringVideo {
         views: data.views || 0,
         likes: data.likes || 0,
         creator: creator,
+        creatorProfileImage: creatorData?.profile_image || creatorData?.avatar_url,
         createdAt: data.created_at,
         category: data.category,
         uniformType: data.uniform_type,
@@ -5146,8 +5138,6 @@ export async function searchDrillsAndLessons(query: string) {
 
     return { data: results, error: null };
 }
-
-
 
 export async function getRoutines(creatorId?: string) {
     let query = supabase
@@ -6160,6 +6150,53 @@ export async function getDrillsByIds(ids: string[]) {
         return { data: [], error: e };
     }
 }
+
+export async function getLessonsByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return { data: [], error: null };
+
+    try {
+        const { data, error } = await supabase
+            .from('lessons')
+            .select('*, course:courses(title, thumbnail_url, creator_id)')
+            .in('id', ids);
+
+        if (error) {
+            console.error('Error fetching lessons by IDs:', error);
+            return { data: [], error };
+        }
+
+        // Fetch Creators Manually for proper attribution
+        const creatorIds = (data || []).map((l: any) => l.creator_id || l.course?.creator_id).filter(Boolean);
+        let creatorsMap: Record<string, any> = {};
+
+        if (creatorIds.length > 0) {
+            const { data: creators } = await supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .in('id', creatorIds);
+
+            if (creators) {
+                creators.forEach((c: any) => { creatorsMap[c.id] = c; });
+            }
+        }
+
+        const lessons = (data || []).map((l: any) => {
+            const creatorId = l.creator_id || l.course?.creator_id;
+            const creator = creatorsMap[creatorId];
+            const enriched = {
+                ...l,
+                creator: creator ? { name: creator.name, profile_image: creator.avatar_url } : null
+            };
+            return transformLesson(enriched);
+        });
+
+        return { data: lessons, error: null };
+    } catch (e) {
+        console.error('Error in getLessonsByIds:', e);
+        return { data: [], error: e };
+    }
+}
+
 
 
 
