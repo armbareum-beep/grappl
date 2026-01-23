@@ -192,16 +192,24 @@ const VideoItem: React.FC<{
                 playerRef.current = player;
 
                 // Force 1:1 aspect ratio on SDK-created iframe
-                const iframe = containerRef.current?.querySelector('iframe');
-                if (iframe) {
-                    iframe.style.width = '177.78%';
-                    iframe.style.height = '177.78%';
-                    iframe.style.position = 'absolute';
-                    iframe.style.top = '50%';
-                    iframe.style.left = '50%';
-                    iframe.style.transform = 'translate(-50%, -50%)';
-                    iframe.style.objectFit = 'cover';
-                }
+                const applySquareCrop = () => {
+                    const iframe = containerRef.current?.querySelector('iframe');
+                    if (iframe) {
+                        iframe.style.width = '177.78%';
+                        iframe.style.height = '177.78%';
+                        iframe.style.position = 'absolute';
+                        iframe.style.top = '50%';
+                        iframe.style.left = '50%';
+                        iframe.style.transform = 'translate(-50%, -50%)';
+                        iframe.style.objectFit = 'cover';
+                        console.log('[SparringFeed] Applied 1:1 crop');
+                    }
+                };
+
+                // Apply immediately and retry with delays
+                applySquareCrop();
+                setTimeout(applySquareCrop, 100);
+                setTimeout(applySquareCrop, 300);
 
                 if (isActive) player.play().catch(console.error);
                 if (!hasAccess && video.previewVimeoId) {
