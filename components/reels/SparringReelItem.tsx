@@ -493,41 +493,39 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                     <div className="mb-2">
                                         <h3 className="font-black text-xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
                                     </div>
-
                                 </div>
                             </div>
                         </div>
+
+                        <React.Suspense fallback={null}>
+                            {isShareModalOpen && (
+                                <ShareModal
+                                    isOpen={isShareModalOpen}
+                                    onClose={() => setIsShareModalOpen(false)}
+                                    title={video.title}
+                                    text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                                    imageUrl={video.thumbnailUrl}
+                                    url={`${window.location.origin}/sparring?id=${video.id}`}
+                                />
+                            )}
+                        </React.Suspense>
                     </div>
-
-                    <React.Suspense fallback={null}>
-                        {isShareModalOpen && (
-                            <ShareModal
-                                isOpen={isShareModalOpen}
-                                onClose={() => setIsShareModalOpen(false)}
-                                title={video.title}
-                                text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
-                                imageUrl={video.thumbnailUrl}
-                                url={`${window.location.origin}/sparring?id=${video.id}`}
-                            />
-                        )}
-                    </React.Suspense>
                 </div>
-            </div>
 
-            {/* Progress Bar / Teaser Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
-                <div
-                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user && !isDailyFreeSparring ? (watchTime / 60) * 100 : progress}%` }}
+                {/* Progress Bar / Teaser Bar */}
+                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                    <div
+                        className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                        style={{ width: `${!user && !isDailyFreeSparring ? (watchTime / 60) * 100 : progress}%` }}
+                    />
+                </div>
+
+                {/* Login Modal for non-logged-in users */}
+                <ReelLoginModal
+                    isOpen={isLoginModalOpen}
+                    onClose={() => setIsLoginModalOpen(false)}
+                    redirectUrl={`/watch?tab=sparring&id=${video.id}`}
                 />
             </div>
-
-            {/* Login Modal for non-logged-in users */}
-            <ReelLoginModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-                redirectUrl={`/watch?tab=sparring&id=${video.id}`}
-            />
-        </div>
-    );
+            );
 };
