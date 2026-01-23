@@ -129,6 +129,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 iframe.frameBorder = '0';
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
 
+                // Force 1:1 aspect ratio by scaling iframe to crop 16:9 to square
+                iframe.style.width = '177.78%';
+                iframe.style.height = '177.78%';
+                iframe.style.position = 'absolute';
+                iframe.style.top = '50%';
+                iframe.style.left = '50%';
+                iframe.style.transform = 'translate(-50%, -50%)';
+                iframe.style.objectFit = 'cover';
+
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
                 containerRef.current.appendChild(iframe);
