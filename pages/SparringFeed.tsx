@@ -150,7 +150,7 @@ const VideoItem: React.FC<{
         if (isPrivateWithHash) {
             const [id, hash] = String(sourceUrlOrId).split(':');
             const iframe = document.createElement('iframe');
-            iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=0&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
+            iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=1&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
             iframe.setAttribute('frameborder', '0');
             iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
             iframe.setAttribute('style', 'position:absolute;top:0;left:0;width:100%;height:100%;');

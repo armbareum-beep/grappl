@@ -171,9 +171,9 @@ function transformCreator(data: any): Creator {
     return {
         id: data.id,
         name: data.name,
-        bio: data.bio,
-        profileImage: data.profile_image,
-        subscriberCount: data.subscriber_count,
+        bio: data.bio || '',
+        profileImage: data.profile_image || data.avatar_url || '',
+        subscriberCount: data.subscriber_count || 0,
     };
 }
 
@@ -4883,12 +4883,19 @@ export function transformSparringVideo(data: any): SparringVideo {
     if (!data) return {} as SparringVideo;
 
     // Handle different join keys for creator info
-    // profiles, creators, users might be used depending on the query
-    const rawCreator = data.creators || data.profiles || data.users || data.creator;
+    const rawCreator = data.creator || data.users || data.profiles || data.creators;
     const creatorData = Array.isArray(rawCreator) ? rawCreator[0] : rawCreator;
-
-    // Check if creator info looks valid before transforming
     const creator = creatorData && (creatorData.id || creatorData.name) ? transformCreator(creatorData) : undefined;
+
+    // Enhanced Thumbnail Fallback
+    let thumb = data.thumbnail_url || '';
+    if (!thumb && data.video_url) {
+        // If it's a numeric ID, we can use vumbnail
+        if (/^\d+(\/[a-zA-Z0-9]+)?$/.test(data.video_url)) {
+            const idOnly = data.video_url.split('/')[0];
+            thumb = `https://vumbnail.com/${idOnly}.jpg`;
+        }
+    }
 
     return {
         id: data.id,
@@ -4896,7 +4903,7 @@ export function transformSparringVideo(data: any): SparringVideo {
         title: data.title || '',
         description: data.description || '',
         videoUrl: data.video_url || '',
-        thumbnailUrl: data.thumbnail_url || '',
+        thumbnailUrl: thumb,
         relatedItems: data.related_items || [],
         views: data.views || 0,
         likes: data.likes || 0,
@@ -4907,7 +4914,7 @@ export function transformSparringVideo(data: any): SparringVideo {
         difficulty: data.difficulty,
         price: data.price || 0,
         isPublished: data.is_published ?? false,
-        previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url // Handle both field names
+        previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url
     };
 }
 

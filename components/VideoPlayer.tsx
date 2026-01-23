@@ -59,7 +59,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         try {
             const options: any = {
-                autoplay: false,
+                autoplay: true,
                 loop: false,
                 autopause: true,
                 title: false,
@@ -68,6 +68,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 controls: showControls,
                 color: 'ffffff',
                 badge: false,
+                muted: true,
             };
 
             const vimeoIdStr = String(vimeoId || '').trim();
@@ -115,6 +116,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('portrait', '0');
                 params.append('badge', '0');
                 params.append('autopause', '1');
+                params.append('autoplay', '1');
+                params.append('muted', '1');
+                params.append('background', '1'); // Extra safety for silent background play
                 params.append('player_id', containerRef.current.id || `vimeo-${numericId}`);
                 params.append('app_id', '122963');
                 if (!showControls) params.append('controls', '0');
