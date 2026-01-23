@@ -312,7 +312,7 @@ const VideoItem: React.FC<{
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full"
+                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-150"
                     onClick={toggleMute}
                 />
             );
@@ -345,14 +345,8 @@ const VideoItem: React.FC<{
     return (
         <>
             <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-24">
-                {/* 1:1 Square Container with Cropped 16:9 Video */}
-                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))]" style={{ paddingBottom: 'min(100vw,calc(100vh-200px))' }}>
-                    <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden rounded-lg z-10">
-                        {/* Video scaled to fill square (crop top/bottom) */}
-                        <div className="relative w-full" style={{ height: '177.78%', marginTop: '-38.89%' }}>
-                            {renderVideoContent()}
-                        </div>
-                    </div>
+                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+                    {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />

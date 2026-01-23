@@ -85,31 +85,25 @@ export function RandomSparringShowcase() {
                     {/* Video Section (Right) */}
                     <div className="flex-1 w-full max-w-2xl">
                         <div
-                            className="relative w-full rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
+                            className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
                             onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
-                            style={{ paddingBottom: '100%' }}
                         >
-                            {/* Video Container - Centered and Cropped to Square */}
-                            <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-black">
-                                <div className="relative w-full" style={{ height: '177.78%', marginTop: '-38.89%' }}>
-                                    <VideoPlayer
-                                        vimeoId={vimeoIdToSend}
-                                        title={video.title}
-                                        isPreviewMode={true}
-                                        maxPreviewDuration={60}
-                                        showControls={false}
-                                        fillContainer={true}
-                                        playing={true}
-                                        isPaused={false}
-                                    />
-                                </div>
-                            </div>
+                            <VideoPlayer
+                                vimeoId={vimeoIdToSend}
+                                title={video.title}
+                                isPreviewMode={true}
+                                maxPreviewDuration={60}
+                                showControls={false}
+                                fillContainer={true}
+                                playing={true}
+                                isPaused={false}
+                            />
 
                             {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90 pointer-events-none z-10"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90"></div>
 
                             {/* Text Overlay */}
-                            <div className="absolute bottom-6 left-6 right-6 pointer-events-none z-20">
+                            <div className="absolute bottom-6 left-6 right-6">
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                                     <span className="text-zinc-400 text-xs font-bold tracking-wider uppercase">Live Sparring</span>
