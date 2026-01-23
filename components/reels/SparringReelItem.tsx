@@ -167,11 +167,13 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 params.append('player_id', containerRef.current.id || `vimeo-${vimeoId}`);
 
                 iframe.src = `https://player.vimeo.com/video/${vimeoId}?${params.toString()}`;
-                iframe.width = '100%';
-                iframe.height = '100%';
-                iframe.frameBorder = '0';
-                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                iframe.className = 'w-full h-full scale-150';
+                iframe.style.width = '177.78%';
+                iframe.style.height = '177.78%';
+                iframe.style.position = 'absolute';
+                iframe.style.top = '50%';
+                iframe.style.left = '50%';
+                iframe.style.transform = 'translate(-50%, -50%)';
+                iframe.style.objectFit = 'cover';
 
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
@@ -368,7 +370,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-150"
+                    className="absolute inset-0 w-full h-full [&>iframe]:w-[177.78%] [&>iframe]:h-[177.78%] [&>iframe]:absolute [&>iframe]:top-1/2 [&>iframe]:left-1/2 [&>iframe]:-translate-x-1/2 [&>iframe]:-translate-y-1/2 [&>iframe]:object-cover"
                     onClick={toggleMute}
                 />
             );
