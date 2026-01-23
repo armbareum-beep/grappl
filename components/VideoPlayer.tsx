@@ -79,53 +79,77 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 return;
             }
 
+            // Internal extraction helper
+            let numericId = 0;
+            let hash = '';
+
             if (vimeoIdStr.startsWith('http')) {
-                options.url = vimeoIdStr;
-                const hashMatch = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
-                if (hashMatch) options.h = hashMatch[1];
-                player = new Player(containerRef.current, options);
-            } else if (/^\d+$/.test(vimeoIdStr)) {
-                options.id = Number(vimeoIdStr);
-                player = new Player(containerRef.current, options);
-            } else if (vimeoIdStr.includes('/') || vimeoIdStr.includes(':')) {
-                const separator = vimeoIdStr.includes(':') ? ':' : '/';
-                const [id, h] = vimeoIdStr.split(separator);
-                if (/^\d+$/.test(id) && h) {
-                    const iframe = document.createElement('iframe');
-                    const params = new URLSearchParams();
-                    params.append('h', h);
-                    params.append('title', '0');
-                    params.append('byline', '0');
-                    params.append('portrait', '0');
-                    params.append('badge', '0');
-                    params.append('app_id', '122963');
-                    if (!showControls) params.append('controls', '0');
-
-                    iframe.src = `https://player.vimeo.com/video/${id}?${params.toString()}`;
-                    iframe.width = '100%';
-                    iframe.height = '100%';
-                    iframe.frameBorder = '0';
-                    iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                    iframe.referrerPolicy = 'origin';
-
-                    if (containerRef.current) {
-                        containerRef.current.innerHTML = '';
-                        containerRef.current.appendChild(iframe);
-                        player = new Player(iframe);
-                    }
+                const match = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/i);
+                if (match) {
+                    numericId = Number(match[1]);
+                    if (match[2]) hash = match[2];
                 } else {
-                    options.url = `https://vimeo.com/${vimeoIdStr}`;
-                    player = new Player(containerRef.current, options);
+                    options.url = vimeoIdStr; // Fallback for unknown URL formats
                 }
+            } else if (/^\d+$/.test(vimeoIdStr)) {
+                numericId = Number(vimeoIdStr);
+            } else if (vimeoIdStr.includes(':') || vimeoIdStr.includes('/')) {
+                // Handle ID:HASH or ID/HASH format
+                const separator = vimeoIdStr.includes(':') ? ':' : '/';
+                const [idPart, hPart] = vimeoIdStr.split(separator);
+                numericId = Number(idPart);
+                if (hPart) hash = hPart;
             } else {
+                // If it's something weird, try URL
                 options.url = `https://vimeo.com/${vimeoIdStr}`;
+            }
+
+            // If we extracted a valid numeric ID, prefer using id (+h) over url
+            // For private videos (with hash), we MUST use manual iframe to avoid OEmbed authentication issues
+            if (numericId > 0 && hash) {
+                const iframe = document.createElement('iframe');
+                const params = new URLSearchParams();
+                params.append('h', hash);
+                params.append('title', '0');
+                params.append('byline', '0');
+                params.append('portrait', '0');
+                params.append('badge', '0');
+                params.append('autopause', '1');
+                params.append('player_id', containerRef.current.id || `vimeo-${numericId}`);
+                params.append('app_id', '122963');
+                if (!showControls) params.append('controls', '0');
+
+                iframe.src = `https://player.vimeo.com/video/${numericId}?${params.toString()}`;
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.frameBorder = '0';
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+
+                // Clear container and mount iframe
+                containerRef.current.innerHTML = '';
+                containerRef.current.appendChild(iframe);
+
+                // Initialize player with the iframe
+                player = new Player(iframe);
+            }
+            else if (numericId > 0) {
+                // Public video - SDK handles it fine
+                options.id = numericId;
+                delete options.url;
+                player = new Player(containerRef.current, options);
+            }
+            else {
+                // Fallback to URL
                 player = new Player(containerRef.current, options);
             }
 
-            playerRef.current = player;
+            console.log('[VideoPlayer] Initialized player with strategy:', numericId > 0 && hash ? 'Manual Iframe' : 'SDK Options');
 
-            if (player) {
-                player.on('error', (data) => {
+            playerRef.current = player;
+            const currentPlayer = player; // Capture for closure safety
+
+            if (currentPlayer) { // Changed check slightly
+                currentPlayer.on('error', (data) => {
                     // Filter out harmless playback interruption errors
                     if (data?.name === 'AbortError' || data?.name === 'PlayInterrupted') {
                         console.log('[VideoPlayer] Playback interrupted (expected behavior during rapid interaction)');
@@ -136,10 +160,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 });
 
                 if (startTime && startTime > 0) {
-                    player.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
+                    currentPlayer.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
                 }
 
-                player.on('ended', () => {
+                currentPlayer.on('ended', () => {
                     if (onEnded) onEnded();
                 });
 
@@ -205,8 +229,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     const max = maxPreviewDurationRef.current;
                     const isPreview = isPreviewModeRef.current;
 
+                    // STRICT ENFORCEMENT
                     if (isPreview && max) {
                         if (seconds >= max) {
+                            console.log(`[VideoPlayer] STRICT LIMIT HIT: ${seconds}s >= ${max}s. Forcing pause.`);
                             player.pause().catch(console.warn);
 
                             if (!hasReachedRef.current) {
@@ -217,12 +243,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 if (onPreviewEnded) onPreviewEnded();
                             }
                         } else {
-                            hasReachedRef.current = false;
+                            // Only reset if we are significantly below the limit (to prevent flickering)
+                            if (seconds < max - 1) {
+                                hasReachedRef.current = false;
+                            }
                         }
                     }
                 }
             }).catch(() => { });
-        }, 1000);
+        }, 500); // Check every 500ms
         return () => clearInterval(interval);
     }, []);
 
@@ -254,18 +283,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         syncPlaybackState();
     }, [isPaused, playing, hasReachedPreviewLimit]);
 
-    const handleRestartPreview = async () => {
-        if (!playerRef.current) return;
-        setHasReachedPreviewLimit(false);
-        setShowUpgradeOverlay(false);
-        setTimeRemaining(maxPreviewDuration || 60);
-        try {
-            await playerRef.current.setCurrentTime(0);
-            await playerRef.current.play();
-        } catch (err) {
-            console.warn('Failed to restart preview:', err);
-        }
-    };
 
     return (
         <div
@@ -335,13 +352,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     구독하고 모두 시청하기
                                 </button>
                             </Link>
-
-                            <button
-                                onClick={handleRestartPreview}
-                                className="w-full py-3 text-violet-400 hover:text-violet-300 font-medium text-sm transition-colors"
-                            >
-                                무제한 시청하기
-                            </button>
                         </div>
                     </div>
                 </div>

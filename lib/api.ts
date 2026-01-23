@@ -11,6 +11,29 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
 
+// Helper to extract Vimeo ID
+// Helper to extract Vimeo ID
+// Helper to extract Vimeo ID
+function extractVimeoId(url?: string | null) {
+    if (!url || typeof url !== 'string') return undefined;
+    if (/^\d+$/.test(url)) return url;
+
+    // Check for ID:HASH or ID/HASH format (already extracted)
+    if (/^\d+[:/][a-zA-Z0-9]+$/.test(url)) {
+        return url.replace('/', ':');
+    }
+
+    // Match ID and optional hash (e.g. vimeo.com/123456/abcdef)
+    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+    if (match) {
+        const id = match[1];
+        const hash = match[2];
+        return hash ? `${id}:${hash}` : id;
+    }
+    return undefined;
+}
+
+// Lesson Interactions
 
 // Lesson Interactions
 export async function toggleLessonLike(userId: string, lessonId: string): Promise<{ liked: boolean }> {
@@ -348,12 +371,19 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             const firstLesson = sortedLessons[0];
 
             const course = transformCourse(d);
+
+            // AUTOMATIC PREVIEW: Use first lesson's video if available
+            // This overrides any manual preview_vimeo_id unless we decide to keep it as fallback
+            // User requested: "Get rid of manual upload, use first lesson 1 min preview"
+            const autoPreviewId = firstLesson?.vimeo_url ? extractVimeoId(firstLesson.vimeo_url) : null;
+
             return {
                 ...course,
                 lessonCount: d.lessons?.length || 0,
                 creatorProfileImage: d.creator?.profile_image || null,
                 previewVideoUrl: firstLesson?.vimeo_url,
-                // previewVimeoId is already included from transformCourse
+                // Override previewVimeoId with the first lesson's ID
+                previewVimeoId: autoPreviewId || course.previewVimeoId
             };
         });
 
@@ -565,8 +595,7 @@ export async function getCourseById(id: string): Promise<Course | null> {
             .select(`
       *,
       creator:creators(name, profile_image),
-      lessons:lessons(count),
-      preview_lessons:lessons(vimeo_url, lesson_number)
+      lessons:lessons(vimeo_url, lesson_number)
     `)
             .eq('id', id)
             .maybeSingle(), 10000);
@@ -577,12 +606,15 @@ export async function getCourseById(id: string): Promise<Course | null> {
     }
 
     // Find first lesson for preview
-    const firstLesson = data.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+    const lessons = data.lessons || [];
+    const firstLesson = lessons.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+    const autoPreviewId = firstLesson?.vimeo_url ? extractVimeoId(firstLesson.vimeo_url) : null;
 
     return data ? {
         ...transformCourse(data),
-        lessonCount: data.lessons?.[0]?.count || 0,
-        previewVideoUrl: firstLesson?.vimeo_url
+        lessonCount: lessons.length || 0,
+        previewVideoUrl: firstLesson?.vimeo_url,
+        previewVimeoId: autoPreviewId || data.preview_vimeo_id
     } : null;
 }
 
@@ -1237,8 +1269,7 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
       courses (
         *,
         creator:creators(name),
-        lessons:lessons(count),
-        preview_lessons:lessons(vimeo_url, lesson_number)
+        lessons:lessons(vimeo_url, lesson_number)
       )
     `)
         .eq('user_id', userId);
@@ -1250,12 +1281,15 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
 
     return (data || []).map((item: any) => {
         // Find first lesson for preview
-        const firstLesson = item.courses.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+        const lessons = item.courses.lessons || [];
+        const firstLesson = lessons.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
+        const autoPreviewId = firstLesson?.vimeo_url ? extractVimeoId(firstLesson.vimeo_url) : null;
 
         return {
             ...transformCourse(item.courses),
-            lessonCount: item.courses.lessons?.[0]?.count || 0,
-            previewVideoUrl: firstLesson?.vimeo_url
+            lessonCount: lessons.length || 0,
+            previewVideoUrl: firstLesson?.vimeo_url,
+            previewVimeoId: autoPreviewId || item.courses.preview_vimeo_id // Fallback to course preview if extracted fails
         };
     });
 }
@@ -1547,7 +1581,7 @@ export async function getCreatorCourses(creatorId: string) {
         .from('courses')
         .select(`
             *,
-            lessons:lessons(count)
+            lessons:lessons(id)
         `)
         .eq('creator_id', creatorId)
         .order('created_at', { ascending: false });
@@ -1559,7 +1593,7 @@ export async function getCreatorCourses(creatorId: string) {
 
     return (data || []).map((course: any) => ({
         ...transformCourse(course),
-        lessonCount: course.lessons?.[0]?.count || 0,
+        lessonCount: course.lessons?.length || 0,
     }));
 }
 

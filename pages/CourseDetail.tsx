@@ -433,7 +433,7 @@ export const CourseDetail: React.FC = () => {
         const hasVideo = selectedLesson && (!!vimeoIdToSend);
 
         // @ts-ignore
-        const previewIdToSend = course?.previewVimeoId || (course as any)?.preview_vimeo_id;
+        const previewIdToSend = course?.previewVimeoId || (course as any)?.preview_vimeo_id || lessons[0]?.vimeoUrl || lessons[0]?.vimeo_url;
         const hasPreview = !!previewIdToSend;
 
         console.log('[DEBUG] Course object:', course);
@@ -444,7 +444,8 @@ export const CourseDetail: React.FC = () => {
                 previewVimeoId: previewIdToSend,
                 hasPreview,
                 lessonIsPreview: selectedLesson?.isPreview,
-                lessonId: selectedLesson?.id
+                lessonId: selectedLesson?.id,
+                firstLessonUrl: lessons[0]?.vimeoUrl
             });
         }
 

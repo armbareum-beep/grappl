@@ -23,6 +23,7 @@ interface MixedReelsFeedProps {
     };
     isLoggedIn?: boolean;
     dailyFreeDrillId?: string;
+    dailyFreeSparringId?: string;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
@@ -30,7 +31,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     initialIndex = 0,
     userPermissions: externalPermissions,
     isLoggedIn: externalIsLoggedIn,
-    dailyFreeDrillId
+    dailyFreeDrillId,
+    dailyFreeSparringId
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -59,6 +61,18 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     // 10-second timer for non-logged-in users to show login modal
     useEffect(() => {
         if (!isLoggedIn) {
+            const currentItem = items[currentIndex];
+            const isDailyFree =
+                (currentItem?.type === 'drill' && currentItem.data.id === dailyFreeDrillId) ||
+                (currentItem?.type === 'sparring' && currentItem.data.id === dailyFreeSparringId);
+
+            if (isDailyFree) {
+                // If watching daily free content, ensure timer is cleared
+                if (loginTimerRef.current) clearInterval(loginTimerRef.current);
+                setWatchTime(0);
+                return;
+            }
+
             setWatchTime(0);
             // Start 1-second interval to update progress
             loginTimerRef.current = setInterval(() => {
@@ -84,7 +98,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 clearInterval(loginTimerRef.current);
             }
         };
-    }, [isLoggedIn]);
+    }, [isLoggedIn, currentIndex, items, dailyFreeDrillId, dailyFreeSparringId]);
 
     // Fetch user interactions and permissions for drills
     useEffect(() => {
@@ -274,6 +288,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             video={item.data}
                             isActive={isActive}
                             offset={offset}
+                            isDailyFreeSparring={dailyFreeSparringId === item.data.id}
                         />
                     );
                 } else if (item.type === 'lesson') {

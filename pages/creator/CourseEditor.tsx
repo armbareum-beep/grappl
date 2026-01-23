@@ -9,10 +9,9 @@ import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
 import { useToast } from '../../contexts/ToastContext';
-import { Upload } from 'lucide-react';
-import { VideoTrimmer } from '../../components/VideoTrimmer';
-import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
-import { Button } from '../../components/Button';
+
+
+
 import {
     DndContext,
     closestCenter,
@@ -146,42 +145,7 @@ export const CourseEditor: React.FC = () => {
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
     const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
 
-    const [previewVideoFile, setPreviewVideoFile] = useState<File | null>(null);
-    const [showTrimmer, setShowTrimmer] = useState(false);
-    const { queueUpload } = useBackgroundUpload();
 
-    const handlePreviewSave = async (trimmedBlob: Blob) => {
-        if (!user) return;
-
-        try {
-            if (isNew) {
-                toastError('미리보기를 추출하려면 먼저 클래스를 저장(개설)해야 합니다.');
-
-                setShowTrimmer(false);
-                return;
-            }
-
-            const previewFile = new File([trimmedBlob], `course-preview-${id}.mp4`, { type: 'video/mp4' });
-            const previewVideoId = `${crypto.randomUUID()}-course-preview`;
-            const filename = `${previewVideoId}.mp4`;
-
-            await queueUpload(previewFile, 'preview', {
-                videoId: previewVideoId,
-                filename,
-                cuts: [{ start: 0, end: 60 }],
-                title: `[클래스 미리보기] ${courseData.title}`,
-                description: `${courseData.title} 클래스의 1분 미리보기 영상입니다.`,
-                courseId: id,
-                videoType: 'preview'
-            });
-
-            success('미리보기 업로드 및 처리를 시작합니다.');
-            setShowTrimmer(false);
-        } catch (err) {
-            console.error('Preview save error:', err);
-            toastError('미리보기 처리 중 오류가 발생했습니다.');
-        }
-    };
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -851,53 +815,18 @@ export const CourseEditor: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 shadow-inner mt-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <label className="text-sm font-semibold text-zinc-400 ml-1">1분 미리보기 영상</label>
-                                            </div>
-                                            <div className="space-y-4">
-                                                {courseData.previewVimeoId ? (
-                                                    <div className="aspect-video bg-black rounded-xl overflow-hidden relative group">
-                                                        <iframe
-                                                            src={`https://player.vimeo.com/video/${courseData.previewVimeoId}`}
-                                                            className="w-full h-full"
-                                                            allow="autoplay; fullscreen; picture-in-picture"
-                                                            allowFullScreen
-                                                        />
-                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={() => setCourseData({ ...courseData, previewVimeoId: '' })}
-                                                                className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center hover:border-violet-500 hover:bg-zinc-800/50 transition-all cursor-pointer relative group flex flex-col items-center justify-center min-h-[160px]">
-                                                        <input
-                                                            type="file"
-                                                            accept="video/*"
-                                                            onChange={(e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (file) {
-                                                                    setPreviewVideoFile(file);
-                                                                    setShowTrimmer(true);
-                                                                }
-                                                            }}
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                        />
-                                                        <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3 group-hover:bg-violet-500/20 transition-colors">
-                                                            <Upload className="w-6 h-6 text-zinc-400 group-hover:text-violet-400" />
-                                                        </div>
-                                                        <p className="font-bold text-zinc-300 text-sm mb-1 group-hover:text-violet-400 transition-colors">미리보기 영상 추출</p>
-                                                        <p className="text-xs text-zinc-500">1분 내외의 하이라이트 영상 추출</p>
-                                                    </div>
-                                                )}
 
-                                                <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10">
-                                                    <p className="text-xs text-violet-400/70 leading-relaxed font-medium">
-                                                        💡 클래스 권한이 없는 사용자에게 보여줄 1분 미리보기 영상을 추출합니다.
+
+                                        <div className="p-6 rounded-2xl bg-violet-500/5 border border-violet-500/10 mt-6">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-10 h-10 bg-violet-500/20 rounded-full flex items-center justify-center text-violet-400 shrink-0">
+                                                    <Video className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-violet-400 text-sm mb-1">자동 미리보기 생성</h4>
+                                                    <p className="text-zinc-500 text-xs leading-relaxed">
+                                                        별도의 미리보기 영상을 업로드할 필요가 없습니다.<br />
+                                                        <strong>첫 번째 레슨의 앞 1분</strong>이 자동으로 무료 미리보기로 제공됩니다.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1178,299 +1107,286 @@ export const CourseEditor: React.FC = () => {
                         ) : null}
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Combined Thumbnail Extract Modal */}
-            {showThumbnailModal && createPortal(
-                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60000] p-4 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800/50 animate-in zoom-in-95 duration-300">
-                        <div className="flex justify-between items-start mb-8">
-                            <div>
-                                <h3 className="text-3xl font-black text-white tracking-tight">클래스 썸네일 추출</h3>
+            {
+                showThumbnailModal && createPortal(
+                    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60000] p-4 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-zinc-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800/50 animate-in zoom-in-95 duration-300">
+                            <div className="flex justify-between items-start mb-8">
+                                <div>
+                                    <h3 className="text-3xl font-black text-white tracking-tight">클래스 썸네일 추출</h3>
 
-                                <p className="text-zinc-500 font-medium mt-1">커리큘럼 비디오 중 하나를 대표 이미지로 사용하세요</p>
+                                    <p className="text-zinc-500 font-medium mt-1">커리큘럼 비디오 중 하나를 대표 이미지로 사용하세요</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowThumbnailModal(false)}
+                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-white transition-all shadow-lg active:scale-95"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setShowThumbnailModal(false)}
-                                className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-white transition-all shadow-lg active:scale-95"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto min-h-0 mb-8 scrollbar-none pr-1">
-                            {lessons.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
-                                    <Video className="w-16 h-16 text-zinc-700 mb-4" />
-                                    <p className="text-zinc-600 font-bold">먼저 레슨을 하나 이상 등록해주세요</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
-                                    {lessons.map((lesson) => (
-                                        <div
-                                            key={lesson.id}
-                                            onClick={async () => {
-                                                if (lesson.vimeoUrl) {
-                                                    try {
-                                                        const videoInfo = await getVimeoVideoInfo(lesson.vimeoUrl);
-                                                        if (videoInfo?.thumbnail) {
-                                                            setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
-                                                            setShowThumbnailModal(false);
-                                                            success('클래스 대표 썸네일이 변경되었습니다 ✨');
+                            <div className="flex-1 overflow-y-auto min-h-0 mb-8 scrollbar-none pr-1">
+                                {lessons.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+                                        <Video className="w-16 h-16 text-zinc-700 mb-4" />
+                                        <p className="text-zinc-600 font-bold">먼저 레슨을 하나 이상 등록해주세요</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                                        {lessons.map((lesson) => (
+                                            <div
+                                                key={lesson.id}
+                                                onClick={async () => {
+                                                    if (lesson.vimeoUrl) {
+                                                        try {
+                                                            const videoInfo = await getVimeoVideoInfo(lesson.vimeoUrl);
+                                                            if (videoInfo?.thumbnail) {
+                                                                setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
+                                                                setShowThumbnailModal(false);
+                                                                success('클래스 대표 썸네일이 변경되었습니다 ✨');
 
+                                                            }
+                                                        } catch (err) {
+                                                            toastError('썸네일을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
                                                         }
-                                                    } catch (err) {
-                                                        toastError('썸네일을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
                                                     }
-                                                }
-                                            }}
-                                            className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
-                                        >
-                                            <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
-                                            {lesson.vimeoUrl && (
-                                                <img
-                                                    src={`https://vumbnail.com/${lesson.vimeoUrl.split('/').pop()}.jpg`}
-                                                    alt={lesson.title}
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
-                                                    onLoad={(e) => (e.currentTarget.style.filter = 'none')}
-                                                />
-                                            )}
-                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                                                <p className="text-xs font-black text-white truncate drop-shadow-lg">{lesson.title}</p>
-                                                <p className="text-[10px] font-bold text-violet-400 mt-0.5">{lesson.length} • 클릭하여 선택</p>
-                                            </div>
-                                            {courseData.thumbnailUrl?.includes(lesson.vimeoUrl!) && (
-                                                <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
-                                                    <CheckCircle className="w-5 h-5 text-white" />
+                                                }}
+                                                className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
+                                            >
+                                                <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
+                                                {lesson.vimeoUrl && (
+                                                    <img
+                                                        src={`https://vumbnail.com/${lesson.vimeoUrl.split('/').pop()}.jpg`}
+                                                        alt={lesson.title}
+                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
+                                                        onLoad={(e) => (e.currentTarget.style.filter = 'none')}
+                                                    />
+                                                )}
+                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                                    <p className="text-xs font-black text-white truncate drop-shadow-lg">{lesson.title}</p>
+                                                    <p className="text-[10px] font-bold text-violet-400 mt-0.5">{lesson.length} • 클릭하여 선택</p>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                                {courseData.thumbnailUrl?.includes(lesson.vimeoUrl!) && (
+                                                    <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
+                                                        <CheckCircle className="w-5 h-5 text-white" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-                        <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
-                            <button
-                                onClick={autoCaptureThumbnail}
-                                className="flex-1 py-4 bg-zinc-800 text-zinc-300 hover:text-white rounded-2xl font-black transition-all active:scale-95 shadow-lg border border-zinc-700"
-                            >
-                                첫 레슨에서 자동 추출
-                            </button>
-                            <button
-                                onClick={() => setShowThumbnailModal(false)}
-                                className="flex-1 py-4 bg-violet-600 text-white hover:bg-violet-500 rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-violet-500/20"
-                            >
-                                현재 썸네일 유지
-                            </button>
+                            <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
+                                <button
+                                    onClick={autoCaptureThumbnail}
+                                    className="flex-1 py-4 bg-zinc-800 text-zinc-300 hover:text-white rounded-2xl font-black transition-all active:scale-95 shadow-lg border border-zinc-700"
+                                >
+                                    첫 레슨에서 자동 추출
+                                </button>
+                                <button
+                                    onClick={() => setShowThumbnailModal(false)}
+                                    className="flex-1 py-4 bg-violet-600 text-white hover:bg-violet-500 rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-violet-500/20"
+                                >
+                                    현재 썸네일 유지
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )
+            }
 
             {/* Edit/Add Lesson Modal */}
-            {editingLesson && createPortal(
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60000] p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-xl w-full p-8 max-h-[90vh] overflow-y-auto border border-zinc-800 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-bold text-white">{editingLesson.id ? '레슨 상세 수정' : '새로운 레슨 제작'}</h3>
-                            <button
-                                onClick={() => setEditingLesson(null)}
-                                className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-8">
-                            <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800/50">
-                                <VideoUploader
-                                    compact
-                                    initialMetadata={{
-                                        title: editingLesson.title,
-                                        description: editingLesson.description,
-                                        category: courseData.category,
-                                        difficulty: courseData.difficulty,
-                                    }}
-                                    onUploadComplete={(vimeoId, duration) => {
-                                        setEditingLesson({
-                                            ...editingLesson,
-                                            vimeoUrl: vimeoId,
-                                            length: duration
-                                        });
-                                        success('영상이 준비되었습니다! 정보를 입력하고 하단 버튼을 눌러주세요.');
-                                    }}
-                                />
+            {
+                editingLesson && createPortal(
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60000] p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-xl w-full p-8 max-h-[90vh] overflow-y-auto border border-zinc-800 animate-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-bold text-white">{editingLesson.id ? '레슨 상세 수정' : '새로운 레슨 제작'}</h3>
+                                <button
+                                    onClick={() => setEditingLesson(null)}
+                                    className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
                             </div>
 
-                            {editingLesson.vimeoUrl && (
-                                <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
-                                        <CheckCircle className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-emerald-400">영상 트랜스코딩 완료</p>
-                                        <p className="text-xs text-emerald-500/70 mt-0.5">
-                                            Vimeo ID: {editingLesson.vimeoUrl} | 재생 시간: {editingLesson.length}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <form onSubmit={handleSaveLesson} className="space-y-6">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">레슨 제목</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingLesson.title}
-                                            onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                                            className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
-                                            placeholder="레슨 주제를 입력하세요"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">상세 설명 (선택)</label>
-                                        <textarea
-                                            value={editingLesson.description}
-                                            onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                                            className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all resize-none placeholder:text-zinc-700"
-                                            rows={4}
-                                            placeholder="배우게 될 핵심 테크닉을 설명하세요"
-                                        />
-                                    </div>
+                            <div className="space-y-8">
+                                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800/50">
+                                    <VideoUploader
+                                        compact
+                                        initialMetadata={{
+                                            title: editingLesson.title,
+                                            description: editingLesson.description,
+                                            category: courseData.category,
+                                            difficulty: courseData.difficulty,
+                                        }}
+                                        onUploadComplete={(vimeoId, duration) => {
+                                            setEditingLesson({
+                                                ...editingLesson,
+                                                vimeoUrl: vimeoId,
+                                                length: duration
+                                            });
+                                            success('영상이 준비되었습니다! 정보를 입력하고 하단 버튼을 눌러주세요.');
+                                        }}
+                                    />
                                 </div>
 
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditingLesson(null)}
-                                        className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
-                                    >
-                                        취소
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
-                                        disabled={!editingLesson.vimeoUrl}
-                                    >
-                                        {editingLesson.id ? '수정사항 저장' : '레슨 등록 완료'}
-                                    </button>
-                                </div>
-                            </form>
+                                {editingLesson.vimeoUrl && (
+                                    <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+                                            <CheckCircle className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-emerald-400">영상 트랜스코딩 완료</p>
+                                            <p className="text-xs text-emerald-500/70 mt-0.5">
+                                                Vimeo ID: {editingLesson.vimeoUrl} | 재생 시간: {editingLesson.length}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSaveLesson} className="space-y-6">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">레슨 제목</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={editingLesson.title}
+                                                onChange={e => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                                                className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                                placeholder="레슨 주제를 입력하세요"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">상세 설명 (선택)</label>
+                                            <textarea
+                                                value={editingLesson.description}
+                                                onChange={e => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                                                className="w-full px-5 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all resize-none placeholder:text-zinc-700"
+                                                rows={4}
+                                                placeholder="배우게 될 핵심 테크닉을 설명하세요"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingLesson(null)}
+                                            className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95"
+                                            disabled={!editingLesson.vimeoUrl}
+                                        >
+                                            {editingLesson.id ? '수정사항 저장' : '레슨 등록 완료'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )
+            }
 
             {/* Import Lesson Modal */}
-            {showImportModal && createPortal(
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60000] p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800 animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 className="text-2xl font-bold text-white">기존 레슨 가져오기</h3>
-                                <p className="text-zinc-500 text-sm mt-1">내가 만든 클래스의 레슨들을 재사용할 수 있습니다</p>
+            {
+                showImportModal && createPortal(
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60000] p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[85vh] flex flex-col border border-zinc-800 animate-in zoom-in-95 duration-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="text-2xl font-bold text-white">기존 레슨 가져오기</h3>
+                                    <p className="text-zinc-500 text-sm mt-1">내가 만든 클래스의 레슨들을 재사용할 수 있습니다</p>
 
-                            </div>
-                            <button
-                                onClick={() => setShowImportModal(false)}
-                                className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto min-h-0 mb-6 space-y-3 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
-                            {creatorLessons.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 bg-zinc-950/50 rounded-2xl border border-zinc-800/50">
-                                    <BookOpen className="w-12 h-12 text-zinc-800 mb-4" />
-                                    <p className="text-zinc-600 font-medium">재사용 가능한 레슨이 없습니다</p>
                                 </div>
-                            ) : (
-                                Array.from(new Map(creatorLessons.map(item => [item.vimeoUrl || item.title, item])).values())
-                                    .filter(cl => !lessons.some(l => l.vimeoUrl === cl.vimeoUrl))
-                                    .map(lesson => (
-                                        <div
-                                            key={lesson.id}
-                                            onClick={() => {
-                                                const newSelected = new Set(selectedImportIds);
-                                                if (newSelected.has(lesson.id)) {
-                                                    newSelected.delete(lesson.id);
-                                                } else {
-                                                    newSelected.add(lesson.id);
-                                                }
-                                                setSelectedImportIds(newSelected);
-                                            }}
-                                            className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all group ${selectedImportIds.has(lesson.id)
-                                                ? 'bg-violet-600/10 border-violet-500/50 shadow-lg shadow-violet-500/5'
-                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
-                                                }`}
-                                        >
-                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedImportIds.has(lesson.id)
-                                                ? 'border-violet-500 bg-violet-500 scale-110 shadow-lg'
-                                                : 'border-zinc-700 group-hover:border-zinc-500'
-                                                }`}>
-                                                {selectedImportIds.has(lesson.id) && <CheckCircle className="w-4 h-4 text-white" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className={`font-bold transition-colors ${selectedImportIds.has(lesson.id) ? 'text-violet-400' : 'text-white'}`}>
-                                                    {lesson.title}
-                                                </h4>
-                                                <div className="flex items-center gap-2 mt-1 px-1.5 py-0.5 bg-zinc-800/80 rounded-md w-fit">
-                                                    <Video className="w-3 h-3 text-zinc-500" />
-                                                    <span className="text-[10px] text-zinc-400 font-bold uppercase">{lesson.length} • {lesson.difficulty}</span>
+                                <button
+                                    onClick={() => setShowImportModal(false)}
+                                    className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto min-h-0 mb-6 space-y-3 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
+                                {creatorLessons.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 bg-zinc-950/50 rounded-2xl border border-zinc-800/50">
+                                        <BookOpen className="w-12 h-12 text-zinc-800 mb-4" />
+                                        <p className="text-zinc-600 font-medium">재사용 가능한 레슨이 없습니다</p>
+                                    </div>
+                                ) : (
+                                    Array.from(new Map(creatorLessons.map(item => [item.vimeoUrl || item.title, item])).values())
+                                        .filter(cl => !lessons.some(l => l.vimeoUrl === cl.vimeoUrl))
+                                        .map(lesson => (
+                                            <div
+                                                key={lesson.id}
+                                                onClick={() => {
+                                                    const newSelected = new Set(selectedImportIds);
+                                                    if (newSelected.has(lesson.id)) {
+                                                        newSelected.delete(lesson.id);
+                                                    } else {
+                                                        newSelected.add(lesson.id);
+                                                    }
+                                                    setSelectedImportIds(newSelected);
+                                                }}
+                                                className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all group ${selectedImportIds.has(lesson.id)
+                                                    ? 'bg-violet-600/10 border-violet-500/50 shadow-lg shadow-violet-500/5'
+                                                    : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedImportIds.has(lesson.id)
+                                                    ? 'border-violet-500 bg-violet-500 scale-110 shadow-lg'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500'
+                                                    }`}>
+                                                    {selectedImportIds.has(lesson.id) && <CheckCircle className="w-4 h-4 text-white" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className={`font-bold transition-colors ${selectedImportIds.has(lesson.id) ? 'text-violet-400' : 'text-white'}`}>
+                                                        {lesson.title}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-1 px-1.5 py-0.5 bg-zinc-800/80 rounded-md w-fit">
+                                                        <Video className="w-3 h-3 text-zinc-500" />
+                                                        <span className="text-[10px] text-zinc-400 font-bold uppercase">{lesson.length} • {lesson.difficulty}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))
-                            )}
-                        </div>
-
-                        <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
-                            <button
-                                onClick={() => setShowImportModal(false)}
-                                className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                            <button
-                                onClick={handleImportLessons}
-                                disabled={selectedImportIds.size === 0}
-                                className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                {selectedImportIds.size > 0 && <span>{selectedImportIds.size}개의</span>}
-                                레슨 일괄 가져오기
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            {showTrimmer && previewVideoFile && createPortal(
-                <div className="fixed inset-0 z-[70000] bg-black/95 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-4xl animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">미리보기 추출</h2>
-                                <p className="text-zinc-400 text-sm mt-1">클래스 홍보를 위한 1분 하이라이트 구간을 선택하세요.</p>
-
+                                        ))
+                                )}
                             </div>
-                            <Button variant="ghost" onClick={() => setShowTrimmer(false)} className="text-zinc-400 hover:text-white">닫기</Button>
+
+                            <div className="flex gap-3 pt-6 border-t border-zinc-800/50">
+                                <button
+                                    onClick={() => setShowImportModal(false)}
+                                    className="flex-1 py-3.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-xl font-bold transition-all"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                                <button
+                                    onClick={handleImportLessons}
+                                    disabled={selectedImportIds.size === 0}
+                                    className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {selectedImportIds.size > 0 && <span>{selectedImportIds.size}개의</span>}
+                                    레슨 일괄 가져오기
+                                </button>
+                            </div>
                         </div>
-                        <VideoTrimmer
-                            file={previewVideoFile}
-                            onSave={handlePreviewSave}
-                            onCancel={() => setShowTrimmer(false)}
-                        />
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )
+            }
+
+
         </>
     );
 };

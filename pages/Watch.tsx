@@ -35,6 +35,7 @@ export function Watch() {
     });
 
     const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | undefined>(undefined);
+    const [dailyFreeSparringId, setDailyFreeSparringId] = useState<string | undefined>(undefined);
 
     const tabs = [
         { id: 'mix' as const, label: '전체' },
@@ -155,8 +156,8 @@ export function Watch() {
             const dailyFreeLessonIds = dailyLessonRes.data?.id ? [dailyLessonRes.data.id] : [];
             const dailyFreeSparringIds = dailySparringRes.data?.id ? [dailySparringRes.data.id] : [];
 
-            // Store daily free drill ID in state
             setDailyFreeDrillId(dailyDrillRes.data?.id);
+            setDailyFreeSparringId(dailySparringRes.data?.id);
 
             const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
                 // For other content types video/vimeo url check
@@ -386,6 +387,7 @@ export function Watch() {
                             userPermissions={userPermissions}
                             isLoggedIn={!!user}
                             dailyFreeDrillId={dailyFreeDrillId}
+                            dailyFreeSparringId={dailyFreeSparringId}
                         />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
