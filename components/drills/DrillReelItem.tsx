@@ -10,16 +10,7 @@ import { ReelLoginModal } from '../auth/ReelLoginModal';
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 // --- Helper Functions ---
-const extractVimeoId = (url?: string) => {
-    if (!url) return undefined;
-    if (/^\d+$/.test(url)) return url;
-    if (url.includes(':')) {
-        const [id] = url.split(':');
-        return /^\d+$/.test(id) ? id : undefined;
-    }
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    return match ? match[1] : undefined;
-};
+import { extractVimeoId } from '../../lib/api';
 
 const getVimeoHash = (url?: string) => {
     if (!url) return undefined;
@@ -92,13 +83,17 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                 muted: isMuted,
                 autopause: false,
                 controls: false,
-                responsive: true
+                // responsive: true // Removing responsive to allow manual 9:16 control if needed
+                playsinline: true
             };
 
-            if (vimeoHash) {
-                options.url = `https://vimeo.com/${vimeoId}/${vimeoHash}`;
+            const fullId = extractVimeoId(url);
+            const [baseId, hash] = fullId?.includes(':') ? fullId.split(':') : [fullId, null];
+
+            if (hash) {
+                options.url = `https://vimeo.com/${baseId}/${hash}`;
             } else {
-                options.id = Number(vimeoId);
+                options.id = Number(baseId);
             }
 
             const player = new Player(containerRef.current, options);
@@ -116,9 +111,12 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             player.on('timeupdate', (data) => onProgress(data.percent * 100));
             player.on('play', () => setIsPlaying(true));
             player.on('pause', () => setIsPlaying(false));
-            player.on('error', () => onError('재생 오류가 발생했습니다'));
+            player.on('error', (err) => {
+                console.error('[DrillPlayer] Vimeo Error Event:', err);
+                onError('재생 오류가 발생했습니다');
+            });
         }
-    }, [shouldLoad, useVimeo, vimeoId, vimeoHash, isMuted]); // Re-init if URL changes
+    }, [shouldLoad, useVimeo, url, isMuted]); // Re-init if URL changes
 
     // --- Playback Control ---
     useEffect(() => {

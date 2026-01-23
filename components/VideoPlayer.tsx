@@ -73,6 +73,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 color: 'ffffff',
                 badge: false,
                 muted: true,
+                playsinline: true, // Support mobile autoplay
+                background: !showControls, // Optimization for showcase/silent videos
             };
 
             const vimeoIdStr = String(vimeoId || '').trim();

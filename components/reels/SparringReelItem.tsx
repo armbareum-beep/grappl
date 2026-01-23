@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard, List, CheckCircle, ChevronRight, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
@@ -32,6 +32,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
+    const [relatedDrills, setRelatedDrills] = useState<any[]>([]);
+    const [showTechniques, setShowTechniques] = useState(false);
     const navigate = useNavigate();
 
     // Login modal state for non-logged-in users
@@ -43,20 +45,39 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Check interaction status on load
+    // Check interaction status and fetch related drills on load
     useEffect(() => {
-        if (user && video.creatorId) {
-            import('../../lib/api').then(({ getSparringInteractionStatus }) => {
-                getSparringInteractionStatus(user.id, video.id, video.creatorId)
-                    .then(status => {
-                        setIsFollowed(status.followed);
-                        setIsLiked(status.liked);
-                        setIsSaved(status.saved);
-                    })
-                    .catch(console.error);
-            });
+        if (isActive) {
+            if (user && video.creatorId) {
+                import('../../lib/api').then(({ getSparringInteractionStatus, getDrillsByIds }) => {
+                    getSparringInteractionStatus(user.id, video.id, video.creatorId)
+                        .then(status => {
+                            setIsFollowed(status.followed);
+                            setIsLiked(status.liked);
+                            setIsSaved(status.saved);
+                        })
+                        .catch(console.error);
+
+                    // Fetch related drills if any
+                    if (video.relatedItems && video.relatedItems.length > 0) {
+                        const ids = video.relatedItems.map((item: any) => typeof item === 'string' ? item : item.id);
+                        getDrillsByIds(ids).then(({ data: drills }) => {
+                            if (drills) setRelatedDrills(drills);
+                        });
+                    }
+                });
+            } else if (video.relatedItems && video.relatedItems.length > 0) {
+                // Not logged in but still try to show related items if they are already objects
+                // In this app, we usually need to fetch details.
+                import('../../lib/api').then(({ getDrillsByIds }) => {
+                    const ids = video.relatedItems.map((item: any) => typeof item === 'string' ? item : item.id);
+                    getDrillsByIds(ids).then(({ data: drills }) => {
+                        if (drills) setRelatedDrills(drills);
+                    });
+                });
+            }
         }
-    }, [user, video.id, video.creatorId]);
+    }, [user, video.id, video.creatorId, isActive]);
 
     // Handlers
     const handleFollow = async () => {
@@ -472,53 +493,102 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                         <div className="flex-1 relative">
                             {/* Top-Right Group */}
                             <div className="absolute top-8 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
-                                <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
+                                <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-xl">
                                     {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                 </button>
-
                             </div>
 
-                            {/* Middle-Right Group: Heart, Save, Share */}
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="relative w-full aspect-square">
-                                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                                <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                            </button>
-                                            <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
-                                        </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
-                                        </button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                        </button>
-                                    </div>
+                            {/* Middle-Right Group: Heart, Save, Share, Techniques (MATCHING LIBRARY DETAIL) */}
+                            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
+                                <div className="flex flex-col items-center gap-1">
+                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                        <Heart className={`w-6 h-6 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                    </button>
+                                    <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                                 </div>
+                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                    <Bookmark className={`w-6 h-6 md:w-7 md:h-7 ${isSaved ? 'fill-white' : ''}`} />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                    <Share2 className="w-6 h-6 md:w-7 md:h-7" />
+                                </button>
+
+                                {/* Group for Related Techniques (Matching SparringDetail Sidebar icon style if needed, 
+                                    but here we show the cards directly. User image 2 shows small cards above name.) */}
                             </div>
 
-                            {/* Bottom Info - Moved out of aspect-square to stay at screen bottom */}
-                            <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
-                                    <div className="inline-block px-2 py-0.5 bg-indigo-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">SPARRING</div>
+                            {/* Bottom Info - Techniques Hooks & Metadata */}
+                            <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-4 pointer-events-none">
+                                {/* LEARN THIS Cards (Horizontal Scroll) */}
+                                {relatedDrills.length > 0 && (
+                                    <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
+                                        {relatedDrills.map((drill) => (
+                                            <div
+                                                key={drill.id}
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/drills/${drill.id}`); }}
+                                                className="flex-shrink-0 w-44 md:w-56 p-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 hover:border-violet-500/50 transition-all cursor-pointer group"
+                                            >
+                                                <div className="flex gap-3">
+                                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0 flex items-center justify-center relative">
+                                                        {drill.thumbnailUrl ? (
+                                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                                        ) : (
+                                                            <Play className="w-4 h-4 text-white/30" />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Play className="w-6 h-6 text-white fill-white/20" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                        <span className="text-[10px] md:text-[11px] font-black text-violet-400 uppercase tracking-widest mb-0.5">LEARN THIS</span>
+                                                        <h4 className="text-[12px] md:text-sm font-bold text-white leading-tight line-clamp-2">{drill.title}</h4>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white transition-colors" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/60 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        {video.category && (
+                                            <div className={`inline-block px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-tighter uppercase border ${video.category === 'Competition'
+                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                    : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                }`}>
+                                                {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {video.creator && (
-                                        <div className="flex items-center gap-3 mb-3">
+                                        <div className="flex items-center gap-3 mb-4">
                                             <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
-                                                <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
+                                                <div className="relative">
+                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-10 h-10 rounded-full border-2 border-white/20 object-cover shadow-xl" />
+                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-black flex items-center justify-center">
+                                                        <CheckCircle className="w-2.5 h-2.5 text-white" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-white font-bold text-base drop-shadow-md">{video.creator.name}</span>
+                                                </div>
                                             </Link>
-                                            <span className="text-white/60 text-xs mt-0.5">•</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                                            <span className="text-white/40 text-xs mt-0.5">•</span>
+                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-black border-2 transition-all active:scale-95 shadow-lg ${isFollowed ? 'bg-white/10 text-white border-white/20' : 'bg-violet-600 text-white border-violet-500 hover:bg-violet-500 hover:border-violet-400'}`}>
                                                 {isFollowed ? 'Following' : 'Follow'}
                                             </button>
                                         </div>
                                     )}
                                     <div className="mb-2">
-                                        <h3 className="font-black text-xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
+                                        <h3 className="font-black text-2xl md:text-4xl leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
                                     </div>
-
+                                    {video.description && (
+                                        <p className="text-sm md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
