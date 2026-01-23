@@ -296,9 +296,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         syncPlaybackState();
     }, [isPaused, playing, hasReachedPreviewLimit]);
 
-    // Force 1:1 aspect ratio on ALL iframes (Public and Private videos)
+    // Force 1:1 aspect ratio on iframes (ONLY if requested)
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || !forceSquareRatio) return;
 
         const applySquareCrop = () => {
             const iframe = containerRef.current?.querySelector('iframe');
@@ -319,9 +319,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         // Also apply after a short delay to catch SDK-created iframes
         const timer = setTimeout(applySquareCrop, 100);
+        const timer2 = setTimeout(applySquareCrop, 500);
 
-        return () => clearTimeout(timer);
-    }, [playerRef.current, vimeoId]);
+        return () => {
+            clearTimeout(timer);
+            clearTimeout(timer2);
+        };
+    }, [playerRef.current, vimeoId, forceSquareRatio]);
 
 
     return (

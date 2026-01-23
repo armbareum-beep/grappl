@@ -124,10 +124,8 @@ const VideoItem: React.FC<{
 
     // Determine which video to play
     // If has access -> Main Video
-    // If no access -> Preview Video (if available and not ended)
-    const activeVimeoId = hasAccess
-        ? vimeoFullId
-        : (video.previewVimeoId && !previewEnded ? video.previewVimeoId : null);
+    // If no access -> NULL (Do not play preview in feed, show lock screen/thumbnail only)
+    const activeVimeoId = hasAccess ? vimeoFullId : null;
 
     // Initialize Player
     useEffect(() => {

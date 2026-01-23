@@ -97,6 +97,7 @@ export function RandomSparringShowcase() {
                                 fillContainer={true}
                                 playing={true}
                                 isPaused={false}
+                                forceSquareRatio={true}
                             />
 
                             {/* Gradient Overlay */}
