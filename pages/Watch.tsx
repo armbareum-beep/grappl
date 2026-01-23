@@ -42,7 +42,6 @@ export function Watch() {
         { id: 'lesson' as const, label: '레슨' },
         { id: 'drill' as const, label: '드릴' },
         { id: 'sparring' as const, label: '스파링' },
-        { id: 'sparring' as const, label: '스파링' },
     ];
 
     const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
@@ -118,11 +117,11 @@ export function Watch() {
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            // Filter Sparring: Must be explicitly published and have a price > 0 (Content)
+            // Filter Sparring: Must be explicitly published. 
+            // Removed price filter to show all sparring (including free ones)
             let sparringQuery = supabase.from('sparring_videos')
                 .select('*')
                 .eq('is_published', true)
-                .gt('price', 0)
                 .order('created_at', { ascending: false })
                 .limit(20);
 

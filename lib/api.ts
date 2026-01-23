@@ -513,7 +513,6 @@ export async function searchContent(query: string) {
                 .or(contentFilter)
                 .is('deleted_at', null)
                 .eq('is_published', true)
-                .gt('price', 0)
                 .limit(20)
         ]);
 
@@ -4954,7 +4953,7 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
         }
 
         if (publicOnly) {
-            query = query.eq('is_published', true).gt('price', 0);
+            query = query.eq('is_published', true);
         }
 
         // Hide soft-deleted videos from general lists

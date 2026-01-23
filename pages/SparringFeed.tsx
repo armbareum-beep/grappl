@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getSparringVideos, getDailyFreeSparring } from '../lib/api';
+import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
 import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -116,21 +116,7 @@ const VideoItem: React.FC<{
     const [previewEnded, setPreviewEnded] = useState(false);
 
     // Helper to get Vimeo ID and Hash
-    const getVimeoId = (url: string) => {
-        if (!url) return null;
-        // Pure numeric ID
-        if (/^\d+$/.test(url)) return url;
-        // ID:hash format (e.g., "1139272530:3fdc00141c")
-        if (url.includes(':')) {
-            const [id] = url.split(':');
-            if (/^\d+$/.test(id)) return id;
-        }
-        // Full URL
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
-    };
-
-    const vimeoId = getVimeoId(video.videoUrl);
+    const vimeoFullId = extractVimeoId(video.videoUrl);
 
     const isDailyFree = dailyFreeId === video.id;
     // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video))
@@ -140,7 +126,7 @@ const VideoItem: React.FC<{
     // If has access -> Main Video
     // If no access -> Preview Video (if available and not ended)
     const activeVimeoId = hasAccess
-        ? vimeoId
+        ? vimeoFullId
         : (video.previewVimeoId && !previewEnded ? video.previewVimeoId : null);
 
     // Initialize Player
@@ -153,50 +139,56 @@ const VideoItem: React.FC<{
 
         const sourceUrlOrId = activeVimeoId;
 
-        const options: any = {
-            width: window.innerWidth,
-            background: true,
-            loop: hasAccess, // Only loop main video, not preview
-            autoplay: false,
-            muted: true,
-            controls: false,
-            dnt: true
-        };
+        // Manual Iframe Strategy for Private Videos
+        const isPrivateWithHash = String(sourceUrlOrId).includes(':');
 
-        if (String(sourceUrlOrId).startsWith('http')) {
-            options.url = sourceUrlOrId;
-        } else if (String(sourceUrlOrId).includes(':')) {
+        if (isPrivateWithHash) {
             const [id, hash] = String(sourceUrlOrId).split(':');
-            options.id = Number(id);
-            options.h = hash;
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=0&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
+            iframe.setAttribute('frameborder', '0');
+            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+            iframe.setAttribute('style', 'position:absolute;top:0;left:0;width:100%;height:100%;');
+
+            containerRef.current.appendChild(iframe);
+            const player = new Player(iframe);
+
+            player.ready().then(() => {
+                setIsPlayerReady(true);
+                playerRef.current = player;
+                if (isActive) player.play().catch(console.error);
+                if (!hasAccess && video.previewVimeoId) {
+                    player.on('ended', () => setPreviewEnded(true));
+                }
+            });
         } else {
-            options.id = Number(sourceUrlOrId);
+            const options: any = {
+                id: Number(sourceUrlOrId),
+                width: window.innerWidth,
+                background: true,
+                loop: hasAccess,
+                autoplay: false,
+                muted: true,
+                controls: false,
+                dnt: true
+            };
+
+            const player = new Player(containerRef.current, options);
+            player.ready().then(() => {
+                setIsPlayerReady(true);
+                playerRef.current = player;
+                if (isActive) player.play().catch(console.error);
+                if (!hasAccess && video.previewVimeoId) {
+                    player.on('ended', () => setPreviewEnded(true));
+                }
+            }).catch(err => console.error('Vimeo player init error:', err));
         }
-
-        const player = new Player(containerRef.current, options);
-
-        player.ready().then(() => {
-            setIsPlayerReady(true);
-            playerRef.current = player;
-            if (isActive) {
-                player.play().catch(console.error);
-            }
-
-            // Set up preview ended handler
-            if (!hasAccess && video.previewVimeoId) {
-                player.on('ended', () => {
-                    setPreviewEnded(true);
-                });
-            }
-
-        }).catch(err => {
-            console.error('Vimeo player init error:', err);
-        });
 
         return () => {
             if (playerRef.current) {
                 playerRef.current.destroy();
             }
+            if (containerRef.current) containerRef.current.innerHTML = '';
         };
     }, [activeVimeoId, hasAccess]); // Re-run if access changes or ID changes
 
