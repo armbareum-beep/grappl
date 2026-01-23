@@ -23,11 +23,13 @@ export function extractVimeoId(url?: string | null) {
         return url.replace('/', ':');
     }
 
-    // Match ID and optional hash (e.g. vimeo.com/123456/abcdef)
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
-    if (match) {
-        const id = match[1];
-        const hash = match[2];
+    // Match ID and optional hash (e.g. vimeo.com/123456/abcdef or vimeo.com/123456?h=abcdef)
+    const idMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    const hashMatch = url.match(/vimeo\.com\/(?:video\/)?\d+\/([a-zA-Z0-9]+)/i) || url.match(/[?&]h=([a-zA-Z0-9]+)/i);
+
+    if (idMatch) {
+        const id = idMatch[1];
+        const hash = hashMatch ? hashMatch[1] : null;
         return hash ? `${id}:${hash}` : id;
     }
     return undefined;

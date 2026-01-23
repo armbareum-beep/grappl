@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
+import { extractVimeoId } from '../../lib/api';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -118,34 +119,9 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         setIsShareModalOpen(true);
     };
 
-    // Helper to get Vimeo ID and Hash
-    const getVimeoId = (url: string) => {
-        if (!url) return null;
-        // Pure numeric ID
-        if (/^\d+$/.test(url)) return url;
-        // ID:hash format (e.g., "1139272530:3fdc00141c")
-        if (url.includes(':')) {
-            const [id] = url.split(':');
-            if (/^\d+$/.test(id)) return id;
-        }
-        // Full URL
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
-    };
-
-    const getVimeoHash = (url: string) => {
-        if (!url) return null;
-        // ID:hash format
-        if (url.includes(':')) {
-            const [id, hash] = url.split(':');
-            if (/^\d+$/.test(id) && hash) return hash;
-        }
-        // Full URL with hash parameter
-        const match = url.match(/[?&]h=([a-z0-9]+)/i);
-        return match ? match[1] : null;
-    };
-
-    const vimeoId = getVimeoId(video.videoUrl);
+    // Use the robust common extractor
+    const vimeoFullId = extractVimeoId(video.videoUrl);
+    const [vimeoId, vimeoHash] = vimeoFullId?.split(':') || [vimeoFullId, null];
     // vimeoHash is re-calculated inside useEffect for options construction to ensure freshness
     // const vimeoHash = getVimeoHash(video.videoUrl);
 
@@ -169,24 +145,16 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             };
 
             // Handle different URL formats
-            if (rawUrl.startsWith('http')) {
-                // Full URL
+            if (vimeoHash) {
+                // If we have a hash, use the canonical private video URL format
+                options.url = `https://vimeo.com/${vimeoId}/${vimeoHash}`;
+                console.log('[SparringReel] Private Video URL:', options.url);
+            } else if (vimeoId) {
+                options.id = Number(vimeoId);
+                console.log('[SparringReel] Public Video ID:', vimeoId);
+            } else if (rawUrl.startsWith('http')) {
                 options.url = rawUrl;
-                console.log('[SparringReel] Using full URL:', rawUrl);
-            } else if (rawUrl.includes(':')) {
-                // ID:hash format (e.g., "1139272530:3fdc00141c")
-                const [id, hash] = rawUrl.split(':');
-                // Use full URL for private videos as it is more reliable
-                options.url = `https://vimeo.com/${id}/${hash}`;
-                console.log('[SparringReel] Using Private URL:', options.url);
-            } else if (/^\d+$/.test(rawUrl)) {
-                // Pure ID
-                options.id = Number(rawUrl);
-                console.log('[SparringReel] Using pure ID:', rawUrl);
-            } else {
-                // Fallback
-                options.url = `https://vimeo.com/${rawUrl}`;
-                console.log('[SparringReel] Using fallback URL:', options.url, rawUrl);
+                console.log('[SparringReel] Direct URL Fallback:', rawUrl);
             }
 
             console.log('[SparringReel] Final options:', options);

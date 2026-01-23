@@ -109,7 +109,7 @@ export function Watch() {
             setLoading(true);
 
             const { canAccessContentSync } = await import('../lib/api-accessible-content');
-            const { fetchCreatorsByIds, transformLesson, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
+            const { fetchCreatorsByIds, transformLesson, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring, extractVimeoId } = await import('../lib/api');
             const userId = user?.id || null;
 
             // Filter Drills: Must belong to at least one routine (joined via routine_drills)
@@ -164,12 +164,8 @@ export function Watch() {
                 if (true) {
                     // lessons and drills use vimeo_url, sparring uses video_url
                     const url = contentType === 'sparring' ? content.video_url : content.vimeo_url;
-                    // Valid if: URL starts with http, OR is a pure Vimeo ID (numeric string), OR is ID:hash format
-                    const isValidVideoUrl = url && !url.includes('ERROR') && (
-                        url.startsWith('http') ||
-                        /^\d+$/.test(url) ||
-                        /^\d+:[a-z0-9]+$/i.test(url) // ID:hash format like "1139272530:3fdc00141c"
-                    );
+                    // Valid if extractVimeoId returns something
+                    const isValidVideoUrl = !!extractVimeoId(url);
                     if (!isValidVideoUrl) return false;
                 }
 
