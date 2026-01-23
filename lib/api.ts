@@ -4907,7 +4907,7 @@ export function transformSparringVideo(data: any): SparringVideo {
         difficulty: data.difficulty,
         price: data.price || 0,
         isPublished: data.is_published ?? false,
-        previewVimeoId: data.preview_vimeo_id
+        previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url // Handle both field names
     };
 }
 
@@ -4986,7 +4986,13 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
             }
         }
 
-        return { data: videos.map(transformSparringVideo), error: null };
+        return {
+            data: videos.map(v => transformSparringVideo({
+                ...v,
+                creator: userMap[v.creator_id]
+            })),
+            error: null
+        };
     } catch (e) {
         console.error('getSparringVideos failed:', e);
         return { data: [], error: e };
@@ -5057,6 +5063,14 @@ export async function getSparringVideoById(id: string) {
             .select('id, name, avatar_url')
             .eq('id', data.creator_id)
             .maybeSingle();
+
+        return {
+            data: transformSparringVideo({
+                ...data,
+                creator: userData
+            }),
+            error: null
+        };
 
         const transformed = transformSparringVideo({
             ...data,
