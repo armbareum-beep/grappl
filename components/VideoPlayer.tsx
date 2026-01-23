@@ -17,6 +17,7 @@ interface VideoPlayerProps {
     onPreviewEnded?: () => void; // For compatibility
     showControls?: boolean;
     fillContainer?: boolean;
+    forceSquareRatio?: boolean;  // New prop for forcing 1:1 crop
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -31,7 +32,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onPreviewLimitReached,
     onPreviewEnded,
     showControls = true,
-    fillContainer = false
+    fillContainer = false,
+    forceSquareRatio = false
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
@@ -317,7 +319,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         // Apply immediately if iframe exists
         applySquareCrop();
 
-        // Also apply after a short delay to catch SDK-created iframes
+        // Also apply after a short delay wait for SDK
         const timer = setTimeout(applySquareCrop, 100);
         const timer2 = setTimeout(applySquareCrop, 500);
 
