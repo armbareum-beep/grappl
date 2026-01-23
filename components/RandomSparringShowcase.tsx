@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, ChevronRight, VolumeX, Volume2, Activity } from 'lucide-react';
 import Player from '@vimeo/player';
-import { getDailyFreeSparring } from '../lib/api';
+import { getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
 
 export function RandomSparringShowcase() {
@@ -13,21 +13,7 @@ export function RandomSparringShowcase() {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const playerRef = useRef<Player | null>(null);
 
-    // Helper to extract Vimeo ID
-    // Helper to extract Vimeo ID and Hash
-    const getVimeoDetails = (url: string) => {
-        if (!url) return { id: null, hash: null };
-        if (/^\d+$/.test(url)) return { id: url, hash: null }; // Already an ID
-
-        const idMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        const hashMatch = url.match(/vimeo\.com\/(?:video\/)?\d+\/([a-z0-9]+)/i);
-
-        return {
-            id: idMatch ? idMatch[1] : null,
-            hash: hashMatch ? hashMatch[1] : null,
-            original: url
-        };
-    };
+    // Use exported extractVimeoId from lib/api
 
 
     useEffect(() => {
@@ -35,8 +21,8 @@ export function RandomSparringShowcase() {
             try {
                 const { data } = await getDailyFreeSparring();
 
-                const details = getVimeoDetails(data?.videoUrl || '');
-                if (data && details.id) {
+                const vimeoFullId = extractVimeoId(data?.videoUrl);
+                if (data && vimeoFullId) {
                     setVideo(data);
                 }
             } catch (error) {
@@ -49,7 +35,9 @@ export function RandomSparringShowcase() {
     }, []);
 
     // User requested "Just daily free sparring" -> show full video
-    const { id: vimeoId, hash: vimeoHash } = video ? getVimeoDetails(video.videoUrl) : { id: null, hash: null };
+    // Use the robust extractor
+    const vimeoFullId = video ? extractVimeoId(video.videoUrl) : null;
+    const [vimeoId, vimeoHash] = vimeoFullId?.split(':') || [vimeoFullId, null];
 
     useEffect(() => {
         if (!iframeRef.current || !vimeoId) return;

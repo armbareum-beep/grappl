@@ -14,7 +14,7 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 // Helper to extract Vimeo ID
 // Helper to extract Vimeo ID
 // Helper to extract Vimeo ID
-function extractVimeoId(url?: string | null) {
+export function extractVimeoId(url?: string | null) {
     if (!url || typeof url !== 'string') return undefined;
     if (/^\d+$/.test(url)) return url;
 
@@ -5460,6 +5460,15 @@ export async function getDailyFreeLesson() {
         const transformed = transformLesson(selectedLesson);
         transformed.creatorName = creatorName;
         transformed.creatorProfileImage = creatorProfileImage;
+
+        // Ensure previewVimeoId is available for the showcase
+        // Use manual id if exists, otherwise extract from lesson's vimeo_url
+        if (selectedLesson.course) {
+            (transformed as any).course = {
+                ...selectedLesson.course,
+                previewVimeoId: selectedLesson.course.preview_vimeo_id || extractVimeoId(selectedLesson.vimeo_url)
+            };
+        }
 
         return {
             data: transformed,
