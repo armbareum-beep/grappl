@@ -290,8 +290,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     return (
         <div
-            className={`relative w-full cursor-pointer ${fillContainer ? 'h-full' : ''}`}
-            style={{ paddingBottom: fillContainer ? '0' : '56.25%' }}
+            className={fillContainer ? 'relative w-full h-full' : 'relative w-full aspect-video'}
             onClick={async () => {
                 if (!playerRef.current || showUpgradeOverlay) return;
                 const paused = await playerRef.current.getPaused();
