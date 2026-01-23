@@ -167,13 +167,13 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 params.append('player_id', containerRef.current.id || `vimeo-${vimeoId}`);
 
                 iframe.src = `https://player.vimeo.com/video/${vimeoId}?${params.toString()}`;
-                iframe.style.width = '177.78%';
-                iframe.style.height = '177.78%';
+                iframe.style.width = '177.78%'; // 16:9 aspect ratio in 1:1 container
+                iframe.style.height = '100%';
                 iframe.style.position = 'absolute';
                 iframe.style.top = '50%';
                 iframe.style.left = '50%';
                 iframe.style.transform = 'translate(-50%, -50%)';
-                iframe.style.objectFit = 'cover';
+                iframe.style.pointerEvents = 'none';
 
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
@@ -370,7 +370,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-[177.78%] [&>iframe]:h-[177.78%] [&>iframe]:absolute [&>iframe]:top-1/2 [&>iframe]:left-1/2 [&>iframe]:-translate-x-1/2 [&>iframe]:-translate-y-1/2 [&>iframe]:object-cover"
+                    className="absolute inset-0 w-full h-full [&>iframe]:w-[177.78%] [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:top-1/2 [&>iframe]:left-1/2 [&>iframe]:-translate-x-1/2 [&>iframe]:-translate-y-1/2 [&>iframe]:pointer-events-none"
                     onClick={toggleMute}
                 />
             );
@@ -474,12 +474,14 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                             {/* Bottom Info - Moved out of aspect-square to stay at screen bottom */}
                             <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
                                 <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
-                                    <div className="inline-block px-2 py-0.5 bg-indigo-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">SPARRING</div>
-
                                     {video.creator && (
                                         <div className="flex items-center gap-3 mb-3">
                                             <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                                                <img
+                                                    src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || (video.creator as any).profile_image || `https://ui-avatars.com/api/?name=${video.creator.name}`}
+                                                    className="w-8 h-8 rounded-full border border-white/20 object-cover"
+                                                    alt={video.creator.name}
+                                                />
                                                 <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
                                             </Link>
                                             <span className="text-white/60 text-xs mt-0.5">•</span>
