@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Play, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
-import { getCourses, getDailyFreeLesson } from '../lib/api';
+import { getCourses, getDailyFreeLesson, extractVimeoId } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
 import { VideoPlayer } from './VideoPlayer';
@@ -62,7 +62,7 @@ export const ClassShowcase: React.FC = () => {
                     views: lesson.views || 0,
                     lessonCount: (lesson as any).course?.lessonCount || 1,
                     createdAt: lesson.createdAt,
-                    previewVimeoId: (lesson as any).course?.preview_vimeo_id,
+                    previewVimeoId: (lesson as any).course?.preview_vimeo_id || (lesson.vimeoUrl ? extractVimeoId(lesson.vimeoUrl) : undefined),
                     published: true
                 };
                 if (dailyCourse.previewVimeoId) {

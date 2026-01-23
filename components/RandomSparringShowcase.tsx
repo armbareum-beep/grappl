@@ -96,6 +96,7 @@ export function RandomSparringShowcase() {
                                 showControls={false}
                                 fillContainer={true}
                                 playing={true}
+                                autoplay={true}
                                 isPaused={false}
                                 forceSquareRatio={true}
                             />

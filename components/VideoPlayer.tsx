@@ -17,7 +17,8 @@ interface VideoPlayerProps {
     onPreviewEnded?: () => void; // For compatibility
     showControls?: boolean;
     fillContainer?: boolean;
-    forceSquareRatio?: boolean;  // New prop for forcing 1:1 crop
+    forceSquareRatio?: boolean;
+    autoplay?: boolean;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -33,7 +34,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onPreviewEnded,
     showControls = true,
     fillContainer = false,
-    forceSquareRatio = false
+    forceSquareRatio = false,
+    autoplay = true
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
@@ -61,7 +63,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         try {
             const options: any = {
-                autoplay: true,
+                autoplay: autoplay,
                 loop: false,
                 autopause: true,
                 title: false,
