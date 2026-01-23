@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard, List, CheckCircle, ChevronRight, Play } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard, ChevronRight, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import Player from '@vimeo/player';
@@ -20,7 +20,7 @@ interface SparringReelItemProps {
     purchasedItemIds?: string[];
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring, isSubscriber, purchasedItemIds = [] }) => {
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
@@ -33,7 +33,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [isSaved, setIsSaved] = useState(false);
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
     const [relatedDrills, setRelatedDrills] = useState<any[]>([]);
-    const [showTechniques, setShowTechniques] = useState(false);
     const navigate = useNavigate();
 
     // Login modal state for non-logged-in users
@@ -459,9 +458,13 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
             <div className="w-full h-full relative flex items-start justify-center pt-24">
-                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg border border-zinc-800 transition-all group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30">
                     {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
+
+
+
+
 
                     {/* Like Animation */}
                     {showLikeAnimation && (
@@ -553,39 +556,37 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                 )}
 
                                 <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/60 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        {video.category && (
-                                            <div className={`inline-block px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-tighter uppercase border ${video.category === 'Competition'
-                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                                    : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                    {video.category && (
+                                        <div className="mb-2">
+                                            <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${video.category === 'Competition'
+                                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
                                                 }`}>
                                                 {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
                                             </div>
-                                        )}
+                                        </div>
+                                    )}
+                                    <div className="mb-2">
+                                        <h3 className="font-black text-2xl md:text-4xl leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] line-clamp-2 uppercase tracking-tight">{video.title}</h3>
                                     </div>
 
                                     {video.creator && (
                                         <div className="flex items-center gap-3 mb-4">
                                             <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                                                 <div className="relative">
-                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-10 h-10 rounded-full border-2 border-white/20 object-cover shadow-xl" />
-                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-black flex items-center justify-center">
-                                                        <CheckCircle className="w-2.5 h-2.5 text-white" />
-                                                    </div>
+                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover shadow-xl" />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-white font-bold text-base drop-shadow-md">{video.creator.name}</span>
+                                                    <span className="text-zinc-400 font-bold text-sm md:text-base drop-shadow-md hover:text-white transition-colors">{video.creator.name}</span>
                                                 </div>
                                             </Link>
                                             <span className="text-white/40 text-xs mt-0.5">•</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-black border-2 transition-all active:scale-95 shadow-lg ${isFollowed ? 'bg-white/10 text-white border-white/20' : 'bg-violet-600 text-white border-violet-500 hover:bg-violet-500 hover:border-violet-400'}`}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-3 py-1 rounded-full text-[10px] font-black border transition-all active:scale-95 ${isFollowed ? 'bg-white/10 text-zinc-400 border-white/10' : 'bg-transparent text-violet-400 border-violet-500/50 hover:bg-violet-600 hover:text-white'}`}>
                                                 {isFollowed ? 'Following' : 'Follow'}
                                             </button>
                                         </div>
                                     )}
-                                    <div className="mb-2">
-                                        <h3 className="font-black text-2xl md:text-4xl leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
-                                    </div>
+
                                     {video.description && (
                                         <p className="text-sm md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
                                     )}

@@ -492,6 +492,11 @@ export const MyLibrary: React.FC = () => {
                           <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
                         </Link>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
+                          <img
+                            src={video.creatorProfileImage || video.creator?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
+                            className="w-4 h-4 rounded-full object-cover"
+                            alt=""
+                          />
                           <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
                         </div>
                       </div>
@@ -547,6 +552,11 @@ export const MyLibrary: React.FC = () => {
                               {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
                             </span>
                           )}
+                          <img
+                            src={video.creatorProfileImage || video.creator?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
+                            className="w-4 h-4 rounded-full object-cover"
+                            alt=""
+                          />
                           <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
                           <span className="flex-shrink-0">•</span>
                           <span className="flex-shrink-0">{video.views?.toLocaleString()} 조회</span>

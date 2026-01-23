@@ -521,7 +521,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             <div className="absolute left-0 right-0 w-full bottom-24 px-6 z-40 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
                     <div className="flex-1 pr-16">
-                        <div className="inline-block px-2 py-0.5 bg-yellow-600 rounded text-[10px] font-bold uppercase tracking-wider mb-2">DRILL</div>
+                        <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">DRILL</div>
                         <div className="flex items-center gap-3 mb-3">
                             <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 hover:opacity-80 pointer-events-auto">
                                 {(drill as any).creatorProfileImage && (
