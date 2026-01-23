@@ -4879,7 +4879,7 @@ export async function deleteDrill(drillId: string) {
 
 // Sparring Video APIs
 
-function transformSparringVideo(data: any): SparringVideo {
+export function transformSparringVideo(data: any): SparringVideo {
     if (!data) return {} as SparringVideo;
 
     // Handle different join keys for creator info
@@ -4986,36 +4986,7 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
             }
         }
 
-        // Map creator info to videos
-        const mappedVideos = videos.map(v => {
-            const creator = userMap[v.creator_id];
-            return {
-                id: v.id,
-                creatorId: v.creator_id,
-                title: v.title,
-                description: v.description,
-                videoUrl: v.video_url,
-                thumbnailUrl: v.thumbnail_url,
-                relatedItems: v.related_items || [],
-                views: v.views,
-                likes: v.likes,
-                creator: creator ? {
-                    id: creator.id,
-                    name: creator.name || 'Unknown',
-                    profileImage: creator.avatar_url,
-                    bio: '',
-                    subscriberCount: 0
-                } : undefined,
-                createdAt: v.created_at,
-                category: v.category,
-                uniformType: v.uniform_type,
-                difficulty: v.difficulty,
-                price: v.price || 0,
-                isPublished: v.is_published ?? true
-            };
-        });
-
-        return { data: mappedVideos, error: null };
+        return { data: videos.map(transformSparringVideo), error: null };
     } catch (e) {
         console.error('getSparringVideos failed:', e);
         return { data: [], error: e };

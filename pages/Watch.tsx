@@ -108,7 +108,7 @@ export function Watch() {
             setLoading(true);
 
             const { canAccessContentSync } = await import('../lib/api-accessible-content');
-            const { fetchCreatorsByIds, transformLesson, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring, extractVimeoId } = await import('../lib/api');
+            const { fetchCreatorsByIds, transformLesson, transformSparringVideo, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring, extractVimeoId } = await import('../lib/api');
             const userId = user?.id || null;
 
             // Filter Drills: Must belong to at least one routine (joined via routine_drills)
@@ -161,9 +161,8 @@ export function Watch() {
             const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
                 // For other content types video/vimeo url check
                 if (true) {
-                    // lessons and drills use vimeo_url, sparring uses video_url
-                    const url = contentType === 'sparring' ? content.video_url : content.vimeo_url;
-                    // Valid if extractVimeoId returns something
+                    // lessons and drills use vimeoUrl, sparring uses videoUrl
+                    const url = contentType === 'sparring' ? content.videoUrl : content.vimeoUrl;
                     const isValidVideoUrl = !!extractVimeoId(url);
                     if (!isValidVideoUrl) return false;
                 }
@@ -228,26 +227,7 @@ export function Watch() {
                 const availableSparring = sparringRes.data;
                 allItems = [...allItems, ...availableSparring.map((s: any) => ({
                     type: 'sparring' as const,
-                    data: {
-                        ...s,
-                        id: s.id,
-                        title: s.title,
-                        description: s.description,
-                        videoUrl: s.video_url,
-                        thumbnailUrl: s.thumbnail_url,
-                        creatorId: s.creator_id,
-                        views: s.views,
-                        likes: s.likes,
-                        price: s.price,
-                        category: s.category,
-                        uniformType: s.uniform_type,
-                        difficulty: s.difficulty,
-                        creator: creatorsMap[s.creator_id] ? {
-                            id: s.creator_id,
-                            name: creatorsMap[s.creator_id].name,
-                            avatar_url: creatorsMap[s.creator_id].avatarUrl
-                        } : s.creator
-                    }
+                    data: transformSparringVideo(s)
                 }))];
             }
 
