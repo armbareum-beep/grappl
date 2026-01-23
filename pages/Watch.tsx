@@ -225,8 +225,8 @@ export function Watch() {
             }
 
             if (sparringRes.data) {
-                const accessibleSparring = sparringRes.data.filter((s: any) => isAccessible('sparring', s));
-                allItems = [...allItems, ...accessibleSparring.map((s: any) => ({
+                const availableSparring = sparringRes.data;
+                allItems = [...allItems, ...availableSparring.map((s: any) => ({
                     type: 'sparring' as const,
                     data: {
                         ...s,
@@ -252,13 +252,9 @@ export function Watch() {
             }
 
             if (lessonsRes.data) {
-                const accessibleLessons = lessonsRes.data.filter((l: any) => {
-                    // Manual filter for published course
-                    if (!l.course || l.course.published !== true) return false;
-                    return isAccessible('lesson', l);
-                });
+                const availableLessons = lessonsRes.data.filter((l: any) => l.course && l.course.published === true);
 
-                allItems = [...allItems, ...accessibleLessons.map((l: any) => {
+                allItems = [...allItems, ...availableLessons.map((l: any) => {
                     const transformed = transformLesson(l);
                     const creatorId = l.course?.creator_id || l.creator_id;
                     const creator = creatorsMap[creatorId];
