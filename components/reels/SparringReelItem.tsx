@@ -127,8 +127,15 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
     // Initialize Player
     useEffect(() => {
-        if (!containerRef.current || !vimeoId) return;
+        if (!containerRef.current || !vimeoId || vimeoId === 'undefined' || vimeoId === 'null') return;
         if (offset !== 0) return;
+
+        // Ensure vimeoId is actually a number or a valid string
+        const numericId = Number(vimeoId);
+        if (isNaN(numericId) && !String(vimeoId).includes(':')) {
+            console.error('[SparringReel] Invalid vimeoId:', vimeoId);
+            return;
+        }
 
         if (playerRef.current) {
             // Keep if same

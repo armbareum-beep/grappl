@@ -131,7 +131,12 @@ const VideoItem: React.FC<{
 
     // Initialize Player
     useEffect(() => {
-        if (!containerRef.current || !activeVimeoId) return;
+        if (!containerRef.current || !activeVimeoId || activeVimeoId === 'undefined' || activeVimeoId === 'null') return;
+
+        // Ensure ID is valid number or string with hash
+        if (isNaN(Number(activeVimeoId)) && !String(activeVimeoId).includes(':')) {
+            return;
+        }
 
         if (playerRef.current) {
             playerRef.current.destroy();
