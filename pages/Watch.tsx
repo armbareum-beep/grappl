@@ -115,7 +115,7 @@ export function Watch() {
             let drillQuery = supabase.from('drills')
                 .select('*, routine_drills!inner(id)')
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
 
             // Filter Sparring: Must be explicitly published. 
             // Removed price filter to show all sparring (including free ones)
@@ -123,14 +123,14 @@ export function Watch() {
                 .select('*')
                 .eq('is_published', true)
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(100);
 
             // Filter Lessons: Fetch those belonging to a published course
             let lessonQuery = supabase.from('lessons')
                 .select('*, course:courses!inner(*)')
                 .eq('course.published', true)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(200);
 
             const queries: any[] = [];
             if (activeTab === 'mix' || activeTab === 'drill') queries.push(drillQuery);
@@ -224,7 +224,15 @@ export function Watch() {
             }
 
             if (sparringRes.data) {
-                const availableSparring = sparringRes.data;
+                const availableSparring = sparringRes.data.filter((s: any) => {
+                    const isDailyFree = dailyFreeSparringIds.includes(s.id);
+                    const isFree = s.price === 0 || s.price === null;
+                    const isOwner = s.creator_id === userId;
+
+                    // Note: isAccessible checks for subscription and purchases
+                    return isDailyFree || isFree || isOwner || isAccessible('sparring', s);
+                });
+
                 allItems = [...allItems, ...availableSparring.map((s: any) => ({
                     type: 'sparring' as const,
                     data: transformSparringVideo(s)
@@ -232,7 +240,19 @@ export function Watch() {
             }
 
             if (lessonsRes.data) {
-                const availableLessons = lessonsRes.data.filter((l: any) => l.course && l.course.published === true);
+                // 레슨 접근 제어: 오늘의 무료 레슨 OR 구독자/구매자 OR 무료 강좌의 레슨만
+                const availableLessons = lessonsRes.data.filter((l: any) => {
+                    if (!l.course || l.course.published !== true) return false;
+
+                    const isDailyFree = dailyFreeLessonIds.includes(l.id);
+                    const isFreeCourse = l.course.price === 0 || l.course.price === null;
+
+                    // Note: isAccessible checks for subscription and purchases
+                    // We also explicitly check for explicit course purchase just in case isAccessible misses the course-level check for a lesson
+                    const isCoursePurchased = userPermissions.purchasedItemIds.includes(l.course.id);
+
+                    return isDailyFree || isFreeCourse || isCoursePurchased || isAccessible('lesson', l);
+                });
 
                 allItems = [...allItems, ...availableLessons.map((l: any) => {
                     const transformed = transformLesson(l);
@@ -266,17 +286,48 @@ export function Watch() {
                 }
             }
 
-            // Shuffle
-            const shuffleArray = (array: MixedItem[]) => {
-                const newArray = [...array];
-                for (let i = newArray.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            // Improved Shuffle to ensure diversity
+            // Group by source (course_id for lessons/drills, creator_id for sparring)
+            // then interleave them
+            const diversifyContent = (array: MixedItem[]) => {
+                const grouped: Record<string, MixedItem[]> = {};
+                array.forEach(item => {
+                    let key = 'unknown';
+                    if (item.type === 'lesson') key = item.data.courseId || 'lesson-misc';
+                    else if (item.type === 'drill') key = item.data.creatorId || 'drill-misc';
+                    else if (item.type === 'sparring') key = item.data.creatorId || 'sparring-misc';
+
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(item);
+                });
+
+                // Shuffle each group's internal order
+                Object.values(grouped).forEach(group => {
+                    for (let i = group.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [group[i], group[j]] = [group[j], group[i]];
+                    }
+                });
+
+                const result: MixedItem[] = [];
+                const keys = Object.keys(grouped).sort(() => Math.random() - 0.5);
+                let hasMore = true;
+                let pickIndex = 0;
+
+                while (hasMore) {
+                    hasMore = false;
+                    keys.forEach(key => {
+                        if (grouped[key][pickIndex]) {
+                            result.push(grouped[key][pickIndex]);
+                            hasMore = true;
+                        }
+                    });
+                    pickIndex++;
                 }
-                return newArray;
+                return result;
             };
 
-            let finalizedItems = shuffleArray(allItems);
+            let finalizedItems = diversifyContent(allItems);
 
             // If a specific ID is requested, find it and move to front
             if (targetId) {

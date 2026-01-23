@@ -78,7 +78,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
             loginTimerRef.current = setInterval(() => {
                 setWatchTime((prev) => {
                     const newTime = prev + 1;
-                    if (newTime >= 60) {
+                    if (newTime >= 30) {
                         setIsLoginModalOpen(true);
                         if (loginTimerRef.current) clearInterval(loginTimerRef.current);
                     }
@@ -289,6 +289,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isActive={isActive}
                             offset={offset}
                             isDailyFreeSparring={dailyFreeSparringId === item.data.id}
+                            isSubscriber={userPermissions.isSubscriber}
+                            purchasedItemIds={userPermissions.purchasedItemIds}
                         />
                     );
                 } else if (item.type === 'lesson') {
@@ -316,7 +318,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 <div className="absolute bottom-0 left-0 right-0 z-[60] h-1.5 bg-violet-900/30">
                     <div
                         className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear duration-1000"
-                        style={{ width: `${(watchTime / 60) * 100}%` }}
+                        style={{ width: `${(watchTime / 30) * 100}%` }}
                     />
                 </div>
             )}

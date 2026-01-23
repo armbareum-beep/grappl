@@ -56,7 +56,7 @@ export function LessonReels() {
                 .select('*, course:courses!inner(id, title, thumbnail_url, creator_id, price, is_subscription_excluded, published)')
                 .eq('course.published', true)
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .limit(200);
 
             if (lessonError) throw lessonError;
 
@@ -93,13 +93,45 @@ export function LessonReels() {
                 };
             }).filter(item => item.accessInfo.canAccess);
 
-            // Shuffle
-            for (let i = processedLessons.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [processedLessons[i], processedLessons[j]] = [processedLessons[j], processedLessons[i]];
-            }
+            // Improved Shuffle to ensure diversity
+            const diversifyContent = (array: MixedItem[]) => {
+                const grouped: Record<string, MixedItem[]> = {};
+                array.forEach(item => {
+                    let key = 'unknown';
+                    if (item.type === 'lesson') key = item.data.courseId || 'lesson-misc';
 
-            setLessons(processedLessons);
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(item);
+                });
+
+                Object.values(grouped).forEach(group => {
+                    for (let i = group.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [group[i], group[j]] = [group[j], group[i]];
+                    }
+                });
+
+                const result: MixedItem[] = [];
+                const keys = Object.keys(grouped).sort(() => Math.random() - 0.5);
+                let hasMore = true;
+                let pickIndex = 0;
+
+                while (hasMore) {
+                    hasMore = false;
+                    keys.forEach(key => {
+                        if (grouped[key][pickIndex]) {
+                            result.push(grouped[key][pickIndex]);
+                            hasMore = true;
+                        }
+                    });
+                    pickIndex++;
+                }
+                return result;
+            };
+
+            const finalizedLessons = diversifyContent(processedLessons);
+
+            setLessons(finalizedLessons);
             setLoading(false);
 
         } catch (error) {

@@ -5503,6 +5503,7 @@ export async function getDailyFreeSparring() {
                 .select('*')
                 .eq('is_published', true)
                 .is('deleted_at', null)
+                .gt('price', 0)
                 .neq('video_url', '')
                 .not('video_url', 'like', 'ERROR%')
                 .order('id')

@@ -16,9 +16,11 @@ interface SparringReelItemProps {
     isActive: boolean;
     offset: number;
     isDailyFreeSparring?: boolean;
+    isSubscriber?: boolean;
+    purchasedItemIds?: string[];
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring }) => {
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring, isSubscriber, purchasedItemIds = [] }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
@@ -249,9 +251,11 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         }
     }, [isActive, user, video.id]);
 
-    // Watch time tracking for non-logged-in users
+    // Watch time tracking for preview limit (1 min)
     useEffect(() => {
-        if (!user && isActive && !isDailyFreeSparring) {
+        const hasAccess = isSubscriber || purchasedItemIds.includes(video.id) || video.price === 0;
+
+        if (!hasAccess && isActive) {
             // Start timer
             setWatchTime(0);
             timerRef.current = setInterval(() => {
