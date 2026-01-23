@@ -309,6 +309,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const applySquareCrop = () => {
             const iframe = containerRef.current?.querySelector('iframe');
             if (iframe) {
+                // Check if style is already correct to avoid infinite loops
+                if (iframe.style.width === '177.78%' &&
+                    iframe.style.height === '177.78%' &&
+                    iframe.style.transform === 'translate(-50%, -50%)') {
+                    return;
+                }
+
                 iframe.style.width = '177.78%';
                 iframe.style.height = '177.78%';
                 iframe.style.position = 'absolute';
@@ -320,16 +327,40 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
         };
 
-        // Apply immediately if iframe exists
+        // Apply immediately
         applySquareCrop();
 
-        // Also apply after a short delay wait for SDK
-        const timer = setTimeout(applySquareCrop, 100);
-        const timer2 = setTimeout(applySquareCrop, 500);
+        // Observe style changes on the iframe
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    applySquareCrop();
+                }
+                // Also handle childList changes if iframe is re-injected
+                if (mutation.type === 'childList') {
+                    applySquareCrop();
+                }
+            });
+        });
+
+        observer.observe(containerRef.current, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+            attributeFilter: ['style']
+        });
+
+        // Also apply after short delays to catch SDK initialization
+        const timers = [
+            setTimeout(applySquareCrop, 100),
+            setTimeout(applySquareCrop, 500),
+            setTimeout(applySquareCrop, 1000),
+            setTimeout(applySquareCrop, 2000)
+        ];
 
         return () => {
-            clearTimeout(timer);
-            clearTimeout(timer2);
+            observer.disconnect();
+            timers.forEach(clearTimeout);
         };
     }, [playerRef.current, vimeoId, forceSquareRatio]);
 

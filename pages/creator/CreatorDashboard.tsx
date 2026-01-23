@@ -127,20 +127,7 @@ export const CreatorDashboard: React.FC = () => {
                     }
                 }
 
-                // Handle Preview Upload
-                if (data.previewVideoFile && data.previewCuts && courseId) {
-                    const previewId = `${crypto.randomUUID()}-${Date.now()}`;
-                    await queueUpload(data.previewVideoFile, 'preview', {
-                        videoId: previewId,
-                        filename: `preview-${courseId}.mp4`,
-                        title: `[Preview] ${data.title}`,
-                        description: `Preview video for course ${data.title}`,
-                        videoType: 'preview',
-                        courseId: courseId,
-                        cuts: data.previewCuts
-                    });
-                    success('미리보기 영상 업로드가 시작되었습니다.');
-                }
+
 
                 // Refresh courses
                 const coursesData = await getCreatorCourses(user.id);
@@ -191,20 +178,7 @@ export const CreatorDashboard: React.FC = () => {
                         isPublished: data.published,
                     });
 
-                    // Handle Preview Upload for Sparring
-                    if (data.previewVideoFile && data.previewCuts) {
-                        const previewId = `${crypto.randomUUID()}-${Date.now()}`;
-                        await queueUpload(data.previewVideoFile, 'preview', {
-                            videoId: previewId,
-                            filename: `preview-${editingContent.id}.mp4`,
-                            title: `[Preview] ${data.title}`,
-                            description: `Preview video for sparring ${data.title}`,
-                            videoType: 'preview',
-                            sparringId: editingContent.id,
-                            cuts: data.previewCuts
-                        });
-                        success('미리보기 영상 업로드가 시작되었습니다.');
-                    }
+
 
                     success('스파링 정보가 수정되었습니다.');
                 } else {
@@ -242,19 +216,7 @@ export const CreatorDashboard: React.FC = () => {
                             success('스파링이 생성되었습니다. 영상을 나중에 업로드해주세요.');
                         }
 
-                        // Handle Preview Upload (same as update)
-                        if (data.previewVideoFile && data.previewCuts) {
-                            const previewId = `${crypto.randomUUID()}-${Date.now()}`;
-                            await queueUpload(data.previewVideoFile, 'preview', {
-                                videoId: previewId,
-                                filename: `preview-${sparringId}.mp4`,
-                                title: `[Preview] ${data.title}`,
-                                description: `Preview video for sparring ${data.title}`,
-                                videoType: 'preview',
-                                sparringId: sparringId,
-                                cuts: data.previewCuts
-                            });
-                        }
+
                     }
                 }
 

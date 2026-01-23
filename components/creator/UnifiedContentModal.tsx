@@ -40,7 +40,7 @@ const CONTENT_CONFIG = {
         primaryItems: 'lessons' as const,
         primaryLabel: '레슨',
         relatedLabel: '관련 드릴/스파링',
-        hasPreview: true,
+        hasPreview: false,
         hasDuration: false,
     },
     routine: {
@@ -60,7 +60,7 @@ const CONTENT_CONFIG = {
         primaryItems: null,
         primaryLabel: '',
         relatedLabel: '관련 레슨/드릴',
-        hasPreview: true,
+        hasPreview: false,
         hasDuration: false,
     },
 };

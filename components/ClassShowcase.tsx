@@ -153,6 +153,7 @@ export const ClassShowcase: React.FC = () => {
                                                     showControls={isPlaying}
                                                     playing={isPlaying}
                                                     isPaused={isPaywallOpen || (playingId !== null && !isPlaying)}
+                                                    autoplay={false}
                                                 />
 
                                                 {/* Centered Action Button - Hidden when playing */}
