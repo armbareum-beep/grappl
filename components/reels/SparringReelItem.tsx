@@ -314,7 +314,9 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             });
         } else {
             playerRef.current.pause().catch(console.error);
-            playerRef.current.setCurrentTime(0).catch(console.error);
+            if (!isActive) {
+                playerRef.current.setCurrentTime(0).catch(console.error);
+            }
         }
     }, [isActive, isPlayerReady, isPaused]);
 
@@ -473,8 +475,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 playsInline
                 onClick={toggleMute}
                 onTimeUpdate={(e) => {
-                    const video = e.currentTarget;
-                    const percent = (video.currentTime / video.duration) * 100;
+                    const videoEl = e.currentTarget;
+                    const percent = (videoEl.currentTime / videoEl.duration) * 100;
                     setProgress(percent);
                 }}
             />
@@ -502,8 +504,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     )}
                 </div>
 
-                {/* Background Blur Effect */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
+                {/* Background Blur Effect - Lightened overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60 pointer-events-none z-30" />
 
                 {/* Overlay Contents */}
                 <div className="absolute inset-0 pointer-events-none z-40 flex justify-center">
@@ -583,7 +585,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                                     </div>
                                 )}
 
-                                <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/60 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/40 to-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
                                     <div className="flex items-center gap-3 mb-4">
                                         {video.category && (
                                             <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border mb-2 ${video.category === 'Competition'

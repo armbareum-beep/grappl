@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../lib/api';
 import { Drill, Lesson, SparringVideo } from '../types';
 import { Clock } from 'lucide-react';
+import { ContentBadge } from './common/ContentBadge';
 
 export const DailyFreeDrillSection: React.FC = () => {
     const navigate = useNavigate();
@@ -145,6 +146,22 @@ export const DailyFreeDrillSection: React.FC = () => {
                                 />
 
                                 <div className={`absolute inset-0 bg-black/20 transition-opacity ${isActive ? 'bg-black/30' : 'bg-black/60'}`} />
+
+                                {/* Badges */}
+                                {isActive && (
+                                    <>
+                                        <div className="absolute top-6 left-6 pointer-events-none">
+                                            <ContentBadge type="daily_free" />
+                                        </div>
+                                        <div className="absolute top-6 right-6 pointer-events-none">
+                                            {(item.data.views && item.data.views >= 100) ? (
+                                                <ContentBadge type="popular" />
+                                            ) : (item.data.createdAt && new Date(item.data.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                                <ContentBadge type="recent" />
+                                            ) : null}
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                                     <div className={`transition-all duration-500 transform ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>

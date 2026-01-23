@@ -126,17 +126,17 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering ? 'scale-110' : 'scale-100')}
                     />
 
-                    {isDailyFree ? (
+                    {isDailyFree && (
                         <ContentBadge type="daily_free" className="absolute top-2 left-2" />
-                    ) : (
-                        <>
-                            {rank ? (
-                                <ContentBadge type="popular" rank={rank} className="absolute top-2 right-2" />
-                            ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                <ContentBadge type="recent" className="absolute top-2 right-2" />
-                            ) : null}
-                        </>
                     )}
+
+                    <div className="absolute top-2 right-2">
+                        {rank ? (
+                            <ContentBadge type="popular" rank={rank} />
+                        ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                            <ContentBadge type="recent" />
+                        ) : null}
+                    </div>
 
                     {showVideo && vimeoId && (
                         <div className="absolute inset-0 z-10 bg-black animate-fade-in">

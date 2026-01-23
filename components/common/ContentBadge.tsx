@@ -13,7 +13,7 @@ export const ContentBadge: React.FC<ContentBadgeProps> = ({ type, rank, classNam
         return (
             <div className={cn("px-2.5 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-[0_0_15px_rgba(139,92,246,0.3)] border border-violet-400/30 z-20 pointer-events-none flex items-center gap-1.5", className)}>
                 <Star className="w-3 h-3 text-white fill-white" />
-                <span className="text-[10px] font-black text-white tracking-widest uppercase">오늘의 무료</span>
+                <span className="text-[10px] font-black text-white tracking-widest uppercase">TODAY'S FREE</span>
             </div>
         );
     }
