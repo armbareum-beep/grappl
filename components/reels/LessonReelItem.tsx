@@ -149,8 +149,8 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 5) {
-                        // 5 seconds reached, show login modal
+                    if (newTime >= 30) {
+                        // 30 seconds reached, show login modal
                         setIsLoginModalOpen(true);
                         if (playerRef.current) {
                             playerRef.current.pause().catch(() => { });
@@ -221,7 +221,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
             <div className="w-full h-full relative flex items-start justify-center pt-24">
-                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+                <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     <div
                         ref={containerRef}
                         className="w-full h-full [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover"
@@ -264,7 +264,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                             </div>
 
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="relative w-full aspect-square">
+                                <div className="relative w-full aspect-video">
                                     <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
                                         <div className="flex flex-col items-center gap-1">
                                             <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
@@ -331,7 +331,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                 <div
                     className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user ? (watchTime / 5) * 100 : progress}%` }}
+                    style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
                 />
             </div>
 

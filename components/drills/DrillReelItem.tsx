@@ -4,6 +4,7 @@ import { Drill } from '../../types';
 import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft, AlertCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import Player from '@vimeo/player';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -233,6 +234,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [watchTime, setWatchTime] = useState(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const navigate = useNavigate();
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -245,17 +249,43 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         }
     }, [offset]);
 
-    // Auto polling for processing status
+    // Watch time tracking for non-logged-in users
     useEffect(() => {
-        const isProcessing = (!drill.vimeoUrl && !drill.videoUrl) || (drill.videoUrl && drill.videoUrl.includes('placeholder'));
-        if (!isProcessing) return;
+        if (!isLoggedIn && isActive) {
+            // Start timer
+            setWatchTime(0);
+            timerRef.current = setInterval(() => {
+                setWatchTime((prev: number) => {
+                    const newTime = prev + 1;
+                    if (newTime >= 30) {
+                        // 30 seconds reached, show login modal
+                        setIsLoginModalOpen(true);
+                        // We don't have direct access to playerRef here easily as it's inside SingleVideoPlayer
+                        // But setting isPaused to true or just letting the modal cover it might work.
+                        // However, DrillReelItem doesn't pass isPaused to SingleVideoPlayer as a controlled prop in a way that would stop it immediately without state change.
+                        setIsPaused(true);
+                        if (timerRef.current) {
+                            clearInterval(timerRef.current);
+                        }
+                    }
+                    return newTime;
+                });
+            }, 1000);
+        } else {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            setWatchTime(0);
+        }
 
-        const pollInterval = setInterval(async () => {
-            // ... existing polling logic ...
-            // Simplified for this implementation
-        }, 3000);
-        return () => clearInterval(pollInterval);
-    }, [drill.id, drill.vimeoUrl, drill.videoUrl]);
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [isActive, isLoggedIn]);
+
+    // Auto polling for processing status
 
     // Access Control
     const hasAccessToAction = isDailyFreeDrill || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(drill.id)));
@@ -522,9 +552,19 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             </div>
 
             {/* Progress Bar */}
-            <div className="absolute bottom-0 left-0 right-0 z-50 h-[2px] bg-zinc-800/50">
-                <div className="h-full bg-violet-400 transition-all duration-100 ease-linear" style={{ width: `${progress}%` }} />
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!isLoggedIn ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div
+                    className={`h-full transition-all ease-linear ${!isLoggedIn ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${!isLoggedIn ? (watchTime / 30) * 100 : progress}%` }}
+                />
             </div>
+
+            {/* Login Modal for non-logged-in users */}
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/watch?tab=drill&id=${drill.id}`}
+            />
 
             {/* Share Modal */}
             <React.Suspense fallback={null}>

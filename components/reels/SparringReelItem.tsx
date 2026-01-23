@@ -173,7 +173,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 iframe.height = '100%';
                 iframe.frameBorder = '0';
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                iframe.className = 'w-full h-full scale-150';
+                iframe.className = 'w-full h-full scale-[1.78]';
 
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
@@ -253,16 +253,14 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
     // Watch time tracking for preview limit (1 min)
     useEffect(() => {
-        const hasAccess = isSubscriber || purchasedItemIds.includes(video.id) || video.price === 0;
-
-        if (!hasAccess && isActive) {
+        if (!user && isActive) {
             // Start timer
             setWatchTime(0);
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 60) {
-                        // 60 seconds reached (updated from 5s to match 1-min preview)
+                    if (newTime >= 30) {
+                        // 30 seconds reached (updated from 60s)
                         setIsLoginModalOpen(true);
                         if (playerRef.current) {
                             playerRef.current.pause().catch(console.error);
@@ -372,7 +370,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-150"
+                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-[1.78]"
                     onClick={toggleMute}
                 />
             );
@@ -518,7 +516,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                 <div
                     className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user && !isDailyFreeSparring ? (watchTime / 60) * 100 : progress}%` }}
+                    style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
                 />
             </div>
 
