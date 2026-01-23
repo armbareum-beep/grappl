@@ -153,7 +153,15 @@ const VideoItem: React.FC<{
             iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=1&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
             iframe.setAttribute('frameborder', '0');
             iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
-            iframe.setAttribute('style', 'position:absolute;top:0;left:0;width:100%;height:100%;');
+
+            // Force 1:1 aspect ratio
+            iframe.style.width = '177.78%';
+            iframe.style.height = '177.78%';
+            iframe.style.position = 'absolute';
+            iframe.style.top = '50%';
+            iframe.style.left = '50%';
+            iframe.style.transform = 'translate(-50%, -50%)';
+            iframe.style.objectFit = 'cover';
 
             containerRef.current.appendChild(iframe);
             const player = new Player(iframe);
@@ -182,6 +190,19 @@ const VideoItem: React.FC<{
             player.ready().then(() => {
                 setIsPlayerReady(true);
                 playerRef.current = player;
+
+                // Force 1:1 aspect ratio on SDK-created iframe
+                const iframe = containerRef.current?.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.width = '177.78%';
+                    iframe.style.height = '177.78%';
+                    iframe.style.position = 'absolute';
+                    iframe.style.top = '50%';
+                    iframe.style.left = '50%';
+                    iframe.style.transform = 'translate(-50%, -50%)';
+                    iframe.style.objectFit = 'cover';
+                }
+
                 if (isActive) player.play().catch(console.error);
                 if (!hasAccess && video.previewVimeoId) {
                     player.on('ended', () => setPreviewEnded(true));
@@ -312,7 +333,7 @@ const VideoItem: React.FC<{
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-150"
+                    className="absolute inset-0 w-full h-full overflow-hidden"
                     onClick={toggleMute}
                 />
             );
