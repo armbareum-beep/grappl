@@ -1,17 +1,14 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ChevronRight, VolumeX, Volume2, Activity } from 'lucide-react';
-import Player from '@vimeo/player';
+import { Play, ChevronRight, Activity } from 'lucide-react';
 import { getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
+import { VideoPlayer } from './VideoPlayer';
 
 export function RandomSparringShowcase() {
     const navigate = useNavigate();
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isMuted, setIsMuted] = useState(true);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const playerRef = useRef<Player | null>(null);
 
     // Use exported extractVimeoId from lib/api
 
@@ -34,61 +31,12 @@ export function RandomSparringShowcase() {
         fetchVideo();
     }, []);
 
-    // User requested "Just daily free sparring" -> show full video
-    // Use the robust extractor
-    const vimeoFullId = video ? extractVimeoId(video.videoUrl) : null;
-    const [vimeoId, vimeoHash] = vimeoFullId?.split(':') || [vimeoFullId, null];
-
-    useEffect(() => {
-        if (!iframeRef.current || !vimeoId) return;
-
-        try {
-            const player = new Player(iframeRef.current);
-            playerRef.current = player;
-
-            player.ready().then(() => {
-                player.setMuted(true);
-                player.setVolume(0);
-            }).catch(console.error);
-
-        } catch (e) {
-            console.error("Vimeo player init failed", e);
-        }
-
-    }, [vimeoId]);
-
-    const toggleMute = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!playerRef.current) return;
-
-        try {
-            const nextMuted = !isMuted;
-            await playerRef.current.setMuted(nextMuted);
-            await playerRef.current.setVolume(nextMuted ? 0 : 1);
-            setIsMuted(nextMuted);
-        } catch (error) {
-            console.error('Failed to toggle mute:', error);
-        }
-    };
+    const vimeoIdToSend = video ? extractVimeoId(video.videoUrl) : null;
 
     if (loading) return <div className="text-white p-4">DEBUG: Loading sparring...</div>;
 
-    // DEBUG: Show why it might be null
-    if (!video || !vimeoId) {
-        return (
-            <div className="text-white bg-red-900/80 p-6 m-4 border border-red-500 rounded-lg z-50 relative">
-                <h3 className="font-bold text-xl mb-2">⚠️ DEBUG: Sparring Section Hidden</h3>
-                <p>Video Object: {video ? 'Present' : 'NULL'}</p>
-                <p>Vimeo ID: {vimeoId || 'NULL'}</p>
-                {video && (
-                    <div className="mt-2 text-xs font-mono bg-black/50 p-2 rounded">
-                        <p>Title: {video.title}</p>
-                        <p>Video URL: {video.videoUrl}</p>
-                        <p>Preview ID: {video.previewVimeoId}</p>
-                    </div>
-                )}
-            </div>
-        );
+    if (!video || !vimeoIdToSend) {
+        return null; // Silent hide if no data
     }
 
     return (
@@ -140,14 +88,16 @@ export function RandomSparringShowcase() {
                             className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
                             onClick={() => navigate(`/watch?tab=sparring&id=${video.id}`)}
                         >
-                            <iframe
-                                ref={iframeRef}
-                                src={`https://player.vimeo.com/video/${vimeoId}?background=1&autoplay=1&loop=1&byline=0&title=0&portrait=0&badge=0&muted=1${vimeoHash ? `&h=${vimeoHash}` : ''}`}
-                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.77%] h-full transform scale-105 transition-transform duration-700 group-hover:scale-100 pointer-events-none"
-                                frameBorder="0"
-                                allow="autoplay; fullscreen; picture-in-picture"
+                            <VideoPlayer
+                                vimeoId={vimeoIdToSend}
                                 title={video.title}
-                            ></iframe>
+                                isPreviewMode={true}
+                                maxPreviewDuration={60}
+                                showControls={false}
+                                fillContainer={true}
+                                playing={true}
+                                isPaused={false}
+                            />
 
                             {/* Gradient Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90"></div>
@@ -161,17 +111,6 @@ export function RandomSparringShowcase() {
                                 <p className="text-zinc-100 font-medium text-xl">{video.title}</p>
                             </div>
 
-                            {/* Unmute Hint */}
-                            <div
-                                className="absolute top-5 right-5 bg-black/50 backdrop-blur-md p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-black/70 z-20"
-                                onClick={toggleMute}
-                            >
-                                {isMuted ? (
-                                    <VolumeX className="w-5 h-5 text-white" />
-                                ) : (
-                                    <Volume2 className="w-5 h-5 text-white" />
-                                )}
-                            </div>
                         </div>
 
                         {/* Mobile Buttons (Shown below video on mobile) */}

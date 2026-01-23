@@ -144,34 +144,69 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 playsinline: true
             };
 
-            // Handle different URL formats
-            if (vimeoHash) {
-                // If we have a hash, use the canonical private video URL format
-                options.url = `https://vimeo.com/${vimeoId}/${vimeoHash}`;
-                console.log('[SparringReel] Private Video URL:', options.url);
-            } else if (vimeoId) {
-                options.id = Number(vimeoId);
-                console.log('[SparringReel] Public Video ID:', vimeoId);
-            } else if (rawUrl.startsWith('http')) {
-                options.url = rawUrl;
-                console.log('[SparringReel] Direct URL Fallback:', rawUrl);
-            }
+            console.log('[SparringReel] Strategy - vimeoId:', vimeoId, 'vimeoHash:', vimeoHash);
 
-            console.log('[SparringReel] Final options:', options);
-            const player = new Player(containerRef.current, options);
+            // Strategy: Manual Iframe for private videos (Vimeo Hash)
+            if (vimeoId && vimeoHash) {
+                const iframe = document.createElement('iframe');
+                const params = new URLSearchParams();
+                params.append('h', vimeoHash);
+                params.append('title', '0');
+                params.append('byline', '0');
+                params.append('portrait', '0');
+                params.append('badge', '0');
+                params.append('autopause', '1');
+                params.append('background', '1');
+                params.append('player_id', containerRef.current.id || `vimeo-${vimeoId}`);
 
-            player.ready().then(() => {
-                setIsPlayerReady(true);
-                playerRef.current = player;
-                player.on('timeupdate', (data) => {
-                    setProgress(data.percent * 100);
+                iframe.src = `https://player.vimeo.com/video/${vimeoId}?${params.toString()}`;
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.frameBorder = '0';
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                iframe.className = 'w-full h-full scale-150';
+
+                // Clear container and mount iframe
+                containerRef.current.innerHTML = '';
+                containerRef.current.appendChild(iframe);
+
+                const player = new Player(iframe);
+                player.ready().then(() => {
+                    setIsPlayerReady(true);
+                    playerRef.current = player;
+                    player.on('timeupdate', (data) => {
+                        setProgress(data.percent * 100);
+                    });
+                    if (isActive) {
+                        player.play().catch(console.error);
+                    }
+                }).catch(err => {
+                    console.error('Vimeo player init error (Manual Iframe):', err);
                 });
-                if (isActive) {
-                    player.play().catch(console.error);
+            } else {
+                // Public video or ID/URL - SDK handles it
+                if (vimeoId) {
+                    options.id = Number(vimeoId);
+                } else if (rawUrl.startsWith('http')) {
+                    options.url = rawUrl;
                 }
-            }).catch(err => {
-                console.error('Vimeo player init error:', err);
-            });
+
+                console.log('[SparringReel] Using SDK strategy with options:', options);
+                const player = new Player(containerRef.current, options);
+
+                player.ready().then(() => {
+                    setIsPlayerReady(true);
+                    playerRef.current = player;
+                    player.on('timeupdate', (data) => {
+                        setProgress(data.percent * 100);
+                    });
+                    if (isActive) {
+                        player.play().catch(console.error);
+                    }
+                }).catch(err => {
+                    console.error('Vimeo player init error (SDK):', err);
+                });
+            }
         }
 
         return () => {
@@ -215,8 +250,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 5) {
-                        // 5 seconds reached, show login modal and pause video
+                    if (newTime >= 60) {
+                        // 60 seconds reached (updated from 5s to match 1-min preview)
                         setIsLoginModalOpen(true);
                         if (playerRef.current) {
                             playerRef.current.pause().catch(console.error);
@@ -472,7 +507,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                 <div
                     className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user ? (watchTime / 5) * 100 : progress}%` }}
+                    style={{ width: `${!user && !isDailyFreeSparring ? (watchTime / 60) * 100 : progress}%` }}
                 />
             </div>
 
