@@ -153,13 +153,13 @@ const VideoItem: React.FC<{
             iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
 
             // Force 1:1 aspect ratio
-            iframe.style.width = '177.78%';
-            iframe.style.height = '177.78%';
-            iframe.style.position = 'absolute';
-            iframe.style.top = '50%';
-            iframe.style.left = '50%';
-            iframe.style.transform = 'translate(-50%, -50%)';
-            iframe.style.objectFit = 'cover';
+            iframe.style.setProperty('width', '177.78%', 'important');
+            iframe.style.setProperty('height', '177.78%', 'important');
+            iframe.style.setProperty('position', 'absolute', 'important');
+            iframe.style.setProperty('top', '50%', 'important');
+            iframe.style.setProperty('left', '50%', 'important');
+            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+            iframe.style.setProperty('object-fit', 'cover', 'important');
 
             containerRef.current.appendChild(iframe);
             const player = new Player(iframe);
@@ -193,13 +193,13 @@ const VideoItem: React.FC<{
                 const applySquareCrop = () => {
                     const iframe = containerRef.current?.querySelector('iframe');
                     if (iframe) {
-                        iframe.style.width = '177.78%';
-                        iframe.style.height = '177.78%';
-                        iframe.style.position = 'absolute';
-                        iframe.style.top = '50%';
-                        iframe.style.left = '50%';
-                        iframe.style.transform = 'translate(-50%, -50%)';
-                        iframe.style.objectFit = 'cover';
+                        iframe.style.setProperty('width', '177.78%', 'important');
+                        iframe.style.setProperty('height', '177.78%', 'important');
+                        iframe.style.setProperty('position', 'absolute', 'important');
+                        iframe.style.setProperty('top', '50%', 'important');
+                        iframe.style.left = '50%', 'important';
+                        iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                        iframe.style.setProperty('object-fit', 'cover', 'important');
                         console.log('[SparringFeed] Applied 1:1 crop');
                     }
                 };

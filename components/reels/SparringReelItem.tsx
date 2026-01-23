@@ -144,7 +144,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         } else {
             const rawUrl = video.videoUrl || '';
             const options: any = {
-                responsive: true,
                 background: true,
                 loop: true,
                 autoplay: false,
@@ -173,7 +172,14 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                 iframe.height = '100%';
                 iframe.frameBorder = '0';
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                iframe.className = 'w-full h-full scale-[1.78]';
+                iframe.className = 'w-full h-full'; // Remove static scale class
+                iframe.style.setProperty('position', 'absolute', 'important');
+                iframe.style.setProperty('top', '50%', 'important');
+                iframe.style.setProperty('left', '50%', 'important');
+                iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                iframe.style.setProperty('width', '177.78%', 'important');
+                iframe.style.setProperty('height', '177.78%', 'important');
+                iframe.style.setProperty('object-fit', 'cover', 'important');
 
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
@@ -212,6 +218,27 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     if (isActive) {
                         player.play().catch(console.error);
                     }
+
+                    // Force 1:1 aspect ratio on SDK-created iframe
+                    const applySquareCrop = () => {
+                        const iframe = containerRef.current?.querySelector('iframe');
+                        if (iframe) {
+                            iframe.style.setProperty('position', 'absolute', 'important');
+                            iframe.style.setProperty('top', '50%', 'important');
+                            iframe.style.setProperty('left', '50%', 'important');
+                            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                            iframe.style.setProperty('width', '177.78%', 'important');
+                            iframe.style.setProperty('height', '177.78%', 'important');
+                            iframe.style.setProperty('object-fit', 'cover', 'important');
+                            console.log('[SparringReel] Applied 1:1 crop');
+                        }
+                    };
+
+                    // Apply multiple times to ensure stability
+                    applySquareCrop();
+                    setTimeout(applySquareCrop, 100);
+                    setTimeout(applySquareCrop, 300);
+                    setTimeout(applySquareCrop, 600);
                 }).catch(err => {
                     console.error('Vimeo player init error (SDK):', err);
                 });
@@ -370,7 +397,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             return (
                 <div
                     ref={containerRef}
-                    className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:scale-[1.78]"
+                    className="absolute inset-0 w-full h-full overflow-hidden"
                     onClick={toggleMute}
                 />
             );
