@@ -305,7 +305,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Vimeo Player Container - Isolated to prevent overwriting overlays */}
             <div
                 ref={containerRef}
-                className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full"
+                className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}
             />
 
             {/* Error Overlay */}
