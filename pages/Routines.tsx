@@ -22,7 +22,8 @@ export const Routines: React.FC<{
     const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
     const [selectedUniform, setSelectedUniform] = useState<string>('All');
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | null>(null);
+    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | 'sort' | null>(null);
 
     const searchTerm = internalSearchTerm;
     const selectedCategory = internalCategory;
@@ -77,9 +78,21 @@ export const Routines: React.FC<{
                         creatorName: creatorsMap[r.creatorId]?.name || r.creatorName,
                         creatorProfileImage: creatorsMap[r.creatorId]?.avatarUrl || r.creatorProfileImage
                     }));
-                    setRoutines(enriched);
+
+                    // Shuffle by default
+                    const shuffled = [...enriched];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    setRoutines(shuffled);
                 } else {
-                    setRoutines(data);
+                    const shuffled = [...data];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    setRoutines(shuffled);
                 }
             }
         } catch (err: any) {
@@ -120,6 +133,14 @@ export const Routines: React.FC<{
         }
 
         return matchesSearch && matchesCategory && matchesDifficulty && matchesUniform && matchesOwnership;
+    }).sort((a, b) => {
+        if (sortBy === 'latest') {
+            return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
+        }
+        if (sortBy === 'popular') {
+            return (b.views || 0) - (a.views || 0);
+        }
+        return 0; // Keep shuffled order if sortBy is 'shuffled'
     });
 
     if (loading) return <LoadingScreen message="루틴을 불러오는 중..." />;
@@ -293,6 +314,49 @@ export const Routines: React.FC<{
                                 )}
                             </div>
 
+                            {/* Sort Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
+                                    className={cn(
+                                        "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
+                                        sortBy !== 'shuffled' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                                    )}
+                                >
+                                    <span className="whitespace-nowrap">
+                                        Sort: {sortBy === 'shuffled' ? 'Recommended' : sortBy === 'latest' ? 'Latest' : 'Popular'}
+                                    </span>
+                                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'sort' && "rotate-180")} />
+                                </button>
+
+                                {openDropdown === 'sort' && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />
+                                        <div className="absolute top-full left-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden z-20 py-1">
+                                            {[
+                                                { label: 'Recommended', value: 'shuffled' },
+                                                { label: 'Latest', value: 'latest' },
+                                                { label: 'Popular', value: 'popular' }
+                                            ].map(option => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => {
+                                                        setSortBy(option.value as any);
+                                                        setOpenDropdown(null);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full px-4 py-2.5 text-left text-xs hover:bg-zinc-800 transition-colors",
+                                                        sortBy === option.value ? "text-violet-500 font-bold bg-violet-500/5" : "text-zinc-400"
+                                                    )}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
 
                             {/* Reset Filter Button */}
                             {(selectedCategory !== 'All' || searchTerm || selectedDifficulty !== 'All' || selectedUniform !== 'All' || selectedOwnership !== 'All') && (
@@ -303,6 +367,7 @@ export const Routines: React.FC<{
                                         setSelectedDifficulty('All');
                                         setSelectedUniform('All');
                                         setSelectedOwnership('All');
+                                        setSortBy('shuffled');
                                     }}
                                     className="h-10 px-4 text-xs text-zinc-500 hover:text-zinc-200 transition-colors duration-200"
                                 >

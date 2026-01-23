@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Target, PlayCircle, ArrowRight } from 'lucide-react';
 import { SparringVideo } from '../../types';
+import { ContentBadge } from '../common/ContentBadge';
 
 interface TrendingSporringSectionProps {
     videos: SparringVideo[];
@@ -44,7 +45,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-                {videos.map((video) => (
+                {videos.map((video, index) => (
                     <div
                         key={video.id}
                         onClick={() => navigate('/sparring', { state: { highlightVideoId: video.id } })}
@@ -65,6 +66,16 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                             {/* Gradient Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
+                            {/* Badges */}
+                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                <div />
+                                {(index < 3) ? (
+                                    <ContentBadge type="popular" rank={index + 1} />
+                                ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                    <ContentBadge type="recent" />
+                                ) : null}
+                            </div>
+
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
                                 <PlayCircle className="w-5 h-5" />
@@ -76,7 +87,12 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                             <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
                                 {video.title}
                             </h3>
-                            <p className="text-zinc-500 text-xs font-medium truncate">{video.creator?.name || 'Unknown'}</p>
+                            <div className="flex items-center justify-between mt-2">
+                                <p className="text-zinc-500 text-xs font-medium truncate max-w-[60%]">{video.creator?.name || 'Unknown'}</p>
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                    {video.category || 'Sparring'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 ))}

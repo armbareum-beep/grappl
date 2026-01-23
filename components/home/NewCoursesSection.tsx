@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, PlayCircle, ArrowRight } from 'lucide-react';
 import { Course } from '../../types';
 import { cn } from '../../lib/utils';
+import { ContentBadge } from '../common/ContentBadge';
 
 interface NewCoursesSectionProps {
     courses: Course[];
@@ -44,7 +45,7 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {courses.map((course) => (
+                {courses.map((course, index) => (
                     <div
                         key={course.id}
                         onClick={() => navigate(`/courses/${course.id}`)}
@@ -68,6 +69,16 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
                             {/* Gradient Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
+                            {/* Badges */}
+                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                <div /> {/* Left space filler */}
+                                {(index < 3) ? (
+                                    <ContentBadge type="popular" rank={index + 1} />
+                                ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                    <ContentBadge type="recent" />
+                                ) : null}
+                            </div>
+
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
                                 <PlayCircle className="w-5 h-5" />
@@ -82,7 +93,7 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
                             <div className="flex items-center justify-between mt-2">
                                 <p className="text-zinc-500 text-xs font-medium truncate max-w-[60%]">{course.creatorName || 'Unknown'}</p>
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                    {course.difficulty || 'All Levels'}
+                                    {course.category || 'All Positions'}
                                 </span>
                             </div>
                         </div>

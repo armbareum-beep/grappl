@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Course } from '../types';
-import { Play, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import Player from '@vimeo/player';
 import { cn } from '../lib/utils';
+import { ContentBadge } from './common/ContentBadge';
 
 interface CourseCardProps {
     course: Course;
     className?: string;
     isDailyFree?: boolean;
+    rank?: number;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -124,10 +126,16 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering ? 'scale-110' : 'scale-100')}
                     />
 
-                    {isDailyFree && (
-                        <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-20 pointer-events-none">
-                            <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
-                        </div>
+                    {isDailyFree ? (
+                        <ContentBadge type="daily_free" className="absolute top-2 left-2" />
+                    ) : (
+                        <>
+                            {rank ? (
+                                <ContentBadge type="popular" rank={rank} className="absolute top-2 right-2" />
+                            ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                <ContentBadge type="recent" className="absolute top-2 right-2" />
+                            ) : null}
+                        </>
                     )}
 
                     {showVideo && vimeoId && (

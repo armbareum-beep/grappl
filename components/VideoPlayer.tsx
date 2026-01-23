@@ -74,7 +74,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 badge: false,
                 muted: true,
                 playsinline: true, // Support mobile autoplay
-                background: !showControls, // Optimization for showcase/silent videos
+                background: !showControls && autoplay, // Only use background mode if autoplay is intentional
             };
 
             const vimeoIdStr = String(vimeoId || '').trim();
@@ -122,9 +122,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('portrait', '0');
                 params.append('badge', '0');
                 params.append('autopause', '1');
-                params.append('autoplay', '1');
-                params.append('muted', '1');
-                params.append('background', '1'); // Extra safety for silent background play
+                params.append('autoplay', autoplay ? '1' : '0');
+                params.append('muted', autoplay ? '1' : '0');
+                if (!showControls && autoplay) params.append('background', '1'); // Extra safety for silent background play
                 params.append('player_id', containerRef.current.id || `vimeo-${numericId}`);
                 params.append('app_id', '122963');
                 if (!showControls) params.append('controls', '0');

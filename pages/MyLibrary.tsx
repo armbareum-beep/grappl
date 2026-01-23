@@ -22,6 +22,7 @@ import { Button } from '../components/Button';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { ContentBadge } from '../components/common/ContentBadge';
 
 interface CourseWithProgress extends Course {
   progress?: number;
@@ -179,6 +180,19 @@ export const MyLibrary: React.FC = () => {
     fetchData();
   }, [user, isCreator]);
 
+  // TOP 3 Logic Helper
+  const getRank = (item: any, list: any[]) => {
+    if (!list || list.length === 0) return undefined;
+    const sorted = [...list].sort((a, b) => (b.views || 0) - (a.views || 0));
+    const index = sorted.findIndex(i => i.id === item.id);
+    return (index >= 0 && index < 3) ? index + 1 : undefined;
+  };
+
+  const isRecent = (dateStr?: string) => {
+    if (!dateStr) return false;
+    return new Date(dateStr).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000);
+  };
+
   if (error) {
     return <ErrorScreen error={error} resetMessage="라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
   }
@@ -277,7 +291,7 @@ export const MyLibrary: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {courses.map((course) => (
                         <div key={course.id} className="relative flex flex-col h-full">
-                          <CourseCard course={course} />
+                          <CourseCard course={course} rank={getRank(course, courses)} />
                           <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
                             <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
                               <span>진도율</span>
@@ -323,7 +337,7 @@ export const MyLibrary: React.FC = () => {
                             !savedCourses.some(sc => sc.id === ac.id)
                           )
                           .map((course) => (
-                            <CourseCard key={course.id} course={course} />
+                            <CourseCard key={course.id} course={course} rank={getRank(course, allCourses)} />
                           ))}
                       </div>
                     </div>
@@ -334,7 +348,7 @@ export const MyLibrary: React.FC = () => {
                     <h3 className="text-lg font-bold text-white mb-6">Saved Classes ({savedCourses.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {savedCourses.map((course) => (
-                        <CourseCard key={course.id} course={course} />
+                        <CourseCard key={course.id} course={course} rank={getRank(course, allCourses)} />
                       ))}
                     </div>
                   </div>
@@ -368,7 +382,7 @@ export const MyLibrary: React.FC = () => {
                       <h3 className="text-lg font-bold text-white mb-6">My Routines ({purchasedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {purchasedRoutines.map((routine) => (
-                          <RoutineCard key={routine.id} routine={routine} />
+                          <RoutineCard key={routine.id} routine={routine} rank={getRank(routine, purchasedRoutines)} />
                         ))}
                       </div>
                     </div>
@@ -379,7 +393,7 @@ export const MyLibrary: React.FC = () => {
                       <h3 className="text-lg font-bold text-white mb-6">Saved Routines ({savedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {savedRoutines.map((routine) => (
-                          <RoutineCard key={routine.id} routine={routine} />
+                          <RoutineCard key={routine.id} routine={routine} rank={getRank(routine, savedRoutines)} />
                         ))}
                       </div>
                     </div>
@@ -415,6 +429,11 @@ export const MyLibrary: React.FC = () => {
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
                         <PlayCircle className="w-10 h-10 text-white" />
                       </div>
+                      {getRank(lesson, savedLessons) ? (
+                        <ContentBadge type="popular" rank={getRank(lesson, savedLessons)} className="absolute top-2 right-2" />
+                      ) : isRecent(lesson.createdAt) ? (
+                        <ContentBadge type="recent" className="absolute top-2 right-2" />
+                      ) : null}
                     </Link>
                     <div className="px-1">
                       <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{lesson.title}</h4>
@@ -451,6 +470,11 @@ export const MyLibrary: React.FC = () => {
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
                         <PlayCircle className="w-10 h-10 text-white" />
                       </div>
+                      {getRank(drill, savedDrills) ? (
+                        <ContentBadge type="popular" rank={getRank(drill, savedDrills)} className="absolute top-2 right-2" />
+                      ) : isRecent(drill.createdAt) ? (
+                        <ContentBadge type="recent" className="absolute top-2 right-2" />
+                      ) : null}
                     </Link>
                     <div className="px-1">
                       <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{drill.title}</h4>
@@ -486,6 +510,11 @@ export const MyLibrary: React.FC = () => {
                         <div className="absolute top-2 left-2 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
                           OWNED
                         </div>
+                        {getRank(video, purchasedSparring) ? (
+                          <ContentBadge type="popular" rank={getRank(video, purchasedSparring)} className="absolute top-2 right-2" />
+                        ) : isRecent(video.createdAt) ? (
+                          <ContentBadge type="recent" className="absolute top-2 right-2" />
+                        ) : null}
                       </Link>
                       <div className="px-1">
                         <Link to={`/sparring/${video.id}`}>
@@ -538,6 +567,11 @@ export const MyLibrary: React.FC = () => {
                             <Play className="w-6 h-6 text-white fill-white/20" />
                           </div>
                         </div>
+                        {getRank(video, savedSparring) ? (
+                          <ContentBadge type="popular" rank={getRank(video, savedSparring)} className="absolute top-2 right-2" />
+                        ) : isRecent(video.createdAt) ? (
+                          <ContentBadge type="recent" className="absolute top-2 right-2" />
+                        ) : null}
                       </Link>
                       <div className="px-1">
                         <Link to={`/sparring/${video.id}`}>
@@ -664,7 +698,7 @@ function ChainCard({ chain }: { chain: UserSkillTree }) {
   );
 }
 
-function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: boolean }) {
+function RoutineCard({ routine, isCustom, rank }: { routine: DrillRoutine; isCustom?: boolean; rank?: number }) {
   return (
     <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
       <Link
@@ -685,6 +719,11 @@ function RoutineCard({ routine, isCustom }: { routine: DrillRoutine; isCustom?: 
             CUSTOM
           </div>
         )}
+        {(rank) ? (
+          <ContentBadge type="popular" rank={rank} className="absolute top-3 right-3" />
+        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+          <ContentBadge type="recent" className="absolute top-3 right-3" />
+        ) : null}
       </Link>
 
       <div className="px-1">

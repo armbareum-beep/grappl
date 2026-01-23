@@ -2,12 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { DrillRoutine } from '../types';
 import { PlayCircle } from 'lucide-react';
+import { ContentBadge } from './common/ContentBadge';
 
 interface DrillRoutineCardProps {
     routine: DrillRoutine;
+    rank?: number;
 }
 
-export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine }) => {
+export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank }) => {
     return (
         <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
             {/* Thumbnail */}
@@ -30,6 +32,11 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine }) =
                         <PlayCircle className="w-8 h-8 text-white fill-white/20" />
                     </div>
                 </div>
+                {(rank) ? (
+                    <ContentBadge type="popular" rank={rank} className="absolute top-2 right-2" />
+                ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                    <ContentBadge type="recent" className="absolute top-2 right-2" />
+                ) : null}
             </Link>
 
             {/* Information Area */}

@@ -43,6 +43,7 @@ export const Home: React.FC = () => {
 
   // Tab State
   const [activeNewTab, setActiveNewTab] = useState<'sparring' | 'routine' | 'course'>('sparring');
+  const [activeTrendingTab, setActiveTrendingTab] = useState<'course' | 'routine' | 'sparring'>('course');
 
   // User info
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -394,27 +395,89 @@ export const Home: React.FC = () => {
         )}
       </section>
 
-      {/* 2. Mastery Roadmap Widget */}
-      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20"><MasteryRoadmapWidget /></section>
-
-      {/* 3. Continue Learning List */}
+      {/* 2. Continue Learning List */}
       <ContinueLearningSection items={continueItems} />
+
+      {/* 3. Mastery Roadmap Widget */}
+      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20"><MasteryRoadmapWidget /></section>
 
       {/* 4. Recent Completed Routines */}
       <RecentCompletedRoutinesSection routines={recentCompletedRoutines} />
 
-      {/* 5. Trending Sparring Section */}
-      <TrendingSparringSection videos={trendingSparring} />
+      {/* 5-7. Popular Content Tabs */}
+      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTrendingTab('course')}
+              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+            >
+              인기 클래스
+              {activeTrendingTab === 'course' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTrendingTab('routine')}
+              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+            >
+              인기루틴
+              {activeTrendingTab === 'routine' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTrendingTab('sparring')}
+              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+            >
+              인기스파링
+              {activeTrendingTab === 'sparring' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+              )}
+            </button>
+          </div>
 
-      {/* 6. Featured Routines */}
-      <FeaturedRoutinesSection routines={featuredRoutines} />
+          <div className="pb-4 px-6 md:px-0">
+            <p className="text-zinc-400 text-sm font-medium">실시간 가장 핫한 콘텐츠</p>
+          </div>
+        </div>
 
-      {/* 7. Trending Courses */}
-      <NewCoursesSection
-        courses={trendingCourses}
-        title="요즘 뜨는 인기 클래스"
-        subtitle="수강생들이 인정한 검증된 클래스를 만나보세요."
-      />
+        <div className="min-h-[400px]">
+          {activeTrendingTab === 'course' && (
+            <div className="animate-fadeIn">
+              <NewCoursesSection
+                courses={trendingCourses}
+                title=""
+                subtitle=""
+                hideHeader={true}
+              />
+            </div>
+          )}
+          {activeTrendingTab === 'routine' && (
+            <div className="animate-fadeIn">
+              <FeaturedRoutinesSection
+                routines={featuredRoutines}
+                title=""
+                subtitle=""
+                hideHeader={true}
+              />
+            </div>
+          )}
+          {activeTrendingTab === 'sparring' && (
+            <div className="animate-fadeIn">
+              <TrendingSparringSection
+                videos={trendingSparring}
+                title=""
+                subtitle=""
+                hideHeader={true}
+              />
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* 8. New Content Tabs */}
       <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20">

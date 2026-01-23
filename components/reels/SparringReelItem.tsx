@@ -486,8 +486,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
-            <div className="w-full h-full relative flex items-start justify-center pt-24">
-                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+            <div className="w-full h-full relative flex items-start justify-center pt-16">
+                <div className="relative w-full max-w-[min(100vw,calc(100vh-140px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
 
@@ -507,7 +507,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
                 {/* Overlay Contents */}
                 <div className="absolute inset-0 pointer-events-none z-40 flex justify-center">
-                    <div className="relative w-full h-full max-w-[min(100vw,calc(100vh-200px))] flex">
+                    <div className="relative w-full h-full max-w-[min(100vw,calc(100vh-140px))] flex">
                         {/* Back button Group - Sticks to left edge of video on web */}
                         <div className="absolute left-0 top-0 bottom-0 flex flex-col items-center py-6 pl-4 pointer-events-auto">
                             <button

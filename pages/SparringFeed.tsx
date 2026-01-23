@@ -371,14 +371,14 @@ const VideoItem: React.FC<{
 
     return (
         <>
-            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-24">
-                <div className="relative w-full max-w-[min(100vw,calc(100vh-200px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-16">
+                <div className="relative w-full max-w-[min(100vw,calc(100vh-140px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
                 <div className="absolute inset-0 pointer-events-none z-40">
-                    <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-200px))]">
+                    <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-140px))]">
                         {/* Top-Left Group: Back Button - Sticks to top left INSIDE container */}
                         <div className="absolute top-8 left-4 z-[100] pointer-events-auto">
                             <button
@@ -527,7 +527,8 @@ export const SparringFeed: React.FC<{
 
     const [selectedUniform, setSelectedUniform] = useState('All');
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'ownership' | null>(null);
+    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+    const [openDropdown, setOpenDropdown] = useState<'uniform' | 'ownership' | 'sort' | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const uniforms = ['All', 'Gi', 'No-Gi'];
@@ -615,6 +616,14 @@ export const SparringFeed: React.FC<{
         }
 
         return matchesSearch && matchesUniform && matchesCategory && matchesOwnership;
+    }).sort((a, b) => {
+        if (sortBy === 'latest') {
+            return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
+        }
+        if (sortBy === 'popular') {
+            return (b.views || 0) - (a.views || 0);
+        }
+        return 0; // Keep shuffled order if sortBy is 'shuffled'
     });
 
     if (viewMode === 'reels') {
@@ -628,8 +637,8 @@ export const SparringFeed: React.FC<{
                         {/* If filtered videos are empty (e.g. from search), show all or handle nicely. 
                             Usually Reels view ignores search unless navigated from search grid. 
                             Here we use filteredVideos if we have them, else all. */}
-                        {(searchTerm ? filteredVideos : videos).length > 0 ? (
-                            (searchTerm ? filteredVideos : videos).map((video, idx) => (
+                        {filteredVideos.length > 0 ? (
+                            filteredVideos.map((video, idx) => (
                                 <VideoItem
                                     key={video.id}
                                     video={video}
@@ -793,6 +802,49 @@ export const SparringFeed: React.FC<{
                                 )}
                             </div>
 
+                            {/* Sort Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
+                                    className={cn(
+                                        "h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2 transition-all duration-200 hover:border-zinc-700",
+                                        sortBy !== 'shuffled' && "border-violet-500/50 bg-violet-500/5 text-violet-300"
+                                    )}
+                                >
+                                    <span className="whitespace-nowrap">
+                                        Sort: {sortBy === 'shuffled' ? 'Recommended' : sortBy === 'latest' ? 'Latest' : 'Popular'}
+                                    </span>
+                                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", openDropdown === 'sort' && "rotate-180")} />
+                                </button>
+
+                                {openDropdown === 'sort' && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />
+                                        <div className="absolute top-full left-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden z-20 py-1">
+                                            {[
+                                                { label: 'Recommended', value: 'shuffled' },
+                                                { label: 'Latest', value: 'latest' },
+                                                { label: 'Popular', value: 'popular' }
+                                            ].map(option => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => {
+                                                        setSortBy(option.value as any);
+                                                        setOpenDropdown(null);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full px-4 py-2.5 text-left text-xs hover:bg-zinc-800 transition-colors",
+                                                        sortBy === option.value ? "text-violet-500 font-bold bg-violet-500/5" : "text-zinc-400"
+                                                    )}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
                             {/* Reset Filter Button */}
                             {(selectedCategory !== 'All' || searchTerm || selectedUniform !== 'All' || selectedOwnership !== 'All') && (
                                 <button
@@ -801,6 +853,7 @@ export const SparringFeed: React.FC<{
                                         isEmbedded ? setInternalSearchTerm('') : setSearchParams({});
                                         setSelectedUniform('All');
                                         setSelectedOwnership('All');
+                                        setSortBy('shuffled');
                                     }}
                                     className="h-10 px-4 text-xs text-zinc-500 hover:text-zinc-200 transition-colors duration-200"
                                 >
@@ -822,7 +875,7 @@ export const SparringFeed: React.FC<{
                         <p className="text-zinc-500 max-w-xs mx-auto mb-8">다른 키워드를 시도해보세요.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 md:gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8">
                         {filteredVideos.map((video, idx) => (
                             <div
                                 key={video.id}

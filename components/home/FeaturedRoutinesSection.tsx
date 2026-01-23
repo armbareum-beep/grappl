@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutGrid, PlayCircle, ArrowRight } from 'lucide-react';
 import { DrillRoutine } from '../../types';
 import { cn } from '../../lib/utils';
+import { ContentBadge } from '../common/ContentBadge';
 
 interface FeaturedRoutinesSectionProps {
     routines: DrillRoutine[];
@@ -44,7 +45,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {routines.map((routine) => (
+                {routines.map((routine, index) => (
                     <div
                         key={routine.id}
                         onClick={() => navigate(`/drill-routines/${routine.id}`)}
@@ -67,6 +68,16 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
 
                             {/* Gradient Overlay */}
                             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                            {/* Badges */}
+                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                <div />
+                                {(index < 3) ? (
+                                    <ContentBadge type="popular" rank={index + 1} />
+                                ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                    <ContentBadge type="recent" />
+                                ) : null}
+                            </div>
 
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
