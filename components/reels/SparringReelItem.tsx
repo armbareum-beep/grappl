@@ -504,16 +504,16 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                             {/* Middle-Right Group: Heart, Save, Share, Techniques (MATCHING LIBRARY DETAIL) */}
                             <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
                                 <div className="flex flex-col items-center gap-1">
-                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
-                                        <Heart className={`w-5 h-5 md:w-6 md:h-6 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                        <Heart className={`w-6 h-6 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                     </button>
                                     <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                                 </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
-                                    <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
+                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                    <Bookmark className={`w-6 h-6 md:w-7 md:h-7 ${isSaved ? 'fill-white' : ''}`} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
-                                    <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-3.5 rounded-full bg-black/50 backdrop-blur-xl text-white border border-white/10 hover:bg-black/70 transition-all active:scale-90 shadow-2xl">
+                                    <Share2 className="w-6 h-6 md:w-7 md:h-7" />
                                 </button>
 
                                 {/* Group for Related Techniques (Matching SparringDetail Sidebar icon style if needed, 
