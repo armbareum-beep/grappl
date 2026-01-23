@@ -296,6 +296,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         syncPlaybackState();
     }, [isPaused, playing, hasReachedPreviewLimit]);
 
+    // Force 1:1 aspect ratio on ALL iframes (Public and Private videos)
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const applySquareCrop = () => {
+            const iframe = containerRef.current?.querySelector('iframe');
+            if (iframe) {
+                iframe.style.width = '177.78%';
+                iframe.style.height = '177.78%';
+                iframe.style.position = 'absolute';
+                iframe.style.top = '50%';
+                iframe.style.left = '50%';
+                iframe.style.transform = 'translate(-50%, -50%)';
+                iframe.style.objectFit = 'cover';
+                console.log('[VideoPlayer] Applied 1:1 crop to iframe');
+            }
+        };
+
+        // Apply immediately if iframe exists
+        applySquareCrop();
+
+        // Also apply after a short delay to catch SDK-created iframes
+        const timer = setTimeout(applySquareCrop, 100);
+
+        return () => clearTimeout(timer);
+    }, [playerRef.current, vimeoId]);
+
 
     return (
         <div
