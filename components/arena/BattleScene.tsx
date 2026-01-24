@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Shield, Swords, Zap, Trophy, XCircle } from 'lucide-react';
+import { Swords, Trophy, XCircle } from 'lucide-react';
 
 interface OpponentStats {
     name: string;

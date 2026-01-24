@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { useStripe } from '@stripe/react-stripe-js';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 

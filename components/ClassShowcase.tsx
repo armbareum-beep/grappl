@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Play, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Play, Pause, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { getCourses, getDailyFreeLesson, extractVimeoId } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
@@ -14,6 +14,7 @@ export const ClassShowcase: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [playingId, setPlayingId] = useState<string | null>(null);
+    const [isActuallyPaused, setIsActuallyPaused] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const navigate = useNavigate();
     const { isSubscribed, isAdmin } = useAuth();
@@ -151,31 +152,43 @@ export const ClassShowcase: React.FC = () => {
                                                     maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
                                                     onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                                     showControls={isPlaying}
-                                                    playing={isPlaying}
-                                                    isPaused={isPaywallOpen || (playingId !== null && !isPlaying)}
+                                                    playing={isPlaying && !isActuallyPaused}
+                                                    isPaused={isPaywallOpen || (isPlaying && isActuallyPaused) || (playingId !== null && !isPlaying)}
                                                     autoplay={false}
                                                 />
 
-                                                {/* Centered Action Button - Hidden when playing */}
-                                                {!isPlaying && (
-                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
-                                                        <button
-                                                            onClick={() => setPlayingId(course.id)}
-                                                            className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn"
-                                                        >
+                                                {/* Centered Action Button */}
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isPlaying) {
+                                                                setIsActuallyPaused(!isActuallyPaused);
+                                                            } else {
+                                                                setPlayingId(course.id);
+                                                                setIsActuallyPaused(false);
+                                                            }
+                                                        }}
+                                                        className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn ${isPlaying && !isActuallyPaused ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
+                                                    >
+                                                        {isPlaying && !isActuallyPaused ? (
+                                                            <Pause className="w-8 h-8 md:w-10 md:h-10 fill-current group-hover:rotate-12 transition-transform" />
+                                                        ) : (
                                                             <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1 group-hover:rotate-12 transition-transform" />
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                        )}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {/* Overlay Content (Desktop Only) - fade out when playing */}
-                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}></div>
+                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 ${isPlaying && !isActuallyPaused ? 'opacity-0' : 'opacity-100'}`}></div>
 
                                             {/* Info - Bottom Left (Responsive) - fade out when playing */}
-                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
+                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 ${isPlaying && !isActuallyPaused ? 'opacity-0' : 'opacity-100'}`}>
                                                 <div className="max-w-3xl">
-                                                    <h3 className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep">
+                                                    <h3
+                                                        className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep cursor-pointer hover:text-violet-400 transition-colors pointer-events-auto"
+                                                        onClick={() => navigate(`/courses/${course.id}`)}
+                                                    >
                                                         {course.title}
                                                     </h3>
                                                     <div className="flex items-center gap-3 text-white font-bold opacity-80">
@@ -214,7 +227,7 @@ export const ClassShowcase: React.FC = () => {
                     <Button
                         variant="ghost"
                         className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
-                        onClick={() => navigate('/lessons')}
+                        onClick={() => navigate('/library')}
                     >
                         모든 클래스 둘러보기
                         <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -227,7 +240,7 @@ export const ClassShowcase: React.FC = () => {
                 onClose={() => setIsPaywallOpen(false)}
                 onConfirm={() => navigate('/pricing')}
                 title="무료 체험 기간 종료"
-                message="전체 영상을 시청하고 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                message="전체 영상을 시청하고 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
                 confirmText="구독 요금제 보기"
                 cancelText="더 둘러보기"
                 variant="info"

@@ -142,7 +142,21 @@ export function Watch() {
             if (activeTab === 'mix' || activeTab === 'lesson') queries.push(lessonQuery);
             else queries.push(Promise.resolve({ data: [] }));
 
-            const [drillsRes, sparringRes, lessonsRes] = await Promise.all(queries);
+            // 4. Specific Target Request (If not in top results)
+            if (targetId) {
+                // Fetch from all three types just in case
+                queries.push(
+                    Promise.all([
+                        supabase.from('drills').select('*, routine_drills(id)').eq('id', targetId).maybeSingle(),
+                        supabase.from('sparring_videos').select('*').eq('id', targetId).maybeSingle(),
+                        supabase.from('lessons').select('*, course:courses(*)').eq('id', targetId).maybeSingle()
+                    ])
+                );
+            } else {
+                queries.push(Promise.resolve([null, null, null]));
+            }
+
+            const [drillsRes, sparringRes, lessonsRes, targetRes] = await Promise.all(queries);
 
             // Get daily free content IDs
             const [dailyDrillRes, dailyLessonRes, dailySparringRes] = await Promise.all([
@@ -191,8 +205,16 @@ export function Watch() {
 
             // Add Daily Content Creator IDs
             if (dailyDrillRes.data && dailyDrillRes.data.creatorId) allCreatorIds.push(dailyDrillRes.data.creatorId);
-            if (dailyLessonRes.data && (dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).course?.creator_id)) allCreatorIds.push(dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).course?.creator_id);
+            if (dailyLessonRes.data && (dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).course?.creator_id)) allCreatorIds.push(dailyLessonRes.data.creatorId || (dailyLessonRes.data as any).creatorId || (dailyLessonRes.data as any).course?.creator_id);
             if (dailySparringRes.data && dailySparringRes.data.creatorId) allCreatorIds.push(dailySparringRes.data.creatorId);
+
+            // Add Target Content Creator IDs
+            if (targetRes) {
+                const [td, ts, tl] = targetRes;
+                if (td?.data?.creator_id) allCreatorIds.push(td.data.creator_id);
+                if (ts?.data?.creator_id) allCreatorIds.push(ts.data.creator_id);
+                if (tl?.data?.course?.creator_id || tl?.data?.creator_id) allCreatorIds.push(tl.data.course?.creator_id || tl.data.creator_id);
+            }
 
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
@@ -317,6 +339,51 @@ export function Watch() {
                         type: 'sparring',
                         data: enrichedDailyItem as any
                     });
+                }
+            }
+
+            // Ensure Target Content is included (even if filtered out or not in latest fetch)
+            if (targetId && targetRes) {
+                const [td, ts, tl] = targetRes;
+                const targetData = td?.data || ts?.data || tl?.data;
+                if (targetData && !allItems.some(item => item.data.id === targetId)) {
+                    if (td?.data) {
+                        allItems.push({
+                            type: 'drill',
+                            data: {
+                                ...td.data,
+                                creatorName: creatorsMap[td.data.creator_id]?.name || 'Instructor',
+                                creatorProfileImage: creatorsMap[td.data.creator_id]?.avatarUrl || undefined,
+                                aspectRatio: '9:16'
+                            } as any
+                        });
+                    } else if (ts?.data) {
+                        const transformed = transformSparringVideo(ts.data);
+                        const creatorInfo = creatorsMap[ts.data.creator_id];
+                        if (creatorInfo) {
+                            transformed.creator = {
+                                id: ts.data.creator_id,
+                                name: creatorInfo.name || 'Unknown',
+                                profileImage: creatorInfo.avatarUrl || '',
+                                bio: '',
+                                subscriberCount: 0
+                            };
+                        }
+                        allItems.push({ type: 'sparring', data: transformed });
+                    } else if (tl?.data) {
+                        const transformed = transformLesson(tl.data);
+                        const creatorId = tl.data.course?.creator_id || tl.data.creator_id;
+                        const creator = creatorsMap[creatorId];
+                        allItems.push({
+                            type: 'lesson',
+                            data: {
+                                ...transformed,
+                                creatorId,
+                                creatorName: creator?.name || 'Instructor',
+                                creatorProfileImage: creator?.avatarUrl || undefined
+                            } as any
+                        });
+                    }
                 }
             }
 

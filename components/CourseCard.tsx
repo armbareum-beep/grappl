@@ -126,13 +126,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering ? 'scale-110' : 'scale-100')}
                     />
 
-                    {isDailyFree && (
+                    {/* Left side badges: Free status */}
+                    {(isDailyFree || (course as any).isDailyFree) && (
                         <ContentBadge type="daily_free" className="absolute top-2 left-2" />
                     )}
 
+                    {/* Right side badges: Popularity or Recent */}
                     <div className="absolute top-2 right-2">
-                        {rank ? (
-                            <ContentBadge type="popular" rank={rank} />
+                        {rank || (course as any).rank ? (
+                            <ContentBadge type="popular" rank={rank || (course as any).rank} />
                         ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
                             <ContentBadge type="recent" />
                         ) : null}

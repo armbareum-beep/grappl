@@ -42,7 +42,7 @@ export const CourseDetail: React.FC = () => {
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
-    const [currentTime, setCurrentTime] = useState<number>(0);
+    const [_currentTime, setCurrentTime] = useState<number>(0);
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -498,7 +498,7 @@ export const CourseDetail: React.FC = () => {
                                     <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[280px] leading-relaxed mx-auto">
                                         {selectedLesson?.id === dailyFreeLessonId && !user
                                             ? "로그인하면 오늘의 무료 레슨을 즉시 시청할 수 있습니다."
-                                            : "이 레슨을 수강하려면 클래스를 구매하거나 그랩플레이 멤버십을 구독하세요."}
+                                            : "이 레슨을 수강하려면 클래스를 구매하거나 그래플레이 멤버십을 구독하세요."}
                                     </p>
                                     <div className="flex justify-center gap-3">
                                         {selectedLesson?.id === dailyFreeLessonId && !user ? (
@@ -789,7 +789,7 @@ export const CourseDetail: React.FC = () => {
                             </Button>
                         </Link>
                         <p className="text-[11px] text-center text-zinc-500 mt-4 font-medium leading-relaxed">
-                            월 ₩29,000으로 그랩플레이의 모든 콘텐츠를 무제한 시청하세요.
+                            월 ₩29,000으로 그래플레이의 모든 콘텐츠를 무제한 시청하세요.
                         </p>
                     </div>
                 )}
@@ -952,7 +952,7 @@ export const CourseDetail: React.FC = () => {
                                         )}
                                     </div>
                                     <h4 className="text-sm md:text-base font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{course.title}</h4>
-                                    <p className="text-xs text-zinc-500 mt-1">{course.creator?.name}</p>
+                                    <p className="text-xs text-zinc-500 mt-1">{course.creatorName}</p>
                                 </div>
                             ))}
                         </div>
@@ -1002,7 +1002,7 @@ export const CourseDetail: React.FC = () => {
                             title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
                             message={
                                 user
-                                    ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그랩플레이 구독을 시작하세요."
+                                    ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
                                     : (selectedLesson?.id === dailyFreeLessonId)
                                         ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
                                         : "이 레슨을 계속 시청하려면 로그인이 필요합니다."

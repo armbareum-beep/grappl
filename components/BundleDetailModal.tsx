@@ -19,7 +19,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
 }) => {
     const navigate = useNavigate();
     const [courses, setCourses] = useState<any[]>([]);
-    const [drills, setDrills] = useState<any[]>([]);
+    const [_drills, setDrills] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -53,7 +53,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
         onClose();
     };
 
-    const handleDrillClick = (drillId: string) => {
+    const _handleDrillClick = (drillId: string) => {
         navigate(`/drill/${drillId}`);
         onClose();
     };

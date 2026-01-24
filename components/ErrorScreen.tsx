@@ -21,16 +21,16 @@ export const ErrorScreen: React.FC<ErrorScreenProps> = ({
             return;
         }
 
-        // Force clear without confirmation to ensure it works
-        localStorage.clear();
-        sessionStorage.clear();
-
-        // Remove Supabase auth token specifically if present in cookies (unlikely but safe)
-        document.cookie.split(";").forEach((c) => {
-            document.cookie = c
-                .replace(/^ +/, "")
-                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        // 1. Clear LocalStorage except for Supabase Auth
+        // We preserve keys starting with 'sb-' which Supabase uses for session storage
+        Object.keys(localStorage).forEach(key => {
+            if (!key.startsWith('sb-')) {
+                localStorage.removeItem(key);
+            }
         });
+
+        // 2. Clear SessionStorage (usually safe for login info)
+        sessionStorage.clear();
 
         window.location.href = '/';
     };

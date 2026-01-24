@@ -110,7 +110,7 @@ export const CreateRoutine: React.FC = () => {
 
         const [drillsRes, lessonsRes, sparringRes] = await Promise.all([
             getDrills(user.id),
-            api.searchDrillsAndLessons('', user.id), // Fetch creator's lessons
+            api.searchDrillsAndLessons(''), // Fetch creator's lessons
             api.getSparringVideos(100, user.id) // Fetch creator's sparring
         ]);
 

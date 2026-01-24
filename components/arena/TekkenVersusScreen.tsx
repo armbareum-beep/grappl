@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Swords, Zap, Trophy, Skull } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, Swords, Skull } from 'lucide-react';
 
 interface TekkenVersusScreenProps {
     user: any;

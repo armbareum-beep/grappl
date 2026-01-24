@@ -23,7 +23,7 @@ import { ErrorScreen } from '../ErrorScreen';
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
     { name: 'Guard', icon: Shield, color: 'bg-blue-500' },
-    { name: 'Guard Pass', icon: Swords, color: 'bg-purple-500' },
+    { name: 'Passing', icon: Swords, color: 'bg-purple-500' },
     { name: 'Side', icon: Users, color: 'bg-green-500' },
     { name: 'Mount', icon: Mountain, color: 'bg-orange-500' },
     { name: 'Back', icon: Target, color: 'bg-red-500' }
@@ -110,7 +110,7 @@ export const SkillTreeTab: React.FC = () => {
         await upsertUserSkill(user.id, selectedCategory, courseId, 'learning', selectedSubcategoryId || undefined);
 
         // Award XP for adding a skill
-        const { xpEarned, leveledUp, newLevel } = await addXP(user.id, 20, 'add_skill', courseId);
+        await addXP(user.id, 20, 'add_skill', courseId);
         await loadData();
     };
 

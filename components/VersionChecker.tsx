@@ -1,65 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
+
+const UPDATE_COOLDOWN = 10000; // 10 seconds safety cooldown
+const LAST_UPDATE_KEY = 'grapplay_last_update_attempt';
 
 export const VersionChecker: React.FC = () => {
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
     const [latestVersion, setLatestVersion] = useState<string | null>(null);
+    const isUpdating = useRef(false);
 
-    const checkVersion = async () => {
-        try {
-            const response = await fetch('/version.json?t=' + new Date().getTime(), {
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            });
+    const handleUpdate = async (newVersion: string) => {
+        if (isUpdating.current) return;
 
-            if (!response.ok) return;
-
-            const data = await response.json();
-            const newestVersion = data.version;
-
-            // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
-            const currentVersion = import.meta.env.VITE_APP_VERSION;
-
-            console.log(`[VersionCheck] Current: ${currentVersion}, Newest: ${newestVersion}`);
-
-            if (currentVersion && newestVersion !== currentVersion) {
-                // If it's a new version, show the prompt instead of reloading
-                setLatestVersion(newestVersion);
-                setShowUpdatePrompt(true);
-            }
-        } catch (error) {
-            console.error('Failed to check version:', error);
+        // Prevent infinite reload loops: check if we tried to update very recently
+        const lastAttempt = localStorage.getItem(LAST_UPDATE_KEY);
+        const now = Date.now();
+        if (lastAttempt && now - parseInt(lastAttempt) < UPDATE_COOLDOWN) {
+            console.warn('[VersionCheck] Update attempt blocked to prevent infinite loop');
+            return;
         }
-    };
 
-    useEffect(() => {
-        checkVersion();
-
-        // Check on visibility change (when user comes back to tab)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                checkVersion();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Periodic check every 30 minutes
-        const interval = setInterval(checkVersion, 30 * 60 * 1000);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            clearInterval(interval);
-        };
-    }, []);
-
-    const handleUpdate = async () => {
-        if (!latestVersion) return;
-
-        console.log(`Updating to version: ${latestVersion}...`);
+        isUpdating.current = true;
+        localStorage.setItem(LAST_UPDATE_KEY, now.toString());
+        console.log(`[VersionCheck] Updating to version: ${newVersion}...`);
 
         try {
             // 1. Unregister Service Workers
@@ -77,13 +41,75 @@ export const VersionChecker: React.FC = () => {
                     keys.map((key) => caches.delete(key))
                 );
             }
+
+            // 3. Clear session/local identifiers if needed (optional)
+            // But we keep the LAST_UPDATE_KEY in localStorage to persist across the reload
         } catch (error) {
-            console.error('Error clearing cache:', error);
+            console.error('[VersionCheck] Error clearing cache:', error);
         }
 
-        // 3. Force Reload
+        // 4. Force Reload from server
         window.location.reload();
     };
+
+    const checkVersion = async (isAutoUpdate = false) => {
+        if (isUpdating.current) return;
+
+        try {
+            const response = await fetch('/version.json?t=' + new Date().getTime(), {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const newestVersion = data.version;
+
+            // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
+            const currentVersion = import.meta.env.VITE_APP_VERSION;
+
+            console.log(`[VersionCheck] Current: ${currentVersion}, Newest: ${newestVersion}, Auto: ${isAutoUpdate}`);
+
+            if (currentVersion && newestVersion !== currentVersion) {
+                if (isAutoUpdate) {
+                    // Automatically update if requested (e.g. on visibility change)
+                    handleUpdate(newestVersion);
+                } else {
+                    // Otherwise show the prompt
+                    setLatestVersion(newestVersion);
+                    setShowUpdatePrompt(true);
+                }
+            }
+        } catch (error) {
+            console.error('[VersionCheck] Failed to check version:', error);
+        }
+    };
+
+    useEffect(() => {
+        // Initial soft check
+        checkVersion(false);
+
+        // Check and AUTOMATICALLY reload on visibility change (when user comes back to tab)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[VersionCheck] Tab focused, checking for updates...');
+                checkVersion(true); // pass true to trigger auto-reload
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Periodic check every 30 minutes (soft check, shows UI)
+        const interval = setInterval(() => checkVersion(false), 30 * 60 * 1000);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearInterval(interval);
+        };
+    }, []);
 
     return (
         <AnimatePresence>
@@ -102,13 +128,13 @@ export const VersionChecker: React.FC = () => {
                         <div className="flex-grow">
                             <h3 className="text-white font-black text-sm uppercase tracking-wider italic">Update Available</h3>
                             <p className="text-zinc-400 text-[11px] font-medium leading-relaxed mt-0.5">
-                                최신 기능이 추가되었습니다.<br />업데이트 후 <strong>앱을 껐다 켜주세요.</strong>
+                                최신 기능이 추가되었습니다.<br />업데이트를 위해 <strong>새로고침 하시겠습니까?</strong>
                             </p>
                         </div>
 
                         <div className="flex flex-col gap-2">
                             <button
-                                onClick={handleUpdate}
+                                onClick={() => latestVersion && handleUpdate(latestVersion)}
                                 className="bg-violet-600 hover:bg-violet-500 text-white p-3 rounded-2xl transition-all active:scale-95 group shadow-lg shadow-violet-900/20"
                                 title="업데이트 적용"
                             >
@@ -128,3 +154,4 @@ export const VersionChecker: React.FC = () => {
         </AnimatePresence>
     );
 };
+

@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPayoutSettings, updatePayoutSettings } from '../../lib/api';
 import { Button } from '../Button';
-import { CreditCard, Building, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { Building, User, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export const PayoutSettingsTab: React.FC = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+    const [_stripeAccountId, setStripeAccountId] = useState<string | null>(null);
     const [payoutType, setPayoutType] = useState<'individual' | 'business'>('individual');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');

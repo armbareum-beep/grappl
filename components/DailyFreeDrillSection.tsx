@@ -74,7 +74,7 @@ export const DailyFreeDrillSection: React.FC = () => {
             data: lesson,
             img: lesson.thumbnailUrl,
             activeRatio: '5/4', // Wide & Short
-            link: '/watch?tab=lesson'
+            link: `/watch?tab=lesson&id=${lesson.id}`
         },
         {
             id: 'sparring',
@@ -121,7 +121,13 @@ export const DailyFreeDrillSection: React.FC = () => {
                             <div
                                 key={item.id}
                                 onMouseEnter={() => setActiveId(item.id)}
-                                onClick={() => setActiveId(item.id)}
+                                onClick={() => {
+                                    if (isActive) {
+                                        navigate(item.link);
+                                    } else {
+                                        setActiveId(item.id);
+                                    }
+                                }}
                                 style={{
                                     // STRICT ASPECT RATIO LOGIC:
                                     // If Active: flex-grow: 0, flex-shrink: 0, aspect-ratio defines size.
@@ -166,36 +172,39 @@ export const DailyFreeDrillSection: React.FC = () => {
                                 <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                                     <div className={`transition-all duration-500 transform ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                                         <span className="text-violet-400 font-black tracking-widest text-sm mb-2 block">{item.type}</span>
-                                        <h3 className={`font-bold leading-tight mb-4 text-white ${isActive ? 'text-2xl md:text-3xl' : 'text-xl'}`}>
+                                        <h3 className={`font-bold leading-tight ${isActive ? 'mb-4 text-2xl md:text-3xl' : 'text-xl'}`}>
                                             {isActive ? item.data.title : ''}
                                         </h3>
                                         {isActive && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(item.link);
-                                                }}
-                                                className="bg-white text-black px-6 py-3 rounded-full font-bold text-sm hover:bg-violet-50 transition-colors shadow-xl shadow-black/20"
-                                            >
-                                                바로 시청하기
-                                            </button>
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 ring-1 ring-white/10">
+                                                    <img
+                                                        src={(item.data as any).creatorProfileImage || (item.data as any).creator?.profileImage || '/default-avatar.png'}
+                                                        alt={(item.data as any).creatorName || (item.data as any).creator?.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <span className="text-zinc-300 text-sm font-medium">
+                                                    {(item.data as any).creatorName || (item.data as any).creator?.name}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
-
-                                    {/* Inactive Label (Rotated on Desktop, Horizontal on Mobile) */}
-                                    {!isActive && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <h3 className="text-xl md:text-2xl font-black text-white/50 md:-rotate-90 whitespace-nowrap tracking-widest uppercase shadow-black drop-shadow-lg">
-                                                {item.type}
-                                            </h3>
-                                        </div>
-                                    )}
                                 </div>
+
+                                {/* Inactive Label (Rotated on Desktop, Horizontal on Mobile) */}
+                                {!isActive && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <h3 className="text-xl md:text-2xl font-black text-white/50 md:-rotate-90 whitespace-nowrap tracking-widest uppercase shadow-black drop-shadow-lg">
+                                            {item.type}
+                                        </h3>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
                 </div>
             </div>
-        </section>
+        </section >
     );
 };

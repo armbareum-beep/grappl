@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Clapperboard } from 'lucide-react';
+import useEmblaCarousel from 'embla-carousel-react';
+import { Play, Clapperboard, ChevronUp, ChevronDown } from 'lucide-react';
 import { Drill } from '../types';
-import { getDrills } from '../lib/api';
+import { getDailyFreeDrill } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoPlayer } from './VideoPlayer';
+import { supabase } from '../lib/supabase';
 
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -30,7 +32,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
 
     return (
         <div
-            className="relative flex-none w-[280px] aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 group snap-center cursor-pointer transition-all duration-300 hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:border-violet-500/50"
+            className="relative w-full h-full bg-zinc-900 overflow-hidden group cursor-pointer transition-all duration-300"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -103,19 +105,63 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
 
 export const DrillReelsSection: React.FC = () => {
     const navigate = useNavigate();
-    const [dailyDrill, setDailyDrill] = useState<Drill | null>(null);
+    const [drills, setDrills] = useState<Drill[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        axis: 'y',
+        align: 'center',
+        loop: true,
+        dragFree: false
+    });
+
+    const scrollPrev = React.useCallback(() => {
+        if (emblaApi) emblaApi.scrollPrev();
+    }, [emblaApi]);
+
+    const scrollNext = React.useCallback(() => {
+        if (emblaApi) emblaApi.scrollNext();
+    }, [emblaApi]);
 
     useEffect(() => {
         const fetchDrills = async () => {
-            // Fetch a batch of drills to select from
-            const data = await getDrills(undefined, 50);
+            try {
+                setLoading(true);
+                // 1. Get Daily Free Drill
+                const dailyRes = await getDailyFreeDrill();
 
-            if (data.length > 0) {
-                // Select a drill based on the current date (Daily Rotation)
-                const today = new Date();
-                const seed = Math.floor(today.getTime() / (1000 * 60 * 60 * 24)); // Days since epoch
-                const index = seed % data.length;
-                setDailyDrill(data[index]);
+                // 2. Get other free drills
+                const { data: freeDrillsData } = await supabase
+                    .from('drills')
+                    .select('*')
+                    .eq('price', 0)
+                    .limit(20);
+
+                let finalDrills: Drill[] = [];
+                if (dailyRes.data) {
+                    finalDrills.push(dailyRes.data);
+                }
+
+                if (freeDrillsData) {
+                    const dailyId = dailyRes.data?.id;
+                    const others = freeDrillsData
+                        .filter(d => d.id !== dailyId)
+                        .map(d => ({
+                            ...d,
+                            thumbnailUrl: d.thumbnail_url,
+                            vimeoUrl: d.vimeo_url,
+                            videoUrl: d.video_url,
+                            creatorId: d.creator_id,
+                            createdAt: d.created_at
+                        }));
+                    finalDrills = [...finalDrills, ...others];
+                }
+
+                setDrills(finalDrills);
+            } catch (e) {
+                console.error('Error fetching drills:', e);
+            } finally {
+                setLoading(false);
             }
         };
         fetchDrills();
@@ -132,33 +178,59 @@ export const DrillReelsSection: React.FC = () => {
                     <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
                         <Clapperboard className="w-3.5 h-3.5 text-violet-500 mr-2" />
                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">
-                            SHORT FORM DRILLS
+                            FREE SHORT DRILLS
                         </span>
                     </div>
                     <h2 className="text-zinc-50 text-4xl md:text-5xl font-black tracking-tighter leading-[1.1] mb-6 whitespace-pre-line text-center">
-                        {"의미 없는 스크롤은 끝내고,\n60초 만에 기술 하나를 당신의 것으로."}
+                        {"오늘의 무료 드릴부터,\n언제든지 체험 가능한 무료 기술까지."}
                     </h2>
                     <p className="text-zinc-400 text-lg max-w-xl mx-auto text-center">
-                        릴스처럼 가볍게 보고, AI처럼 정교하게 익히세요.
-                        엄선된 1,000개의 드릴이 당신의 선택을 기다립니다.
+                        따로 결제 없이 지금 바로 체험해보세요. <br />
+                        상하로 넘겨 60초의 핵심 디테일을 경험하실 수 있습니다.
                     </p>
                 </div>
 
-                {/* Single Daily Drill Display */}
-                <div className="flex justify-center pb-8">
-                    {dailyDrill ? (
-                        <div onClick={() => navigate(`/drills`)}>
-                            {/* Scale up the single card slightly for emphasis */}
-                            <div className="transform scale-110">
-                                <DrillCard drill={dailyDrill} />
+                {/* Vertical Reels Container */}
+                <div className="relative flex justify-center py-8">
+                    <div className="relative group/carousel w-[280px] h-[500px] md:w-[320px] md:h-[570px] flex items-center">
+                        {/* Vertical Indicators/Buttons - Left Side */}
+                        <div className="absolute -left-16 flex flex-col gap-4 z-30">
+                            <button
+                                onClick={scrollPrev}
+                                className="w-12 h-12 rounded-full bg-zinc-900/80 border border-white/5 flex items-center justify-center text-white transition-all hover:bg-violet-600 shadow-xl"
+                            >
+                                <ChevronUp className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={scrollNext}
+                                className="w-12 h-12 rounded-full bg-zinc-900/80 border border-white/5 flex items-center justify-center text-white transition-all hover:bg-violet-600 shadow-xl"
+                            >
+                                <ChevronDown className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="h-full w-full overflow-hidden cursor-grab active:cursor-grabbing rounded-[2.5rem] shadow-[0_0_80px_rgba(124,58,237,0.25)] border-4 border-zinc-800/50 bg-black" ref={emblaRef}>
+                            <div className="h-full flex flex-col">
+                                {loading ? (
+                                    <div className="h-full w-full bg-zinc-900 animate-pulse flex items-center justify-center">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-800" />
+                                    </div>
+                                ) : (
+                                    drills.map((drill: Drill) => (
+                                        <div
+                                            key={drill.id}
+                                            className="h-full w-full flex-none"
+                                            onClick={() => navigate(`/watch?id=${drill.id}`)}
+                                        >
+                                            <div className="h-full w-full">
+                                                <DrillCard drill={drill} />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
-                    ) : (
-                        /* Skeleton */
-                        <div className="flex-none w-[280px] aspect-[9/16] bg-zinc-900 rounded-3xl border border-zinc-800 animate-pulse flex items-center justify-center transform scale-110">
-                            <div className="w-10 h-10 rounded-full bg-zinc-800" />
-                        </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* CTA */}

@@ -10,13 +10,15 @@ interface NewCoursesSectionProps {
     title?: string;
     subtitle?: string;
     hideHeader?: boolean;
+    hideBadges?: boolean;
 }
 
 export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
     courses,
     title = "신규 클래스",
     subtitle = "따끈따끈한 신규 클래스를 만나보세요.",
-    hideHeader = false
+    hideHeader = false,
+    hideBadges = false
 }) => {
     const navigate = useNavigate();
 
@@ -45,7 +47,7 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {courses.map((course, index) => (
+                {courses.map((course) => (
                     <div
                         key={course.id}
                         onClick={() => navigate(`/courses/${course.id}`)}
@@ -70,14 +72,20 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
                             {/* Badges */}
-                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
-                                <div /> {/* Left space filler */}
-                                {(index < 3) ? (
-                                    <ContentBadge type="popular" rank={index + 1} />
-                                ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                    <ContentBadge type="recent" />
-                                ) : null}
-                            </div>
+                            {!hideBadges && (
+                                <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                    {course.isDailyFree && (
+                                        <ContentBadge type="daily_free" />
+                                    )}
+                                    <div className="ml-auto">
+                                        {course.rank ? (
+                                            <ContentBadge type="popular" rank={course.rank} />
+                                        ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                            <ContentBadge type="recent" />
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">

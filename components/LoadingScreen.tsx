@@ -17,17 +17,41 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '무림�
         return () => clearTimeout(timer);
     }, []);
 
-    const handleReset = () => {
-        // Force clear without confirmation
-        localStorage.clear();
-        sessionStorage.clear();
-        // Remove Supabase auth token specifically if present in cookies (unlikely but safe)
-        document.cookie.split(";").forEach((c) => {
-            document.cookie = c
-                .replace(/^ +/, "")
-                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-        window.location.href = '/';
+    const handleReset = async () => {
+        console.log('[LoadingScreen] Performing hard reset...');
+
+        try {
+            // 1. Unregister Service Workers (The most common cause of "sticky" old code)
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+            }
+
+            // 2. Clear Cache Storage (Images, Scripts, etc.)
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(
+                    keys.map((key) => caches.delete(key))
+                );
+            }
+
+            // 3. Clear Session & Selected LocalStorage (Preserving Login)
+            // Supabase uses keys starting with 'sb-' for auth
+            Object.keys(localStorage).forEach(key => {
+                if (!key.startsWith('sb-') && key !== 'grapplay_last_update_attempt') {
+                    localStorage.removeItem(key);
+                }
+            });
+            sessionStorage.clear();
+
+        } catch (error) {
+            console.error('[LoadingScreen] Error during reset:', error);
+        }
+
+        // 4. Force reload current page
+        window.location.reload();
     };
 
     return (

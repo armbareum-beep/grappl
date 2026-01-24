@@ -154,7 +154,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 title="레벨 업 달성!"
-                text={`그랩플레이에서 Lv.${newLevel}을 달성했습니다!`}
+                text={`그래플레이에서 Lv.${newLevel}을 달성했습니다!`}
             />
         </AnimatePresence>
     );

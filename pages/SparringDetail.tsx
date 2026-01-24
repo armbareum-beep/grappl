@@ -3,19 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     getSparringVideoById,
     toggleSparringLike,
-    checkSparringLiked,
     toggleSparringSave,
-    checkSparringSaved,
     toggleCreatorFollow,
     getSparringInteractionStatus,
-    getDrillsByIds,
     getSparringVideos,
     incrementSparringView
 } from '../lib/api';
 import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, CheckCircle, ChevronRight, X, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, ChevronRight, X, LayoutGrid } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,7 +44,7 @@ export const SparringDetail: React.FC = () => {
     const [isPlaying, setIsPlaying] = useState(true);
     const [progress, setProgress] = useState(0);
     const [muted, setMuted] = useState(true);
-    const [isVideoReady, setIsVideoReady] = useState(false);
+    const [_isVideoReady, setIsVideoReady] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -123,7 +120,7 @@ export const SparringDetail: React.FC = () => {
             if (data.creatorId) {
                 getSparringVideos(10, data.creatorId, true).then(({ data: videos }) => {
                     if (videos) {
-                        setMoreSparring(videos.filter(v => v.id !== data.id));
+                        setMoreSparring(videos.filter((v: SparringVideo) => v.id !== data.id));
                     }
                 });
             }
@@ -390,7 +387,7 @@ export const SparringDetail: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-black text-white mb-2">스파링 전체 시청하기</h3>
                             <p className="text-zinc-400 text-sm mb-8 max-w-[280px] font-medium">
-                                이 스파링 영상의 뒷부분을 시청하시려면 단품으로 구매하거나 그랩플레이 멤버십을 구독하세요.
+                                이 스파링 영상의 뒷부분을 시청하시려면 단품으로 구매하거나 그래플레이 멤버십을 구독하세요.
                             </p>
 
                             <div className="w-full max-w-[280px] space-y-3">

@@ -76,6 +76,8 @@ export interface Course {
   previewVideoUrl?: string; // URL of the first lesson for preview
   previewVimeoId?: string; // Dedicated 1-minute preview vimeo ID
   published?: boolean;
+  rank?: number;
+  isDailyFree?: boolean;
 }
 
 export interface Lesson {
@@ -250,6 +252,8 @@ export interface SparringVideo {
   price: number; // Price in cents (0 = free)
   isPublished?: boolean; // Visibility on Reels/Feed
   previewVimeoId?: string; // Dedicated preview vimeo ID
+  rank?: number;
+  isDailyFree?: boolean;
 }
 
 export interface LogFeedback {
@@ -467,6 +471,8 @@ export interface DrillRoutine {
   totalDurationMinutes?: number;
   likes?: number; // Added for algorithm
   creatorProfileImage?: string;
+  rank?: number;
+  isDailyFree?: boolean;
 }
 
 export interface DrillRoutineItem {

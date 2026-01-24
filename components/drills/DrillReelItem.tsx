@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, Play, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Heart, Bookmark, Share2, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft, AlertCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
@@ -51,14 +51,14 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<Player | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [_isPlaying, setIsPlaying] = useState(false);
     const [ready, setReady] = useState(false);
 
     // Analyze URL
     const vimeoId = useMemo(() => extractVimeoId(url), [url]);
-    const vimeoHash = useMemo(() => getVimeoHash(url), [url]);
+    const _vimeoHash = useMemo(() => getVimeoHash(url), [url]);
     const useVimeo = !!vimeoId;
-    const isPlaceholder = !url || url.includes('placeholder') || url.includes('placehold.co');
+    const _isPlaceholder = !url || url.includes('placeholder') || url.includes('placehold.co');
 
     // --- Vimeo Lifecycle ---
     useEffect(() => {
@@ -291,7 +291,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
     // URLs
     const actionUrl = drill.vimeoUrl || drill.videoUrl;
-    const descUrl = drill.descriptionVideoUrl || drill.vimeoUrl; // Fallback to main if desc missing? No, logic was diff before.
+    const _descUrl = drill.descriptionVideoUrl || drill.vimeoUrl; // Fallback to main if desc missing? No, logic was diff before.
     // Original logic:
     // const rawVimeoUrl = isActionVideo ? drill.vimeoUrl : (drill.descriptionVideoUrl || drill.vimeoUrl);
     // So if desc is missing, use main.
@@ -517,8 +517,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 </div>
             )}
 
-            {/* Metadata Footer */}
-            <div className="absolute left-0 right-0 w-full bottom-24 px-6 z-40 pointer-events-none">
+            {/* Metadata Footer - Lowered on mobile */}
+            <div className="absolute left-0 right-0 w-full bottom-12 md:bottom-24 px-6 z-40 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
                     <div className="flex-1 pr-16">
                         <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">DRILL</div>
@@ -534,7 +534,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 {isFollowed ? 'Following' : 'Follow'}
                             </button>
                         </div>
-                        <h2 className="text-white font-bold text-base mb-2 line-clamp-2 drop-shadow-sm">
+                        <h2 className="text-white font-bold text-lg md:text-xl mb-2 line-clamp-2 drop-shadow-sm">
                             {drill.title}
                             {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
                         </h2>

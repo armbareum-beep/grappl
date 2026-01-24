@@ -7,7 +7,8 @@ import {
 import {
   getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
   getPublicSparringVideos, getFeaturedRoutines, getNewCourses,
-  getRecentCompletedRoutines, fetchRoutines, getTrendingCourses
+  getRecentCompletedRoutines, fetchRoutines, getTrendingCourses,
+  getDailyFreeSparring
 } from '../lib/api';
 import { Lesson, DrillRoutine, SparringVideo, Course, CompletedRoutineRecord } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -104,11 +105,19 @@ export const Home: React.FC = () => {
           console.error("Error fetching recent activity", e);
         }
 
+        // Initialize local variables to hold fetched data for processing
+        let trendingCoursesData: Course[] = [];
+        let newCoursesData: Course[] = [];
+        let featuredRoutinesData: DrillRoutine[] = [];
+        let newRoutinesData: DrillRoutine[] = [];
+        let trendingSparringData: SparringVideo[] = [];
+        let newSparringData: SparringVideo[] = [];
+
         // B. Trending Sparring
         try {
           const sparringVideos = await getPublicSparringVideos(6);
           if (sparringVideos && sparringVideos.length > 0) {
-            setTrendingSparring(sparringVideos);
+            trendingSparringData = sparringVideos;
           }
         } catch (e) {
           console.error("Error fetching sparring", e);
@@ -118,17 +127,17 @@ export const Home: React.FC = () => {
         try {
           const routines = await getFeaturedRoutines(6);
           if (routines && routines.length > 0) {
-            setFeaturedRoutines(routines);
+            featuredRoutinesData = routines;
           }
         } catch (e) {
           console.error("Error fetching routines", e);
         }
 
-        // D. Trending Courses (Replaces old NewCourses logic for main section)
+        // D. Trending Courses
         try {
-          const courses = await getTrendingCourses(6); // Use trending!
+          const courses = await getTrendingCourses(6);
           if (courses && courses.length > 0) {
-            setTrendingCourses(courses);
+            trendingCoursesData = courses;
           }
         } catch (e) {
           console.error("Error fetching trending courses", e);
@@ -150,7 +159,7 @@ export const Home: React.FC = () => {
         try {
           const courses = await getNewCourses(10);
           if (courses && courses.length > 0) {
-            setNewCourses(courses);
+            newCoursesData = courses;
           }
         } catch (e) {
           console.error("Error fetching new courses for tab", e);
@@ -160,7 +169,7 @@ export const Home: React.FC = () => {
         try {
           const routinesRes = await fetchRoutines(6);
           if (routinesRes.data && routinesRes.data.length > 0) {
-            setNewRoutines(routinesRes.data);
+            newRoutinesData = routinesRes.data;
           }
         } catch (e) {
           console.error("Error fetching new routines", e);
@@ -170,10 +179,61 @@ export const Home: React.FC = () => {
         try {
           const sparringRes = await getPublicSparringVideos(10);
           if (sparringRes && sparringRes.length > 0) {
-            setNewSparring(sparringRes);
+            newSparringData = sparringRes;
           }
         } catch (e) {
           console.error("Error fetching new sparring", e);
+        }
+
+        // --- I. Inject Ranks and Free Status ---
+        try {
+          const [freeDrill, freeLesson, freeSparring] = await Promise.all([
+            getDailyFreeDrill(),
+            getDailyFreeLesson(),
+            getDailyFreeSparring()
+          ]);
+          const freeIds = [
+            freeDrill.data?.id,
+            freeLesson.data?.id,
+            freeSparring.data?.id,
+            freeLesson.data?.courseId
+          ].filter(Boolean) as string[];
+
+          const processContent = (items: any[], categoryAll: any[]) => {
+            const now = Date.now();
+
+            // 1. Calculate 'Hot Score' for all items in the category
+            // Score = Views / (HoursSinceCreation + 2)^1.5
+            const getHotScore = (item: any) => {
+              const views = item.views || 0;
+              const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
+              const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+              return views / Math.pow(hoursSinceCreation + 2, 1.5);
+            };
+
+            const sortedByHot = [...categoryAll]
+              .filter(item => (item.views || 0) >= 5) // Slightly lower threshold for 'Hot' to catch rising stars
+              .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+            return items.map(item => {
+              const hotIndex = sortedByHot.findIndex(s => s.id === item.id);
+              return {
+                ...item,
+                rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+                isDailyFree: freeIds.includes(item.id) || (item.courseId && freeIds.includes(item.courseId))
+              };
+            });
+          };
+
+          setTrendingCourses(processContent(trendingCoursesData, trendingCoursesData));
+          setNewCourses(processContent(newCoursesData, [...newCoursesData, ...trendingCoursesData]));
+          setFeaturedRoutines(processContent(featuredRoutinesData, featuredRoutinesData));
+          setNewRoutines(processContent(newRoutinesData, [...newRoutinesData, ...featuredRoutinesData]));
+          setTrendingSparring(processContent(trendingSparringData, trendingSparringData));
+          setNewSparring(processContent(newSparringData, [...newSparringData, ...trendingSparringData]));
+
+        } catch (e) {
+          console.error("Error injecting ranks", e);
         }
 
       } catch (error) {
@@ -222,7 +282,7 @@ export const Home: React.FC = () => {
             <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-4 tracking-tighter">
               안녕하세요, <span className="text-violet-500">{displayName}</span>님.
             </h1>
-            <p className="text-zinc-400 text-sm font-medium">오늘도 그랩플레이와 함께 성장하세요 🥋</p>
+            <p className="text-zinc-400 text-sm font-medium">오늘도 그래플레이와 함께 성장하세요 🥋</p>
           </div>
           <div onClick={() => navigate('/settings')} className="w-11 h-11 rounded-full border-2 border-zinc-800 bg-zinc-900 overflow-hidden cursor-pointer hover:border-violet-500 transition-all shadow-lg group">
             {userAvatar ? (
@@ -453,6 +513,7 @@ export const Home: React.FC = () => {
                 title=""
                 subtitle=""
                 hideHeader={true}
+                hideBadges={true}
               />
             </div>
           )}
@@ -463,6 +524,7 @@ export const Home: React.FC = () => {
                 title=""
                 subtitle=""
                 hideHeader={true}
+                hideBadges={true}
               />
             </div>
           )}
@@ -473,6 +535,7 @@ export const Home: React.FC = () => {
                 title=""
                 subtitle=""
                 hideHeader={true}
+                hideBadges={true}
               />
             </div>
           )}
@@ -517,7 +580,7 @@ export const Home: React.FC = () => {
         <div className="min-h-[400px]">
           {activeNewTab === 'course' && (
             <div className="animate-fadeIn">
-              <NewCoursesSection courses={newCourses} title="" subtitle="" hideHeader={true} />
+              <NewCoursesSection courses={newCourses} title="" subtitle="" hideHeader={true} hideBadges={true} />
             </div>
           )}
           {activeNewTab === 'routine' && (
@@ -527,6 +590,7 @@ export const Home: React.FC = () => {
                 title=""
                 subtitle=""
                 hideHeader={true}
+                hideBadges={true}
               />
             </div>
           )}
@@ -538,6 +602,7 @@ export const Home: React.FC = () => {
                 subtitle=""
                 showRank={false}
                 hideHeader={true}
+                hideBadges={true}
               />
             </div>
           )}

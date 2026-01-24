@@ -3843,7 +3843,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 isOpen={isShareModalOpen}
                 onClose={() => setIsShareModalOpen(false)}
                 title={currentTreeTitle || '나의 스킬 트리'}
-                text={`${user?.user_metadata?.full_name || '게스트'}님의 그랩플레이 스킬 트리를 확인해보세요!`}
+                text={`${user?.user_metadata?.full_name || '게스트'}님의 그래플레이 스킬 트리를 확인해보세요!`}
                 url={customShareUrl || (currentTreeId ? `${window.location.origin}${window.location.pathname}?id=${currentTreeId}` : undefined)}
             />
 

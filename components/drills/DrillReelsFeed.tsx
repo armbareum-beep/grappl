@@ -80,11 +80,11 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
 
                 if (!error && updatedDrills) {
                     // Check if any drill's video URL has been updated (processing complete)
-                    const hasUpdates = updatedDrills.some(updated => {
+                    const hasUpdates = updatedDrills.some((updated: any) => {
                         const original = drills.find(d => d.id === updated.id);
                         return original && (
-                            updated.vimeo_url !== (original.vimeoUrl || original.vimeo_url) ||
-                            updated.video_url !== (original.videoUrl || original.video_url)
+                            updated.vimeo_url !== original.vimeoUrl ||
+                            updated.video_url !== original.videoUrl
                         );
                     });
 
@@ -191,7 +191,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         }
     };
 
-    const handleShare = async (drill: Drill) => {
+    const _handleShare = async (drill: Drill) => {
         setCurrentDrill(drill);
         setIsShareModalOpen(true);
     };
@@ -273,7 +273,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         onSave={() => handleSave(drill)}
                         isFollowed={following.has(drill.creatorId)}
                         onFollow={() => handleFollow(drill)}
-                        onShare={() => handleShare(drill)}
                         onViewRoutine={() => handleViewRoutine(drill)}
                         offset={offset}
                         isSubscriber={userPermissions.isSubscriber}

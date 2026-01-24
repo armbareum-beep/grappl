@@ -38,7 +38,7 @@ export const SparringPerformanceTab: React.FC = () => {
 
             // Get real performance data for each video
             const performanceData: SparringPerformance[] = await Promise.all(
-                sparringData.map(async (video) => {
+                sparringData.map(async (video: SparringVideo) => {
                     // Get sales count directly from payments
                     const { data: purchases } = await supabase
                         .from('payments')

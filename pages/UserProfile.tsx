@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Swords, Calendar, Medal, Activity, Dumbbell, Star, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Swords, Calendar, Medal, Activity, Dumbbell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getBeltInfo } from '../lib/belt-system';
 import { TrainingLog, UserProgress } from '../types';

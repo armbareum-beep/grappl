@@ -74,7 +74,6 @@ export const TechniqueCard: React.FC<TechniqueCardProps> = ({
                         currentXp={mastery.masteryXp}
                         size="md"
                         showLevel={true}
-                        animated={true}
                     />
                 </div>
 

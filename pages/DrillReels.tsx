@@ -3,13 +3,16 @@ import { Zap } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { DrillReelsFeed } from '../components/drills/DrillReelsFeed';
 import { supabase } from '../lib/supabase';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 export function DrillReels() {
     const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [drills, setDrills] = useState<any[]>([]);
     const [initialIndex, setInitialIndex] = useState(0);
+
+    const [searchParams] = useSearchParams();
+    const targetId = searchParams.get('id');
 
     // Load Drill Content
     useEffect(() => {
@@ -18,7 +21,7 @@ export function DrillReels() {
         if (state?.source === 'saved') {
             loadSavedDrills(state.drillId);
         } else {
-            loadDrillContent();
+            loadDrillContent(targetId || undefined);
         }
 
         // Auto-refresh drills every 5 seconds to detect when processing is complete
@@ -71,7 +74,7 @@ export function DrillReels() {
         }
     };
 
-    const loadDrillContent = async () => {
+    const loadDrillContent = async (initialId?: string) => {
         try {
             setLoading(true);
 
@@ -116,6 +119,16 @@ export function DrillReels() {
             for (let i = processedDrills.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [processedDrills[i], processedDrills[j]] = [processedDrills[j], processedDrills[i]];
+            }
+
+            // If initialId provided, move it to front
+            if (initialId) {
+                const targetIdx = processedDrills.findIndex(d => d.id === initialId);
+                if (targetIdx !== -1) {
+                    const targetItem = processedDrills[targetIdx];
+                    processedDrills.splice(targetIdx, 1);
+                    processedDrills.unshift(targetItem);
+                }
             }
 
             setDrills(processedDrills);

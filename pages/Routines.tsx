@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
 import { Search, PlayCircle, ChevronDown } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ContentBadge } from '../components/common/ContentBadge';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { cn } from '../lib/utils';
 import { LibraryTabs } from '../components/library/LibraryTabs';
@@ -35,29 +36,11 @@ export const Routines: React.FC<{
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [dailyFreeRoutineIds, setDailyFreeRoutineIds] = useState<string[]>([]);
 
     const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
 
     useEffect(() => {
         loadRoutines();
-        // Fetch daily free drill and find which routines contain it
-        getDailyFreeDrill().then(async (res) => {
-            if (res.data) {
-                console.log('[Routines] Daily Free Drill:', res.data.id, res.data.title);
-                const { data: relations } = await supabase
-                    .from('routine_drills')
-                    .select('routine_id')
-                    .eq('drill_id', res.data.id);
-
-                if (relations) {
-                    console.log('[Routines] Found related routines:', relations);
-                    setDailyFreeRoutineIds(relations.map(r => r.routine_id));
-                }
-            } else {
-                console.log('[Routines] No daily free drill found');
-            }
-        });
     }, []);
 
     const loadRoutines = async () => {
@@ -65,42 +48,70 @@ export const Routines: React.FC<{
             setLoading(true);
             setError(null);
 
-            const { data, error } = await fetchRoutines(50);
-            if (error) throw error;
+            const [routinesRes, dailyDrillRes] = await Promise.all([
+                fetchRoutines(100),
+                getDailyFreeDrill()
+            ]);
 
-            if (data) {
-                // Fetch creators if needed
-                const creatorIds = data.map(r => r.creatorId).filter(Boolean) as string[];
+            if (routinesRes.error) throw routinesRes.error;
+
+            let freeIds: string[] = [];
+            if (dailyDrillRes.data) {
+                const { data: relations } = await supabase
+                    .from('routine_drills')
+                    .select('routine_id')
+                    .eq('drill_id', dailyDrillRes.data.id);
+                if (relations) {
+                    freeIds = relations.map(r => r.routine_id);
+                }
+            }
+
+            if (routinesRes.data) {
+                const data = routinesRes.data;
+                const creatorIds = data.map((r: DrillRoutine) => r.creatorId).filter(Boolean) as string[];
+                let enriched = data;
+
                 if (creatorIds.length > 0) {
                     const creatorsMap = await fetchCreatorsByIds(creatorIds);
-                    const enriched = data.map(r => ({
+                    enriched = data.map((r: DrillRoutine) => ({
                         ...r,
                         creatorName: creatorsMap[r.creatorId]?.name || r.creatorName,
                         creatorProfileImage: creatorsMap[r.creatorId]?.avatarUrl || r.creatorProfileImage
                     }));
-
-                    // Shuffle by default
-                    const shuffled = [...enriched];
-                    for (let i = shuffled.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                    }
-                    setRoutines(shuffled);
-                } else {
-                    const shuffled = [...data];
-                    for (let i = shuffled.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                    }
-                    setRoutines(shuffled);
                 }
+
+                // Inject ranks and free status (Hot Score Logic)
+                const now = Date.now();
+                const getHotScore = (item: any) => {
+                    const views = item.views || 0;
+                    const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
+                    const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+                    return views / Math.pow(hoursSinceCreation + 2, 1.5);
+                };
+
+                const hotRoutines = [...enriched]
+                    .filter((r: DrillRoutine) => (r.views || 0) >= 5)
+                    .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+                const processed = enriched.map((r: DrillRoutine) => {
+                    const hotIndex = hotRoutines.findIndex(s => s.id === r.id);
+                    return {
+                        ...r,
+                        rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+                        isDailyFree: freeIds.includes(r.id)
+                    };
+                });
+
+                // Shuffle for browse fresh feel
+                const shuffled = [...processed].sort(() => Math.random() - 0.5);
+                setRoutines(shuffled);
             }
         } catch (err: any) {
             setError(err.message || 'Failed to load routines');
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     if (loading) return <LoadingScreen message="루틴을 불러오는 중..." />;
     if (error) return <ErrorScreen error={error} resetMessage="루틴 목록을 불러오는 중 오류가 발생했습니다." />;
@@ -405,11 +416,19 @@ export const Routines: React.FC<{
                                 "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
                                 isEmbedded ? "aspect-[9/16]" : "aspect-video"
                             )}>
-                                {dailyFreeRoutineIds.includes(routine.id) && (
-                                    <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-10 pointer-events-none">
-                                        <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
+                                {/* Badges */}
+                                <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
+                                    {routine.isDailyFree && (
+                                        <ContentBadge type="daily_free" />
+                                    )}
+                                    <div className="ml-auto">
+                                        {routine.rank ? (
+                                            <ContentBadge type="popular" rank={routine.rank} />
+                                        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                            <ContentBadge type="recent" />
+                                        ) : null}
                                     </div>
-                                )}
+                                </div>
                                 {routine.thumbnailUrl ? (
                                     <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                                 ) : (

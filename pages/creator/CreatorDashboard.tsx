@@ -400,7 +400,7 @@ export const CreatorDashboard: React.FC = () => {
                     courses: coursesData?.length,
                     drills: Array.isArray(drillsData) ? drillsData.length : (drillsData as any)?.data?.length,
                     sparring: sparringData?.data?.length,
-                    sparringDetails: sparringData?.data?.map(s => ({ id: s.id, title: s.title, price: s.price })),
+                    sparringDetails: sparringData?.data?.map((s: any) => ({ id: s.id, title: s.title, price: s.price })),
                     earnings: earningsData
                 });
 

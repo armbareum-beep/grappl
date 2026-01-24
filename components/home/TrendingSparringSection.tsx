@@ -10,13 +10,15 @@ interface TrendingSporringSectionProps {
     subtitle?: string;
     showRank?: boolean;
     hideHeader?: boolean;
+    hideBadges?: boolean;
 }
 
 export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = ({
     videos,
     title = "인기 스파링",
     subtitle = "인기 스파링 영상을 분석해보세요.",
-    hideHeader = false
+    hideHeader = false,
+    hideBadges = false
 }) => {
     const navigate = useNavigate();
 
@@ -45,7 +47,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-                {videos.map((video, index) => (
+                {videos.map((video) => (
                     <div
                         key={video.id}
                         onClick={() => navigate('/sparring', { state: { highlightVideoId: video.id } })}
@@ -67,14 +69,20 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
                             {/* Badges */}
-                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
-                                <div />
-                                {(index < 3) ? (
-                                    <ContentBadge type="popular" rank={index + 1} />
-                                ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                    <ContentBadge type="recent" />
-                                ) : null}
-                            </div>
+                            {!hideBadges && (
+                                <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                    {video.isDailyFree && (
+                                        <ContentBadge type="daily_free" />
+                                    )}
+                                    <div className="ml-auto">
+                                        {video.rank ? (
+                                            <ContentBadge type="popular" rank={video.rank} />
+                                        ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                            <ContentBadge type="recent" />
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">

@@ -4,6 +4,7 @@ import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/
 import { SparringVideo } from '../types';
 import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { ContentBadge } from '../components/common/ContentBadge';
 
 import { cn } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
@@ -513,7 +514,7 @@ export const SparringFeed: React.FC<{
     const [videos, setVideos] = useState<SparringVideo[]>([]);
     const { user } = useAuth();
     const [activeIndex, setActiveIndex] = useState(0);
-    const [dailyFreeId, setDailyFreeId] = useState<string | null>(null);
+    const [dailyFreeIdState, setDailyFreeIdState] = useState<string | null>(null);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const initialView = searchParams.get('view') === 'grid' ? 'grid' : 'reels';
@@ -545,21 +546,38 @@ export const SparringFeed: React.FC<{
             let loadedVideos = videosRes.data || [];
 
             if (dailyRes.data) {
-                setDailyFreeId(dailyRes.data.id);
+                setDailyFreeIdState(dailyRes.data.id);
                 // Ensure daily free video is in the list
-                const exists = loadedVideos.some(v => v.id === dailyRes.data!.id);
+                const exists = loadedVideos.some((v: SparringVideo) => v.id === dailyRes.data!.id);
                 if (!exists) {
                     loadedVideos = [dailyRes.data as unknown as SparringVideo, ...loadedVideos];
                 }
             }
 
             if (loadedVideos.length > 0) {
-                const shuffled = [...loadedVideos];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                }
-                setVideos(shuffled);
+                // Enrich creator names if needed (though already done via transform)
+                const now = Date.now();
+                const getHotScore = (item: any) => {
+                    const views = item.views || 0;
+                    const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
+                    const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+                    return views / Math.pow(hoursSinceCreation + 2, 1.5);
+                };
+
+                const hotVideos = [...loadedVideos]
+                    .filter((v: SparringVideo) => (v.views || 0) >= 5)
+                    .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+                const processed = loadedVideos.map((v: SparringVideo) => {
+                    const hotIndex = hotVideos.findIndex(s => s.id === v.id);
+                    return {
+                        ...v,
+                        rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+                        isDailyFree: v.id === dailyRes.data?.id
+                    };
+                });
+
+                setVideos(processed);
             }
         };
         init();
@@ -643,7 +661,7 @@ export const SparringFeed: React.FC<{
                                     key={video.id}
                                     video={video}
                                     isActive={idx === activeIndex}
-                                    dailyFreeId={dailyFreeId}
+                                    dailyFreeId={dailyFreeIdState}
                                 />
                             ))
                         ) : (
@@ -893,11 +911,19 @@ export const SparringFeed: React.FC<{
                                         alt={video.title}
                                         className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                     />
-                                    {dailyFreeId === video.id && (
-                                        <div className="absolute top-2 left-2 px-2 py-1 bg-violet-600/90 backdrop-blur-md rounded-md shadow-lg border border-violet-400/20 z-10">
-                                            <span className="text-[10px] font-bold text-white tracking-wide">오늘의 무료</span>
+                                    {/* Badges */}
+                                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
+                                        {video.isDailyFree && (
+                                            <ContentBadge type="daily_free" />
+                                        )}
+                                        <div className="ml-auto">
+                                            {video.rank ? (
+                                                <ContentBadge type="popular" rank={video.rank} />
+                                            ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                                <ContentBadge type="recent" />
+                                            ) : null}
                                         </div>
-                                    )}
+                                    </div>
                                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
                                         <PlaySquare className="w-4 h-4" />

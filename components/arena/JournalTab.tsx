@@ -130,28 +130,43 @@ export const JournalTab: React.FC = () => {
         if (!user) return;
         try {
             setLoading(true);
-            const [logsResult, sparringResult] = await Promise.all([
-                getTrainingLogs(user.id),
-                getSparringReviews(user.id)
-            ]);
+
+            // Timeout helper
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out')), 7000)
+            );
+
+            // Fetch data with timeout race
+            const [logsResult, sparringResult] = await Promise.race([
+                Promise.all([
+                    getTrainingLogs(user.id),
+                    getSparringReviews(user.id)
+                ]),
+                timeoutPromise
+            ]) as [any, any];
 
             if (logsResult.error) throw logsResult.error;
 
             let items: TimelineItem[] = [];
             if (logsResult.data) {
-                const validLogs = logsResult.data.filter(log =>
+                const validLogs = logsResult.data.filter((log: TrainingLog) =>
                     log.durationMinutes !== -1 &&
                     (!log.location || !log.location.startsWith('__FEED__'))
                 );
-                items.push(...validLogs.map(log => ({ type: 'log' as const, data: log })));
+                items.push(...validLogs.map((log: TrainingLog) => ({ type: 'log' as const, data: log })));
             }
             if (sparringResult.data) {
-                items.push(...sparringResult.data.map(review => ({ type: 'sparring' as const, data: review })));
+                items.push(...sparringResult.data.map((review: SparringReview) => ({ type: 'sparring' as const, data: review })));
             }
             items.sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime());
             setTimelineItems(items);
         } catch (err: any) {
             console.error(err);
+            if (err.message === 'Request timed out') {
+                toastError('데이터 로딩 시간이 초과되었습니다. 다시 시도해주세요.');
+            } else {
+                // Silent fail or custom error handling depending on severity
+            }
         } finally {
             setLoading(false);
         }

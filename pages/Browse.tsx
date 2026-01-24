@@ -16,39 +16,88 @@ export const Browse: React.FC<{
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
-  const [internalCategory, setInternalCategory] = useState<string>('All');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
-  const [selectedUniform, setSelectedUniform] = useState<string>('All');
-  const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
-  const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | 'sort' | null>(null);
-  const [dailyFreeCourseId, setDailyFreeCourseId] = useState<string | null>(null);
-
   const searchTerm = internalSearchTerm;
-  const selectedCategory = internalCategory;
-  const setCategory = setInternalCategory;
   const setSearchTerm = setInternalSearchTerm;
+  const [selectedCategory, setCategory] = useState('All');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('All');
+  const [selectedUniform, setSelectedUniform] = useState('All');
+  const [selectedOwnership, setSelectedOwnership] = useState('All');
+  const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
   const ownershipOptions = ['All', 'My Classes', 'Not Purchased'];
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const data = await getCourses();
-        console.log('📚 Fetched courses:', data.length, data);
-        // Shuffle courses for a fresh experience on every refresh
-        const shuffled = [...data].sort(() => Math.random() - 0.5);
-        setCourses(shuffled);
-      } catch (error) {
-        console.error('Failed to fetch courses:', error);
-      } finally {
-        setLoading(false);
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [data, freeLessonRes] = await Promise.all([
+        getCourses(),
+        getDailyFreeLesson()
+      ]);
+
+      if (!data) {
+        console.warn('No courses received, utilizing empty array');
       }
-    };
+
+      const freeCourseId = freeLessonRes.data?.courseId;
+
+      // Process data with ranks and free status
+      const process = (items: Course[]) => {
+        const now = Date.now();
+        const getHotScore = (item: any) => {
+          const views = item.views || 0;
+          const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
+          const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+          return views / Math.pow(hoursSinceCreation + 2, 1.5);
+        };
+
+        const hotCourses = [...items]
+          .filter(c => (c.views || 0) >= 5)
+          .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+        const coursesWithRank = items.map(course => {
+          const hotIndex = hotCourses.findIndex(hc => hc.id === course.id);
+          return {
+            ...course,
+            rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+            isDailyFree: course.id === freeCourseId
+          };
+        });
+        return coursesWithRank;
+      };
+
+      const processed = process(data);
+      // Shuffle by default for browse fresh feel
+      const shuffled = [...processed].sort(() => Math.random() - 0.5);
+      setCourses(shuffled);
+    } catch (error) {
+      console.error('Failed to fetch courses:', error);
+      setError('서버와 연결할 수 없습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Safety guard: Force stop loading after 7 seconds if data fails to load silently
+    const safetyTimer = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('Browse page loading timed out, forcing release');
+          setError('응답 시간이 초과되었습니다.');
+          return false;
+        }
+        return prev;
+      });
+    }, 7000);
+
     fetchCourses();
-    getDailyFreeLesson().then(res => res.data && setDailyFreeCourseId(res.data.courseId || null));
+
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   const filteredCourses = courses.filter(course => {
@@ -91,6 +140,29 @@ export const Browse: React.FC<{
 
   if (loading) {
     return <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-6">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold mb-2 text-red-200">데이터를 불러올 수 없습니다</h2>
+          <p className="text-zinc-400 mb-6 text-sm">{error}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchCourses();
+            }}
+            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors"
+          >
+            다시 시도하기
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -338,7 +410,7 @@ export const Browse: React.FC<{
           {filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {filteredCourses.map(course => (
-                <CourseCard key={course.id} course={course} isDailyFree={dailyFreeCourseId === course.id} />
+                <CourseCard key={course.id} course={course} />
               ))}
             </div>
           ) : (

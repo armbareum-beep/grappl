@@ -109,7 +109,7 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = () => {
                 setCurrentUserPower(userInTop10.power);
             } else if (user) {
                 // Calculate current user's rank
-                const { count, error: countError } = await supabase
+                const { error: countError } = await supabase
                     .from('users')
                     .select('*', { count: 'exact', head: true })
                     .gt('combat_power', 0); // Users with higher power than current user

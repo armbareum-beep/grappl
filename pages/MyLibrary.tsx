@@ -180,11 +180,22 @@ export const MyLibrary: React.FC = () => {
     fetchData();
   }, [user, isCreator]);
 
-  // TOP 3 Logic Helper
+  // TOP 3 Logic Helper (Consistent with Global Ranks - Hot Score)
   const getRank = (item: any, list: any[]) => {
     if (!list || list.length === 0) return undefined;
-    const sorted = [...list].sort((a, b) => (b.views || 0) - (a.views || 0));
-    const index = sorted.findIndex(i => i.id === item.id);
+    const now = Date.now();
+    const getHotScore = (i: any) => {
+      const views = i.views || 0;
+      const createdDate = i.createdAt ? new Date(i.createdAt).getTime() : now;
+      const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+      return views / Math.pow(hoursSinceCreation + 2, 1.5);
+    };
+
+    const sortedByHot = [...list]
+      .filter(i => (i.views || 0) >= 5)
+      .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+    const index = sortedByHot.findIndex(i => i.id === item.id);
     return (index >= 0 && index < 3) ? index + 1 : undefined;
   };
 

@@ -26,7 +26,7 @@ export const MatchHistoryCard: React.FC<MatchHistoryCardProps> = ({
     totalMatches = 0,
     wins = 0,
     losses = 0,
-    draws = 0,
+    draws: _draws = 0,
 }) => {
     const winRate = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : 0;
 

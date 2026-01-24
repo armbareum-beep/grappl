@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getDrills } from '../../lib/api';
 import { Bundle, Coupon, Course, Drill } from '../../types';
 import { Package, Tag, Plus, X, Pencil, AlertCircle } from 'lucide-react';
-import { cn } from '../../lib/utils';
+// cn utility imported for potential future use
 
 export const MarketingTab: React.FC = () => {
     const { user } = useAuth();
@@ -64,8 +64,8 @@ export const MarketingTab: React.FC = () => {
         }
 
         setCourses(coursesData);
-        if (drillsRes.data) {
-            setDrills(drillsRes.data);
+        if (drillsRes && Array.isArray(drillsRes)) {
+            setDrills(drillsRes);
         }
         setLoading(false);
     };

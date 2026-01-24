@@ -220,7 +220,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
-            <div className="w-full h-full relative flex items-start justify-center pt-24">
+            <div className="w-full h-full relative flex items-center justify-center">
                 <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     <div
                         ref={containerRef}
@@ -302,7 +302,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                 </div>
                             </div>
 
-                            <div className="absolute bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
+                            <div className="absolute bottom-12 md:bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
                                 <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
                                     <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-violet-500/10 text-violet-400 border border-violet-500/20">LESSON</div>
                                     <div className="flex items-center gap-3 mb-3">
@@ -318,7 +318,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                         </button>
                                     </div>
                                     <div className="mb-2">
-                                        <h3 className="font-black text-xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{lesson.title}</h3>
+                                        <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{lesson.title}</h3>
                                     </div>
                                 </div>
                             </div>

@@ -10,13 +10,15 @@ interface FeaturedRoutinesSectionProps {
     title?: string;
     subtitle?: string;
     hideHeader?: boolean;
+    hideBadges?: boolean;
 }
 
 export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = ({
     routines,
     title = "추천 루틴",
     subtitle = "체계적인 드릴 루틴으로 실력을 향상시키세요.",
-    hideHeader = false
+    hideHeader = false,
+    hideBadges = false
 }) => {
     const navigate = useNavigate();
 
@@ -45,7 +47,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {routines.map((routine, index) => (
+                {routines.map((routine) => (
                     <div
                         key={routine.id}
                         onClick={() => navigate(`/drill-routines/${routine.id}`)}
@@ -70,14 +72,20 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                             {/* Badges */}
-                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
-                                <div />
-                                {(index < 3) ? (
-                                    <ContentBadge type="popular" rank={index + 1} />
-                                ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                    <ContentBadge type="recent" />
-                                ) : null}
-                            </div>
+                            {!hideBadges && (
+                                <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none">
+                                    {routine.isDailyFree && (
+                                        <ContentBadge type="daily_free" />
+                                    )}
+                                    <div className="ml-auto">
+                                        {routine.rank ? (
+                                            <ContentBadge type="popular" rank={routine.rank} />
+                                        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                            <ContentBadge type="recent" />
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Play Mini Icon */}
                             <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">

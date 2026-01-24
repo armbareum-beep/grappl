@@ -11,6 +11,30 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
 
+// Helper to safely wrap promises with a timeout
+async function withTimeout<T>(
+    promise: PromiseLike<T>,
+    ms: number
+): Promise<T | { data: null; error: { message: string, code: string } }> {
+    const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Request timed out after ${ms}ms`)), ms)
+    );
+
+    try {
+        return await Promise.race([promise, timeout]) as T;
+    } catch (err: any) {
+        console.warn(`[withTimeout] Operation timed out or failed:`, err);
+        // Return a Supabase-like error object so destructuring { data, error } doesn't crash
+        return {
+            data: null,
+            error: {
+                message: err.message || 'Operation timed out',
+                code: 'TIMEOUT'
+            }
+        } as any;
+    }
+}
+
 // Helper to extract Vimeo ID
 // Helper to extract Vimeo ID
 // Helper to extract Vimeo ID
@@ -157,15 +181,7 @@ export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
 
 
 
-/**
- * Helper function to wrap Supabase promises with a timeout
- */
-async function withTimeout<T>(promise: Promise<T> | any, ms: number): Promise<any> {
-    const timeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Request timed out')), ms);
-    });
-    return Promise.race([promise, timeout]);
-}
+
 
 function transformCreator(data: any): Creator {
     return {
@@ -393,7 +409,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
         return transformed;
     } catch (e) {
         console.error('❌ getCourses timeout/fail:', e);
-        return [];
+        throw e; // Throw so UI can show error state instead of 0 items
     }
 }
 
@@ -447,7 +463,7 @@ export async function searchContent(query: string) {
     try {
         // Sanitize query to avoid PostgREST syntax errors (remove parens, commas, etc)
         const safeQuery = query.replace(/[(),]/g, ' ').trim();
-        if (!safeQuery) return { courses: [], routines: [], sparring: [], instructors: [] };
+        if (!safeQuery) return { courses: [], routines: [], feeds: [], sparring: [], arena: [] };
 
         const searchTerm = `%${safeQuery}%`;
         const creatorsFilter: string[] = [];
@@ -571,6 +587,7 @@ export async function searchContent(query: string) {
                     relatedItems: v.related_items || [],
                     views: v.views || 0,
                     likes: v.likes || 0,
+                    price: v.price || 0,
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || 'Unknown',
@@ -865,13 +882,16 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
 export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[]> {
     try {
         // 1. Fetch videos
-        const { data: videos, error } = await supabase
-            .from('sparring_videos')
-            .select('*')
-            .eq('is_published', true)
-            .gt('price', 0)
-            .order('created_at', { ascending: false })
-            .limit(limit);
+        const { data: videos, error } = await withTimeout(
+            supabase
+                .from('sparring_videos')
+                .select('*')
+                .eq('is_published', true)
+                .gt('price', 0)
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            5000
+        );
 
         if (error) {
             console.error('Error fetching public sparring videos:', error);
@@ -1489,7 +1509,7 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
 export async function getRecentActivity(userId: string) {
     const [lessonRes, routineLogRes, savedSparringRes] = await Promise.all([
         // 1. Lessons Progress
-        supabase
+        withTimeout(supabase
             .from('lesson_progress')
             .select(`
                 *,
@@ -1500,10 +1520,10 @@ export async function getRecentActivity(userId: string) {
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5),
+            .limit(5), 5000),
 
         // 2. Viewed Routines
-        supabase
+        withTimeout(supabase
             .from('user_routine_views')
             .select(`
                 last_watched_at,
@@ -1513,10 +1533,10 @@ export async function getRecentActivity(userId: string) {
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5),
+            .limit(5), 5000),
 
         // 3. Sparring View History
-        supabase
+        withTimeout(supabase
             .from('user_sparring_views')
             .select(`
                 last_watched_at,
@@ -1526,7 +1546,7 @@ export async function getRecentActivity(userId: string) {
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5)
+            .limit(5), 5000)
     ]);
 
     const lessons = (lessonRes.data || []).map((item: any) => ({
@@ -2787,13 +2807,16 @@ export async function getRecentCompletedRoutines(
     userId: string,
     limit: number = 3
 ): Promise<CompletedRoutineRecord[]> {
-    const { data, error } = await supabase
-        .from('training_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('type', 'routine')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+    const { data, error } = await withTimeout(
+        supabase
+            .from('training_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('type', 'routine')
+            .order('created_at', { ascending: false })
+            .limit(limit),
+        5000
+    );
 
     if (error) {
         console.error('Error fetching completed routines:', error);
@@ -3550,32 +3573,43 @@ export async function getUserBeltLevel(userId: string): Promise<BeltLevel> {
  * Get all bundles
  */
 export async function getBundles() {
-    const { data, error } = await supabase
-        .from('bundles')
-        .select(`
-            *,
-            creator:users(name),
-            bundle_courses(course_id),
-            bundle_drills(drill_id)
-        `)
-        .order('created_at', { ascending: false });
+    try {
+        const { data, error } = await withTimeout(
+            supabase
+                .from('bundles')
+                .select(`
+                    *,
+                    creator:creators(name),
+                    bundle_courses(course_id),
+                    bundle_drills(drill_id)
+                `)
+                .order('created_at', { ascending: false }),
+            5000
+        );
 
-    if (error) return { data: null, error };
+        if (error) {
+            console.error('getBundles error:', error);
+            return { data: [], error };
+        }
 
-    const bundles: Bundle[] = data.map((bundle: any) => ({
-        id: bundle.id,
-        creatorId: bundle.creator_id,
-        creatorName: bundle.creator?.name,
-        title: bundle.title,
-        description: bundle.description,
-        price: bundle.price,
-        thumbnailUrl: bundle.thumbnail_url,
-        courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
-        drillIds: bundle.bundle_drills?.map((bd: any) => bd.drill_id) || [],
-        createdAt: bundle.created_at
-    }));
+        const bundles: Bundle[] = (data || []).map((bundle: any) => ({
+            id: bundle.id,
+            creatorId: bundle.creator_id,
+            creatorName: bundle.creator?.name || 'Unknown Creator',
+            title: bundle.title,
+            description: bundle.description,
+            price: bundle.price,
+            thumbnailUrl: bundle.thumbnail_url,
+            courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
+            drillIds: bundle.bundle_drills?.map((bd: any) => bd.drill_id) || [],
+            createdAt: bundle.created_at
+        }));
 
-    return { data: bundles, error: null };
+        return { data: bundles, error: null };
+    } catch (e) {
+        console.error('getBundles exception:', e);
+        return { data: [], error: e };
+    }
 }
 
 /**
@@ -4958,7 +4992,7 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
         // Hide soft-deleted videos from general lists
         query = query.is('deleted_at', null);
 
-        const { data: videos, error } = await query;
+        const { data: videos, error } = await withTimeout(query, 10000);
 
         if (error) {
             console.error('Error fetching sparring videos:', error);
@@ -5259,12 +5293,15 @@ export async function getDailyFreeDrill() {
     try {
         // 1. Try to get featured drill for today
         const today = new Date().toISOString().split('T')[0];
-        const { data: featured } = await supabase
-            .from('daily_featured_content')
-            .select('featured_id')
-            .eq('date', today)
-            .eq('featured_type', 'drill')
-            .maybeSingle();
+        const { data: featured } = await withTimeout(
+            supabase
+                .from('daily_featured_content')
+                .select('featured_id')
+                .eq('date', today)
+                .eq('featured_type', 'drill')
+                .maybeSingle(),
+            3000
+        );
 
         let drillId = featured?.featured_id;
         let selectedDrill = null;
@@ -5281,12 +5318,15 @@ export async function getDailyFreeDrill() {
         // 2. Fallback to deterministic random if no featured drill or not found
         if (!selectedDrill) {
             // Only select drills that are part of paid routines (Price > 0)
-            const { data: routineDrills, error } = await supabase
-                .from('routine_drills')
-                .select('drill_id, drills!inner(*), routines!inner(price)')
-                // Removed price restriction to allow free content
-                .neq('drills.vimeo_url', '')
-                .not('drills.vimeo_url', 'like', 'ERROR%');
+            const { data: routineDrills, error } = await withTimeout(
+                supabase
+                    .from('routine_drills')
+                    .select('drill_id, drills!inner(*), routines!inner(price)')
+                    // Removed price restriction to allow free content
+                    .neq('drills.vimeo_url', '')
+                    .not('drills.vimeo_url', 'like', 'ERROR%'),
+                5000
+            );
 
             if (error) throw error;
             if (!routineDrills || routineDrills.length === 0) return { data: null, error: null };
@@ -5348,37 +5388,44 @@ export async function getDailyFreeDrill() {
  */
 export async function getDailyFreeLesson() {
     try {
+        console.log('🔍 Fetching Daily Free Lesson with timeout...');
         // 1. Try to get featured course for today
         const today = new Date().toISOString().split('T')[0];
-        const { data: featured } = await supabase
-            .from('daily_featured_content')
-            .select('featured_id')
-            .eq('date', today)
-            .eq('featured_type', 'course')
-            .maybeSingle();
+        const { data: featured } = await withTimeout(
+            supabase
+                .from('daily_featured_content')
+                .select('featured_id')
+                .eq('date', today)
+                .eq('featured_type', 'course')
+                .maybeSingle(),
+            3000
+        );
 
         let selectedLesson = null;
 
         if (featured?.featured_id) {
             // Get first lesson of that course
-            const { data: lessons } = await supabase
-                .from('lessons')
-                .select(`
-                    *,
-                    course:courses (
-                        id,
-                        title,
-                        thumbnail_url,
-                        creator_id,
-                        price,
-                        is_subscription_excluded,
-                        published,
-                        preview_vimeo_id
-                    )
-                `)
-                .eq('course_id', featured.featured_id)
-                .order('lesson_number', { ascending: true })
-                .limit(1);
+            const { data: lessons } = await withTimeout(
+                supabase
+                    .from('lessons')
+                    .select(`
+                        *,
+                        course:courses (
+                            id,
+                            title,
+                            thumbnail_url,
+                            creator_id,
+                            price,
+                            is_subscription_excluded,
+                            published,
+                            preview_vimeo_id
+                        )
+                    `)
+                    .eq('course_id', featured.featured_id)
+                    .order('lesson_number', { ascending: true })
+                    .limit(1),
+                3000
+            );
 
             if (lessons && lessons.length > 0) {
                 selectedLesson = lessons[0];
@@ -5387,26 +5434,29 @@ export async function getDailyFreeLesson() {
 
         // 2. Fallback to deterministic random if no featured or not found
         if (!selectedLesson) {
-            const { data, error } = await supabase
-                .from('lessons')
-                .select(`
-                    *,
-                    course:courses!inner (
-                        id,
-                        title,
-                        thumbnail_url,
-                        creator_id,
-                        price,
-                        is_subscription_excluded,
-                        published,
-                        preview_vimeo_id
-                    )
-                `)
-                .gt('course.price', -1) // Allow all prices
-                .neq('vimeo_url', '')
-                .not('vimeo_url', 'like', 'ERROR%')
-                // Filter for published courses manually or via inner join if robust
-                .limit(20);
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('lessons')
+                    .select(`
+                        *,
+                        course:courses!inner (
+                            id,
+                            title,
+                            thumbnail_url,
+                            creator_id,
+                            price,
+                            is_subscription_excluded,
+                            published,
+                            preview_vimeo_id
+                        )
+                    `)
+                    .gt('course.price', -1) // Allow all prices
+                    .neq('vimeo_url', '')
+                    .not('vimeo_url', 'like', 'ERROR%')
+                    // Filter for published courses manually or via inner join if robust
+                    .limit(20),
+                5000
+            );
 
             if (error) throw error;
             if (!data || data.length === 0) return { data: null, error: null };
@@ -5460,7 +5510,7 @@ export async function getDailyFreeLesson() {
             error: null
         };
     } catch (error) {
-        console.error('Exception in getDailyFreeLesson:', error);
+        console.error('Exception in getDailyFreeLesson (Handled):', error);
         return { data: null, error };
     }
 }
@@ -5469,12 +5519,15 @@ export async function getDailyFreeSparring() {
     try {
         // 1. Try to get featured sparring for today
         const today = new Date().toISOString().split('T')[0];
-        const { data: featured } = await supabase
-            .from('daily_featured_content')
-            .select('featured_id')
-            .eq('date', today)
-            .eq('featured_type', 'sparring')
-            .maybeSingle();
+        const { data: featured } = await withTimeout(
+            supabase
+                .from('daily_featured_content')
+                .select('featured_id')
+                .eq('date', today)
+                .eq('featured_type', 'sparring')
+                .maybeSingle(),
+            3000
+        );
 
         let sparringId = featured?.featured_id;
         let selectedSparring = null;
@@ -5490,16 +5543,19 @@ export async function getDailyFreeSparring() {
 
         // 2. Fallback to deterministic random if no featured or not found
         if (!selectedSparring) {
-            const { data, error } = await supabase
-                .from('sparring_videos')
-                .select('*')
-                .eq('is_published', true)
-                .is('deleted_at', null)
-                .gt('price', 0)
-                .neq('video_url', '')
-                .not('video_url', 'like', 'ERROR%')
-                .order('id')
-                .limit(50);
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('sparring_videos')
+                    .select('*')
+                    .eq('is_published', true)
+                    .is('deleted_at', null)
+                    .gt('price', 0)
+                    .neq('video_url', '')
+                    .not('video_url', 'like', 'ERROR%')
+                    .order('id')
+                    .limit(50),
+                5000
+            );
 
             if (error) throw error;
             if (!data || data.length === 0) return { data: null, error: null };
@@ -5549,11 +5605,14 @@ export async function getDailyFreeSparring() {
 
 export async function fetchRoutines(limit: number = 20) {
     try {
-        const { data, error } = await supabase
-            .from('routines')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(limit);
+        const { data, error } = await withTimeout(
+            supabase
+                .from('routines')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            5000
+        );
 
         if (error) throw error;
 
@@ -8031,11 +8090,14 @@ export async function getUserSubscription(userId: string) {
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
-    const { data, error } = await supabase
-        .from('routines')
-        .select('*, creator:creators(name, profile_image)')
-        .limit(50) // Candidate pool size
-        .order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(
+        supabase
+            .from('routines')
+            .select('*, creator:creators(name, profile_image)')
+            .limit(50) // Candidate pool size
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
     if (error) return [];
 
@@ -8083,12 +8145,15 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
-    const { data, error } = await supabase
-        .from('courses')
-        .select('*, creator:creators(name, profile_image), lessons(count)')
-        .eq('published', true)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+    const { data, error } = await withTimeout(
+        supabase
+            .from('courses')
+            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .eq('published', true)
+            .order('created_at', { ascending: false })
+            .limit(limit),
+        5000
+    );
 
     if (error) {
         console.error('Error fetching new courses:', error);
@@ -8103,12 +8168,15 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
 
 export async function getTrendingCourses(limit = 6): Promise<Course[]> {
     // 1. Fetch larger pool for ranking
-    const { data, error } = await supabase
-        .from('courses')
-        .select('*, creator:creators(name, profile_image), lessons(count)')
-        .eq('published', true)
-        .limit(50)
-        .order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(
+        supabase
+            .from('courses')
+            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .eq('published', true)
+            .limit(50)
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
     if (error) {
         console.error('Error fetching trending courses:', error);

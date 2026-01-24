@@ -799,5 +799,6 @@ export const UploadDrill: React.FC = () => {
                     </div>
                 </div>
             </div>
-            );
+        </div>
+    );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, TrendingUp, Info, Shield, Swords, Skull, Trophy, BookOpen, Activity, Layers, Flame } from 'lucide-react';
+import { Zap, Swords, Trophy, BookOpen, Layers, Flame } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCompositeCombatPower, CombatPowerStats, getUserStreak } from '../../lib/api';
 

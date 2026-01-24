@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock, Zap, ArrowRight, LogIn } from 'lucide-react';
+import { Lock, Zap, ArrowRight, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ReelLoginModalProps {
@@ -11,7 +11,7 @@ interface ReelLoginModalProps {
 
 export const ReelLoginModal: React.FC<ReelLoginModalProps> = ({
     isOpen,
-    onClose,
+    onClose: _onClose,
     redirectUrl = '/watch'
 }) => {
     const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from 'recharts';
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
 
 interface CombatPowerRadarProps {
     stats: {
@@ -37,7 +37,6 @@ export const CombatPowerRadar: React.FC<CombatPowerRadarProps> = ({ stats }) => 
     });
 
     const totalPower = data.reduce((sum, item) => sum + item.power, 0);
-    const averagePower = Math.round(totalPower / 6);
 
     return (
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
