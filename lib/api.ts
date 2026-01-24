@@ -1612,6 +1612,21 @@ export async function getCreatorCourses(creatorId: string) {
     }));
 }
 
+export async function getCreatorSparringVideos(creatorId: string): Promise<SparringVideo[]> {
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching creator sparring videos:', error);
+        return [];
+    }
+
+    return (data || []).map(transformSparringVideo);
+}
+
 export async function createCourse(courseData: Partial<Course>) {
     // Map camelCase to snake_case for DB
     const dbData = {
@@ -2098,12 +2113,13 @@ export async function updatePayoutSettings(
     settings: {
         type: 'individual' | 'business';
         isKoreanResident?: boolean;
-        // Wise/International fields
-        wiseEmail?: string;
-        wiseAccountNumber?: string;
-        wiseRoutingNumber?: string;
-        wiseSwiftBic?: string;
-        wiseAccountName?: string;
+        // PayPal/International fields
+        paypalEmail?: string;
+        wiseEmail?: string; // Legacy support
+        wiseAccountNumber?: string; // Legacy support
+        wiseRoutingNumber?: string; // Legacy support
+        wiseSwiftBic?: string; // Legacy support
+        wiseAccountName?: string; // Legacy support
         // Korean Bank fields
         bankName?: string;
         accountNumber?: string;
@@ -3592,6 +3608,26 @@ export async function getBundles() {
             return { data: [], error };
         }
 
+        // Fetch bundle_sparring separately to avoid PostgREST relationship issues
+        const bundleIds = (data || []).map((b: any) => b.id);
+        let sparringMap: Record<string, string[]> = {};
+
+        if (bundleIds.length > 0) {
+            const { data: sparringData } = await supabase
+                .from('bundle_sparring')
+                .select('bundle_id, sparring_id')
+                .in('bundle_id', bundleIds);
+
+            if (sparringData) {
+                sparringData.forEach((bs: any) => {
+                    if (!sparringMap[bs.bundle_id]) {
+                        sparringMap[bs.bundle_id] = [];
+                    }
+                    sparringMap[bs.bundle_id].push(bs.sparring_id);
+                });
+            }
+        }
+
         const bundles: Bundle[] = (data || []).map((bundle: any) => ({
             id: bundle.id,
             creatorId: bundle.creator_id,
@@ -3602,6 +3638,7 @@ export async function getBundles() {
             thumbnailUrl: bundle.thumbnail_url,
             courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
             drillIds: bundle.bundle_drills?.map((bd: any) => bd.drill_id) || [],
+            sparringIds: sparringMap[bundle.id] || [],
             createdAt: bundle.created_at
         }));
 
@@ -3623,6 +3660,7 @@ export async function createBundle(bundle: {
     thumbnailUrl?: string;
     courseIds?: string[];
     drillIds?: string[];
+    sparringIds?: string[];
 }) {
     // 1. Create bundle
     const { data: newBundle, error: bundleError } = await supabase
@@ -3665,6 +3703,20 @@ export async function createBundle(bundle: {
             .insert(bundleDrills);
 
         if (drillsError) return { error: drillsError };
+    }
+
+    // 4. Add sparring videos to bundle
+    if (bundle.sparringIds && bundle.sparringIds.length > 0) {
+        const bundleSparring = bundle.sparringIds.map(sparringId => ({
+            bundle_id: newBundle.id,
+            sparring_id: sparringId
+        }));
+
+        const { error: sparringError } = await supabase
+            .from('bundle_sparring')
+            .insert(bundleSparring);
+
+        if (sparringError) return { error: sparringError };
     }
 
     return { data: newBundle, error: null };
@@ -3722,6 +3774,21 @@ export async function updateBundle(id: string, bundle: Partial<Bundle>) {
             }));
             const { error: drillsError } = await supabase.from('bundle_drills').insert(bundleDrills);
             if (drillsError) return { error: drillsError };
+        }
+    }
+
+    // Update bundle sparring if provided
+    if (bundle.sparringIds !== undefined) {
+        // Delete existing sparring links
+        await supabase.from('bundle_sparring').delete().eq('bundle_id', id);
+        // Insert new ones if any
+        if (bundle.sparringIds.length > 0) {
+            const bundleSparring = bundle.sparringIds.map(sparring_id => ({
+                bundle_id: id,
+                sparring_id
+            }));
+            const { error: sparringError } = await supabase.from('bundle_sparring').insert(bundleSparring);
+            if (sparringError) return { error: sparringError };
         }
     }
 
@@ -3813,19 +3880,33 @@ export async function createCoupon(coupon: {
 export async function getCoupons() {
     const { data, error } = await supabase
         .from('coupons')
-        .select(`
-            *,
-            creator:users(name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (error) return { data: null, error };
+
+    // Manually fetch creator names
+    const creatorIds = [...new Set(data.map((c: any) => c.creator_id).filter(Boolean))];
+    let creatorMap: Record<string, string> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('users')
+            .select('id, name')
+            .in('id', creatorIds);
+
+        if (creators) {
+            creators.forEach((c: any) => {
+                creatorMap[c.id] = c.name;
+            });
+        }
+    }
 
     const coupons: Coupon[] = data.map((coupon: any) => ({
         id: coupon.id,
         code: coupon.code,
         creatorId: coupon.creator_id,
-        creatorName: coupon.creator?.name,
+        creatorName: creatorMap[coupon.creator_id],
         discountType: coupon.discount_type,
         value: coupon.value,
         maxUses: coupon.max_uses,
@@ -4183,13 +4264,39 @@ export async function markAllNotificationsAsRead(userId: string) {
  * Get all users for admin dashboard
  */
 export async function getAllUsersAdmin() {
-    const { data, error } = await supabase
-        .rpc('get_all_users_admin');
+    // users 테이블 직접 조회 (is_creator는 creators 테이블 존재 여부로 판단)
+    const { data: usersData, error } = await supabase
+        .from('users')
+        .select(`
+            id,
+            email,
+            name,
+            is_subscriber,
+            is_complimentary_subscription,
+            subscription_tier,
+            subscription_end_date,
+            is_admin,
+            created_at
+        `)
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching users:', error);
         return { data: null, error };
     }
+
+    // creators 테이블에서 creator 목록 조회
+    const { data: creatorsData } = await supabase
+        .from('creators')
+        .select('id');
+
+    const creatorIds = new Set(creatorsData?.map(c => c.id) || []);
+
+    // is_creator 필드 추가
+    const data = usersData?.map(user => ({
+        ...user,
+        is_creator: creatorIds.has(user.id)
+    }));
 
     return { data, error: null };
 }
@@ -4206,8 +4313,43 @@ export async function promoteToCreator(userId: string) {
         return { error };
     }
 
+}
+
+/**
+ * Grant complimentary subscription to a user
+ */
+export async function grantComplimentarySubscription(userId: string, endDate: string) {
+    const { error } = await supabase
+        .rpc('grant_complimentary_subscription', {
+            target_user_id: userId,
+            end_date: endDate
+        });
+
+    if (error) {
+        console.error('Error granting complimentary subscription:', error);
+        return { error };
+    }
+
     return { error: null };
 }
+
+/**
+ * Revoke complimentary subscription from a user
+ */
+export async function revokeComplimentarySubscription(userId: string) {
+    const { error } = await supabase
+        .rpc('revoke_complimentary_subscription', {
+            target_user_id: userId
+        });
+
+    if (error) {
+        console.error('Error revoking complimentary subscription:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
 
 /**
  * Record watch time for a video or lesson

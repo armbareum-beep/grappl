@@ -13,10 +13,8 @@ interface CreatorPayoutInfo {
         accountNumber?: string;
         accountHolder?: string;
         residentRegistrationNumber?: string;
-        wiseEmail?: string;
-        wiseAccountNumber?: string;
-        wiseRoutingNumber?: string;
-        wiseSwiftBic?: string;
+        paypalEmail?: string;
+        wiseEmail?: string; // Legacy
         isKoreanResident?: boolean;
     };
 }
@@ -93,7 +91,7 @@ export const AdminPayoutsTab: React.FC = () => {
                         </li>
                         <li className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                            Wise 비즈니스 계정 송금 권장 (해외)
+                            PayPal 송금 시 환율 차이는 크리에이터 부담
                         </li>
                     </ul>
                 </div>
@@ -144,7 +142,7 @@ export const AdminPayoutsTab: React.FC = () => {
                                                     <div className="space-y-1">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20">
                                                             <Building className="w-2.5 h-2.5 mr-1" />
-                                                            Wise (USD)
+                                                            PayPal (USD)
                                                         </span>
                                                         <div className="text-[10px] text-zinc-500 ml-1 font-bold">
                                                             {isKoreanResident ? 'KOR Resident' : 'Overseas'}
@@ -161,24 +159,10 @@ export const AdminPayoutsTab: React.FC = () => {
                                                 <div className="space-y-2">
                                                     {isWise ? (
                                                         <>
-                                                            {settings.wiseEmail && (
-                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseEmail!)}>
+                                                            {(settings.paypalEmail || settings.wiseEmail) && (
+                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.paypalEmail || settings.wiseEmail!)}>
                                                                     <span className="w-20 text-zinc-500 font-bold">EMAIL:</span>
-                                                                    <span className="font-medium">{settings.wiseEmail}</span>
-                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
-                                                                </div>
-                                                            )}
-                                                            {settings.wiseAccountNumber && (
-                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseAccountNumber!)}>
-                                                                    <span className="w-20 text-zinc-500 font-bold">ACCOUNT:</span>
-                                                                    <span className="font-mono">{settings.wiseAccountNumber}</span>
-                                                                    <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
-                                                                </div>
-                                                            )}
-                                                            {settings.wiseRoutingNumber && (
-                                                                <div className="flex items-center text-xs text-zinc-300 group/item cursor-pointer hover:text-white" onClick={() => copyToClipboard(settings.wiseRoutingNumber!)}>
-                                                                    <span className="w-20 text-zinc-500 font-bold">SWIFT:</span>
-                                                                    <span className="font-mono">{settings.wiseRoutingNumber}</span>
+                                                                    <span className="font-medium">{settings.paypalEmail || settings.wiseEmail}</span>
                                                                     <Copy className="w-3 h-3 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity text-zinc-600" />
                                                                 </div>
                                                             )}

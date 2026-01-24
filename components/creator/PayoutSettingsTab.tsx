@@ -20,11 +20,8 @@ export const PayoutSettingsTab: React.FC = () => {
     const [accountHolder, setAccountHolder] = useState('');
     const [residentRegistrationNumber, setResidentRegistrationNumber] = useState('');
 
-    // Wise / USD fields
-    const [wiseEmail, setWiseEmail] = useState('');
-    const [wiseAccountNumber, setWiseAccountNumber] = useState('');
-    const [wiseRoutingNumber, setWiseRoutingNumber] = useState('');
-    const [wiseSwiftBic, setWiseSwiftBic] = useState('');
+    // PayPal fields
+    const [paypalEmail, setPaypalEmail] = useState('');
     const [isKoreanResident, setIsKoreanResident] = useState(false);
 
     useEffect(() => {
@@ -50,11 +47,8 @@ export const PayoutSettingsTab: React.FC = () => {
                     setAccountHolder(data.payoutSettings.accountHolder || '');
                     setResidentRegistrationNumber(data.payoutSettings.residentRegistrationNumber || '');
 
-                    // Load Wise info
-                    setWiseEmail(data.payoutSettings.wiseEmail || '');
-                    setWiseAccountNumber(data.payoutSettings.wiseAccountNumber || '');
-                    setWiseRoutingNumber(data.payoutSettings.wiseRoutingNumber || '');
-                    setWiseSwiftBic(data.payoutSettings.wiseSwiftBic || '');
+                    // Load PayPal info
+                    setPaypalEmail(data.payoutSettings.paypalEmail || data.payoutSettings.wiseEmail || '');
                     setIsKoreanResident(data.payoutSettings.isKoreanResident || false);
                 }
             }
@@ -79,11 +73,8 @@ export const PayoutSettingsTab: React.FC = () => {
                 accountNumber,
                 accountHolder,
                 residentRegistrationNumber,
-                // Wise fields
-                wiseEmail,
-                wiseAccountNumber,
-                wiseRoutingNumber,
-                wiseSwiftBic,
+                // PayPal fields
+                paypalEmail,
                 isKoreanResident
             });
             if (error) throw error;
@@ -149,11 +140,11 @@ export const PayoutSettingsTab: React.FC = () => {
                         <div className="flex items-center space-x-3 mb-2">
                             <Building className={cn("w-5 h-5", payoutType === 'business' ? 'text-violet-400' : 'text-zinc-400')} />
                             <span className={cn("font-semibold", payoutType === 'business' ? 'text-violet-400' : 'text-white')}>
-                                달러 외화 계좌 (USD)
+                                PayPal 계정 (USD)
                             </span>
                         </div>
                         <p className="text-sm text-zinc-400">
-                            Wise 및 국내/해외 외화 계좌로 송금 (SWIFT)
+                            PayPal 계정으로 달러 송금
                         </p>
                     </button>
                 </div>
@@ -223,10 +214,10 @@ export const PayoutSettingsTab: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                /* Wise / USD Information */
+                /* PayPal Information */
                 <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">Wise 계좌 정보 (USD)</h3>
-                    <p className="text-sm text-zinc-400">달러(USD)를 송금받을 Wise 계좌 정보를 입력하세요.</p>
+                    <h3 className="text-lg font-semibold text-white">PayPal 계정 정보 (USD)</h3>
+                    <p className="text-sm text-zinc-400">달러(USD)를 송금받을 PayPal 계정 이메일을 입력하세요.</p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
@@ -245,44 +236,18 @@ export const PayoutSettingsTab: React.FC = () => {
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-zinc-300 mb-2">
-                                Email / Wise Email (권장)
+                                PayPal 이메일 *
                             </label>
                             <input
                                 type="email"
-                                value={wiseEmail}
-                                onChange={(e) => setWiseEmail(e.target.value)}
-                                placeholder="example@email.com"
+                                value={paypalEmail}
+                                onChange={(e) => setPaypalEmail(e.target.value)}
+                                placeholder="your-paypal@email.com"
                                 className="w-full px-4 py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                             />
                             <p className="text-xs text-zinc-500 mt-1">
-                                Wise 계정이 있다면 이메일만으로 송금이 가능합니다. 없으실 경우 연락 가능한 이메일을 적어주세요.
+                                PayPal 계정에 등록된 이메일 주소를 입력하세요.
                             </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-300 mb-2">
-                                Routing Number / SWIFT Code
-                            </label>
-                            <input
-                                type="text"
-                                value={wiseRoutingNumber}
-                                onChange={(e) => setWiseRoutingNumber(e.target.value)}
-                                placeholder="SWIFT Code 또는 Routing Number"
-                                className="w-full px-4 py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-300 mb-2">
-                                Account Number (계좌번호)
-                            </label>
-                            <input
-                                type="text"
-                                value={wiseAccountNumber}
-                                onChange={(e) => setWiseAccountNumber(e.target.value)}
-                                placeholder="외화 계좌번호"
-                                className="w-full px-4 py-2 bg-zinc-900/50 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
                         </div>
 
                         {isKoreanResident && (
@@ -304,13 +269,13 @@ export const PayoutSettingsTab: React.FC = () => {
                         )}
 
                         <div className="md:col-span-2">
-                            <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-start">
-                                <AlertCircle className="w-5 h-5 mr-2 text-indigo-400 flex-shrink-0 mt-0.5" />
-                                <div className="text-sm text-indigo-300">
-                                    <p className="font-semibold mb-1">안내사항</p>
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start">
+                                <AlertCircle className="w-5 h-5 mr-2 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-amber-300">
+                                    <p className="font-semibold mb-1">중요 안내사항</p>
                                     <ul className="list-disc list-inside space-y-1">
-                                        <li>Wise 계정이나 국내 외화계좌 정보 모두 입력 가능합니다.</li>
-                                        <li>달러(USD) 송금 시 발생하는 수수료는 수취인 부담일 수 있습니다.</li>
+                                        <li><strong>환율 차이는 크리에이터 부담입니다.</strong> 모든 수익은 KRW로 집계되며, PayPal 송금 시 송금 시점 환율이 적용됩니다.</li>
+                                        <li>PayPal 송금 수수료는 수취인 부담입니다.</li>
                                         {!isKoreanResident && (
                                             <li>해외 거주자의 경우 한국 세금(3.3%)이 원천징수되지 않습니다. (거주국가 세법 적용)</li>
                                         )}
