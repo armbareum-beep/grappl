@@ -240,13 +240,28 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const navigate = useNavigate();
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Reset view to main when scrolling away (cleanup)
+    // Reset view to main and clear errors when scrolling away or back
     useEffect(() => {
-        if (Math.abs(offset) > 1) {
-            // Completely off-screen, reset state if needed
-            setCurrentVideoType('main');
+        if (!isActive) {
+            // Optional: reset to main when scrolling away
+            if (Math.abs(offset) > 1) {
+                setCurrentVideoType('main');
+            }
+        } else {
+            // Reset error state and ready state when this item becomes active
+            // to allow a fresh attempt at playback
+            setLoadError(null);
+            setIsVideoReady(false);
         }
-    }, [offset]);
+    }, [isActive, offset]);
+
+    // Reset error state when switching video types
+    useEffect(() => {
+        if (isActive) {
+            setLoadError(null);
+            setIsVideoReady(false);
+        }
+    }, [currentVideoType, isActive]);
 
     // Watch time tracking for history and preview
     const { user } = useAuth();

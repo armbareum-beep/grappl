@@ -5491,8 +5491,8 @@ export async function getDailyRoutine() {
         return {
             data: {
                 ...transformDrillRoutine(selectedRoutine),
-                creatorName: creatorInfo?.name || 'Grapplay Team',
-                creatorProfileImage: creatorInfo?.profile_image || undefined
+                creatorName,
+                creatorProfileImage
             },
             error: null
         };
