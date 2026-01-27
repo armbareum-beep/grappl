@@ -493,16 +493,12 @@ export const TechniqueSkillTree: React.FC = () => {
         }));
     }, [setNodes]);
 
-    // Guest Auto-Save: Persist data to localStorage when nodes/edges change
+    // Unified Auto-Save: Persist data to localStorage for BOTH guests and logged-in users
     useEffect(() => {
-        // Only saving for guests (no user) and when not loading
-        if (!user && !loading) {
-            // Even if nodes are empty, we might want to save if title changed? 
-            // But let's verify we have something meaningful or at least initialized.
-            // If nodes became empty because user deleted everything, we should reflect that.
+        if (!loading && (nodes.length > 0 || currentTreeTitle !== '나의 첫 스킬 트리')) {
+            const saveKey = user ? `autosave_skill_tree_${user.id}` : 'guest_skill_tree';
 
-            // Debounce could be good, but simple effect is fine for now
-            const guestData = {
+            const autoSaveData = {
                 title: currentTreeTitle,
                 nodes: nodes.map(node => ({
                     id: node.id,
@@ -512,8 +508,9 @@ export const TechniqueSkillTree: React.FC = () => {
                         label: node.data.label,
                         style: node.data.style,
                         contentType: node.data.contentType,
-                        contentId: node.data.contentId
-                        // Don't save large objects like lesson/drill/callbacks, reconstruct them on load
+                        contentId: node.data.contentId,
+                        // Persist expanded state for groups
+                        expanded: node.data.expanded
                     },
                     contentType: node.data.contentType,
                     contentId: node.data.contentId
@@ -522,7 +519,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 updatedAt: Date.now()
             };
 
-            localStorage.setItem('guest_skill_tree', JSON.stringify(guestData));
+            localStorage.setItem(saveKey, JSON.stringify(autoSaveData));
         }
     }, [user, loading, nodes, edges, currentTreeTitle]);
 
@@ -2640,8 +2637,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     const handleSave = async () => {
         if (!user) {
-            // 게스트도 로컬 스토리지에 명시적 저장 허용
-            // If we have a title, save with it.
+            // 게스트 저장 로직 (로그인 유도)
             localStorage.setItem('guest_skill_tree', JSON.stringify({
                 title: currentTreeTitle,
                 nodes: nodes.map(node => ({

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-route
 import { useAuth } from '../contexts/AuthContext';
 import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
-import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink } from 'lucide-react';
+import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -173,20 +173,38 @@ export const LessonDetail: React.FC = () => {
 
                             <div className="relative h-full z-10">
                                 {(lesson.videoUrl || lesson.vimeoUrl) ? (
-                                    <VideoPlayer
-                                        vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
-                                        title={lesson.title}
-                                        isPreviewMode={!owns}
-                                        maxPreviewDuration={
-                                            owns ? undefined : // Full access
-                                                (user && isDailyFree) ? undefined : // Logged-in + daily free: full access
-                                                    60 // Non-logged or non-daily-free: 1min preview
-                                        }
-                                        onPreviewLimitReached={() => setIsPaywallOpen(true)}
-                                        isPaused={isPaywallOpen}
-                                        onEnded={() => { }}
-                                        onProgress={handleProgress}
-                                    />
+                                    (owns || lesson.lessonNumber === 1) ? (
+                                        <VideoPlayer
+                                            vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
+                                            title={lesson.title}
+                                            isPreviewMode={!owns}
+                                            maxPreviewDuration={
+                                                owns ? undefined : // Full access
+                                                    (user && isDailyFree) ? undefined : // Logged-in + daily free: full access
+                                                        60 // Non-logged or non-daily-free: 1min preview
+                                            }
+                                            onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                            isPaused={isPaywallOpen}
+                                            onEnded={() => { }}
+                                            onProgress={handleProgress}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-4 md:p-6 text-center backdrop-blur-sm">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-3 md:mb-6 ring-1 ring-zinc-700 shadow-xl">
+                                                <Lock className="w-6 h-6 md:w-8 md:h-8 text-zinc-500" />
+                                            </div>
+                                            <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2">잠긴 레슨입니다</h3>
+                                            <p className="text-xs md:text-sm text-zinc-500 mb-4 md:mb-8 max-w-xs break-keep">
+                                                이 레슨을 시청하려면 클래스를 구매하거나<br className="hidden md:block" />구독이 필요합니다.
+                                            </p>
+                                            <Button
+                                                onClick={() => navigate(user ? '/pricing' : '/login')}
+                                                className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-6 py-2 md:px-8 md:py-3 text-sm md:text-base font-bold shadow-lg shadow-violet-900/20"
+                                            >
+                                                {user ? '구독하고 전체 보기' : '로그인하여 보기'}
+                                            </Button>
+                                        </div>
+                                    )
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
                                         <div className="w-16 h-16 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin mb-4"></div>
@@ -202,8 +220,8 @@ export const LessonDetail: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Preview Time Limit Bar - Similar to DrillReelItem */}
-                            {!owns && (
+                            {/* Preview Time Limit Bar - Only for Previewable Lessons */}
+                            {(!owns && lesson.lessonNumber === 1) && (
                                 <div className="absolute bottom-0 left-0 right-0 z-50 h-1.5 bg-violet-900/30">
                                     <div
                                         className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear"
@@ -215,8 +233,8 @@ export const LessonDetail: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Time Limit Warning Text */}
-                            {!owns && currentTime > 0 && (
+                            {/* Time Limit Warning Text - Only for Previewable Lessons */}
+                            {(!owns && lesson.lessonNumber === 1 && currentTime > 0) && (
                                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-violet-600/90 backdrop-blur-sm rounded-full border border-violet-400/30 shadow-lg">
                                     <p className="text-white text-xs font-bold">
                                         {user
@@ -254,12 +272,12 @@ export const LessonDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight mb-6">
+                            <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight mb-6 break-keep">
                                 {lesson.title}
                             </h1>
 
                             {/* Actions: Like, Course View & Share */}
-                            <div className="flex items-center gap-3 mb-8">
+                            <div className="flex flex-wrap items-center gap-3 mb-8">
                                 <button
                                     onClick={async () => {
                                         if (!user || !lesson) return navigate('/login');

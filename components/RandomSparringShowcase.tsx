@@ -9,6 +9,7 @@ export function RandomSparringShowcase() {
     const navigate = useNavigate();
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isPaused, setIsPaused] = useState(false);
 
     // Use exported extractVimeoId from lib/api
 
@@ -86,6 +87,7 @@ export function RandomSparringShowcase() {
                     <div className="flex-1 w-full max-w-2xl">
                         <div
                             className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer border border-zinc-800"
+                            onClick={() => setIsPaused(!isPaused)}
                         >
                             <VideoPlayer
                                 vimeoId={vimeoIdToSend}
@@ -94,9 +96,9 @@ export function RandomSparringShowcase() {
                                 maxPreviewDuration={60}
                                 showControls={false}
                                 fillContainer={true}
-                                playing={true}
+                                playing={!isPaused}
                                 autoplay={true}
-                                isPaused={false}
+                                isPaused={isPaused}
                                 forceSquareRatio={true}
                             />
 

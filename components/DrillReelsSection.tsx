@@ -18,6 +18,12 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
     const getVimeoId = (url?: string) => {
         if (!url) return null;
         if (/^\d+$/.test(url)) return url;
+        // Handle ID:HASH or ID/HASH format
+        if (url.includes(':') || url.includes('/')) {
+            const separator = url.includes(':') ? ':' : '/';
+            const [idPart] = url.split(separator);
+            if (/^\d+$/.test(idPart)) return idPart;
+        }
         const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
         return match ? match[1] : null;
     };
@@ -148,11 +154,11 @@ export const DrillReelsSection: React.FC = () => {
                         .filter(d => d.id !== dailyId)
                         .map(d => ({
                             ...d,
-                            thumbnailUrl: d.thumbnail_url,
-                            vimeoUrl: d.vimeo_url,
-                            videoUrl: d.video_url,
-                            creatorId: d.creator_id,
-                            createdAt: d.created_at
+                            thumbnailUrl: d.thumbnail_url || d.thumbnailUrl,
+                            vimeoUrl: d.vimeo_url || d.vimeoUrl,
+                            videoUrl: d.video_url || d.videoUrl,
+                            creatorId: d.creator_id || d.creatorId,
+                            createdAt: d.created_at || d.createdAt
                         }));
                     finalDrills = [...finalDrills, ...others];
                 }

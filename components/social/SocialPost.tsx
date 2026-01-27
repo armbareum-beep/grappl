@@ -581,7 +581,16 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                             )}
                             {isVideo && !youtubeUrl && (
                                 <div className="relative w-full aspect-[4/5] sm:aspect-video group/video">
-                                    <video src={post.mediaUrl} className="w-full h-full object-cover" loop muted={isMuted} onClick={togglePlay} playsInline />
+                                    <video
+                                        src={post.mediaUrl}
+                                        className="w-full h-full object-cover"
+                                        loop
+                                        muted={isMuted}
+                                        onClick={togglePlay}
+                                        playsInline
+                                        preload="metadata"
+                                        poster={post.metadata?.thumbnailUrl || (post.metadata?.images && Array.isArray(post.metadata.images) && post.metadata.images.length > 0 ? post.metadata.images[0] : undefined)}
+                                    />
                                     <button onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} className="absolute bottom-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors">
                                         {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                                     </button>
