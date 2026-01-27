@@ -11,6 +11,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 
+
 export const LessonDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -129,7 +130,9 @@ export const LessonDetail: React.FC = () => {
     }, [id, user, isSubscribed, isAdmin]);
 
     if (loading) {
-        return <LoadingScreen message="레슨 정보를 불러오는 중..." />;
+        return (
+            <LoadingScreen message="레슨을 불러오고 있습니다..." />
+        );
     }
 
     // Allow non-logged-in users to view daily free lessons (with potential preview limit)

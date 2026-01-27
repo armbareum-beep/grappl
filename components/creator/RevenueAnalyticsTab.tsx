@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateCreatorEarnings, getCreatorRevenueStats, getCreatorBalance, submitPayout, getPayoutRequests } from '../../lib/api';
-import { DollarSign, TrendingUp, Download, Wallet, ArrowRight } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { DollarSign, TrendingUp, Download, Wallet, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '../Button';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -33,6 +34,12 @@ export const RevenueAnalyticsTab: React.FC = () => {
     const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
     const [period, setPeriod] = useState<'all' | '6m' | '1y'>('6m');
 
+    // Feedback stats
+    const [feedbackRevenue, setFeedbackRevenue] = useState(0);
+    const [feedbackCount, setFeedbackCount] = useState(0);
+    const [directRevenue, setDirectRevenue] = useState(0);
+    const [subscriptionRevenue, setSubscriptionRevenue] = useState(0);
+
     useEffect(() => {
         if (user) {
             loadData();
@@ -43,23 +50,35 @@ export const RevenueAnalyticsTab: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            // 1. Get Total Revenue
+            // 1. Get Total Revenue and breakdown
             const { data: earnings } = await calculateCreatorEarnings(user.id);
             if (earnings) {
                 setTotalRevenue(earnings.totalRevenue);
+                setFeedbackRevenue(earnings.feedbackRevenue || 0);
+                setDirectRevenue(earnings.directRevenue || 0);
+                setSubscriptionRevenue(earnings.subscriptionRevenue || 0);
             }
 
-            // 2. Get Available Balance
+            // 2. Get feedback count
+            const { data: feedbackData } = await supabase
+                .from('feedback_requests')
+                .select('id')
+                .eq('instructor_id', user.id)
+                .eq('status', 'completed');
+
+            setFeedbackCount(feedbackData?.length || 0);
+
+            // 3. Get Available Balance
             const balance = await getCreatorBalance(user.id);
             setAvailableBalance(balance);
 
-            // 3. Get Monthly Breakdown
+            // 4. Get Monthly Breakdown
             const { data: stats } = await getCreatorRevenueStats(user.id);
             if (stats) {
                 setMonthlyStats(stats);
             }
 
-            // 4. Get Payout Requests
+            // 5. Get Payout Requests
             const { data: payoutData } = await getPayoutRequests(user.id);
             if (payoutData) {
                 setPayouts(payoutData);
@@ -183,6 +202,71 @@ export const RevenueAnalyticsTab: React.FC = () => {
                     <p className="text-xs text-zinc-500 mt-2">이달의 정산 예정액</p>
                 </div>
             </div>
+
+            {/* Performance Breakdown - 성과 분석 */}
+            <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-zinc-800">
+                    <h3 className="text-lg font-bold text-white">성과 분석</h3>
+                    <p className="text-sm text-zinc-400 mt-1">수익원별 상세 분석</p>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Direct Sales */}
+                    <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">직접 판매</h4>
+                            <div className="p-2 bg-blue-500/10 rounded-lg">
+                                <DollarSign className="w-4 h-4 text-blue-400" />
+                            </div>
+                        </div>
+                        <p className="text-xl font-bold text-white mb-1">{formatCurrency(directRevenue)}</p>
+                        <p className="text-xs text-zinc-500">코스, 드릴, 루틴 판매</p>
+                    </div>
+
+                    {/* Feedback Sales */}
+                    <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">피드백 판매</h4>
+                            <div className="p-2 bg-violet-500/10 rounded-lg">
+                                <MessageCircle className="w-4 h-4 text-violet-400" />
+                            </div>
+                        </div>
+                        <p className="text-xl font-bold text-white mb-1">{formatCurrency(feedbackRevenue)}</p>
+                        <div className="flex items-center justify-between text-xs mt-2">
+                            <span className="text-zinc-500">{feedbackCount}건 완료</span>
+                            {feedbackCount > 0 && (
+                                <span className="text-violet-400 font-medium">
+                                    평균 {formatCurrency(Math.floor(feedbackRevenue / feedbackCount))}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Subscription Revenue */}
+                    <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">구독 수익</h4>
+                            <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                            </div>
+                        </div>
+                        <p className="text-xl font-bold text-white mb-1">{formatCurrency(subscriptionRevenue)}</p>
+                        <p className="text-xs text-zinc-500">시청 시간 기반 분배</p>
+                    </div>
+
+                    {/* Total Revenue */}
+                    <div className="bg-gradient-to-br from-violet-500/10 to-blue-500/10 p-5 rounded-xl border border-violet-500/20 hover:border-violet-500/30 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-medium text-violet-400 uppercase tracking-wider">총 수익</h4>
+                            <div className="p-2 bg-violet-500/20 rounded-lg">
+                                <Wallet className="w-4 h-4 text-violet-400" />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-bold text-white mb-1">{formatCurrency(totalRevenue)}</p>
+                        <p className="text-xs text-violet-400 font-medium">전체 기간 합계</p>
+                    </div>
+                </div>
+            </div>
+
             {/* Monthly Breakdown Table */}
             <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 shadow-sm overflow-hidden mb-8">
                 <div className="p-6 border-b border-zinc-800">

@@ -5,6 +5,7 @@ import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock, Play, Zap, ChevronLeft } from 'lucide-react';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -329,7 +330,9 @@ export const CourseDetail: React.FC = () => {
 
 
     if (loading) {
-        return <LoadingScreen message="클래스 정보 불러오는 중..." />;
+        return (
+            <LoadingScreen message="클래스 정보를 불러오고 있습니다..." />
+        );
     }
 
     if (error) {

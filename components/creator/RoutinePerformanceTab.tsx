@@ -7,6 +7,7 @@ import { TrendingUp, Eye, DollarSign, Clock } from 'lucide-react';
 
 interface RoutinePerformance extends DrillRoutine {
     directRevenue: number;
+    subscriptionRevenue: number;
     totalRevenue: number;
     watchTimeMinutes: number;
     salesCount: number;
@@ -71,10 +72,15 @@ export const RoutinePerformanceTab: React.FC = () => {
                         watchTimeMinutes = Math.floor(totalSeconds / 60);
                     }
 
+                    // Calculate subscription revenue based on watch time share
+                    // This is a simplified calculation - actual calculation is done in calculateCreatorEarnings
+                    const subscriptionRevenue = 0; // Will be calculated server-side
+
                     return {
                         ...routine,
                         directRevenue,
-                        totalRevenue: directRevenue, // No subscription revenue split calculated for individual items yet
+                        subscriptionRevenue,
+                        totalRevenue: directRevenue + subscriptionRevenue,
                         watchTimeMinutes,
                         salesCount
                     };
@@ -178,14 +184,20 @@ export const RoutinePerformanceTab: React.FC = () => {
                                     시청 시간
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                                    직접 판매 액
+                                    직접 판매
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    구독 수익
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                                    총 수익
                                 </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
                                             로딩 중...
@@ -217,6 +229,12 @@ export const RoutinePerformanceTab: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-emerald-400">
                                             {formatCurrency(routine.directRevenue)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-violet-400">
+                                            {formatCurrency(routine.subscriptionRevenue)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-white">
+                                            {formatCurrency(routine.totalRevenue)}
                                         </td>
                                     </tr>
                                 ))

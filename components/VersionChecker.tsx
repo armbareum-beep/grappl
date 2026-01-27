@@ -96,7 +96,7 @@ export const VersionChecker: React.FC = () => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 console.log('[VersionCheck] Tab focused, checking for updates...');
-                checkVersion(true); // pass true to trigger auto-reload
+                checkVersion(false); // Changed to false to show prompt instead of auto-reload
             }
         };
 

@@ -307,6 +307,9 @@ export interface Bundle {
   drillIds?: string[];
   drill_ids?: string[]; // Database field name compatibility
   drills?: Drill[];
+  sparringIds?: string[];
+  sparring_ids?: string[];
+  sparringVideos?: SparringVideo[];
   createdAt: string;
 }
 

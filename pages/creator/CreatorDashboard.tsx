@@ -14,6 +14,7 @@ import { RevenueAnalyticsTab } from '../../components/creator/RevenueAnalyticsTa
 import { CoursePerformanceTab } from '../../components/creator/CoursePerformanceTab';
 import { RoutinePerformanceTab } from '../../components/creator/RoutinePerformanceTab';
 import { SparringPerformanceTab } from '../../components/creator/SparringPerformanceTab';
+import { FeedbackPerformanceTab } from '../../components/creator/FeedbackPerformanceTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { ContentCard } from '../../components/creator/ContentCard';
@@ -43,7 +44,7 @@ export const CreatorDashboard: React.FC = () => {
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
     const initialMaterialsTab = (searchParams.get('materialsTab') as any) || 'lessons';
     const [activeMaterialsTab, setActiveMaterialsTab] = useState<'lessons' | 'drills'>(initialMaterialsTab);
-    const [activePerformanceTab, setActivePerformanceTab] = useState<'courses' | 'routines' | 'sparring'>('courses');
+    const [activePerformanceTab, setActivePerformanceTab] = useState<'courses' | 'routines' | 'sparring' | 'feedback'>('courses');
     const [showSparringSelectModal, setShowSparringSelectModal] = useState(false);
     const [modalSearchQuery, setModalSearchQuery] = useState('');
 
@@ -1022,10 +1023,20 @@ export const CreatorDashboard: React.FC = () => {
                                     >
                                         스파링 성과
                                     </button>
+                                    <button
+                                        onClick={() => setActivePerformanceTab('feedback')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'feedback'
+                                            ? 'bg-zinc-800 text-white shadow-md'
+                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                            }`}
+                                    >
+                                        피드백 성과
+                                    </button>
                                 </div>
                                 {activePerformanceTab === 'courses' && <CoursePerformanceTab />}
                                 {activePerformanceTab === 'routines' && <RoutinePerformanceTab />}
                                 {activePerformanceTab === 'sparring' && <SparringPerformanceTab />}
+                                {activePerformanceTab === 'feedback' && <FeedbackPerformanceTab />}
                             </div>
                         </div>
                     ) : (

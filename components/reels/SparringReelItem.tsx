@@ -329,6 +329,55 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         }
     }, [isActive, user, video.id]);
 
+    // Watch time tracking for settlement (구독자가 소유하지 않은 경우에만 기록)
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (!isActive || !user || !isSubscriber || !video.id) {
+            lastTickRef.current = 0;
+            accumulatedTimeRef.current = 0;
+            return;
+        }
+
+        // Check if user owns this sparring video
+        const owns = purchasedItemIds.includes(video.id);
+        if (owns) {
+            // User owns it, don't record for settlement
+            return;
+        }
+
+        // Record watch time for subscribers who don't own the video
+        const handleProgress = () => {
+            const now = Date.now();
+            if (lastTickRef.current === 0) {
+                lastTickRef.current = now;
+                return;
+            }
+
+            const elapsed = (now - lastTickRef.current) / 1000;
+            lastTickRef.current = now;
+
+            if (elapsed > 0 && elapsed < 5) {
+                accumulatedTimeRef.current += elapsed;
+            }
+
+            // Record every 10 seconds
+            if (accumulatedTimeRef.current >= 10) {
+                const timeToSend = Math.floor(accumulatedTimeRef.current);
+                accumulatedTimeRef.current -= timeToSend;
+
+                import('../../lib/api').then(({ recordWatchTime }) => {
+                    recordWatchTime(user.id, timeToSend, video.id).catch(console.error);
+                });
+            }
+        };
+
+        const interval = setInterval(handleProgress, 1000);
+        return () => clearInterval(interval);
+    }, [isActive, user, isSubscriber, video.id, purchasedItemIds]);
+
+
     // Watch time tracking for preview limit (1 min)
     useEffect(() => {
         if (!user && isActive) {

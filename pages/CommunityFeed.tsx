@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { SocialPost } from '../components/social/SocialPost';
+import { LoadingTimeoutGuard } from '../components/common/LoadingTimeoutGuard';
 
 export const CommunityFeed: React.FC = () => {
     const { user } = useAuth();
@@ -184,11 +185,14 @@ export const CommunityFeed: React.FC = () => {
 
                     {/* Single Column Feed */}
                     {loading && posts.length === 0 ? (
-                        <div className="columns-1 gap-4 space-y-4">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="break-inside-avoid animate-pulse bg-zinc-900/40 rounded-2xl border border-zinc-900" style={{ height: `${200 + Math.random() * 200}px` }} />
-                            ))}
-                        </div>
+                        <>
+                            <LoadingTimeoutGuard loading={loading} />
+                            <div className="columns-1 gap-4 space-y-4">
+                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                    <div key={i} className="break-inside-avoid animate-pulse bg-zinc-900/40 rounded-2xl border border-zinc-900" style={{ height: `${200 + Math.random() * 200}px` }} />
+                                ))}
+                            </div>
+                        </>
                     ) : filteredPosts.length === 0 ? (
                         <div className="text-center py-20 px-4">
                             <Activity className="w-10 h-10 text-zinc-700 mx-auto mb-4" />

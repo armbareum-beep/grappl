@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
-import { Search, PlayCircle, ChevronDown } from 'lucide-react';
+import { Search } from 'lucide-react';
+
 import { LoadingScreen } from '../components/LoadingScreen';
-import { ContentBadge } from '../components/common/ContentBadge';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { cn } from '../lib/utils';
+
+
 import { LibraryTabs } from '../components/library/LibraryTabs';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -153,9 +155,6 @@ export const Routines: React.FC<{
         }
         return 0; // Keep shuffled order if sortBy is 'shuffled'
     });
-
-    if (loading) return <LoadingScreen message="루틴을 불러오는 중..." />;
-    if (error) return <ErrorScreen error={error} resetMessage="루틴 목록을 불러오는 중 오류가 발생했습니다." />;
 
     return (
         <div className={cn(

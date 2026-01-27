@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { LibraryTabs } from '../components/library/LibraryTabs';
 import { useAuth } from '../contexts/AuthContext';
 
+
 export const Browse: React.FC<{
   isEmbedded?: boolean;
   activeTab?: 'classes' | 'routines' | 'sparring';
@@ -83,21 +84,7 @@ export const Browse: React.FC<{
   };
 
   useEffect(() => {
-    // Safety guard: Force stop loading after 7 seconds if data fails to load silently
-    const safetyTimer = setTimeout(() => {
-      setLoading(prev => {
-        if (prev) {
-          console.warn('Browse page loading timed out, forcing release');
-          setError('응답 시간이 초과되었습니다.');
-          return false;
-        }
-        return prev;
-      });
-    }, 7000);
-
     fetchCourses();
-
-    return () => clearTimeout(safetyTimer);
   }, []);
 
   const filteredCourses = courses.filter(course => {
@@ -139,7 +126,9 @@ export const Browse: React.FC<{
   const uniforms = ['All', 'Gi', 'No-Gi'];
 
   if (loading) {
-    return <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />;
+    return (
+      <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />
+    );
   }
 
   if (error) {

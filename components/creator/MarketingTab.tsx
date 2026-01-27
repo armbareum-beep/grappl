@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getDrills } from '../../lib/api';
-import { Bundle, Coupon, Course, Drill } from '../../types';
+import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getDrills, getCreatorSparringVideos } from '../../lib/api';
+import { Bundle, Coupon, Course, Drill, SparringVideo } from '../../types';
 import { Package, Tag, Plus, X, Pencil, AlertCircle } from 'lucide-react';
 // cn utility imported for potential future use
 
@@ -11,6 +11,7 @@ export const MarketingTab: React.FC = () => {
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [drills, setDrills] = useState<Drill[]>([]);
+    const [sparringVideos, setSparringVideos] = useState<SparringVideo[]>([]);
     const [showBundleForm, setShowBundleForm] = useState(false);
     const [showCouponForm, setShowCouponForm] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -21,6 +22,7 @@ export const MarketingTab: React.FC = () => {
     const [bundlePrice, setBundlePrice] = useState('');
     const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
     const [selectedDrills, setSelectedDrills] = useState<string[]>([]);
+    const [selectedSparring, setSelectedSparring] = useState<string[]>([]);
 
     // Coupon form state
     const [couponCode, setCouponCode] = useState('');
@@ -43,11 +45,12 @@ export const MarketingTab: React.FC = () => {
         if (!user) return;
         setLoading(true);
         console.log('Loading Marketing data for user:', user.id);
-        const [bundlesRes, couponsRes, coursesData, drillsRes] = await Promise.all([
+        const [bundlesRes, couponsRes, coursesData, drillsRes, sparringData] = await Promise.all([
             getBundles(),
             getCoupons(),
             getCreatorCourses(user.id),
-            getDrills(user.id)
+            getDrills(user.id),
+            getCreatorSparringVideos(user.id)
         ]);
 
         console.log('Bundles result:', bundlesRes);
@@ -66,6 +69,9 @@ export const MarketingTab: React.FC = () => {
         setCourses(coursesData);
         if (drillsRes && Array.isArray(drillsRes)) {
             setDrills(drillsRes);
+        }
+        if (sparringData && Array.isArray(sparringData)) {
+            setSparringVideos(sparringData);
         }
         setLoading(false);
     };
@@ -116,6 +122,7 @@ export const MarketingTab: React.FC = () => {
         setBundlePrice(bundle.price.toString());
         setSelectedCourses(bundle.courseIds || []);
         setSelectedDrills(bundle.drillIds || []);
+        setSelectedSparring(bundle.sparringIds || []);
         setShowBundleForm(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -140,7 +147,8 @@ export const MarketingTab: React.FC = () => {
             description: bundleDescription,
             price: parseFloat(bundlePrice),
             courseIds: selectedCourses,
-            drillIds: selectedDrills
+            drillIds: selectedDrills,
+            sparringIds: selectedSparring
         });
 
         if (error) {
@@ -177,7 +185,7 @@ export const MarketingTab: React.FC = () => {
 
     const handleCreateBundle = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || (selectedCourses.length === 0 && selectedDrills.length === 0)) return;
+        if (!user || (selectedCourses.length === 0 && selectedDrills.length === 0 && selectedSparring.length === 0)) return;
 
         const { error } = await createBundle({
             creatorId: user.id,
@@ -219,7 +227,12 @@ export const MarketingTab: React.FC = () => {
 
         if (error) {
             console.error('Error creating coupon:', error);
-            alert(`쿠폰 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            // More detailed error logging for debugging
+            if ('message' in error) console.error('Coupon Error Message:', error.message);
+            if ('details' in error) console.error('Coupon Error Details:', (error as any).details);
+            if ('hint' in error) console.error('Coupon Error Hint:', (error as any).hint);
+
+            alert(`쿠폰 생성 실패: ${error.message || JSON.stringify(error) || '알 수 없는 오류'}`);
             return;
         }
 
@@ -247,6 +260,16 @@ export const MarketingTab: React.FC = () => {
                 : [...prev, drillId]
         );
     };
+
+    const toggleSparringSelection = (sparringId: string) => {
+        setSelectedSparring(prev =>
+            prev.includes(sparringId)
+                ? prev.filter(id => id !== sparringId)
+                : [...prev, sparringId]
+        );
+    };
+
+
 
     return (
         <div className="space-y-8 relative">
@@ -379,11 +402,38 @@ export const MarketingTab: React.FC = () => {
                                 </p>
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    포함할 스파링 영상 선택 (선택사항)
+                                </label>
+                                <div className="space-y-2 max-h-64 overflow-y-auto border border-zinc-700 rounded-lg p-4 bg-zinc-950">
+                                    {sparringVideos.map((video) => (
+                                        <label
+                                            key={video.id}
+                                            className="flex items-center gap-3 p-2 hover:bg-zinc-900 rounded cursor-pointer transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSparring.includes(video.id)}
+                                                onChange={() => toggleSparringSelection(video.id)}
+                                                className="w-4 h-4 text-violet-600 bg-zinc-900 border-zinc-700 rounded focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm text-zinc-300">{video.title}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-zinc-500 mt-2">
+                                    {selectedSparring.length}개 스파링 선택됨
+                                </p>
+                            </div>
+
+
+
                             <div className="flex gap-3 pt-2">
                                 <button
                                     type="submit"
                                     className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors font-medium"
-                                    disabled={selectedCourses.length === 0 && selectedDrills.length === 0}
+                                    disabled={selectedCourses.length === 0 && selectedDrills.length === 0 && selectedSparring.length === 0}
                                 >
                                     {editingBundle ? '수정 완료' : '번들 생성'}
                                 </button>
@@ -449,6 +499,11 @@ export const MarketingTab: React.FC = () => {
                                         {(bundle.drillIds?.length || 0) > 0 && (
                                             <span className="text-xs text-zinc-400 bg-zinc-800/80 px-2 py-1 rounded border border-zinc-700/50">
                                                 {bundle.drillIds?.length || 0}개 드릴
+                                            </span>
+                                        )}
+                                        {(bundle.sparringIds?.length || 0) > 0 && (
+                                            <span className="text-xs text-zinc-400 bg-zinc-800/80 px-2 py-1 rounded border border-zinc-700/50">
+                                                {bundle.sparringIds?.length || 0}개 스파링
                                             </span>
                                         )}
                                     </div>

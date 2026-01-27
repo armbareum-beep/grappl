@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+
 import {
   Play, Clock
 } from 'lucide-react';
@@ -255,7 +256,11 @@ export const Home: React.FC = () => {
     return () => clearInterval(timer);
   }, [dailyDrill, dailyLesson, dailySparring]);
 
-  if (loading) return <LoadingScreen message="홈 데이터 불러오는 중..." />;
+  if (loading) {
+    return (
+      <LoadingScreen message="홈 화면을 불러오고 있습니다..." />
+    );
+  }
 
   // Display Name Logic for Header
   const getDisplayName = () => {

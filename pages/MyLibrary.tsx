@@ -19,10 +19,14 @@ import { CourseCard } from '../components/CourseCard';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, PlayCircle, Dumbbell, Clock, Play, Network, Bookmark } from 'lucide-react';
 import { Button } from '../components/Button';
+
+
 import { ErrorScreen } from '../components/ErrorScreen';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ContentBadge } from '../components/common/ContentBadge';
+import { LoadingScreen } from '../components/LoadingScreen'; // Assuming LoadingScreen is in components
+import { cn } from '../lib/utils'; // Assuming cn utility is in lib/utils
 
 interface CourseWithProgress extends Course {
   progress?: number;
@@ -62,6 +66,9 @@ export const MyLibrary: React.FC = () => {
   const [savedCourses, setSavedCourses] = useState<Course[]>([]);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
 
+  // Combined loading state for initial fetch
+  const loading = coursesLoading || routinesLoading || drillsLoading || sparringLoading || chainsLoading;
+
   useEffect(() => {
     async function fetchData() {
       if (!user) {
@@ -69,6 +76,7 @@ export const MyLibrary: React.FC = () => {
         setRoutinesLoading(false);
         setSparringLoading(false);
         setChainsLoading(false);
+        setDrillsLoading(false);
         return;
       }
 
@@ -117,6 +125,7 @@ export const MyLibrary: React.FC = () => {
         setSavedLessons(savedLessonsData);
       } catch (error) {
         console.error('Error fetching user courses:', error);
+        setError('클래스를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setCoursesLoading(false);
       }
@@ -133,6 +142,7 @@ export const MyLibrary: React.FC = () => {
         setSavedRoutines(savedRoutinesData);
       } catch (err: any) {
         console.error('Error fetching user routines:', err);
+        setError('루틴을 불러오는 중 오류가 발생했습니다.');
       } finally {
         setRoutinesLoading(false);
       }
@@ -143,6 +153,7 @@ export const MyLibrary: React.FC = () => {
         setSavedDrills(drillsData);
       } catch (err) {
         console.error('Error fetching saved drills:', err);
+        setError('드릴을 불러오는 중 오류가 발생했습니다.');
       } finally {
         setDrillsLoading(false);
       }
@@ -157,6 +168,7 @@ export const MyLibrary: React.FC = () => {
         setPurchasedSparring(purchasedSparringData);
       } catch (err) {
         console.error('Error fetching saved sparring:', err);
+        setError('스파링 영상을 불러오는 중 오류가 발생했습니다.');
       } finally {
         setSparringLoading(false);
       }
@@ -167,11 +179,13 @@ export const MyLibrary: React.FC = () => {
         const { data: chainsData, error: chainsError } = await listUserSkillTrees(user.id);
         if (chainsError) {
           console.error('Error fetching chains:', chainsError);
+          setError('로드맵을 불러오는 중 오류가 발생했습니다.');
         } else {
           setChains(chainsData || []);
         }
       } catch (err) {
         console.error('Error fetching chains:', err);
+        setError('로드맵을 불러오는 중 오류가 발생했습니다.');
       } finally {
         setChainsLoading(false);
       }
@@ -206,6 +220,19 @@ export const MyLibrary: React.FC = () => {
 
   if (error) {
     return <ErrorScreen error={error} resetMessage="라이브러리를 불러오는 중 오류가 발생했습니다. 앱이 업데이트되었을 가능성이 있습니다." />;
+  }
+
+  if (loading) {
+    return (
+      <div className={cn(
+        "min-h-screen bg-zinc-950 text-white",
+        // Assuming isEmbedded is a prop or context value, for now, it's undefined.
+        // If it's not defined, this part will be ignored.
+        // !isEmbedded && "md:pl-28 py-8 px-4"
+      )}>
+        <LoadingScreen message="보관함을 불러오고 있습니다..." />
+      </div>
+    );
   }
 
   if (!user) {

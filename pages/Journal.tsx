@@ -7,6 +7,7 @@ import { CreatePostModal } from '../components/social/CreatePostModal';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { supabase } from '../lib/supabase';
 import { ChevronDown } from 'lucide-react';
+import { LoadingTimeoutGuard } from '../components/common/LoadingTimeoutGuard';
 
 export const Journal: React.FC = () => {
     const { user } = useAuth();
@@ -16,7 +17,9 @@ export const Journal: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [showCreateModal, setShowCreateModal] = useState(false);
+
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
+
 
     // Filter State
     const [filter, setFilter] = useState<'all' | 'sparring' | 'training' | 'lesson' | 'routine' | 'drill' | 'course' | 'technique_roadmap' | 'training_routine'>('all');
@@ -27,19 +30,7 @@ export const Journal: React.FC = () => {
         loadUserAvatar();
     }, [user]);
 
-    // Add timeout detection
-    useEffect(() => {
-        if (loading) {
-            const timeout = setTimeout(() => {
-                if (loading) {
-                    setError('Error: Feed timeout');
-                    setLoading(false);
-                }
-            }, 5000);
 
-            return () => clearTimeout(timeout);
-        }
-    }, [loading]);
 
     const loadUserAvatar = async () => {
         if (!user) return;
@@ -231,6 +222,10 @@ export const Journal: React.FC = () => {
                     onPostCreated={handlePostCreated}
                 />
             )}
+
+            {/* Cache Refresh Modal */}
+            <LoadingTimeoutGuard loading={loading} />
+
         </div>
     );
 };

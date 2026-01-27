@@ -10,7 +10,7 @@ interface CoursePerformance extends Course {
     subscriptionRevenue: number;
     totalRevenue: number;
     watchTimeMinutes: number;
-    enrollmentCount: number;
+    purchaseCount: number;
 }
 
 export const CoursePerformanceTab: React.FC = () => {
@@ -35,13 +35,7 @@ export const CoursePerformanceTab: React.FC = () => {
             // Get real performance data for each course
             const performanceData: CoursePerformance[] = await Promise.all(
                 coursesData.map(async (course) => {
-                    // Get enrollment count
-                    const { count: enrollmentCount } = await supabase
-                        .from('course_enrollments')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('course_id', course.id);
-
-                    // Get direct revenue (course purchases)
+                    // Get direct revenue and purchase count (course purchases)
                     const { data: purchases } = await supabase
                         .from('payments')
                         .select('amount')
@@ -50,6 +44,7 @@ export const CoursePerformanceTab: React.FC = () => {
                         .eq('status', 'completed');
 
                     const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+                    const purchaseCount = purchases?.length || 0;
 
                     // Get watch time for this course's lessons
                     const { data: lessons } = await supabase
@@ -80,7 +75,7 @@ export const CoursePerformanceTab: React.FC = () => {
                         subscriptionRevenue,
                         totalRevenue: directRevenue + subscriptionRevenue,
                         watchTimeMinutes,
-                        enrollmentCount: enrollmentCount || 0
+                        purchaseCount
                     };
                 })
             );
@@ -176,7 +171,7 @@ export const CoursePerformanceTab: React.FC = () => {
                                     조회수
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                                    등록 학생
+                                    구매 횟수
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-zinc-400 uppercase tracking-wider">
                                     시청 시간
@@ -220,7 +215,7 @@ export const CoursePerformanceTab: React.FC = () => {
                                             {course.views.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
-                                            {course.enrollmentCount.toLocaleString()}명
+                                            {course.purchaseCount.toLocaleString()}건
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white">
                                             {formatTime(course.watchTimeMinutes)}
