@@ -264,10 +264,16 @@ export const Home: React.FC = () => {
 
   // Display Name Logic for Header
   const getDisplayName = () => {
-    if (userName) return userName;
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
-    if (user?.user_metadata?.name) return user.user_metadata.name;
+    // 1. Try DB name first if it's not an email
+    if (userName && !userName.includes('@')) return userName;
+
+    // 2. Try metadata names if they are not emails
+    const metaName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+    if (metaName && !metaName.includes('@')) return metaName;
+
+    // 3. Fallback to email ID part (before @)
     if (user?.email) return user.email.split('@')[0];
+
     return 'Grappler';
   };
   const displayName = getDisplayName();

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime } from '../lib/api';
+import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime, updateLastWatched } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
@@ -128,6 +128,13 @@ export const LessonDetail: React.FC = () => {
         }
         fetchData();
     }, [id, user, isSubscribed, isAdmin]);
+
+    // Record initial view for history (Recent Activity)
+    useEffect(() => {
+        if (user && lesson && lesson.id) {
+            updateLastWatched(user.id, lesson.id, 0).catch(console.error);
+        }
+    }, [user, lesson?.id]);
 
     if (loading) {
         return (

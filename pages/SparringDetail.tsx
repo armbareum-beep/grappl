@@ -7,7 +7,7 @@ import {
     toggleCreatorFollow,
     getSparringInteractionStatus,
     getSparringVideos,
-    incrementSparringView
+    recordSparringView
 } from '../lib/api';
 import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
@@ -125,8 +125,10 @@ export const SparringDetail: React.FC = () => {
                 });
             }
 
-            // Increment view count
-            incrementSparringView(id);
+            // Record history and increment view count
+            if (contextUser) {
+                recordSparringView(contextUser.id, id).catch(console.error);
+            }
         } catch (err: any) {
             console.error(err);
             setError(err.message || '영상 로딩 중 오류 발생');
@@ -592,7 +594,7 @@ export const SparringDetail: React.FC = () => {
                                 </button>
                             </div>
                             <h3 className="font-bold text-xl text-white mb-1 line-clamp-2">{video.title}</h3>
-                            <p className="text-white/80 text-sm line-clamp-2">{video.description}</p>
+                            <p className="text-white/80 text-sm line-clamp-2">{video.description || '상대방의 움직임을 분석하고 자신의 기술을 점검하세요.'}</p>
                         </div>
                     </div>
                 </div>

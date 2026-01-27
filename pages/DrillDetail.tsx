@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -318,6 +318,13 @@ export const DrillDetail: React.FC = () => {
             }
         }
     };
+
+    // Record history for Recent Activity
+    useEffect(() => {
+        if (contextUser && id) {
+            recordDrillView(contextUser.id, id).catch(console.error);
+        }
+    }, [contextUser?.id, id]);
 
     const checkRoutine = async () => {
         if (!id) return;

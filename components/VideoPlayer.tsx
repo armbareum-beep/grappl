@@ -167,13 +167,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             playerRef.current = player;
             const currentPlayer = player; // Capture for closure safety
 
-            if (currentPlayer) { // Changed check slightly
+            if (currentPlayer) {
                 currentPlayer.on('error', (data) => {
                     // Filter out harmless playback interruption errors
                     if (data?.name === 'AbortError' || data?.name === 'PlayInterrupted') {
-                        console.log('[VideoPlayer] Playback interrupted (expected behavior during rapid interaction)');
                         return;
                     }
+
+                    // Don't set error if component unmounted
+                    if (!containerRef.current) return;
+
                     console.error('Vimeo Player Error:', data);
                     setPlayerError(data);
                 });
@@ -195,8 +198,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             player?.pause().catch(console.warn);
                             if (!hasReachedRef.current) {
                                 hasReachedRef.current = true;
-                                setHasReachedPreviewLimit(true);
-                                setShowUpgradeOverlay(true);
+                                if (containerRef.current) {
+                                    setHasReachedPreviewLimit(true);
+                                    setShowUpgradeOverlay(true);
+                                }
                                 if (onPreviewLimitReached) onPreviewLimitReached();
                                 if (onPreviewEnded) onPreviewEnded();
                             }
@@ -218,14 +223,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     const max = maxPreviewDurationRef.current;
                     if (isPreviewModeRef.current && max) {
                         const remaining = max - seconds;
-                        setTimeRemaining(Math.max(0, Math.ceil(remaining)));
+                        if (containerRef.current) {
+                            setTimeRemaining(Math.max(0, Math.ceil(remaining)));
+                        }
                     }
                 });
             }
 
         } catch (err: any) {
+            // Ignore AbortError occurring during initialization
+            if (err?.name === 'AbortError' || err?.message?.includes('aborted')) return;
+
             console.error('Failed to initialize Vimeo player:', err);
-            setPlayerError(err);
+            if (containerRef.current) {
+                setPlayerError(err);
+            }
         }
 
         return () => {

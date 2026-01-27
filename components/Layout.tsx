@@ -254,13 +254,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
                     >
                       <User className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden lg:inline">{user.user_metadata?.name || user.email?.split('@')[0]}</span>
+                      <span className="hidden lg:inline">{
+                        (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
+                          ? user.user_metadata.name
+                          : user.email?.split('@')[0]
+                      }</span>
                     </button>
 
                     {userMenuOpen && (
                       <div className="absolute right-0 mt-2 w-64 bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800/50 py-2 z-[11001] animate-in fade-in zoom-in-95 duration-200">
                         <div className="px-4 py-3 border-b border-zinc-800/50 mb-1">
-                          <p className="text-sm font-bold text-white truncate">{user.user_metadata?.name || user.email?.split('@')[0]}</p>
+                          <p className="text-sm font-bold text-white truncate">{
+                            (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
+                              ? user.user_metadata.name
+                              : user.email?.split('@')[0]
+                          }</p>
                           <p className="text-xs text-zinc-500 truncate">{user.email}</p>
                         </div>
 
@@ -369,7 +377,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {user ? (
                   <>
                     <div className="px-3 py-3 border-b border-zinc-800/50 mb-2">
-                      <p className="text-sm font-bold text-white truncate">{user.user_metadata?.name || user.email?.split('@')[0]}</p>
+                      <p className="text-sm font-bold text-white truncate">{
+                        (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
+                          ? user.user_metadata.name
+                          : user.email?.split('@')[0]
+                      }</p>
                       <p className="text-xs text-zinc-500 truncate">{user.email}</p>
                     </div>
 

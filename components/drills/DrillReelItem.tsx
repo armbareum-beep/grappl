@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Drill } from '../../types';
 import { Heart, Bookmark, Share2, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
@@ -10,7 +11,7 @@ import { ReelLoginModal } from '../auth/ReelLoginModal';
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 // --- Helper Functions ---
-import { extractVimeoId } from '../../lib/api';
+import { extractVimeoId, recordDrillView } from '../../lib/api';
 
 const getVimeoHash = (url?: string) => {
     if (!url) return undefined;
@@ -247,41 +248,42 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         }
     }, [offset]);
 
-    // Watch time tracking for non-logged-in users
+    // Watch time tracking for history and preview
+    const { user } = useAuth();
+
+    // Record view for history as soon as it's active
     useEffect(() => {
-        if (!isLoggedIn && isActive) {
-            // Start timer
+        if (isActive && user) {
+            recordDrillView(user.id, drill.id).catch(console.error);
+        }
+    }, [isActive, user, drill.id]);
+
+    useEffect(() => {
+        if (!user && isActive) {
+            // Start timer for non-logged-in preview (30s)
             setWatchTime(0);
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
                     if (newTime >= 30) {
-                        // 30 seconds reached, show login modal
                         setIsLoginModalOpen(true);
-                        // We don't have direct access to playerRef here easily as it's inside SingleVideoPlayer
-                        // But setting isPaused to true or just letting the modal cover it might work.
-                        // However, DrillReelItem doesn't pass isPaused to SingleVideoPlayer as a controlled prop in a way that would stop it immediately without state change.
                         setIsPaused(true);
-                        if (timerRef.current) {
-                            clearInterval(timerRef.current);
-                        }
+                        if (timerRef.current) clearInterval(timerRef.current);
                     }
                     return newTime;
                 });
             }, 1000);
-        } else {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-            setWatchTime(0);
+        } else if (user && isActive) {
+            // For drills, we currently just record the initial view (recordDrillView above)
+            // If we want to track 'watched_seconds' in the future, we can add it here.
+            // For now, we'll just keep the timer for progress bar sync if needed, 
+            // but the progress is actually driven by SingleVideoPlayer's onProgress.
         }
 
         return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
+            if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [isActive, isLoggedIn]);
+    }, [isActive, user, drill.id]);
 
     // Auto polling for processing status
 

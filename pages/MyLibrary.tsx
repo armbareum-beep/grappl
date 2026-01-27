@@ -16,8 +16,10 @@ import {
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { Course, DrillRoutine, SparringVideo, UserSkillTree, Drill, Lesson } from '../types';
 import { CourseCard } from '../components/CourseCard';
+import { DrillRoutineCard } from '../components/DrillRoutineCard';
+import { SparringCard } from '../components/SparringCard';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, PlayCircle, Dumbbell, Clock, Play, Network, Bookmark } from 'lucide-react';
+import { BookOpen, PlayCircle, Dumbbell, Network, Bookmark } from 'lucide-react';
 import { Button } from '../components/Button';
 
 
@@ -329,7 +331,7 @@ export const MyLibrary: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {courses.map((course) => (
                         <div key={course.id} className="relative flex flex-col h-full">
-                          <CourseCard course={course} rank={getRank(course, courses)} />
+                          <CourseCard course={course} rank={getRank(course, courses)} hasAccess={true} />
                           <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
                             <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
                               <span>진도율</span>
@@ -375,7 +377,12 @@ export const MyLibrary: React.FC = () => {
                             !savedCourses.some(sc => sc.id === ac.id)
                           )
                           .map((course) => (
-                            <CourseCard key={course.id} course={course} rank={getRank(course, allCourses)} />
+                            <CourseCard
+                              key={course.id}
+                              course={course}
+                              rank={getRank(course, allCourses)}
+                              hasAccess={isSubscribed}
+                            />
                           ))}
                       </div>
                     </div>
@@ -386,7 +393,12 @@ export const MyLibrary: React.FC = () => {
                     <h3 className="text-lg font-bold text-white mb-6">Saved Classes ({savedCourses.length})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {savedCourses.map((course) => (
-                        <CourseCard key={course.id} course={course} rank={getRank(course, allCourses)} />
+                        <CourseCard
+                          key={course.id}
+                          course={course}
+                          rank={getRank(course, allCourses)}
+                          hasAccess={isSubscribed || courses.some(c => c.id === course.id)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -420,7 +432,12 @@ export const MyLibrary: React.FC = () => {
                       <h3 className="text-lg font-bold text-white mb-6">My Routines ({purchasedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {purchasedRoutines.map((routine) => (
-                          <RoutineCard key={routine.id} routine={routine} rank={getRank(routine, purchasedRoutines)} />
+                          <DrillRoutineCard
+                            key={routine.id}
+                            routine={routine}
+                            rank={getRank(routine, purchasedRoutines)}
+                            hasAccess={true}
+                          />
                         ))}
                       </div>
                     </div>
@@ -431,7 +448,12 @@ export const MyLibrary: React.FC = () => {
                       <h3 className="text-lg font-bold text-white mb-6">Saved Routines ({savedRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {savedRoutines.map((routine) => (
-                          <RoutineCard key={routine.id} routine={routine} rank={getRank(routine, savedRoutines)} />
+                          <DrillRoutineCard
+                            key={routine.id}
+                            routine={routine}
+                            rank={getRank(routine, savedRoutines)}
+                            hasAccess={isSubscribed || purchasedRoutines.some(pr => pr.id === routine.id)}
+                          />
                         ))}
                       </div>
                     </div>
@@ -536,38 +558,12 @@ export const MyLibrary: React.FC = () => {
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {purchasedSparring.map((video) => (
-                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/sparring/${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                            <Play className="w-6 h-6 text-white fill-white/20" />
-                          </div>
-                        </div>
-                        <div className="absolute top-2 left-2 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
-                          OWNED
-                        </div>
-                        {getRank(video, purchasedSparring) ? (
-                          <ContentBadge type="popular" rank={getRank(video, purchasedSparring)} className="absolute top-2 right-2" />
-                        ) : isRecent(video.createdAt) ? (
-                          <ContentBadge type="recent" className="absolute top-2 right-2" />
-                        ) : null}
-                      </Link>
-                      <div className="px-1">
-                        <Link to={`/sparring/${video.id}`}>
-                          <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
-                        </Link>
-                        <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
-                          <img
-                            src={video.creatorProfileImage || video.creator?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
-                            className="w-4 h-4 rounded-full object-cover"
-                            alt=""
-                          />
-                          <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <SparringCard
+                      key={video.id}
+                      video={video}
+                      rank={getRank(video, purchasedSparring)}
+                      hasAccess={true}
+                    />
                   ))}
                 </div>
               </div>
@@ -596,45 +592,12 @@ export const MyLibrary: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {savedSparring.map((video) => (
-                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/sparring/${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                        <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                            <Play className="w-6 h-6 text-white fill-white/20" />
-                          </div>
-                        </div>
-                        {getRank(video, savedSparring) ? (
-                          <ContentBadge type="popular" rank={getRank(video, savedSparring)} className="absolute top-2 right-2" />
-                        ) : isRecent(video.createdAt) ? (
-                          <ContentBadge type="recent" className="absolute top-2 right-2" />
-                        ) : null}
-                      </Link>
-                      <div className="px-1">
-                        <Link to={`/sparring/${video.id}`}>
-                          <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
-                        </Link>
-                        <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
-                          {video.category && (
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider flex-shrink-0 ${video.category === 'Competition'
-                              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                              : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                              }`}>
-                              {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
-                            </span>
-                          )}
-                          <img
-                            src={(video.creator as any)?.avatar_url || (video.creator as any)?.image || (video.creator as any)?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
-                            className="w-4 h-4 rounded-full object-cover"
-                            alt=""
-                          />
-                          <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
-                          <span className="flex-shrink-0">•</span>
-                          <span className="flex-shrink-0">{video.views?.toLocaleString()} 조회</span>
-                        </div>
-                      </div>
-                    </div>
+                    <SparringCard
+                      key={video.id}
+                      video={video}
+                      rank={getRank(video, savedSparring)}
+                      hasAccess={isSubscribed || purchasedSparring.some(pv => pv.id === video.id)} // Saved items might not be owned, but if subscribed or owned
+                    />
                   ))}
                 </div>
               )}
@@ -736,53 +699,6 @@ function ChainCard({ chain }: { chain: UserSkillTree }) {
   );
 }
 
-function RoutineCard({ routine, isCustom, rank }: { routine: DrillRoutine; isCustom?: boolean; rank?: number }) {
-  return (
-    <div className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-      <Link
-        to={`/my-routines/${routine.id}`}
-        className="relative aspect-[10/14] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all"
-      >
-        <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-          <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-            <Play className="w-6 h-6 md:w-7 md:h-7 text-white fill-white/20 ml-1" />
-          </div>
-        </div>
+// Removed local RoutineCard definition as we use DrillRoutineCard now
 
-        {isCustom && (
-          <div className="absolute top-3 left-3 bg-violet-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
-            CUSTOM
-          </div>
-        )}
-        {(rank) ? (
-          <ContentBadge type="popular" rank={rank} className="absolute top-3 right-3" />
-        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-          <ContentBadge type="recent" className="absolute top-3 right-3" />
-        ) : null}
-      </Link>
-
-      <div className="px-1">
-        <Link to={`/my-routines/${routine.id}`}>
-          <h3 className="text-white font-bold text-sm md:text-base mb-1 line-clamp-1 group-hover:text-violet-400 transition-colors">{routine.title}</h3>
-        </Link>
-        <div className="flex items-center justify-between text-[11px] text-zinc-500 font-medium">
-          <span>{routine.creatorName}</span>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {routine.totalDurationMinutes || 0}분
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Dumbbell className="w-3 h-3" />
-              {routine.drillCount || 0}개
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

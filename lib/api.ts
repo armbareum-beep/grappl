@@ -1011,6 +1011,31 @@ export async function recordRoutineView(userId: string, routineId: string) {
     }
 }
 
+// Record Drill View History
+export async function recordDrillView(userId: string, drillId: string) {
+    if (drillId.startsWith('mock-')) return;
+
+    // 1. Increment global view count
+    await incrementDrillViews(drillId);
+
+    // 2. Track user history
+    const { error } = await supabase
+        .from('user_drill_views')
+        .upsert({
+            user_id: userId,
+            drill_id: drillId,
+            last_watched_at: new Date().toISOString(),
+        }, {
+            onConflict: 'user_id, drill_id'
+        });
+
+    if (error) {
+        if (error.code !== '42P01') {
+            console.error('Error recording drill view:', error);
+        }
+    }
+}
+
 
 // Sparring Interactions
 export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
@@ -1502,12 +1527,16 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
             onConflict: 'user_id,lesson_id'
         });
 
+    if (error) {
+        console.error('Error in updateLastWatched:', error, { userId, lessonId, watchedSeconds });
+    }
+
     return { error };
 }
 
 // Enhanced Recent Activity (Lessons + Routines + Sparring)
 export async function getRecentActivity(userId: string) {
-    const [lessonRes, routineLogRes, savedSparringRes] = await Promise.all([
+    const [lessonRes, routineLogRes, sparringRes, drillRes] = await Promise.all([
         // 1. Lessons Progress
         withTimeout(supabase
             .from('lesson_progress')
@@ -1541,7 +1570,21 @@ export async function getRecentActivity(userId: string) {
             .select(`
                 last_watched_at,
                 sparring_videos (
-                    id, title, thumbnail_url, video_url
+                    id, title, thumbnail_url, video_url,
+                    creator:creators ( name )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5), 5000),
+
+        // 4. Drill View History
+        withTimeout(supabase
+            .from('user_drill_views')
+            .select(`
+                last_watched_at,
+                drills (
+                    id, title, thumbnail_url
                 )
             `)
             .eq('user_id', userId)
@@ -1549,18 +1592,21 @@ export async function getRecentActivity(userId: string) {
             .limit(5), 5000)
     ]);
 
-    const lessons = (lessonRes.data || []).map((item: any) => ({
-        id: item.lesson?.id,
-        courseId: item.lesson?.course?.id,
-        type: 'lesson',
-        title: item.lesson?.title,
-        courseTitle: item.lesson?.course?.title,
-        progress: item.completed ? 100 : 50,
-        watchedSeconds: item.watched_seconds || 0,
-        thumbnail: item.lesson?.course?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at).toISOString(),
-        lessonNumber: item.lesson?.lesson_number
-    }));
+    const lessons = (lessonRes.data || []).map((item: any) => {
+        const l = item.lesson || item.lessons;
+        return {
+            id: l?.id,
+            courseId: l?.course?.id,
+            type: 'lesson',
+            title: l?.title,
+            courseTitle: l?.course?.title || l?.title,
+            progress: item.completed ? 100 : 50,
+            watchedSeconds: item.watched_seconds || 0,
+            thumbnail: l?.course?.thumbnail_url || l?.thumbnail_url,
+            lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
+            lessonNumber: l?.lesson_number
+        };
+    }).filter(item => item.id);
 
     const routines = (routineLogRes.data || []).map((item: any) => ({
         id: item.routine?.id,
@@ -1569,22 +1615,37 @@ export async function getRecentActivity(userId: string) {
         courseTitle: item.routine?.difficulty || 'Training',
         progress: 0, // Viewing doesn't imply completion
         thumbnail: item.routine?.thumbnail_url || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
-        lastWatched: new Date(item.last_watched_at).toISOString(),
+        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
     }));
 
-    const sparring = (savedSparringRes.data || []).map((item: any) => ({
+    const sparring = (sparringRes.data || []).map((item: any) => ({
         id: item.sparring_videos?.id,
         type: 'sparring',
         title: item.sparring_videos?.title,
-        courseTitle: 'Sparring Analysis',
-        progress: 0, // Saved but maybe not watched
+        courseTitle: item.sparring_videos?.creator?.name || '스파링',
+        progress: 0,
         thumbnail: item.sparring_videos?.thumbnail_url,
-        lastWatched: new Date(item.created_at).toISOString(),
+        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
+    }));
+
+    const drills = (drillRes.data || []).map((item: any) => ({
+        id: item.drills?.id,
+        type: 'drill',
+        title: item.drills?.title,
+        courseTitle: '드릴 연습',
+        progress: 0,
+        thumbnail: item.drills?.thumbnail_url,
+        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
     }));
 
     // Merge and Sort
-    const allActivity = [...lessons, ...routines, ...sparring]
-        .sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime())
+    const allActivity = [...lessons, ...routines, ...sparring, ...drills]
+        .filter(item => item.id) // Ensure we have unique ID
+        .sort((a, b) => {
+            const dateA = new Date(a.lastWatched).getTime();
+            const dateB = new Date(b.lastWatched).getTime();
+            return dateB - dateA;
+        })
         .slice(0, 10);
 
     return allActivity;
@@ -5397,19 +5458,33 @@ export async function getDailyRoutine() {
 
         const selectedRoutine = data[index];
 
-        // Fetch creator details from users table
-        let creatorInfo = null;
+        // 3. Fetch creator info (Prioritize creators table, fallback to users)
+        let creatorName = 'Grapplay Team';
+        let creatorProfileImage = undefined;
+
         if (selectedRoutine.creator_id) {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
+            // Try fetching from creators table first (Instructor Profile)
+            const { data: creatorData } = await supabase
+                .from('creators')
+                .select('name, profile_image')
                 .eq('id', selectedRoutine.creator_id)
                 .maybeSingle();
-            if (userData) {
-                creatorInfo = {
-                    name: userData.name,
-                    profile_image: userData.avatar_url
-                };
+
+            if (creatorData) {
+                creatorName = creatorData.name || creatorName;
+                creatorProfileImage = creatorData.profile_image || undefined;
+            } else {
+                // Fallback to users table (Auth Profile)
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('name, avatar_url')
+                    .eq('id', selectedRoutine.creator_id)
+                    .maybeSingle();
+
+                if (userData) {
+                    creatorName = userData.name || creatorName;
+                    creatorProfileImage = userData.avatar_url || undefined;
+                }
             }
         }
 
@@ -5493,20 +5568,33 @@ export async function getDailyFreeDrill() {
 
         if (!selectedDrill) return { data: null, error: null };
 
-        // 3. Fetch creator info from users table (Fixes 400 error)
+        // 3. Fetch creator info (Prioritize creators table, fallback to users)
         let creatorName = 'Grapplay Team';
         let creatorProfileImage = undefined;
 
         if (selectedDrill.creator_id) {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
+            // Try fetching from creators table first (Instructor Profile)
+            const { data: creatorData } = await supabase
+                .from('creators')
+                .select('name, profile_image')
                 .eq('id', selectedDrill.creator_id)
                 .maybeSingle();
 
-            if (userData) {
-                creatorName = userData.name || creatorName;
-                creatorProfileImage = userData.avatar_url || undefined;
+            if (creatorData) {
+                creatorName = creatorData.name || creatorName;
+                creatorProfileImage = creatorData.profile_image || undefined;
+            } else {
+                // Fallback to users table (Auth Profile)
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('name, avatar_url')
+                    .eq('id', selectedDrill.creator_id)
+                    .maybeSingle();
+
+                if (userData) {
+                    creatorName = userData.name || creatorName;
+                    creatorProfileImage = userData.avatar_url || undefined;
+                }
             }
         }
 
@@ -5530,123 +5618,6 @@ export async function getDailyFreeDrill() {
  */
 export async function getDailyFreeLesson() {
     try {
-        console.log('🔍 Fetching Daily Free Lesson with timeout...');
-        // 1. Try to get featured course for today
-        const today = new Date().toISOString().split('T')[0];
-        const { data: featured } = await withTimeout(
-            supabase
-                .from('daily_featured_content')
-                .select('featured_id')
-                .eq('date', today)
-                .eq('featured_type', 'course')
-                .maybeSingle(),
-            3000
-        );
-
-        let selectedLesson = null;
-
-        if (featured?.featured_id) {
-            // Get first lesson of that course
-            const { data: lessons } = await withTimeout(
-                supabase
-                    .from('lessons')
-                    .select(`
-                        *,
-                        course:courses (
-                            id,
-                            title,
-                            thumbnail_url,
-                            creator_id,
-                            price,
-                            is_subscription_excluded,
-                            published,
-                            preview_vimeo_id
-                        )
-                    `)
-                    .eq('course_id', featured.featured_id)
-                    .order('lesson_number', { ascending: true })
-                    .limit(1),
-                3000
-            );
-
-            if (lessons && lessons.length > 0) {
-                selectedLesson = lessons[0];
-            }
-        }
-
-        // 2. Fallback to deterministic random if no featured or not found
-        if (!selectedLesson) {
-            const { data, error } = await withTimeout(
-                supabase
-                    .from('lessons')
-                    .select(`
-                        *,
-                        course:courses!inner (
-                            id,
-                            title,
-                            thumbnail_url,
-                            creator_id,
-                            price,
-                            is_subscription_excluded,
-                            published,
-                            preview_vimeo_id
-                        )
-                    `)
-                    .gt('course.price', -1) // Allow all prices
-                    .neq('vimeo_url', '')
-                    .not('vimeo_url', 'like', 'ERROR%')
-                    // Filter for published courses manually or via inner join if robust
-                    .limit(20),
-                5000
-            );
-
-            if (error) throw error;
-            if (!data || data.length === 0) return { data: null, error: null };
-
-            // Client-side filter for published courses
-            const publishedLessons = data.filter((l: any) => l.course?.published === true);
-            if (publishedLessons.length === 0) return { data: null, error: null };
-
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
-            const x = Math.sin(seed + 789) * 10000;
-            const index = Math.floor((x - Math.floor(x)) * publishedLessons.length);
-            selectedLesson = publishedLessons[index];
-        }
-
-        if (!selectedLesson) return { data: null, error: null };
-
-        // 3. Fetch creator info manually
-        let creatorName = 'Grapplay Team';
-        let creatorProfileImage = undefined;
-        const creatorId = selectedLesson.course?.creator_id;
-
-        if (creatorId) {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('name, avatar_url')
-                .eq('id', creatorId)
-                .maybeSingle();
-
-            if (userData) {
-                creatorName = userData.name || creatorName;
-                creatorProfileImage = userData.avatar_url;
-            }
-        }
-
-        const transformed = transformLesson(selectedLesson);
-        transformed.creatorName = creatorName;
-        transformed.creatorProfileImage = creatorProfileImage;
-
-        // Ensure previewVimeoId is available for the showcase
-        // Use manual id if exists, otherwise extract from lesson's vimeo_url
-        if (selectedLesson.course) {
-            (transformed as any).course = {
-                ...selectedLesson.course,
-                previewVimeoId: selectedLesson.course.preview_vimeo_id || extractVimeoId(selectedLesson.vimeo_url)
-            };
-        }
-
         return {
             data: transformed,
             error: null
@@ -6484,7 +6455,7 @@ export async function checkDrillOwnership(userId: string, drillId: string) {
 
 export async function incrementDrillViews(drillId: string) {
     if (drillId.startsWith('mock-')) return;
-    const { error } = await supabase.rpc('increment_drill_views', { p_drill_id: drillId });
+    const { error } = await supabase.rpc('increment_drill_views', { drill_id: drillId });
     if (error) console.error('Error incrementing drill views:', error);
 }
 

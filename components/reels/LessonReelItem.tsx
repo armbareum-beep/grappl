@@ -3,7 +3,7 @@ import { Lesson } from '../../types';
 import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow } from '../../lib/api';
+import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched } from '../../lib/api';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 import Player from '@vimeo/player';
 
@@ -141,8 +141,20 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         }
     }, [user, lesson.id, isActive, lesson.creatorId]);
 
-    // Watch time tracking for non-logged-in users
+    // Watch time tracking for non-logged-in users AND logged-in users (history)
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+
+    // Initial View Record (mark as recent)
     useEffect(() => {
+        if (isActive && user) {
+            // Record initial view with 0 duration to mark as recent
+            updateLastWatched(user.id, lesson.id, 0).catch(console.error);
+        }
+    }, [isActive, user, lesson.id]);
+
+    useEffect(() => {
+        // Non-logged in users: 30s preview limit
         if (!user && isActive) {
             // Start timer
             setWatchTime(0);
@@ -162,12 +174,37 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                     return newTime;
                 });
             }, 1000);
-        } else {
-            // Clear timer when not active or user is logged in
+        }
+        // Logged-in users: Record watch progress
+        else if (user && isActive) {
+            lastTickRef.current = Date.now();
+            accumulatedTimeRef.current = 0;
+
+            timerRef.current = setInterval(() => {
+                const now = Date.now();
+                const elapsed = (now - lastTickRef.current) / 1000;
+                lastTickRef.current = now;
+
+                if (elapsed > 0 && elapsed < 5 && !isPaused) {
+                    accumulatedTimeRef.current += elapsed;
+                }
+
+                // Record every 10 seconds
+                if (accumulatedTimeRef.current >= 10) {
+                    const timeToSend = Math.floor(accumulatedTimeRef.current);
+                    accumulatedTimeRef.current -= timeToSend;
+
+                    updateLastWatched(user.id, lesson.id, timeToSend).catch(console.error);
+                }
+            }, 1000);
+        }
+        else {
+            // Clear timer when not active
             if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
             setWatchTime(0);
+            accumulatedTimeRef.current = 0;
         }
 
         return () => {
@@ -175,7 +212,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 clearInterval(timerRef.current);
             }
         };
-    }, [isActive, user]);
+    }, [isActive, user, lesson.id, isPaused]);
 
     const handleLike = async () => {
         if (!user) {

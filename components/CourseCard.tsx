@@ -11,9 +11,10 @@ interface CourseCardProps {
     className?: string;
     isDailyFree?: boolean;
     rank?: number;
+    hasAccess?: boolean;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank, hasAccess = false }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -33,7 +34,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
-        if (isHovering) {
+        if (isHovering && hasAccess) {
             if (!vimeoId) {
                 import('../lib/api').then(({ getCoursePreviewVideo }) => {
                     getCoursePreviewVideo(course.id).then(url => {
@@ -53,7 +54,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
             setProgress(0);
         }
         return () => clearTimeout(timer);
-    }, [isHovering, vimeoId, course.id]);
+    }, [isHovering, vimeoId, course.id, hasAccess]);
 
     useEffect(() => {
         if (showVideo && iframeRef.current && !playerRef.current) {
@@ -114,7 +115,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
     return (
         <div
             className={cn("group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1", className)}
-            onMouseEnter={() => setIsHovering(true)}
+            onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Video/Thumbnail Area (16:9) */}
@@ -123,7 +124,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                     <img
                         src={course.thumbnailUrl}
                         alt={course.title}
-                        className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering ? 'scale-110' : 'scale-100')}
+                        className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering && hasAccess ? 'scale-110' : 'scale-100')}
                     />
 
                     {/* Left side badges: Free status */}
@@ -140,7 +141,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         ) : null}
                     </div>
 
-                    {showVideo && vimeoId && (
+                    {showVideo && vimeoId && hasAccess && (
                         <div className="absolute inset-0 z-10 bg-black animate-fade-in">
                             <iframe
                                 ref={iframeRef}

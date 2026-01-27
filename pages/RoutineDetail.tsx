@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import Player from '@vimeo/player';
 import { Button } from '../components/Button';
@@ -302,6 +302,13 @@ export const RoutineDetail: React.FC = () => {
             loadDrill(currentDrillIndex);
         }
     }, [routine, currentDrillIndex]);
+
+    // Record history for Recent Activity
+    useEffect(() => {
+        if (user && currentDrill && currentDrill.id) {
+            recordDrillView(user.id, currentDrill.id).catch(console.error);
+        }
+    }, [user?.id, currentDrill?.id]);
 
     useEffect(() => {
         if (isTrainingMode) {
