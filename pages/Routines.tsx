@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
-import { Search } from 'lucide-react';
+import { Search, PlayCircle, ChevronDown } from 'lucide-react';
+import { ContentBadge } from '../components/common/ContentBadge';
 
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
