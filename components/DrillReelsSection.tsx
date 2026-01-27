@@ -136,31 +136,61 @@ export const DrillReelsSection: React.FC = () => {
                 // 1. Get Daily Free Drill
                 const dailyRes = await getDailyFreeDrill();
 
-                // 2. Get other free drills
-                const { data: freeDrillsData } = await supabase
-                    .from('drills')
-                    .select('*')
-                    .eq('price', 0)
+                // 2. Get other free drills (via routines with price 0)
+                const { data: freeRoutineDrills } = await supabase
+                    .from('routine_drills')
+                    .select(`
+                        drill:drills!inner (
+                            *,
+                            creator_id
+                        ),
+                        routines!inner (
+                            price
+                        )
+                    `)
+                    .eq('routines.price', 0)
+                    .not('drills.vimeo_url', 'is', null) // Ensure vimeo_url exists
                     .limit(20);
 
                 let finalDrills: Drill[] = [];
+
                 if (dailyRes.data) {
-                    finalDrills.push(dailyRes.data);
+                    // Ensure vimeoUrl is populated from snake_case vimeo_url
+                    const dailyDrill = {
+                        ...dailyRes.data,
+                        vimeoUrl: dailyRes.data.vimeoUrl || (dailyRes.data as any).vimeo_url,
+                        thumbnailUrl: dailyRes.data.thumbnailUrl || (dailyRes.data as any).thumbnail_url,
+                        videoUrl: dailyRes.data.videoUrl || (dailyRes.data as any).video_url,
+                    };
+                    finalDrills.push(dailyDrill);
                 }
 
-                if (freeDrillsData) {
+                if (freeRoutineDrills) {
                     const dailyId = dailyRes.data?.id;
-                    const others = freeDrillsData
-                        .filter(d => d.id !== dailyId)
-                        .map(d => ({
+                    const others = freeRoutineDrills
+                        .map((item: any) => item.drill)
+                        .filter((d: any) => d && d.id !== dailyId)
+                        .map((d: any) => ({
                             ...d,
+                            id: d.id,
+                            title: d.title,
+                            description: d.description,
                             thumbnailUrl: d.thumbnail_url || d.thumbnailUrl,
                             vimeoUrl: d.vimeo_url || d.vimeoUrl,
                             videoUrl: d.video_url || d.videoUrl,
-                            creatorId: d.creator_id || d.creatorId,
-                            createdAt: d.created_at || d.createdAt
+                            creatorId: d.creator_id,
+                            createdAt: d.created_at,
+                            difficulty: d.difficulty,
+                            category: d.category,
+                            durationMinutes: d.duration_minutes
                         }));
-                    finalDrills = [...finalDrills, ...others];
+
+                    // Deduplicate by ID just in case
+                    const uniqueOthers = others.filter((drill, index, self) =>
+                        index === self.findIndex((t) => t.id === drill.id)
+                    );
+
+                    finalDrills = [...finalDrills, ...uniqueOthers];
                 }
 
                 setDrills(finalDrills);

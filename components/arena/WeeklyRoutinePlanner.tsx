@@ -415,7 +415,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             {/* Soft Radial Gradient Background */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-violet-900/5 via-transparent to-transparent pointer-events-none" />
 
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800">
                         <Calendar className="w-5 h-5 text-violet-500" />
@@ -433,7 +433,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end md:self-auto">
                     <button
                         onClick={handleNewPlanRequest}
                         className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 transition-all active:scale-95"

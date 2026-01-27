@@ -257,7 +257,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                             <div className="absolute top-8 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
-                                    className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl"
+                                    className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl"
                                 >
                                     {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                 </button>
@@ -267,7 +267,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                 <div className="relative w-full h-full">
                                     <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
                                         <div className="flex flex-col items-center gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
                                                 <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                             </button>
                                             <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
@@ -278,7 +278,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                                     e.stopPropagation();
                                                     navigate(`/courses/${lesson.courseId}`);
                                                 }}
-                                                className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
+                                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                                 title="클래스 보기"
                                             >
                                                 <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
@@ -291,11 +291,11 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                                 const { saved } = await toggleLessonSave(user.id, lesson.id);
                                                 setIsSaved(saved);
                                             }}
-                                            className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
+                                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                         >
                                             <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                        <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
                                             <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                         </button>
                                     </div>
