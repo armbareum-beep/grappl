@@ -5618,12 +5618,99 @@ export async function getDailyFreeDrill() {
  */
 export async function getDailyFreeLesson() {
     try {
+        // 1. Try to get featured lesson for today
+        const today = new Date().toISOString().split('T')[0];
+        const { data: featured } = await withTimeout(
+            supabase
+                .from('daily_featured_content')
+                .select('featured_id')
+                .eq('date', today)
+                .eq('featured_type', 'lesson')
+                .maybeSingle(),
+            3000
+        );
+
+        let lessonId = featured?.featured_id;
+        let selectedLesson = null;
+
+        if (lessonId) {
+            const { data: lesson } = await supabase
+                .from('lessons')
+                .select('*, courses!inner(*)')
+                .eq('id', lessonId)
+                .maybeSingle();
+            selectedLesson = lesson;
+        }
+
+        // 2. Fallback to deterministic random if no featured or not found
+        if (!selectedLesson) {
+            const { data: lessons, error } = await withTimeout(
+                supabase
+                    .from('lessons')
+                    .select('*, courses!inner(*)')
+                    .eq('courses.published', true)
+                    .neq('vimeo_url', '')
+                    .not('vimeo_url', 'like', 'ERROR%')
+                    .limit(50),
+                5000
+            );
+
+            if (error) throw error;
+            if (!lessons || lessons.length === 0) return { data: null, error: null };
+
+            const todayObj = new Date();
+            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const x = Math.sin(seed + 789) * 10000;
+            const index = Math.floor((x - Math.floor(x)) * lessons.length);
+            selectedLesson = lessons[index];
+        }
+
+        if (!selectedLesson) return { data: null, error: null };
+
+        // 3. Fetch creator info
+        let creatorName = 'Grapplay Team';
+        let creatorProfileImage = undefined;
+        const creatorId = selectedLesson.courses?.creator_id || selectedLesson.creator_id;
+
+        if (creatorId) {
+            const { data: creatorData } = await supabase
+                .from('creators')
+                .select('name, profile_image')
+                .eq('id', creatorId)
+                .maybeSingle();
+
+            if (creatorData) {
+                creatorName = creatorData.name || creatorName;
+                creatorProfileImage = creatorData.profile_image || undefined;
+            } else {
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('name, avatar_url')
+                    .eq('id', creatorId)
+                    .maybeSingle();
+
+                if (userData) {
+                    creatorName = userData.name || creatorName;
+                    creatorProfileImage = userData.avatar_url || undefined;
+                }
+            }
+        }
+
+        const transformed = transformLesson({
+            ...selectedLesson,
+            course: selectedLesson.courses
+        });
+
         return {
-            data: transformed,
+            data: {
+                ...transformed,
+                creatorName,
+                creatorProfileImage
+            },
             error: null
         };
     } catch (error) {
-        console.error('Exception in getDailyFreeLesson (Handled):', error);
+        console.error('Exception in getDailyFreeLesson:', error);
         return { data: null, error };
     }
 }
