@@ -4,6 +4,7 @@ import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../
 import { Drill, Lesson, SparringVideo } from '../types';
 import { Clock } from 'lucide-react';
 import { ContentBadge } from './common/ContentBadge';
+import { upgradeThumbnailQuality } from '../lib/utils';
 
 export const DailyFreeDrillSection: React.FC = () => {
     const navigate = useNavigate();
@@ -113,7 +114,7 @@ export const DailyFreeDrillSection: React.FC = () => {
                 </div>
 
                 {/* Accordion Layout */}
-                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full h-[600px] md:h-[600px]">
+                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full h-[500px] md:h-[500px]">
                     {items.map((item) => {
                         const isActive = activeId === item.id;
 
@@ -144,10 +145,11 @@ export const DailyFreeDrillSection: React.FC = () => {
                             >
                                 {/* Aspect Ratio Preservation Strategy: Object-Cover + Alignment */}
                                 <img
-                                    src={item.img}
+                                    src={upgradeThumbnailQuality(item.img)}
                                     className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${isActive ? 'scale-100' : 'scale-110'}
                                         ${item.id === 'drill' ? 'object-top' : 'object-center'}
                                     `}
+                                    style={{ imageRendering: 'auto' }}
                                     alt={item.data.title}
                                 />
 
