@@ -197,11 +197,11 @@ export const LessonDetail: React.FC = () => {
                                         />
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-4 md:p-6 text-center backdrop-blur-sm">
-                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-3 md:mb-6 ring-1 ring-zinc-700 shadow-xl">
-                                                <Lock className="w-6 h-6 md:w-8 md:h-8 text-zinc-500" />
+                                            <div className="w-14 h-14 md:w-20 md:h-20 bg-zinc-800 rounded-full flex items-center justify-center mb-4 md:mb-8 ring-1 ring-zinc-700 shadow-xl">
+                                                <Lock className="w-7 h-7 md:w-10 md:h-10 text-zinc-500" />
                                             </div>
-                                            <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2">잠긴 레슨입니다</h3>
-                                            <p className="text-xs md:text-sm text-zinc-500 mb-4 md:mb-8 max-w-xs break-keep">
+                                            <h3 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-3">잠긴 레슨입니다</h3>
+                                            <p className="text-sm md:text-base text-zinc-500 mb-6 md:mb-10 max-w-sm break-keep">
                                                 이 레슨을 시청하려면 클래스를 구매하거나<br className="hidden md:block" />구독이 필요합니다.
                                             </p>
                                             <Button

@@ -287,14 +287,14 @@ const VideoItem: React.FC<{
                     <h3 className="text-2xl font-black text-white mb-2">
                         {canPurchase ? '유료 스파링 영상' : '멤버십 전용 콘텐츠'}
                     </h3>
-                    <p className="text-sm text-zinc-400 font-medium mb-8 max-w-[240px] leading-relaxed">
+                    <p className="text-sm text-zinc-400 font-medium mb-8 max-w-xs leading-relaxed">
                         {canPurchase
                             ? '이 영상을 시청하려면 단품으로 구매하거나 멤버십을 구독하세요.'
                             : '이 스파링 영상은 구독 후 시청할 수 있습니다.'}
                         {isDailyFree && <span className="text-violet-400 font-black block mt-2">(오늘의 무료 영상!)</span>}
                     </p>
 
-                    <div className="w-full max-w-[240px] space-y-3">
+                    <div className="w-full max-w-xs space-y-3">
                         {canPurchase && (
                             <Link
                                 to={`/checkout/sparring/${video.id}?price=${video.price}`}
@@ -470,7 +470,7 @@ const VideoItem: React.FC<{
                                         {video.creator && (
                                             <div className="flex items-center gap-3 mb-3">
                                                 <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                                                    <img src={video.creatorProfileImage || (video.creator as any).profileImage || (video.creator as any).image || (video.creator as any).avatar_url || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
                                                     <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
                                                 </Link>
                                                 <span className="text-white/60 text-xs mt-0.5">•</span>
