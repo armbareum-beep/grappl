@@ -388,9 +388,13 @@ export const Home: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
-                            <button className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/lessons/${lesson.id}`);
+                              }}
+                              className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
                               <Play className="w-5 h-5 fill-current" /> 클래스 보기
-
                             </button>
                           </div>
                         </div>
@@ -402,7 +406,7 @@ export const Home: React.FC = () => {
                   if (!sparring) return null;
                   return (
                     <div key={`slide-sparring-${idx}`} className={`absolute inset-0 transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${idx === currentSlide ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-12 z-0 pointer-events-none'}`}>
-                      <div onClick={() => navigate('/sparring', { state: { highlightVideoId: sparring.id } })} className="relative overflow-hidden w-full h-full bg-violet-600/10 backdrop-blur-3xl px-6 pt-6 pb-20 md:p-10 cursor-pointer group transition-all duration-500">
+                      <div onClick={() => navigate(`/sparring/${sparring.id}`)} className="relative overflow-hidden w-full h-full bg-violet-600/10 backdrop-blur-3xl px-6 pt-6 pb-20 md:p-10 cursor-pointer group transition-all duration-500">
                         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/20 blur-[120px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
 
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative z-10 h-full max-w-6xl mx-auto">
@@ -428,7 +432,14 @@ export const Home: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex-shrink-0 w-full md:w-auto mt-auto md:mt-0">
-                            <button className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (sparring.id && sparring.id !== 'undefined') {
+                                  navigate(`/sparring/${sparring.id}`);
+                                }
+                              }}
+                              className="w-full md:w-auto bg-white text-black font-bold rounded-full px-8 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 text-base md:text-lg tracking-tight">
                               <Play className="w-5 h-5 fill-current" /> 스파링 보기
                             </button>
                           </div>

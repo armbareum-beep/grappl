@@ -624,6 +624,7 @@ export const UploadDrill: React.FC = () => {
                             onSave={handleCutsSave}
                             onCancel={() => setActiveEditor(null)}
                             aspectRatio="9:16"
+                            thumbnailAspectRatio={4 / 5}
                         />
                     )}
                 </div>

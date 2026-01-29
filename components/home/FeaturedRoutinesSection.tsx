@@ -50,7 +50,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                 {routines.map((routine) => (
                     <div
                         key={routine.id}
-                        onClick={() => navigate(`/drill-routines/${routine.id}`)}
+                        onClick={() => navigate(`/routines/${routine.id}`)}
                         className="group cursor-pointer"
                     >
                         {/* Thumbnail Card */}

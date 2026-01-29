@@ -27,15 +27,25 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
     );
   }
 
-  // 시간 포맷 함수
-  const formatDuration = (minutes: number) => {
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hrs > 0) return `${hrs}시간 ${mins}분`;
-    return `${mins}분`;
+  // 시간 포맷 함수 (초 단위 지원)
+  const formatDuration = (seconds: number) => {
+    if (seconds <= 0) return '0초';
+
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hrs > 0) {
+      return `${hrs}시간 ${mins}분`;
+    }
+    if (mins > 0) {
+      return `${mins}분 ${secs}초`;
+    }
+    return `${secs}초`;
   };
 
-  // 상대적 시간 표시 (예: "2시간 전")
+  // ... (getRelativeTime remains same) ...
+
   const getRelativeTime = (isoString: string) => {
     const now = new Date();
     const completed = new Date(isoString);
@@ -78,8 +88,10 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
           <div
             key={routine.id}
             onClick={() => {
-              if (routine.routineId) {
-                navigate(`/drill-routines/${routine.routineId}`);
+              if (routine.routineId && routine.routineId !== 'undefined') {
+                navigate(`/routines/${routine.routineId}`);
+              } else {
+                console.warn('[RecentCompletedRoutinesSection] Missing or invalid routineId', routine);
               }
             }}
             className="snap-start flex-shrink-0 w-[240px] md:w-[320px] group relative bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-violet-500/50 transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-violet-500/10"
@@ -109,9 +121,9 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
               {/* Stats Row */}
               <div className="flex items-center gap-3 text-[10px] md:text-xs">
                 {/* Duration */}
-                <div className="flex items-center gap-1 text-violet-400 font-medium">
+                <div className="flex items-center gap-1 text-violet-400 font-medium whitespace-nowrap">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>{formatDuration(routine.durationMinutes)}</span>
+                  <span>{formatDuration(routine.durationSeconds ?? (routine.durationMinutes * 60))}</span>
                 </div>
 
                 {/* Relative Time */}

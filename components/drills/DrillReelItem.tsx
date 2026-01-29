@@ -13,6 +13,7 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 // --- Helper Functions ---
 import { extractVimeoId, recordDrillView } from '../../lib/api';
+import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
 
 
 // --- Sub-Component: Single Video Player ---
@@ -238,6 +239,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [watchTime, setWatchTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+
+    // Fullscreen on landscape
+    const containerRef = useRef<HTMLDivElement>(null);
+    useOrientationFullscreen(containerRef, isActive);
+
     const isVideoReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
 
     const navigate = useNavigate();
@@ -356,9 +362,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 50) {
             if (xDistance > 0) { // Swipe Left -> Show Description
                 if (currentVideoType === 'main') {
-                    if (hasAccessToDescription) setCurrentVideoType('description');
-                    else if (!isLoggedIn) { alert('설명 영상은 로그인이 필요합니다.'); navigate('/login'); }
-                    else alert('설명 영상은 구독자 전용입니다.');
+                    setCurrentVideoType('description');
                 }
             } else { // Swipe Right -> Show Main
                 if (currentVideoType === 'description') {
@@ -386,6 +390,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
     return (
         <div
+            ref={containerRef}
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
             onTouchStart={handleTouchStart}
@@ -504,9 +509,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (hasAccessToDescription) setCurrentVideoType('description');
-                                        else if (!isLoggedIn) navigate('/login');
-                                        else navigate('/pricing');
+                                        setCurrentVideoType('description');
                                     }}
                                     className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
                                 >
@@ -545,7 +548,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             )}
 
             {/* Metadata Footer - Lowered on mobile */}
-            <div className="absolute left-0 right-0 w-full bottom-12 md:bottom-24 px-6 z-40 pointer-events-none">
+            <div className="absolute left-0 right-0 w-full bottom-4 px-6 z-40 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
                     <div className="flex-1 pr-16">
                         <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">DRILL</div>

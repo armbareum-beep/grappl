@@ -328,6 +328,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 } else if (playing) {
                     // Only play if 'playing' is true and not reached limit
                     await player.play();
+                } else {
+                    // If playing is explicitly false, pause
+                    await player.pause();
                 }
             } catch (err: any) {
                 // Check if it's an expected interruption error

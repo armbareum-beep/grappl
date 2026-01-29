@@ -511,9 +511,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      {!['/drills', '/training-routines', '/sparring', '/browse', '/skill-tree'].some(path => location.pathname.startsWith(path)) &&
-        !location.pathname.startsWith('/course') &&
-        !location.pathname.startsWith('/routines') && (
+      {!['/drills', '/training-routines', '/sparring', '/browse', '/skill-tree', '/routines', '/my-routines', '/drill-routines', '/my-schedule', '/library'].some(path => location.pathname.startsWith(path)) &&
+        !location.pathname.startsWith('/course') && (
           <footer className="bg-zinc-950 border-t border-zinc-900 mt-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
               <div className="grid md:grid-cols-4 gap-12 md:gap-8">
@@ -585,7 +584,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay top of everything */}
       {!isLandingPage && !isFullScreenMode && (
-        <div className="bottom-nav md:hidden fixed bottom-4 left-4 right-4 z-[99999] bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden h-16">
+        <div className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-[99999] bg-zinc-950/85 backdrop-blur-xl border-t border-zinc-800/50 shadow-[0_-1px_10px_rgba(0,0,0,0.3)] h-16 safe-area-pb">
           <div className="grid grid-cols-5 h-full items-center relative">
             {[
               { name: '라이브러리', href: '/library', icon: BookOpen },

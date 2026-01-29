@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { extractVimeoId } from '../../lib/api';
 import { VideoPlayer } from '../VideoPlayer';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
+import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -39,6 +40,10 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Fullscreen on landscape
+    const containerRef = useRef<HTMLDivElement>(null);
+    useOrientationFullscreen(containerRef, isActive);
 
     // Check interaction status and fetch related drills/lessons on load
     useEffect(() => {
@@ -354,6 +359,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
     return (
         <div
+            ref={containerRef}
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
@@ -371,125 +377,126 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                             />
                         </div>
                     )}
+
+                    {/* Removed from here to move inside the video container */}
                 </div>
 
                 {/* Background Blur Effect - Lightened overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60 pointer-events-none z-30" />
 
                 {/* Overlay Contents */}
-                <div className="absolute inset-0 pointer-events-none z-40 flex justify-center">
-                    <div className="relative w-full h-full max-w-[min(100vw,calc(100vh-140px))] flex">
-                        {/* Back button Group - Sticks to left edge of video on web */}
-                        <div className="absolute left-0 top-0 bottom-0 flex flex-col items-center py-6 pl-4 pointer-events-auto">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); navigate(-1); }}
-                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95 mb-4"
-                            >
-                                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                <div className="absolute inset-0 pointer-events-none z-40 flex items-start justify-center">
+                    {/* Top Buttons - Moved to Screen Top */}
+                    <div className="absolute top-4 left-4 z-50 pointer-events-auto">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); navigate(-1); }}
+                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
+                        >
+                            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
+                    </div>
+
+                    <div className="absolute top-4 right-4 z-50 pointer-events-auto">
+                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
+                            {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                        </button>
+                    </div>
+                    <div className="relative w-full aspect-square mt-16 max-w-[min(100vw,calc(100vh-140px))] flex pointer-events-none">
+
+
+                        {/* Middle-Right Group: Heart, Save, Share */}
+                        <div className="absolute bottom-4 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                    <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                                </button>
+                                <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
+                    </div>
 
-                        <div className="flex-1 relative">
-                            {/* Top-Right Group */}
-                            <div className="absolute top-8 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
-                                <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
-                                    {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                                </button>
-                            </div>
+                    {/* Bottom Info - Moved outside aspect-square container */}
+                    <div className="absolute bottom-4 left-0 right-0 w-full px-6 z-[60] text-white pointer-events-none">
+                        <div className="w-full max-w-[min(100vw,calc(100vh-140px))] mx-auto flex flex-col items-start gap-2 md:gap-4">
+                            {/* LEARN THIS Cards (Horizontal Scroll) */}
+                            {relatedDrills.length > 0 && (
+                                <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
+                                    {relatedDrills.map((item: any) => {
+                                        const isDrill = item._type === 'drill';
+                                        const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
 
-                            {/* Middle-Right Group: Heart, Save, Share */}
-                            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
-                                <div className="flex flex-col items-center gap-1">
-                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                        <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                    </button>
-                                    <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                    <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                    <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
-                            </div>
-
-
-                            {/* Bottom Info - Related Items & Metadata - More compact on mobile */}
-                            <div className="absolute bottom-12 md:bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-2 md:gap-4 pointer-events-none">
-                                {/* LEARN THIS Cards (Horizontal Scroll) */}
-                                {relatedDrills.length > 0 && (
-                                    <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
-                                        {relatedDrills.map((item: any) => {
-                                            const isDrill = item._type === 'drill';
-                                            const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
-
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={(e) => { e.stopPropagation(); navigate(targetUrl); }}
-                                                    className="group flex-shrink-0 w-52 md:w-72 flex gap-2 md:gap-3 p-2 md:p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
-                                                >
-                                                    <div className="w-16 md:w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
-                                                        {item.thumbnailUrl ? (
-                                                            <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                                                        ) : (
-                                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
-                                                        )}
-                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
-                                                            <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
-                                                        </div>
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                onClick={(e) => { e.stopPropagation(); navigate(targetUrl); }}
+                                                className="group flex-shrink-0 w-52 md:w-72 flex gap-2 md:gap-3 p-2 md:p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
+                                            >
+                                                <div className="w-16 md:w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
+                                                    {item.thumbnailUrl ? (
+                                                        <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                        <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all fill-current" />
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-[12px] md:text-sm font-bold text-white line-clamp-2 drop-shadow-sm leading-snug">{item.title}</h4>
-                                                        <div className="flex items-center gap-2 mt-1 md:mt-1.5">
-                                                            <span className={`text-[9px] md:text-[10px] font-black px-1.5 md:px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
-                                                                {isDrill ? 'DRILL' : 'LESSON'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/20 to-transparent p-3 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
-                                    <div className="flex items-center gap-3">
-                                        {video.category && (
-                                            <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border mb-2 ${video.category === 'Competition'
-                                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                                                }`}>
-                                                {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-[12px] md:text-sm font-bold text-white line-clamp-2 drop-shadow-sm leading-snug">{item.title}</h4>
+                                                    <div className="flex items-center gap-2 mt-1 md:mt-1.5">
+                                                        <span className={`text-[9px] md:text-[10px] font-black px-1.5 md:px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
+                                                            {isDrill ? 'DRILL' : 'LESSON'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
                                             </div>
-                                        )}
-                                    </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
-                                    {video.creator && (
-                                        <div className="flex items-center gap-3 mb-2 md:mb-3">
-                                            <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <div className="relative">
-                                                    <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover" />
-
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-white font-bold text-xs md:text-sm drop-shadow-sm">{video.creator.name}</span>
-                                                </div>
-                                            </Link>
-                                            <span className="text-white/60 text-xs mt-0.5">•</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
-                                                {isFollowed ? 'Following' : 'Follow'}
-                                            </button>
+                            <div className="w-full pointer-events-auto pr-24 bg-gradient-to-t from-black/20 to-transparent p-3 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                <div className="flex items-center gap-3">
+                                    {video.category && (
+                                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border mb-2 ${video.category === 'Competition'
+                                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                            }`}>
+                                            {video.category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
                                         </div>
                                     )}
-                                    <div className="mb-1 md:mb-2">
-                                        <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
-                                    </div>
-                                    {video.description && (
-                                        <p className="text-xs md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
-                                    )}
                                 </div>
+
+                                {video.creator && (
+                                    <div className="flex items-center gap-3 mb-2 md:mb-3">
+                                        <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                            <div className="relative">
+                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover" />
+
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-white font-bold text-xs md:text-sm drop-shadow-sm">{video.creator.name}</span>
+                                            </div>
+                                        </Link>
+                                        <span className="text-white/60 text-xs mt-0.5">•</span>
+                                        <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                                            {isFollowed ? 'Following' : 'Follow'}
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="mb-1 md:mb-2">
+                                    <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
+                                </div>
+                                {video.description && (
+                                    <p className="text-xs md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -507,23 +514,24 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                         )}
                     </React.Suspense>
                 </div>
-            </div>
 
-            {/* Progress Bar / Teaser Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
-                <div
-                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
+
+                {/* Progress Bar / Teaser Bar */}
+                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                    <div
+                        className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
+                        style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
+                    />
+                </div>
+
+                {/* Login Modal for non-logged-in users */}
+                <ReelLoginModal
+                    isOpen={isLoginModalOpen}
+                    onClose={() => setIsLoginModalOpen(false)}
+                    redirectUrl={`/watch?tab=sparring&id=${video.id}`}
                 />
+
             </div>
-
-            {/* Login Modal for non-logged-in users */}
-            <ReelLoginModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-                redirectUrl={`/watch?tab=sparring&id=${video.id}`}
-            />
-
         </div>
     );
 };

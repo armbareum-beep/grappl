@@ -118,7 +118,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
             <div
                 className="relative aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 group-hover:border-zinc-700 transition-all"
             >
-                <Link to={`/drill-routines/${routine.id}`} className="absolute inset-0 block">
+                <Link to={`/routines/${routine.id}`} className="absolute inset-0 block">
                     <img
                         src={routine.thumbnailUrl}
                         alt={routine.title}
@@ -177,7 +177,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
 
             {/* Information Area */}
             <div className="px-1">
-                <Link to={`/drill-routines/${routine.id}`}>
+                <Link to={`/routines/${routine.id}`}>
                     <h3 className="font-bold text-zinc-100 text-sm md:text-base leading-tight mb-1 line-clamp-1 group-hover:text-violet-400 transition-colors">
                         {routine.title}
                     </h3>

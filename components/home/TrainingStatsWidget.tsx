@@ -64,7 +64,7 @@ export const TrainingStatsWidget: React.FC<TrainingStatsWidgetProps> = ({ logs }
 
     return (
         <div
-            onClick={() => navigate('/arena')}
+            onClick={() => navigate('/skill-tree')}
             className="lg:col-span-5 relative overflow-hidden bg-zinc-900/30 border border-white/5 p-6 md:p-8 rounded-[32px] group flex flex-col h-full cursor-pointer transition-all duration-300 hover:bg-zinc-900/50 hover:border-violet-500/30"
         >
             {/* Background Effect */}

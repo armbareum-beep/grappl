@@ -141,7 +141,7 @@ export const WeeklyFeaturedSection: React.FC<WeeklyFeaturedSectionProps> = ({
                     {/* Step 2: Repetition (Routine) */}
                     <div
                         className="group cursor-pointer relative"
-                        onClick={() => routine && navigate(`/drill-routines/${routine.id}`)}
+                        onClick={() => routine && navigate(`/routines/${routine.id}`)}
                     >
                         <div className="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-zinc-950 border border-violet-500/30 flex items-center justify-center z-20 shadow-xl group-hover:scale-110 transition-transform">
                             <span className="text-violet-400 text-[10px] font-black italic">02</span>
@@ -176,7 +176,7 @@ export const WeeklyFeaturedSection: React.FC<WeeklyFeaturedSectionProps> = ({
                     {/* Step 3: Proof (Sparring) */}
                     <div
                         className="group cursor-pointer relative"
-                        onClick={() => sparring && navigate(`/sparring?action=view&id=${sparring.id}`)}
+                        onClick={() => sparring && navigate(`/sparring/${sparring.id}`)}
                     >
                         <div className="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-zinc-950 border border-violet-500/30 flex items-center justify-center z-20 shadow-xl group-hover:scale-110 transition-transform">
                             <span className="text-violet-400 text-[10px] font-black italic">03</span>
@@ -233,7 +233,7 @@ export const WeeklyFeaturedSection: React.FC<WeeklyFeaturedSectionProps> = ({
                 </div>
 
                 <button
-                    onClick={() => navigate('/arena?tab=skills')}
+                    onClick={() => navigate('/skill-tree')}
                     className="px-8 py-4 bg-white text-black font-black text-sm rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
                 >
                     전체 체인 탐색하기

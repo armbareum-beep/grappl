@@ -172,22 +172,22 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                                                 setIsActuallyPaused(false);
                                                             }
                                                         }}
-                                                        className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn ${isPlaying && !isActuallyPaused ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
+                                                        className={`w-16 h-16 md:w-20 md:h-20 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn ${isPlaying && !isActuallyPaused ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
                                                     >
                                                         {isPlaying && !isActuallyPaused ? (
-                                                            <Pause className="w-8 h-8 md:w-10 md:h-10 fill-current group-hover:rotate-12 transition-transform" />
+                                                            <Pause className="w-6 h-6 md:w-8 md:h-8 fill-current group-hover:rotate-12 transition-transform" />
                                                         ) : (
-                                                            <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1 group-hover:rotate-12 transition-transform" />
+                                                            <Play className="w-6 h-6 md:w-8 md:h-8 fill-current ml-1 group-hover:rotate-12 transition-transform" />
                                                         )}
                                                     </button>
                                                 </div>
                                             </div>
 
                                             {/* Overlay Content (Desktop Only) - fade out when playing */}
-                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 ${isPlaying && !isActuallyPaused ? 'opacity-0' : 'opacity-100'}`}></div>
+                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 opacity-100`}></div>
 
                                             {/* Info - Bottom Left (Responsive) - fade out when playing */}
-                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 ${isPlaying && !isActuallyPaused ? 'opacity-0' : 'opacity-100'}`}>
+                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 opacity-100`}>
                                                 <div className="max-w-3xl">
                                                     <h3
                                                         className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep cursor-pointer hover:text-violet-400 transition-colors pointer-events-auto"

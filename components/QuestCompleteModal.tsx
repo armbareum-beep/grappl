@@ -1,12 +1,12 @@
 import React from 'react';
-import { Flame, Trophy, Zap, Star } from 'lucide-react';
+import { Flame, Trophy, Star, Clock } from 'lucide-react';
 
 interface QuestCompleteModalProps {
     isOpen: boolean;
     onClose: () => void;
     onContinue?: () => void;
     questName: string;
-    xpEarned: number;
+    durationSeconds?: number;
     combatPowerEarned?: number;
     streak?: number;
     bonusReward?: {
@@ -23,7 +23,7 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
     onClose,
     onContinue,
     questName,
-    xpEarned,
+    durationSeconds,
     combatPowerEarned,
     streak,
     bonusReward,
@@ -95,25 +95,27 @@ export const QuestCompleteModal: React.FC<QuestCompleteModalProps> = ({
 
                                 {/* Rewards */}
                                 <div className="space-y-4 mb-10">
-                                    <motion.div
-                                        initial={{ x: -20, opacity: 0 }}
-                                        animate={{ x: 0, opacity: 1 }}
-                                        transition={{ delay: 0.6 }}
-                                        className="bg-zinc-800/40 border border-zinc-700/50 rounded-2xl p-4 flex items-center justify-between group hover:border-violet-500/30 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                                                <Zap className="w-6 h-6 text-violet-400 fill-violet-500/20" />
+                                    {durationSeconds !== undefined && (
+                                        <motion.div
+                                            initial={{ x: -20, opacity: 0 }}
+                                            animate={{ x: 0, opacity: 1 }}
+                                            transition={{ delay: 0.6 }}
+                                            className="bg-zinc-800/40 border border-zinc-700/50 rounded-2xl p-4 flex items-center justify-between group hover:border-violet-500/30 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                                                    <Clock className="w-6 h-6 text-violet-400 fill-violet-500/20" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="text-sm font-black text-white">수련 시간</p>
+                                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Total Duration</p>
+                                                </div>
                                             </div>
-                                            <div className="text-left">
-                                                <p className="text-sm font-black text-white">XP 획득</p>
-                                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Growth progress</p>
-                                            </div>
-                                        </div>
-                                        <span className="text-2xl font-black italic text-violet-400">
-                                            {xpEarned > 0 ? `+${xpEarned}` : 'COMPLETED'}
-                                        </span>
-                                    </motion.div>
+                                            <span className="text-2xl font-black italic text-violet-400">
+                                                {new Date(durationSeconds * 1000).toISOString().substring(11, 19).replace(/^00:/, '')}
+                                            </span>
+                                        </motion.div>
+                                    )}
 
                                     {(combatPowerEarned || bonusReward) && (
                                         <motion.div

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock, Play, Zap, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock, Play, Zap, ChevronLeft, Bookmark } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -39,6 +39,7 @@ export const CourseDetail: React.FC = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [isFollowed, setIsFollowed] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
@@ -159,6 +160,10 @@ export const CourseDetail: React.FC = () => {
                             const followed = await checkCreatorFollowStatus(user.id, courseData.creatorId);
                             setIsFollowed(followed);
                         }
+
+                        // Check if course is saved
+                        const saved = await checkCourseSaved(user.id, id);
+                        setIsSaved(saved);
                     }
 
                     // Check for daily free lesson
@@ -362,11 +367,20 @@ export const CourseDetail: React.FC = () => {
     const totalDuration = lessons.reduce((total, lesson) => {
         if (!lesson.length) return total;
 
-        // Handle "MM:SS" format
-        if (lesson.length.includes(':')) {
+        // Handle numeric seconds (number or string)
+        const numericDuration = Number(lesson.length);
+        if (!isNaN(numericDuration) && !lesson.length.toString().includes(':')) {
+            return total + numericDuration;
+        }
+
+        // Handle "MM:SS" or "HH:MM:SS" format
+        if (typeof lesson.length === 'string' && lesson.length.includes(':')) {
             const parts = lesson.length.split(':').map(Number);
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
                 return total + parts[0] * 60 + parts[1];
+            }
+            if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                return total + parts[0] * 3600 + parts[1] * 60 + parts[2];
             }
         }
 
@@ -426,6 +440,31 @@ export const CourseDetail: React.FC = () => {
 
     const handleShare = () => {
         setIsShareModalOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!user) {
+            navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
+            return;
+        }
+        if (!id) return;
+
+        // Optimistic UI
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+
+        const { saved, error } = await toggleCourseSave(user.id, id);
+        if (error) {
+            console.error('Save failed:', error);
+            setIsSaved(!newStatus);
+            toastError('저장 중 오류가 발생했습니다.');
+        } else {
+            if (saved) {
+                success('보관함에 저장되었습니다.');
+            } else {
+                success('보관함에서 삭제되었습니다.');
+            }
+        }
     };
 
     const renderVideoPlayer = () => {
@@ -604,6 +643,24 @@ export const CourseDetail: React.FC = () => {
                 {likeCount > 0 && (
                     <span className="text-sm font-medium text-zinc-400">{likeCount.toLocaleString()}</span>
                 )}
+
+                <button
+                    onClick={handleSave}
+                    className={cn(
+                        "group relative flex items-center justify-center w-12 h-12 rounded-2xl backdrop-blur-xl border transition-all duration-300 overflow-hidden",
+                        isSaved
+                            ? "bg-violet-500/20 border-violet-500/40 text-violet-400 shadow-lg shadow-violet-500/20"
+                            : "bg-zinc-900/60 border-zinc-800/60 text-zinc-400 hover:bg-zinc-800/80 hover:border-zinc-700 hover:text-white hover:shadow-lg hover:shadow-violet-500/10"
+                    )}
+                >
+                    {!isSaved && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 via-violet-600/5 to-violet-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    )}
+                    <Bookmark className={cn("w-5 h-5 relative z-10 transition-transform duration-300",
+                        isSaved && "fill-current",
+                        "group-hover:scale-110"
+                    )} />
+                </button>
 
                 <button
                     onClick={handleShare}
@@ -946,7 +1003,7 @@ export const CourseDetail: React.FC = () => {
                                     onClick={() => navigate(`/courses/${course.id}`)}
                                     className="group cursor-pointer"
                                 >
-                                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
+                                    <div className="aspect-[4/5] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
                                         {course.thumbnailUrl ? (
                                             <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                         ) : (

@@ -500,6 +500,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             onSave={handleCutsSave}
                             onCancel={() => setActiveEditor(null)}
                             aspectRatio={contentType === 'drill' ? '9:16' : '16:9'}
+                            thumbnailAspectRatio={
+                                contentType === 'drill' ? 4 / 5 :
+                                    contentType === 'lesson' ? 5 / 4 :
+                                        1
+                            }
                         />
                     )}
                 </div>

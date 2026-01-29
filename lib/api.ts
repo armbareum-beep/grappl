@@ -637,6 +637,8 @@ export async function getCourseById(id: string): Promise<Course | null> {
     } : null;
 }
 
+
+
 export async function getCoursesByCreator(creatorId: string): Promise<Course[]> {
     const { data, error } = await supabase
         .from('courses')
@@ -1545,25 +1547,21 @@ export async function getRecentActivity(userId: string) {
                 *,
                 lesson:lessons (
                     id, title, lesson_number,
-                    course:courses ( title, thumbnail_url, category )
+                    course:courses ( id, title, thumbnail_url, category )
                 )
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
             .limit(5), 5000),
 
-        // 2. Viewed Routines
+        // 2. Completed Routines (Using training_logs as history)
         withTimeout(supabase
-            .from('user_routine_views')
-            .select(`
-                last_watched_at,
-                routine:drill_routines (
-                    id, title, thumbnail_url, difficulty
-                )
-            `)
+            .from('training_logs')
+            .select('*')
             .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 5000),
+            .not('metadata->>routineId', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(5), 2000),
 
         // 3. Sparring View History
         withTimeout(supabase
@@ -1577,20 +1575,20 @@ export async function getRecentActivity(userId: string) {
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5), 5000),
+            .limit(5), 2000),
 
         // 4. Drill View History
         withTimeout(supabase
             .from('user_drill_views')
             .select(`
-                last_watched_at,
-                drills (
-                    id, title, thumbnail_url
-                )
-            `)
+                 last_watched_at,
+                 drills (
+                     id, title, thumbnail_url
+                 )
+             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5), 5000)
+            .limit(5), 2000)
     ]);
 
     const lessons = (lessonRes.data || []).map((item: any) => {
@@ -1607,17 +1605,20 @@ export async function getRecentActivity(userId: string) {
             lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
             lessonNumber: l?.lesson_number
         };
-    }).filter(item => item.id);
+    }).filter(item => item.id && item.id !== 'undefined' && item.courseId && item.courseId !== 'undefined');
 
-    const routines = (routineLogRes.data || []).map((item: any) => ({
-        id: item.routine?.id,
-        type: 'routine',
-        title: item.routine?.title || 'Drill Routine',
-        courseTitle: item.routine?.difficulty || 'Training',
-        progress: 0, // Viewing doesn't imply completion
-        thumbnail: item.routine?.thumbnail_url || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
-        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    }));
+    const routines = (routineLogRes.data || []).map((log: any) => {
+        const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : (log.metadata || {});
+        return {
+            id: metadata.routineId,
+            type: 'routine',
+            title: metadata.routineTitle || 'Drill Routine',
+            courseTitle: '훈련 기록',
+            progress: 100,
+            thumbnail: metadata.sharedRoutine?.thumbnailUrl || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
+            lastWatched: new Date(log.created_at).toISOString(),
+        };
+    }).filter(item => item.id && item.id !== 'undefined');
 
     const sparring = (sparringRes.data || []).map((item: any) => ({
         id: item.sparring_videos?.id,
@@ -1627,7 +1628,7 @@ export async function getRecentActivity(userId: string) {
         progress: 0,
         thumbnail: item.sparring_videos?.thumbnail_url,
         lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    }));
+    })).filter(item => item.id && item.id !== 'undefined');
 
     const drills = (drillRes.data || []).map((item: any) => ({
         id: item.drills?.id,
@@ -1637,7 +1638,7 @@ export async function getRecentActivity(userId: string) {
         progress: 0,
         thumbnail: item.drills?.thumbnail_url,
         lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    }));
+    })).filter(item => item.id && item.id !== 'undefined');
 
     // Merge and Sort
     const allActivity = [...lessons, ...routines, ...sparring, ...drills]
@@ -2889,23 +2890,27 @@ export async function getRecentCompletedRoutines(
 
     for (const log of routineLogs) {
         try {
-            const routineId = log.metadata?.routineId;
+            // metadata가 객체인지 확인 (가끔 문자열로 반환될 수 있으므로)
+            const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : (log.metadata || {});
+            const routineId = metadata.routineId;
+
+            // routineId 가 없거나 문자열 "undefined"인 경우 제외
+            if (!routineId || routineId === 'undefined') continue;
+
             let rawNotes = log.notes?.replace('[Routine Completed] ', '') || '';
             let routineTitle = rawNotes.split('\n')[0].trim() || 'Unknown Routine';
             let routineThumbnail: string | null = null;
 
             // 루틴 정보 가져오기
-            if (routineId) {
-                const { data: routine } = await supabase
-                    .from('routines')
-                    .select('title, thumbnail_url')
-                    .eq('id', routineId)
-                    .maybeSingle();
+            const { data: routine } = await supabase
+                .from('routines')
+                .select('title, thumbnail_url')
+                .eq('id', routineId)
+                .maybeSingle();
 
-                if (routine) {
-                    routineTitle = routine.title;
-                    routineThumbnail = routine.thumbnail_url;
-                }
+            if (routine) {
+                routineTitle = routine.title;
+                routineThumbnail = routine.thumbnail_url;
             }
 
             enrichedData.push({
@@ -2914,6 +2919,7 @@ export async function getRecentCompletedRoutines(
                 routineTitle: routineTitle,
                 routineThumbnail: routineThumbnail,
                 durationMinutes: log.duration_minutes || 0,
+                durationSeconds: log.duration || metadata.durationSeconds, // Use metadata from parsed object
                 completedAt: log.created_at,
                 date: log.date || new Date(log.created_at).toISOString().split('T')[0],
                 techniques: log.techniques || []
@@ -2954,13 +2960,13 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
         user_id: log.userId,
         date: log.date,
         duration_minutes: log.durationMinutes ?? 0,
+        duration: log.durationSeconds || log.metadata?.durationSeconds, // Save precise seconds to 'duration' column
         techniques: log.techniques ?? [],
         sparring_rounds: log.sparringRounds ?? 0,
         notes: finalNotes,
         is_public: log.isPublic,
         location: log.location,
         youtube_url: log.youtubeUrl,
-        // media_url: log.mediaUrl, // RE-REMOVED: Column does not exist in schema
         metadata: finalMetadata,
         type: log.type
     };
@@ -5817,6 +5823,10 @@ export async function fetchRoutines(limit: number = 20) {
 export const getDrillRoutines = getRoutines;
 
 export async function getRoutineById(id: string) {
+    if (id.startsWith('mock-')) {
+        const mock = MOCK_ROUTINES.find(r => r.id === id);
+        if (mock) return { data: mock, error: null };
+    }
     console.log('[getRoutineById] Fetching routine:', id);
 
     // 1. Remove unstable joins (creator:creators) to prevent API errors
@@ -6141,7 +6151,7 @@ export async function getUserRoutines(userId: string) {
         const created = createdData.map((routine: any) => ({
             ...transformDrillRoutine(routine),
             creatorName: creatorData?.name || userData?.name || 'Grapplay Instructor',
-            creatorProfileImage: creatorData?.profile_image || userData?.avatar_url || undefined,
+            creatorProfileImage: userData?.avatar_url || creatorData?.profile_image || undefined,
             isOwned: true
         }));
         routines.push(...created);
@@ -6541,7 +6551,9 @@ export function calculateDrillPrice(price: number, isSubscriber: boolean) {
 export async function getDrillRoutineById(id: string) {
     const mockRoutine = MOCK_ROUTINES.find(r => r.id === id);
     if (mockRoutine) return mockRoutine;
-    return getRoutineById(id);
+    const { data, error } = await getRoutineById(id);
+    if (error) throw error;
+    return data;
 }
 
 export async function checkDrillRoutineOwnership(userId: string, routineId: string) {
@@ -7669,7 +7681,11 @@ export async function fetchCreatorsByIds(creatorIds: string[]) {
         // Override/fill with creator data (Creators table usually has specialized branding)
         creators?.forEach(c => {
             if (c.name) creatorsMap[c.id].name = c.name;
-            if (c.profile_image) creatorsMap[c.id].avatarUrl = c.profile_image;
+
+            // Prioritize settings (users table) first, fall back to creator profile
+            if (!creatorsMap[c.id].avatarUrl && c.profile_image) {
+                creatorsMap[c.id].avatarUrl = c.profile_image;
+            }
         });
 
         return creatorsMap;

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Scissors, Trash2, Check, RotateCcw, Camera } from 'lucide-react';
+import { Play, Pause, Scissors, Trash2, Check, RotateCcw, Camera, ImagePlus } from 'lucide-react';
 import { Button } from './Button';
+import { ThumbnailCropper } from './ThumbnailCropper';
 
 interface Cut {
     id: string;
@@ -15,9 +16,10 @@ interface VideoEditorProps {
     aspectRatio?: '16:9' | '9:16';
     maxDuration?: number; // Max duration in seconds (for total selection or single cut)
     maxCuts?: number;     // Max number of cuts allowed
+    thumbnailAspectRatio?: number;
 }
 
-export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9', maxDuration, maxCuts }) => {
+export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9', maxDuration, maxCuts, thumbnailAspectRatio }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -27,6 +29,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
     // Thumbnail state
     const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+    const [croppingImage, setCroppingImage] = useState<string | null>(null);
 
     // Selection state
     const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -129,8 +132,9 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
         const canvas = document.createElement('canvas');
 
         // Calculate dimensions maintaining aspect ratio with max width/height
-        const MAX_WIDTH = 1280;
-        const MAX_HEIGHT = 720;
+        // Capture at high resolution for better cropping
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
         let width = video.videoWidth;
         let height = video.videoHeight;
 
@@ -154,13 +158,26 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
 
         ctx.drawImage(video, 0, 0, width, height);
 
-        // Compress quality slightly to 0.8
-        canvas.toBlob((blob) => {
-            if (blob) {
-                setThumbnailBlob(blob);
-                setThumbnailPreview(canvas.toDataURL('image/jpeg', 0.8));
-            }
-        }, 'image/jpeg', 0.8);
+        // Convert to data URL for the cropper
+        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+        setCroppingImage(dataUrl);
+    };
+
+    const handleUploadThumbnail = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+                setCroppingImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCropComplete = (blob: Blob, base64: string) => {
+        setThumbnailBlob(blob);
+        setThumbnailPreview(base64);
+        setCroppingImage(null);
     };
 
     const handleSave = () => {
@@ -254,6 +271,26 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                                 <span className="text-[10px] text-zinc-500 font-normal">지금 보고 있는 장면을 썸네일로 사용합니다</span>
                             </span>
                         </Button>
+
+                        {/* Upload Image Button */}
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleUploadThumbnail}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <Button
+                                variant="secondary"
+                                className="h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700 rounded-xl px-6"
+                            >
+                                <span className="flex flex-col items-center gap-1">
+                                    <ImagePlus className="w-4 h-4" />
+                                    <span className="text-[10px] text-zinc-500 font-normal">이미지 업로드</span>
+                                </span>
+                            </Button>
+                        </div>
+
                         {thumbnailPreview && (
                             <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-violet-500 shadow-lg shadow-violet-500/20 flex-shrink-0 group">
                                 <img src={thumbnailPreview} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Thumbnail preview" />
@@ -368,6 +405,14 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                     </Button>
                 </div>
             </div>
+            {croppingImage && (
+                <ThumbnailCropper
+                    imageSrc={croppingImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => setCroppingImage(null)}
+                    aspectRatio={thumbnailAspectRatio}
+                />
+            )}
         </div>
     );
 };

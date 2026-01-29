@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
+import { useToast } from '../components/ui/use-toast';
 
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
@@ -52,12 +53,24 @@ export const RoutineDetail: React.FC = () => {
     // Saved Drills State
     const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
     const [likedDrills, setLikedDrills] = useState<Set<string>>(new Set());
+    const [isRoutineSaved, setIsRoutineSaved] = useState(false);
 
     // UI state
     const [videoType, setVideoType] = useState<'main' | 'description'>('main');
     const [isFollowing, setIsFollowing] = useState(false);
     const [showMobileList, setShowMobileList] = useState(false);
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
+
+    // Check Routine Save Status
+    useEffect(() => {
+        const checkSaveStatus = async () => {
+            if (user && routine) {
+                const saved = await checkRoutineSaved(user.id, routine.id);
+                setIsRoutineSaved(saved);
+            }
+        };
+        checkSaveStatus();
+    }, [user, routine]);
 
     // Swipe State
     const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
@@ -87,6 +100,45 @@ export const RoutineDetail: React.FC = () => {
             if (distanceY > 0) { // Swipe Up
                 handleDrillComplete();
             }
+        }
+    };
+
+    // Mouse handlers for desktop support
+    const onMouseDown = (e: React.MouseEvent) => {
+        setTouchEnd(null);
+        setTouchStart({ x: e.clientX, y: e.clientY });
+    };
+
+    const onMouseMove = (e: React.MouseEvent) => {
+        if (touchStart) {
+            setTouchEnd({ x: e.clientX, y: e.clientY });
+        }
+    };
+
+    const onMouseUp = () => {
+        if (touchStart) {
+            onTouchEnd();
+            setTouchStart(null);
+            setTouchEnd(null);
+        }
+    };
+
+    // Interaction Layer Click Handler & State
+    const [showInteractHeart, setShowInteractHeart] = useState(false);
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleLayerClick = () => {
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+            handleLikeDrill();
+            setShowInteractHeart(true);
+            setTimeout(() => setShowInteractHeart(false), 1000);
+        } else {
+            clickTimeoutRef.current = setTimeout(() => {
+                clickTimeoutRef.current = null;
+                setIsPlaying(prev => !prev);
+            }, 300);
         }
     };
 
@@ -238,21 +290,24 @@ export const RoutineDetail: React.FC = () => {
                 if (!routine?.drills || index >= routine.drills.length) return;
                 const drill = routine.drills[index];
 
-                // If we have the full drill object locally (custom routine), set it immediately
-                if (typeof drill !== 'string') {
+                // Check if we have a valid drill object locally
+                if (typeof drill !== 'string' && (drill.videoUrl || drill.vimeoUrl)) {
                     setCurrentDrill(drill);
-                    return; // Skip API fetch for custom routines to avoid errors/delays
+                    return;
                 }
 
-                // Only fetch if we just have an ID string
-                const drillId = drill;
+                // If it's a string ID or an object without video URL, fetch fresh data
+                const drillId = typeof drill === 'string' ? drill : drill.id;
                 try {
                     const drillData = await getDrillById(drillId);
                     if (drillData && !('error' in drillData)) {
                         setCurrentDrill(drillData as Drill);
                         return;
                     }
-                } catch (e) { }
+                } catch (e) {
+                    // Fallback to existing object if fetch fails
+                    if (typeof drill !== 'string') setCurrentDrill(drill);
+                }
             };
             loadDrill(currentDrillIndex);
         }
@@ -319,7 +374,7 @@ export const RoutineDetail: React.FC = () => {
         const durationMinutes = Math.ceil(elapsedSeconds / 60);
         let xpEarnedToday = 0; let currentStreak = 0; let bonusXp = 0;
         if (user) {
-            await createTrainingLog({ userId: user.id, userName: user.user_metadata?.name || 'Unknown', date: new Date().toISOString().split('T')[0], durationMinutes, notes: `[Routine Completed] ${routine?.title}`, techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [], isPublic: true, location: 'Gym', metadata: { routineId: routine?.id }, sparringRounds: 0, type: 'routine' });
+            await createTrainingLog({ userId: user.id, userName: user.user_metadata?.name || 'Unknown', date: new Date().toISOString().split('T')[0], durationMinutes, notes: `[Routine Completed] ${routine?.title}`, techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [], isPublic: true, location: 'Gym', metadata: { routineId: routine?.id, durationSeconds: elapsedSeconds }, sparringRounds: 0, type: 'routine' });
             const xpResult = await awardTrainingXP(user.id, 'routine_complete', 50);
             if (xpResult.data) { xpEarnedToday = xpResult.data.xpEarned; currentStreak = xpResult.data.streak; bonusXp = xpResult.data.bonusXP; }
             setStreak(currentStreak); setXpEarned(xpEarnedToday);
@@ -352,6 +407,13 @@ export const RoutineDetail: React.FC = () => {
         isSaved ? newSaved.delete(currentDrill.id) : newSaved.add(currentDrill.id);
         setSavedDrills(newSaved);
         await toggleDrillSave(user.id, currentDrill.id);
+    };
+
+    const handleSaveRoutine = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (!routine || !user) { navigate('/login'); return; }
+        setIsRoutineSaved(!isRoutineSaved);
+        await toggleRoutineSave(user.id, routine.id);
     };
 
     const handleLikeDrill = async (e?: React.MouseEvent) => {
@@ -427,7 +489,7 @@ export const RoutineDetail: React.FC = () => {
     return (
         <div className="lg:relative bg-zinc-950 min-h-screen relative overflow-hidden">
             {/* MOBILE VIEW */}
-            <div className="lg:hidden w-full min-h-screen flex flex-col bg-zinc-950 pb-24">
+            <div className="lg:hidden w-full min-h-screen flex flex-col bg-zinc-950 pb-0">
                 {viewMode === 'landing' ? (
                     <>
                         {/* Mobile Landing Header */}
@@ -440,7 +502,11 @@ export const RoutineDetail: React.FC = () => {
                                 </div>
                             )}
 
-                            <button onClick={() => navigate(-1)} className="fixed top-6 left-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl"><ChevronLeft className="w-5 h-5" /></button>
+                            <button onClick={() => navigate(-1)} className="absolute top-6 left-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl"><ChevronLeft className="w-5 h-5" /></button>
+                            <button onClick={handleSaveRoutine} className="absolute top-6 right-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl">
+                                <Bookmark className={cn("w-5 h-5 transition-all", isRoutineSaved ? "fill-violet-500 text-violet-500" : "text-white")} />
+                            </button>
+
                             <h1 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[18vw] font-black uppercase tracking-tighter text-white/5 whitespace-nowrap select-none pointer-events-none z-0">DRILL</h1>
                             <div className="relative z-10 flex flex-col items-center text-center gap-4 px-4">
                                 <h2 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-2xl leading-tight">{routine.title}</h2>
@@ -476,9 +542,10 @@ export const RoutineDetail: React.FC = () => {
 
                         </div>
 
-                        {/* Mobile Access Pass Bottom Sheet */}
-                        <div className="fixed bottom-24 left-4 right-4 z-40">
-                            <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
+
+                        {/* Mobile Access Pass / Bottom Section */}
+                        <div className="w-full px-4 pt-12 pb-20">
+                            <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-3xl p-5 shadow-2xl flex flex-col gap-4">
                                 {hasFullAccess ? (
                                     <div className="flex items-center justify-between gap-4">
                                         <div className="flex flex-col">
@@ -498,7 +565,7 @@ export const RoutineDetail: React.FC = () => {
                                             <span className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest">Access Pass</span>
                                             <span className="text-xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                         </div>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col gap-3">
                                             <button
                                                 onClick={handlePurchase}
                                                 className="w-full bg-white active:bg-zinc-200 text-black rounded-2xl py-4 font-black text-base shadow-lg shadow-white/5 flex items-center justify-center gap-2"
@@ -518,7 +585,7 @@ export const RoutineDetail: React.FC = () => {
                                 {relatedCourse && (
                                     <div
                                         onClick={() => navigate(`/courses/${relatedCourse.id}`)}
-                                        className="bg-zinc-800/50 backdrop-blur-sm border border-white/5 p-3 rounded-2xl relative overflow-hidden cursor-pointer active:scale-95 transition-transform mt-1"
+                                        className="bg-zinc-800/50 backdrop-blur-sm border border-white/5 p-3 rounded-2xl relative overflow-hidden cursor-pointer active:scale-95 transition-transform mt-2"
                                     >
                                         <div className="relative z-10 flex gap-3 items-center">
                                             <div className="w-12 h-12 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg">
@@ -537,11 +604,11 @@ export const RoutineDetail: React.FC = () => {
                                 )}
 
                                 {relatedRoutines.length > 0 && (
-                                    <div className="mt-2 space-y-2">
+                                    <div className="mt-4 space-y-3">
                                         <div className="flex items-center justify-between px-1">
                                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">More Routines Like This</span>
                                         </div>
-                                        <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                                        <div className="space-y-2">
                                             {relatedRoutines.slice(0, 3).map(r => (
                                                 <div
                                                     key={r.id}
@@ -607,20 +674,41 @@ export const RoutineDetail: React.FC = () => {
                         {/* Mobile Player Content */}
                         <div className="relative w-full h-full bg-black flex flex-col">
                             {/* Video Layer */}
-                            <div className="absolute inset-0 z-0" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                            <div className="absolute inset-0 z-0">
                                 {hasAccess ? (
                                     <>
                                         <VideoPlayer
                                             vimeoId={effectiveUrl || ''}
                                             title={currentDrill.title}
                                             autoplay={true}
+                                            playing={isPlaying}
                                             showControls={false}
                                             fillContainer={true}
                                             onProgress={handleProgress}
-                                            onDoubleTap={() => handleLikeDrill()}
                                             onEnded={() => handleDrillComplete()}
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none" />
+                                        <div
+                                            className="absolute inset-0 z-10"
+                                            onTouchStart={onTouchStart}
+                                            onTouchMove={onTouchMove}
+                                            onTouchEnd={onTouchEnd}
+                                            onMouseDown={onMouseDown}
+                                            onMouseMove={onMouseMove}
+                                            onMouseUp={onMouseUp}
+                                            onMouseLeave={onMouseUp}
+                                            onClick={handleLayerClick}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none" />
+                                            {/* Like Animation Heart */}
+                                            {showInteractHeart && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <Heart
+                                                        className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                                                        style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </>
                                 ) : (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
@@ -683,8 +771,8 @@ export const RoutineDetail: React.FC = () => {
                             </div>
 
                             {/* Bottom Content & Info */}
-                            <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none p-4 pb-24 flex flex-col justify-end">
-                                <div className="flex items-end justify-between pointer-events-auto">
+                            <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none p-4 pb-12 flex flex-col justify-end bg-gradient-to-t from-black via-black/60 to-transparent pt-24">
+                                <div className="flex items-end justify-between pointer-events-auto mb-4">
                                     <div className="flex-1 pr-16">
                                         <h2 className="text-2xl font-bold text-white mb-2">{currentDrill.title}</h2>
                                         <div className="flex items-center gap-2 text-zinc-300 text-sm">
@@ -693,12 +781,12 @@ export const RoutineDetail: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <Button size="lg" onClick={handleDrillComplete} className="w-full mt-6 bg-violet-600 active:bg-violet-700 hover:bg-violet-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 pointer-events-auto shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-colors"><CheckCircle className="w-5 h-5" /><span>드릴 완료 & 다음으로</span></Button>
+                                <Button size="lg" onClick={handleDrillComplete} className="w-full bg-violet-600 active:bg-violet-700 hover:bg-violet-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 pointer-events-auto shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-colors"><CheckCircle className="w-5 h-5" /><span>드릴 완료 & 다음으로</span></Button>
                             </div>
 
                             {/* Mobile List Overlay */}
                             {showMobileList && (
-                                <div className="absolute inset-0 z-[200] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
+                                <div className="absolute inset-0 z-[300] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
                                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {routine?.drills?.map((d: any, idx) => (
@@ -723,6 +811,9 @@ export const RoutineDetail: React.FC = () => {
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
                         <button onClick={() => navigate(-1)} className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
+                        <button onClick={handleSaveRoutine} className="fixed top-6 left-20 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl ml-4">
+                            <Bookmark className={cn("w-5 h-5 transition-all", isRoutineSaved ? "fill-violet-500 text-violet-500" : "text-white")} />
+                        </button>
                         {/* Hero Section */}
                         <div className="relative w-full pt-20 pb-16 flex flex-col items-center justify-center overflow-hidden">
                             {/* Routine Thumbnail Background */}
@@ -1071,10 +1162,10 @@ export const RoutineDetail: React.FC = () => {
                     }
                 }}
                 questName={routine.title}
-                xpEarned={xpEarned}
+                durationSeconds={elapsedSeconds}
                 streak={streak}
                 bonusReward={bonusReward}
-                continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '포스트 작성하기'}
+                continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '수련 완료'}
             />
             {isShareModalOpen && shareModalData2 && <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={shareModalData2.title} text={shareModalData2.text} url={shareModalData2.url} imageUrl={currentDrill.thumbnailUrl} />}
         </div >

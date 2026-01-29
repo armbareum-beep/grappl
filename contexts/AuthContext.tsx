@@ -153,13 +153,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         }
                     }
 
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
                             isSubscriber: subscribed,
                             subscription_tier: subscriptionTier,
-                            ownedVideoIds
+                            ownedVideoIds: ownedIds
                         });
                         setIsAdmin(admin);
                         setIsCreator(creator);
@@ -193,13 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
                             isSubscriber: subscribed,
                             subscription_tier: subscriptionTier,
-                            ownedVideoIds
+                            ownedVideoIds: ownedIds
                         });
                         setIsAdmin(admin);
                         setIsCreator(creator);

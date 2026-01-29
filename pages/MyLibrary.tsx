@@ -19,7 +19,7 @@ import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
 import { SparringCard } from '../components/SparringCard';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, PlayCircle, Dumbbell, Network, Bookmark } from 'lucide-react';
+import { PlayCircle, Dumbbell, Network, Bookmark } from 'lucide-react';
 import { Button } from '../components/Button';
 
 
@@ -38,11 +38,11 @@ interface CourseWithProgress extends Course {
 
 export const MyLibrary: React.FC = () => {
   const { user, isCreator, isSubscribed } = useAuth();
-  const [activeTab, setActiveTab] = useState<'courses' | 'lessons' | 'routines' | 'drills' | 'sparring' | 'chains'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'lessons' | 'routines' | 'drills' | 'sparring' | 'chains' | 'training_routines'>('courses');
 
   // Courses State
-  const [courses, setCourses] = useState<CourseWithProgress[]>([]);
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [myCourses, setMyCourses] = useState<CourseWithProgress[]>([]);
+  const [exploreCourses, setExploreCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
 
   // Chains State
@@ -50,8 +50,8 @@ export const MyLibrary: React.FC = () => {
   const [chainsLoading, setChainsLoading] = useState(true);
 
   // Routines State
-  const [purchasedRoutines, setPurchasedRoutines] = useState<DrillRoutine[]>([]);
-  const [savedRoutines, setSavedRoutines] = useState<DrillRoutine[]>([]);
+  const [allRoutines, setAllRoutines] = useState<DrillRoutine[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<Record<string, DrillRoutine[]>>({});
   const [routinesLoading, setRoutinesLoading] = useState(true);
 
   // Drills State
@@ -59,14 +59,15 @@ export const MyLibrary: React.FC = () => {
   const [drillsLoading, setDrillsLoading] = useState(true);
 
   // Sparring State
-  const [savedSparring, setSavedSparring] = useState<SparringVideo[]>([]);
-  const [purchasedSparring, setPurchasedSparring] = useState<SparringVideo[]>([]);
+  const [mySparring, setMySparring] = useState<SparringVideo[]>([]);
   const [sparringLoading, setSparringLoading] = useState(true);
 
-
   const [error, setError] = useState<string | null>(null);
-  const [savedCourses, setSavedCourses] = useState<Course[]>([]);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
+
+  // IDs for Access Checking
+  const [ownedCourseIds, setOwnedCourseIds] = useState<Set<string>>(new Set());
+  const [ownedSparringIds, setOwnedSparringIds] = useState<Set<string>>(new Set());
 
   // Combined loading state for initial fetch
   const loading = coursesLoading || routinesLoading || drillsLoading || sparringLoading || chainsLoading;
@@ -99,20 +100,33 @@ export const MyLibrary: React.FC = () => {
           getCreatorCourses(user.id)
         ]);
 
-        setAllCourses(allCoursesData || []);
+        setExploreCourses(allCoursesData || []);
+        setSavedLessons(savedLessonsData);
 
-        // Combine purchased courses and created courses, avoiding duplicates
-        const combinedCourses = [...ownedCoursesData];
+        // Store Owned IDs for Access Check
+        const ownedIds = new Set(ownedCoursesData.map((c: any) => c.id));
+        if (creatorCoursesData) {
+          creatorCoursesData.forEach((c: any) => ownedIds.add(c.id));
+        }
+        setOwnedCourseIds(ownedIds);
+
+        // Combine for My Courses Display
+        // Priority: Owned/Created -> Saved
+        const courseMap = new Map<string, CourseWithProgress>();
+
+        // 1. Add Owned/Created
+        const combinedOwned = [...ownedCoursesData];
         if (creatorCoursesData && creatorCoursesData.length > 0) {
           creatorCoursesData.forEach((c: Course) => {
-            if (!combinedCourses.some(owned => owned.id === c.id)) {
-              combinedCourses.push(c);
+            if (!combinedOwned.some(owned => owned.id === c.id)) {
+              combinedOwned.push(c);
             }
           });
         }
 
-        const coursesWithProgress = await Promise.all(
-          combinedCourses.map(async (course) => {
+        // Fetch progress for owned
+        const ownedWithProgress = await Promise.all(
+          combinedOwned.map(async (course) => {
             const progressData = await getCourseProgress(user.id, course.id);
             return {
               ...course,
@@ -122,9 +136,31 @@ export const MyLibrary: React.FC = () => {
             };
           })
         );
-        setCourses(coursesWithProgress);
-        setSavedCourses(savedCoursesData);
-        setSavedLessons(savedLessonsData);
+
+        ownedWithProgress.forEach(c => courseMap.set(c.id, c));
+
+        // 2. Add Saved (if not already present)
+        // For saved, we might not fetch detailed progress immediately, or we can. 
+        // Let's assume saved also needs progress if we want to show it, or default 0.
+        // For simplicity, we fetch progress for unique saved courses too.
+        const newSaved = savedCoursesData.filter((c: Course) => !courseMap.has(c.id));
+
+        const savedWithProgress = await Promise.all(
+          newSaved.map(async (course: Course) => {
+            const progressData = await getCourseProgress(user.id, course.id);
+            return {
+              ...course,
+              progress: progressData.percentage,
+              completedLessons: progressData.completed,
+              totalLessons: progressData.total
+            };
+          })
+        );
+
+        savedWithProgress.forEach((c: any) => courseMap.set(c.id, c));
+
+        setMyCourses(Array.from(courseMap.values()));
+
       } catch (error) {
         console.error('Error fetching user courses:', error);
         setError('클래스를 불러오는 중 오류가 발생했습니다.');
@@ -132,16 +168,54 @@ export const MyLibrary: React.FC = () => {
         setCoursesLoading(false);
       }
 
-      // Fetch Routines
+      // Fetch Routines & Weekly Schedule
       try {
         const [routinesData, savedRoutinesData] = await Promise.all([
           getUserRoutines(user.id),
           getUserSavedRoutines(user.id)
         ]);
+
+        let pRoutines: DrillRoutine[] = [];
         if (routinesData.data) {
-          setPurchasedRoutines(routinesData.data);
+          pRoutines = routinesData.data;
         }
-        setSavedRoutines(savedRoutinesData);
+
+        // Load Custom Routines from LocalStorage
+        let customRoutines: DrillRoutine[] = [];
+        try {
+          const stored = localStorage.getItem('my_custom_routines');
+          if (stored) {
+            customRoutines = JSON.parse(stored);
+          }
+        } catch (e) {
+          console.error("Failed to load custom routines", e);
+        }
+
+        // Merge All Routines (Purchased + Saved + Custom)
+        // Deduplicate by ID
+        const routineMap = new Map<string, DrillRoutine>();
+
+        [...pRoutines, ...savedRoutinesData, ...customRoutines].forEach(r => {
+          if (!routineMap.has(r.id)) {
+            routineMap.set(r.id, r);
+          }
+        });
+
+        setAllRoutines(Array.from(routineMap.values()));
+
+        // Load Weekly Schedule
+        try {
+          const schedule = localStorage.getItem('weekly_routine_schedule');
+          if (schedule) {
+            setWeeklySchedule(JSON.parse(schedule));
+          } else {
+            setWeeklySchedule({});
+          }
+        } catch (e) {
+          console.error("Failed to load weekly schedule", e);
+          setWeeklySchedule({});
+        }
+
       } catch (err: any) {
         console.error('Error fetching user routines:', err);
         setError('루틴을 불러오는 중 오류가 발생했습니다.');
@@ -166,8 +240,24 @@ export const MyLibrary: React.FC = () => {
           getSavedSparringVideos(user.id),
           getPurchasedSparringVideos(user.id)
         ]);
-        setSavedSparring(savedSparringData);
-        setPurchasedSparring(purchasedSparringData);
+
+        // Owned IDs
+        const ownedSparring = new Set(purchasedSparringData.map((v: any) => v.id));
+        setOwnedSparringIds(ownedSparring);
+
+        // Merge Sparring
+        const sparringMap = new Map<string, SparringVideo>();
+
+        // Purchased first
+        purchasedSparringData.forEach((v: any) => sparringMap.set(v.id, v));
+        // Saved next
+        savedSparringData.forEach((v: any) => {
+          if (!sparringMap.has(v.id)) {
+            sparringMap.set(v.id, v);
+          }
+        });
+
+        setMySparring(Array.from(sparringMap.values()));
       } catch (err) {
         console.error('Error fetching saved sparring:', err);
         setError('스파링 영상을 불러오는 중 오류가 발생했습니다.');
@@ -228,9 +318,6 @@ export const MyLibrary: React.FC = () => {
     return (
       <div className={cn(
         "min-h-screen bg-zinc-950 text-white",
-        // Assuming isEmbedded is a prop or context value, for now, it's undefined.
-        // If it's not defined, this part will be ignored.
-        // !isEmbedded && "md:pl-28 py-8 px-4"
       )}>
         <LoadingScreen message="보관함을 불러오고 있습니다..." />
       </div>
@@ -260,12 +347,12 @@ export const MyLibrary: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              < BookOpen className="w-6 h-6 text-violet-400" />
+              <Bookmark className="w-6 h-6 text-violet-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white">라이브러리</h1>
+            <h1 className="text-3xl font-bold text-white">저장됨</h1>
           </div>
           <p className="text-zinc-400 text-sm">
-            구매한 클래스와 훈련 루틴을 관리하세요
+            저장한 콘텐츠와 구매 목록을 확인하세요
           </p>
 
         </div>
@@ -278,7 +365,7 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'courses' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            Classes ({allCourses.length})
+            Classes ({myCourses.length})
           </button>
           <button
             onClick={() => setActiveTab('lessons')}
@@ -290,7 +377,7 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('routines')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'routines' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            Routines ({purchasedRoutines.length + savedRoutines.length})
+            Routines ({allRoutines.length})
           </button>
           <button
             onClick={() => setActiveTab('drills')}
@@ -302,7 +389,13 @@ export const MyLibrary: React.FC = () => {
             onClick={() => setActiveTab('sparring')}
             className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'sparring' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
-            Sparring ({savedSparring.length})
+            Sparring ({mySparring.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('training_routines')}
+            className={`px-6 py-4 font-bold text-sm whitespace-nowrap border-b-2 transition-all duration-200 ${activeTab === 'training_routines' ? 'border-violet-500 text-violet-500' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            Training Routines
           </button>
           <button
             onClick={() => setActiveTab('chains')}
@@ -319,19 +412,22 @@ export const MyLibrary: React.FC = () => {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto mb-4"></div>
                 <p className="text-zinc-400">클래스 불러오는 중...</p>
               </div>
-
             ) : (
               <div className="space-y-12">
-                {/* My Classes (Purchased or Created) */}
-                {courses.length > 0 && (
+                {/* My Classes (Purchased + Saved) */}
+                {myCourses.length > 0 ? (
                   <div>
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                      My Classes <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">{courses.length}</span>
+                      My Classes <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">{myCourses.length}</span>
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {courses.map((course) => (
+                      {myCourses.map((course) => (
                         <div key={course.id} className="relative flex flex-col h-full">
-                          <CourseCard course={course} rank={getRank(course, courses)} hasAccess={true} />
+                          <CourseCard
+                            course={course}
+                            rank={getRank(course, myCourses)}
+                            hasAccess={isSubscribed || ownedCourseIds.has(course.id)}
+                          />
                           <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
                             <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
                               <span>진도율</span>
@@ -354,52 +450,34 @@ export const MyLibrary: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                    <p className="text-zinc-400 mb-4">저장하거나 수강 중인 클래스가 없습니다.</p>
+                  </div>
                 )}
 
-                {/* Explore More Classes */}
-                {allCourses.filter(ac =>
-                  !courses.some(c => c.id === ac.id) &&
-                  !savedCourses.some(sc => sc.id === ac.id)
-                ).length > 0 && (
-                    <div>
-                      <div className="flex justify-between items-end mb-6">
-                        <h3 className="text-lg font-bold text-white">Explore All Classes</h3>
-                        {isSubscribed && (
-                          <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-3 py-1 rounded-full border border-violet-500/20">
-                            ✨ 구독 중: 모든 클래스 시청 가능
-                          </span>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {allCourses
-                          .filter(ac =>
-                            !courses.some(c => c.id === ac.id) &&
-                            !savedCourses.some(sc => sc.id === ac.id)
-                          )
-                          .map((course) => (
-                            <CourseCard
-                              key={course.id}
-                              course={course}
-                              rank={getRank(course, allCourses)}
-                              hasAccess={isSubscribed}
-                            />
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                {savedCourses.length > 0 && (
+                {/* Explore More Classes (Excluding My Courses) */}
+                {exploreCourses.filter(ac => !myCourses.some(mc => mc.id === ac.id)).length > 0 && (
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-6">Saved Classes ({savedCourses.length})</h3>
+                    <div className="flex justify-between items-end mb-6">
+                      <h3 className="text-lg font-bold text-white">Explore All Classes</h3>
+                      {isSubscribed && (
+                        <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-3 py-1 rounded-full border border-violet-500/20">
+                          ✨ 구독 중: 모든 클래스 시청 가능
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {savedCourses.map((course) => (
-                        <CourseCard
-                          key={course.id}
-                          course={course}
-                          rank={getRank(course, allCourses)}
-                          hasAccess={isSubscribed || courses.some(c => c.id === course.id)}
-                        />
-                      ))}
+                      {exploreCourses
+                        .filter(ac => !myCourses.some(mc => mc.id === ac.id))
+                        .map((course) => (
+                          <CourseCard
+                            key={course.id}
+                            course={course}
+                            rank={getRank(course, exploreCourses)}
+                            hasAccess={isSubscribed || ownedCourseIds.has(course.id)}
+                          />
+                        ))}
                     </div>
                   </div>
                 )}
@@ -408,241 +486,275 @@ export const MyLibrary: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'routines' && (
-          <div className="space-y-12">
-            <div>
-              {routinesLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-zinc-400">루틴 불러오는 중...</p>
-                </div>
-              ) : (purchasedRoutines.length === 0 && savedRoutines.length === 0) ? (
-                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                  <p className="text-zinc-400 mb-4">보유하거나 저장한 루틴이 없습니다.</p>
-                  <Link to="/training-routines">
-                    <Button variant="primary">
-                      루틴 찾아보기
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-12">
-                  {purchasedRoutines.length > 0 && (
+        {/* Routines View - Merged Purchased & Saved */}
+        {
+          activeTab === 'routines' && (
+            <div className="space-y-12">
+              <div>
+                {routinesLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p className="text-zinc-400">루틴 불러오는 중...</p>
+                  </div>
+                ) : allRoutines.length === 0 ? (
+                  <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                    <p className="text-zinc-400 mb-4">저장하거나 구매한 루틴이 없습니다.</p>
+                    <Link to="/routines">
+                      <Button variant="primary">
+                        루틴 찾아보기
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-12">
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-6">My Routines ({purchasedRoutines.length})</h3>
+                      <h3 className="text-lg font-bold text-white mb-6">My Routines ({allRoutines.length})</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {purchasedRoutines.map((routine) => (
+                        {allRoutines.map((routine) => (
                           <DrillRoutineCard
                             key={routine.id}
                             routine={routine}
-                            rank={getRank(routine, purchasedRoutines)}
+                            rank={getRank(routine, allRoutines)}
                             hasAccess={true}
                           />
                         ))}
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        }
 
-                  {savedRoutines.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-bold text-white mb-6">Saved Routines ({savedRoutines.length})</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {savedRoutines.map((routine) => (
-                          <DrillRoutineCard
-                            key={routine.id}
-                            routine={routine}
-                            rank={getRank(routine, savedRoutines)}
-                            hasAccess={isSubscribed || purchasedRoutines.some(pr => pr.id === routine.id)}
-                          />
-                        ))}
+        {/* Training Routines View - Weekly Schedule */}
+        {activeTab === 'training_routines' && (
+          <div className="space-y-12">
+            {Object.keys(weeklySchedule).length === 0 || !Object.values(weeklySchedule).some(day => day.length > 0) ? (
+              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                <p className="text-zinc-400 mb-4">등록된 주간 훈련 스케줄이 없습니다.</p>
+                <div className="flex justify-center gap-4">
+                  <Link to="/training-routines">
+                    <Button variant="primary">
+                      스케줄 생성하기
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-white">My Weekly Routine</h3>
+                  <Link to="/my-schedule">
+                    <Button variant="outline" size="sm">
+                      스케줄 전체보기
+                    </Button>
+                  </Link>
+                </div>
+                {['월', '화', '수', '목', '금', '토', '일'].map(day => {
+                  const dayRoutines = weeklySchedule[day] || [];
+                  if (dayRoutines.length === 0) return null;
+
+                  return (
+                    <div key={day} className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-4">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center font-bold text-sm border border-violet-500/20">
+                          {day}
+                        </span>
+                        <h4 className="font-bold text-zinc-200">{day}요일 훈련</h4>
+                        <span className="text-xs text-zinc-500 ml-auto">{dayRoutines.length} routines</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {dayRoutines.map((routine, idx) => {
+                          const linkPath = String(routine.id).startsWith('custom-')
+                            ? `/my-routines/${routine.id}`
+                            : `/routines/${routine.id}`;
+
+                          return (
+                            <Link
+                              key={`${day}-${routine.id}-${idx}`}
+                              to={linkPath}
+                              className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-violet-500/50 transition-colors"
+                            >
+                              <div className="w-12 h-12 rounded bg-zinc-800 overflow-hidden flex-shrink-0">
+                                <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="font-medium text-sm text-zinc-200 truncate">{routine.title}</h5>
+                                <p className="text-xs text-zinc-500">{routine.totalDurationMinutes}분 • {routine.drillCount}개 드릴</p>
+                              </div>
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {
+          activeTab === 'lessons' && (
+            <div className="space-y-12">
+              {coursesLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-zinc-400">레슨 불러오는 중...</p>
+                </div>
+              ) : savedLessons.length === 0 ? (
+                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                  <p className="text-zinc-400 mb-4">저장된 레슨이 없습니다.</p>
+                  <Link to="/watch">
+                    <Button variant="primary">
+                      레슨 둘러보기
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                  {savedLessons.map((lesson) => (
+                    <div key={lesson.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                      <Link to={`/watch?lessonId=${lesson.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                        <img src={lesson.thumbnailUrl} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                          <PlayCircle className="w-10 h-10 text-white" />
+                        </div>
+                        {getRank(lesson, savedLessons) ? (
+                          <ContentBadge type="popular" rank={getRank(lesson, savedLessons)} className="absolute top-2 right-2" />
+                        ) : isRecent(lesson.createdAt) ? (
+                          <ContentBadge type="recent" className="absolute top-2 right-2" />
+                        ) : null}
+                      </Link>
+                      <div className="px-1">
+                        <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{lesson.title}</h4>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )
+        }
 
-        {activeTab === 'lessons' && (
-          <div className="space-y-12">
-            {coursesLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-zinc-400">레슨 불러오는 중...</p>
-              </div>
-            ) : savedLessons.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                <p className="text-zinc-400 mb-4">저장된 레슨이 없습니다.</p>
-                <Link to="/watch">
-                  <Button variant="primary">
-                    레슨 둘러보기
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {savedLessons.map((lesson) => (
-                  <div key={lesson.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                    <Link to={`/watch?lessonId=${lesson.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                      <img src={lesson.thumbnailUrl} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                        <PlayCircle className="w-10 h-10 text-white" />
+        {
+          activeTab === 'drills' && (
+            <div className="space-y-12">
+              {drillsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-zinc-400">드릴 불러오는 중...</p>
+                </div>
+              ) : savedDrills.length === 0 ? (
+                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                  <p className="text-zinc-400 mb-4">저장된 드릴이 없습니다.</p>
+                  <Link to="/watch">
+                    <Button variant="primary">
+                      드릴 둘러보기
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                  {savedDrills.map((drill) => (
+                    <div key={drill.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
+                      <Link to={`/watch?id=${drill.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                        <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                          <PlayCircle className="w-10 h-10 text-white" />
+                        </div>
+                        {getRank(drill, savedDrills) ? (
+                          <ContentBadge type="popular" rank={getRank(drill, savedDrills)} className="absolute top-2 right-2" />
+                        ) : isRecent(drill.createdAt) ? (
+                          <ContentBadge type="recent" className="absolute top-2 right-2" />
+                        ) : null}
+                      </Link>
+                      <div className="px-1">
+                        <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{drill.title}</h4>
+                        <p className="text-[10px] text-zinc-500 font-medium">{drill.creatorName || 'Unknown'}</p>
                       </div>
-                      {getRank(lesson, savedLessons) ? (
-                        <ContentBadge type="popular" rank={getRank(lesson, savedLessons)} className="absolute top-2 right-2" />
-                      ) : isRecent(lesson.createdAt) ? (
-                        <ContentBadge type="recent" className="absolute top-2 right-2" />
-                      ) : null}
-                    </Link>
-                    <div className="px-1">
-                      <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{lesson.title}</h4>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'drills' && (
-          <div className="space-y-12">
-            {drillsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-zinc-400">드릴 불러오는 중...</p>
-              </div>
-            ) : savedDrills.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                <p className="text-zinc-400 mb-4">저장된 드릴이 없습니다.</p>
-                <Link to="/watch">
-                  <Button variant="primary">
-                    드릴 둘러보기
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {savedDrills.map((drill) => (
-                  <div key={drill.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                    <Link to={`/watch?id=${drill.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                      <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                        <PlayCircle className="w-10 h-10 text-white" />
-                      </div>
-                      {getRank(drill, savedDrills) ? (
-                        <ContentBadge type="popular" rank={getRank(drill, savedDrills)} className="absolute top-2 right-2" />
-                      ) : isRecent(drill.createdAt) ? (
-                        <ContentBadge type="recent" className="absolute top-2 right-2" />
-                      ) : null}
-                    </Link>
-                    <div className="px-1">
-                      <h4 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors uppercase">{drill.title}</h4>
-                      <p className="text-[10px] text-zinc-500 font-medium">{drill.creatorName || 'Unknown'}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        }
 
         {activeTab === 'sparring' && (
           <div className="space-y-12">
-            {/* Purchased Sparring */}
-            {purchasedSparring.length > 0 && (
+            {/* Merged Sparring (Purchased + Saved) */}
+            {mySparring.length > 0 ? (
               <div>
                 <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                   <Dumbbell className="w-6 h-6 text-violet-500" />
                   My Sparring
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                  {purchasedSparring.map((video) => (
+                  {mySparring.map((video) => (
                     <SparringCard
                       key={video.id}
                       video={video}
-                      rank={getRank(video, purchasedSparring)}
-                      hasAccess={true}
+                      rank={getRank(video, mySparring)}
+                      hasAccess={isSubscribed || ownedSparringIds.has(video.id)}
                     />
                   ))}
                 </div>
               </div>
+            ) : (
+              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
+                <p className="text-zinc-400 mb-4">저장하거나 구매한 스파링 영상이 없습니다.</p>
+                <Link to="/sparring">
+                  <Button variant="primary">
+                    스파링 영상 보러가기
+                  </Button>
+                </Link>
+              </div>
             )}
+          </div>
+        )}
 
-            {/* Saved Sparring */}
-            <div>
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <Bookmark className="w-6 h-6 text-violet-500" />
-                Saved Sparring
-              </h2>
-              {sparringLoading ? (
+        {
+          activeTab === 'chains' && (
+            <div className="space-y-12">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Network className="w-6 h-6 text-violet-500" />
+                  My Roadmap
+                </h2>
+                <Link to="/technique/new">
+                  <Button size="sm">
+                    새 로드맵 만들기
+                  </Button>
+                </Link>
+              </div>
+              {chainsLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-zinc-400">저장된 스파링 불러오는 중...</p>
+                  <p className="text-zinc-400">로드맵 불러오는 중...</p>
                 </div>
-              ) : savedSparring.length === 0 ? (
+              ) : chains.length === 0 ? (
                 <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                  <p className="text-zinc-400 mb-4">저장된 스파링 영상이 없습니다.</p>
-                  <Link to="/sparring">
+                  <p className="text-zinc-400 mb-4">저장된 로드맵이 없습니다.</p>
+                  <Link to="/browse?tab=chains">
                     <Button variant="primary">
-                      스파링 영상 보러가기
+                      로드맵 둘러보기
                     </Button>
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                  {savedSparring.map((video) => (
-                    <SparringCard
-                      key={video.id}
-                      video={video}
-                      rank={getRank(video, savedSparring)}
-                      hasAccess={isSubscribed || purchasedSparring.some(pv => pv.id === video.id)} // Saved items might not be owned, but if subscribed or owned
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {chains.map((chain) => (
+                    <ChainCard key={chain.id} chain={chain} />
                   ))}
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'chains' && (
-          <div className="space-y-12">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Network className="w-6 h-6 text-violet-500" />
-                My Roadmap
-              </h2>
-              <Link to="/technique/new">
-                <Button size="sm">
-                  새 로드맵 만들기
-                </Button>
-              </Link>
-            </div>
-            {chainsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-zinc-400">로드맵 불러오는 중...</p>
-              </div>
-            ) : chains.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-xl rounded-xl p-8 border border-zinc-800 text-center">
-                <p className="text-zinc-400 mb-4">저장된 로드맵이 없습니다.</p>
-                <Link to="/browse?tab=chains">
-                  <Button variant="primary">
-                    로드맵 둘러보기
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chains.map((chain) => (
-                  <ChainCard key={chain.id} chain={chain} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+          )
+        }
+      </div >
+    </div >
   );
 };
 

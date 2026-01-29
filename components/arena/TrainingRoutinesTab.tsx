@@ -396,7 +396,7 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     return (
         <div
-            className="space-y-8 min-h-screen pb-20"
+            className="space-y-8 min-h-screen pb-40"
             onClick={() => {
                 if (selectedDayForPlacement || selectedRoutineForPlacement) {
                     setSelectedDayForPlacement(null);
@@ -410,7 +410,7 @@ export const TrainingRoutinesTab: React.FC = () => {
         >
             {/* Contextual Action Bar */}
             {(selectedDayForPlacement || selectedRoutineForPlacement) && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 w-[90%] max-w-md">
+                <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 fade-in duration-300 w-[90%] max-w-md">
                     <div className="bg-zinc-900/90 backdrop-blur-md border border-violet-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 ring-1 ring-white/10">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0 animate-pulse border border-white/10">

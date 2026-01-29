@@ -54,8 +54,15 @@ import {
     useSensors,
     PointerSensor,
     TouchSensor,
-    DragEndEvent
+    DragEndEvent,
+    DragOverEvent
 } from '@dnd-kit/core';
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 const nodeTypes: NodeTypes = {
@@ -71,19 +78,22 @@ const DraggableTechnique: React.FC<{
     navigate: any;
     onVideoClick: (node: any) => void;
 }> = ({ node, index, navigate, onVideoClick }) => {
-    const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
-        id: node.id,
-    });
-    const { setNodeRef: setDropRef } = useDroppable({
-        id: node.id,
-    });
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: node.id });
 
-    const style = transform ? {
-        transform: CSS.Translate.toString(transform),
-        zIndex: 100,
-        transition: 'none',
-        touchAction: 'none'
-    } : undefined;
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 100 : 'auto',
+        touchAction: 'none',
+        position: 'relative' as const
+    };
 
     const mastery = node.data.mastery;
     const isCompleted = node.data.isCompleted;
@@ -93,10 +103,7 @@ const DraggableTechnique: React.FC<{
 
     return (
         <div
-            ref={(node) => {
-                setDragRef(node);
-                setDropRef(node);
-            }}
+            ref={setNodeRef}
             style={style}
             {...attributes}
             className={`group relative p-3 rounded-xl border transition-all ${isDragging ? 'opacity-50 z-50' : ''} ${isCompleted || (mastery && mastery.masteryLevel >= 5)
@@ -110,6 +117,7 @@ const DraggableTechnique: React.FC<{
                 {/* Drag Handle */}
                 <div
                     {...listeners}
+                    style={{ touchAction: 'none' }}
                     className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400"
                 >
                     <GripVertical className="w-4 h-4" />
@@ -209,7 +217,7 @@ const DroppableGroup: React.FC<{
             >
                 <div className="flex items-center justify-between gap-2 mb-4">
                     <div className="flex items-center gap-2 flex-1">
-                        <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400">
+                        <div {...listeners} {...attributes} style={{ touchAction: 'none' }} className="cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400">
                             <GripVertical className="w-4 h-4" />
                         </div>
                         <FolderOpen className="w-4 h-4 text-violet-400 shrink-0" />
@@ -1610,7 +1618,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
         // 1. List View Reordering & Reparenting
         if (viewMode === 'list') {
-            // Case A: Dragged a technique over a group -> Reparent
+            // Case A: Dragged over a Group Container (Reparenting)
             if (activeNode && activeNode.type !== 'group' && overNode && overNode.type === 'group') {
                 setNodes(nds => nds.map(n => {
                     if (n.id === activeId) {
@@ -1624,7 +1632,7 @@ export const TechniqueSkillTree: React.FC = () => {
                     }
                     return n;
                 }));
-                // Remove connections between node and its new parent group
+                // Remove connections
                 setEdges(eds => eds.filter(e =>
                     !((e.source === activeId && e.target === overId) ||
                         (e.target === activeId && e.source === overId))
@@ -1632,19 +1640,29 @@ export const TechniqueSkillTree: React.FC = () => {
                 return;
             }
 
-            // Case B: Swapping positions/indices (Reordering)
-            setNodes((nds) => {
-                const oldIndex = nds.findIndex((n) => n.id === activeId);
-                const newIndex = nds.findIndex((n) => n.id === overId);
+            // Case B: Reordering (Sortable Item dropped on Sortable Item)
+            if (activeNode && overNode && activeNode.type !== 'group' && overNode.type !== 'group') {
+                setNodes((nds) => {
+                    const oldIndex = nds.findIndex((n) => n.id === activeId);
+                    const newIndex = nds.findIndex((n) => n.id === overId);
 
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    const newNodes = [...nds];
-                    const [movedNode] = newNodes.splice(oldIndex, 1);
-                    newNodes.splice(newIndex, 0, movedNode);
-                    return newNodes;
-                }
-                return nds;
-            });
+                    let newNodes = [...nds];
+
+                    // 1. Handle Parent Change (if moving between groups)
+                    if (activeNode.parentNode !== overNode.parentNode) {
+                        // Update parent of active node
+                        newNodes[oldIndex] = {
+                            ...newNodes[oldIndex],
+                            parentNode: overNode.parentNode,
+                            extent: overNode.parentNode ? 'parent' : undefined,
+                            zIndex: 10
+                        };
+                    }
+
+                    // 2. Perform Reorder
+                    return arrayMove(newNodes, oldIndex, newIndex);
+                });
+            }
             return;
         }
 
@@ -2394,6 +2412,9 @@ export const TechniqueSkillTree: React.FC = () => {
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
+
+            // Ignore drops in list mode
+            if (viewMode === 'list') return;
 
             const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
             if (!reactFlowBounds) return;
@@ -3385,6 +3406,20 @@ export const TechniqueSkillTree: React.FC = () => {
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         onDragEnd={handleDragEnd}
+                        onDragOver={(event) => {
+                            const { active, over } = event;
+                            if (!over) return;
+
+                            // Only handle reparenting logic here if needed, but for now allow SortableContext to handle visual reorder
+                            // Real-time reparenting (moving between groups) is complex without modifying state during drag.
+                            // Better to handle reparenting on DragEnd for simplicity if possible.
+                            // BUT for Sortable to work between groups, we usually need onDragOver to insert the placeholder.
+
+                            // Simple implementation:
+                            // If active is over a different group (container), we could update node.parentNode temporarily.
+                            // But that causes React Flow state churn.
+                            // Let's rely on basic sorting for now.
+                        }}
                     >
                         <div className="flex-1 w-full h-full overflow-y-auto bg-slate-950 p-4 pt-24">
                             <div className="max-w-2xl mx-auto space-y-3 pb-32">
@@ -3396,30 +3431,37 @@ export const TechniqueSkillTree: React.FC = () => {
                                 ) : (
                                     <>
                                         {/* 1. Groups */}
-                                        {nodes.filter(n => n.type === 'group').map((group) => (
-                                            <DroppableGroup
-                                                key={group.id}
-                                                group={group}
-                                                onLabelChange={onLabelChange}
-                                                onDelete={deleteGroupAndContent}
-                                            >
-                                                {nodes.filter(n => n.parentNode === group.id).length === 0 ? (
-                                                    <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 text-[10px] font-bold">
-                                                        여기로 기술을 드래그해서 넣으세요
-                                                    </div>
-                                                ) : (
-                                                    nodes.filter(n => n.parentNode === group.id).map((node, nodeIdx) => (
-                                                        <DraggableTechnique
-                                                            key={node.id}
-                                                            node={node}
-                                                            index={nodeIdx}
-                                                            navigate={navigate}
-                                                            onVideoClick={handleVideoClick}
-                                                        />
-                                                    ))
-                                                )}
-                                            </DroppableGroup>
-                                        ))}
+                                        {nodes.filter(n => n.type === 'group').map((group) => {
+                                            const groupChildren = nodes.filter(n => n.parentNode === group.id);
+                                            const groupChildrenIds = groupChildren.map(n => n.id);
+
+                                            return (
+                                                <DroppableGroup
+                                                    key={group.id}
+                                                    group={group}
+                                                    onLabelChange={onLabelChange}
+                                                    onDelete={deleteGroupAndContent}
+                                                >
+                                                    {groupChildren.length === 0 ? (
+                                                        <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 text-[10px] font-bold">
+                                                            여기로 기술을 드래그해서 넣으세요
+                                                        </div>
+                                                    ) : (
+                                                        <SortableContext items={groupChildrenIds} strategy={verticalListSortingStrategy}>
+                                                            {groupChildren.map((node, nodeIdx) => (
+                                                                <DraggableTechnique
+                                                                    key={node.id}
+                                                                    node={node}
+                                                                    index={nodeIdx}
+                                                                    navigate={navigate}
+                                                                    onVideoClick={handleVideoClick}
+                                                                />
+                                                            ))}
+                                                        </SortableContext>
+                                                    )}
+                                                </DroppableGroup>
+                                            )
+                                        })}
 
                                         {/* 2. Standalone Techniques (No Parent) */}
                                         <div className="space-y-2 mt-8">
@@ -3429,15 +3471,20 @@ export const TechniqueSkillTree: React.FC = () => {
                                                     <h3 className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">기타 기술</h3>
                                                 </div>
                                             )}
-                                            {nodes.filter(n => (n.type === 'content' || n.type === 'technique' || n.type === 'text') && !n.parentNode).map((node, nodeIdx) => (
-                                                <DraggableTechnique
-                                                    key={node.id}
-                                                    node={node}
-                                                    index={nodeIdx}
-                                                    navigate={navigate}
-                                                    onVideoClick={handleVideoClick}
-                                                />
-                                            ))}
+                                            <SortableContext
+                                                items={nodes.filter(n => (n.type === 'content' || n.type === 'technique' || n.type === 'text') && !n.parentNode).map(n => n.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {nodes.filter(n => (n.type === 'content' || n.type === 'technique' || n.type === 'text') && !n.parentNode).map((node, nodeIdx) => (
+                                                    <DraggableTechnique
+                                                        key={node.id}
+                                                        node={node}
+                                                        index={nodeIdx}
+                                                        navigate={navigate}
+                                                        onVideoClick={handleVideoClick}
+                                                    />
+                                                ))}
+                                            </SortableContext>
                                         </div>
                                     </>
                                 )}
@@ -3454,33 +3501,33 @@ export const TechniqueSkillTree: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 50, x: "-50%" }}
                         animate={{ opacity: 1, y: 0, x: "-50%" }}
-                        className={`fixed ${isMobile ? (isFullScreen ? 'bottom-20' : 'bottom-32') : 'bottom-10'} left-1/2 z-[60] w-full max-w-[320px] px-4 pointer-events-none`}
+                        className={`fixed ${isMobile ? (isFullScreen ? 'bottom-16' : 'bottom-28') : 'bottom-10'} left-1/2 z-[60] w-full max-w-[250px] md:max-w-[320px] px-4 pointer-events-none`}
                     >
-                        <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 rounded-[2.5rem] w-full text-center overflow-hidden pointer-events-auto">
+                        <div className="relative bg-zinc-900/95 backdrop-blur-2xl border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-4 md:p-6 rounded-[1.8rem] md:rounded-[2.5rem] w-full text-center overflow-hidden pointer-events-auto">
                             {/* Decorative Glow */}
                             <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 blur-[40px] rounded-full -mr-12 -mt-12" />
 
                             {/* Close Button */}
                             <button
                                 onClick={() => setHideGuestOverlay(true)}
-                                className="absolute top-4 right-4 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all z-10"
+                                className="absolute top-3 right-3 p-1.5 bg-zinc-800/50 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-all z-10"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
                             </button>
 
-                            <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center border border-violet-500/20 mx-auto mb-4 shadow-lg shadow-violet-500/10">
-                                <Network className="w-7 h-7 text-violet-500" />
+                            <div className="w-10 h-10 md:w-14 md:h-14 bg-violet-500/10 rounded-xl md:rounded-2xl flex items-center justify-center border border-violet-500/20 mx-auto mb-3 md:mb-4 shadow-lg shadow-violet-500/10">
+                                <Network className="w-5 h-5 md:w-7 md:h-7 text-violet-500" />
                             </div>
 
-                            <h3 className="text-lg font-black text-white mb-2 leading-tight">나만의 기술 로드맵</h3>
-                            <p className="text-zinc-400 text-[11px] mb-6 leading-relaxed font-medium">
+                            <h3 className="text-sm md:text-lg font-black text-white mb-1.5 md:mb-2 leading-tight">나만의 기술 로드맵</h3>
+                            <p className="text-zinc-400 text-[10px] md:text-[11px] mb-4/ md:mb-6 leading-relaxed font-medium">
                                 로그인하고 나만의 로드맵을 저장하세요.<br />
                                 친구들에게 공유하고 함께 성장할 수 있습니다!
                             </p>
 
                             <button
                                 onClick={() => navigate('/login', { state: { from: { pathname: location.pathname, search: location.search } } })}
-                                className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-2xl transition-all shadow-xl shadow-violet-600/30 active:scale-95"
+                                className="w-full py-2.5 md:py-3.5 bg-violet-600 hover:bg-violet-500 text-white text-[11px] md:text-xs font-black rounded-xl md:rounded-2xl transition-all shadow-xl shadow-violet-600/30 active:scale-95"
                             >
                                 무료로 시작하기
                             </button>

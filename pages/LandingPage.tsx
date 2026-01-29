@@ -200,9 +200,9 @@ export const LandingPage: React.FC = () => {
             </header>
 
             {/* 1. Hero Section */}
-            <section className="relative min-h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950 to-zinc-950 px-4 overflow-hidden pt-40">
+            <section className="relative min-h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950 to-zinc-950 px-4 overflow-hidden pt-28 md:pt-40">
                 {/* 2. Top Badge (Verified Black Belt Only) */}
-                <div className="z-10 mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
+                <div className="z-10 mb-4 md:mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
                     <Sparkles className="w-3.5 h-3.5 text-violet-500 mr-2" />
                     <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
                         Verified Black Belt Only
@@ -215,12 +215,12 @@ export const LandingPage: React.FC = () => {
                 </h1>
 
                 {/* 4. Sub Copy */}
-                <p className="z-10 mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed break-keep">
+                <p className="z-10 mt-6 md:mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed break-keep">
                     {siteSettings?.hero?.subtitle ? <HighlightedText text={siteSettings.hero.subtitle} highlightClass="text-zinc-200 font-medium" /> : <>파편화된 영상은 이제 그만. <br className="hidden md:block" /> 매트 위에서 실제로 작동하는 <span className="text-zinc-200 font-medium">단 1%의 디테일</span>을 경험하세요.</>}
                 </p>
 
                 {/* 5. CTA Button */}
-                <div className="z-10 mt-12 flex flex-col sm:flex-row gap-4">
+                <div className="z-10 mt-8 md:mt-12 flex flex-col sm:flex-row gap-4">
                     <button
                         className="relative group bg-zinc-100 hover:bg-white text-black font-bold rounded-full px-8 py-4 transition-all transform hover:-translate-y-1 shadow-[0_0_25px_rgba(255,255,255,0.2)] overflow-hidden"
                         onClick={() => navigate('/watch')}
@@ -231,7 +231,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Scroll Indicator */}
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 opacity-60 animate-bounce cursor-pointer" onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}>
+                <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 opacity-60 animate-bounce cursor-pointer" onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}>
                     <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Scroll</span>
                     <div className="w-5 h-8 border-2 border-zinc-600 rounded-full flex justify-center p-1">
                         <div className="w-1 h-3 bg-zinc-400 rounded-full animate-scroll-down"></div>

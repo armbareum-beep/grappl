@@ -236,7 +236,7 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                 <div className="relative flex justify-center py-8">
                     <div className="relative group/carousel w-[280px] h-[500px] md:w-[320px] md:h-[570px] flex items-center">
                         {/* Vertical Indicators/Buttons - Left Side */}
-                        <div className="absolute -left-16 flex flex-col gap-4 z-30">
+                        <div className="absolute left-2 md:-left-24 flex flex-col gap-4 z-30">
                             <button
                                 onClick={scrollPrev}
                                 className="w-12 h-12 rounded-full bg-zinc-900/80 border border-white/5 flex items-center justify-center text-white transition-all hover:bg-violet-600 shadow-xl"

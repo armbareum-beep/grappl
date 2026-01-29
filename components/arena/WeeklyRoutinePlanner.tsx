@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DrillRoutine, WeeklySchedule, WeeklyRoutinePlan } from '../../types';
-import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, FilePlus } from 'lucide-react';
+import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, FilePlus, Dumbbell } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { ShareModal } from '../../components/social/ShareModal';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,7 @@ import {
 } from '../../lib/api-weekly-routine';
 import { SaveRoutineModal, LoadRoutineModal, WeeklyRoutineSaveData } from './WeeklyRoutineModals';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { Modal } from '../Modal';
 
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -59,6 +60,10 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     const [isSharing, setIsSharing] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
+
+    // Start Routine Modal State
+    const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+    const [startModalRoutines, setStartModalRoutines] = useState<DrillRoutine[]>([]);
 
     useEffect(() => {
         // Try to load from local storage first
@@ -524,8 +529,9 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            const playlist = routinesForDay.map(r => r.id).join(',');
-                                            navigate(`/my-routines/${routinesForDay[0].id}?playlist=${playlist}`);
+                                            // Show confirmation modal instead of immediate navigation
+                                            setStartModalRoutines(routinesForDay);
+                                            setIsStartModalOpen(true);
                                         }}
                                         className="p-1.5 rounded-full transition-all bg-violet-600 hover:bg-violet-500 text-white shadow-lg"
                                         title="오늘의 루틴 통합 재생"
@@ -644,6 +650,73 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                 onConfirm={handleConfirmNewPlan}
                 variant="warning"
             />
+
+            {/* Start Routine Confirmation Modal */}
+            <Modal
+                isOpen={isStartModalOpen}
+                onClose={() => setIsStartModalOpen(false)}
+                title="오늘의 훈련 시작"
+                icon={Play}
+                iconColor="violet"
+                maxWidth="md"
+            >
+                <div className="flex flex-col gap-4 text-left">
+                    <p className="text-zinc-300 text-center mb-2">
+                        오늘 진행할 훈련 루틴 목록입니다.<br />
+                        준비되셨나요?
+                    </p>
+
+                    <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                        {startModalRoutines.map((routine, idx) => (
+                            <div key={`${routine.id}-${idx}`} className="flex items-center gap-3 bg-zinc-800/50 p-3 rounded-xl border border-zinc-800">
+                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-bold border border-violet-500/30">
+                                    {idx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-zinc-200 truncate">{routine.title}</div>
+                                    <div className="text-xs text-zinc-500 flex items-center gap-2">
+                                        <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" /> {routine.totalDurationMinutes}분</span>
+                                        <span className="flex items-center gap-0.5"><Dumbbell className="w-3 h-3" /> 드릴 {routine.drillCount || routine.drills?.length || 0}개</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-violet-600/10 border border-violet-600/20 rounded-xl p-4 mt-2">
+                        <div className="flex justify-between items-center text-sm mb-1">
+                            <span className="text-zinc-400">총 소요 시간</span>
+                            <span className="text-violet-300 font-bold text-lg">
+                                {startModalRoutines.reduce((acc, r) => acc + (r.totalDurationMinutes || 0), 0)}분
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-zinc-400">총 루틴 수</span>
+                            <span className="text-zinc-200 font-bold">{startModalRoutines.length}개</span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-4">
+                        <button
+                            onClick={() => setIsStartModalOpen(false)}
+                            className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors"
+                        >
+                            취소
+                        </button>
+                        <button
+                            onClick={() => {
+                                setIsStartModalOpen(false);
+                                const playlist = startModalRoutines.map(r => r.id).join(',');
+                                navigate(`/my-routines/${startModalRoutines[0].id}?playlist=${playlist}`);
+                            }}
+                            className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl shadow-lg shadow-violet-900/20 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Play className="w-4 h-4 fill-current" />
+                            훈련 시작하기
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <LoadRoutineModal
                 isOpen={isLoadModalOpen}

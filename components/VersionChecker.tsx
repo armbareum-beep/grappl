@@ -11,7 +11,13 @@ export const VersionChecker: React.FC = () => {
     const isUpdating = useRef(false);
 
     // 개발 환경 체크 - 훅 규칙 준수를 위해 상단 변수로 선언
-    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+    // localhost, 127.0.0.1, 사설 IP 대역(192.168.x.x, 10.x.x.x, 172.16-31.x.x) 모두 개발 환경으로 간주
+    const isDev = import.meta.env.DEV ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        Boolean(window.location.hostname.match(/^192\.168\./)) ||
+        Boolean(window.location.hostname.match(/^10\./)) ||
+        Boolean(window.location.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./));
 
     const handleUpdate = async (newVersion: string) => {
         if (isUpdating.current) return;
@@ -70,6 +76,9 @@ export const VersionChecker: React.FC = () => {
 
             const data = await response.json();
             const newestVersion = data.version;
+
+            // 방어 코드: 버전 정보가 유효하지 않으면 중단
+            if (!newestVersion) return;
 
             // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
             const currentVersion = import.meta.env.VITE_APP_VERSION;

@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched, extractVimeoId } from '../../lib/api';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 import { VideoPlayer } from '../VideoPlayer';
+import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -32,6 +33,15 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isPausedRef = useRef(isPaused);
+
+    // Fullscreen on landscape
+    const containerRef = useRef<HTMLDivElement>(null);
+    useOrientationFullscreen(containerRef, isActive);
+
+    useEffect(() => {
+        isPausedRef.current = isPaused;
+    }, [isPaused]);
 
     const vimeoFullId = extractVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
 
@@ -68,17 +78,19 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             // Start timer
             setWatchTime(0);
             timerRef.current = setInterval(() => {
-                setWatchTime((prev: number) => {
-                    const newTime = prev + 1;
-                    if (newTime >= 30) {
-                        // 30 seconds reached, show login modal
-                        setIsLoginModalOpen(true);
-                        if (timerRef.current) {
-                            clearInterval(timerRef.current);
+                if (!isPausedRef.current) {
+                    setWatchTime((prev: number) => {
+                        const newTime = prev + 1;
+                        if (newTime >= 30) {
+                            // 30 seconds reached, show login modal
+                            setIsLoginModalOpen(true);
+                            if (timerRef.current) {
+                                clearInterval(timerRef.current);
+                            }
                         }
-                    }
-                    return newTime;
-                });
+                        return newTime;
+                    });
+                }
             }, 1000);
         }
         // Logged-in users: Record watch progress
@@ -91,7 +103,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 const elapsed = (now - lastTickRef.current) / 1000;
                 lastTickRef.current = now;
 
-                if (elapsed > 0 && elapsed < 5 && !isPaused) {
+                if (elapsed > 0 && elapsed < 5 && !isPausedRef.current) {
                     accumulatedTimeRef.current += elapsed;
                 }
 
@@ -118,7 +130,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                 clearInterval(timerRef.current);
             }
         };
-    }, [isActive, user, lesson.id, isPaused]);
+    }, [isActive, user, lesson.id]);
 
     const handleLike = async () => {
         if (!user) {
@@ -160,6 +172,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
 
     return (
         <div
+            ref={containerRef}
             className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
@@ -249,7 +262,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                                 </div>
                             </div>
 
-                            <div className="absolute bottom-12 md:bottom-24 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
+                            <div className="absolute bottom-4 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
                                 <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
                                     <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-violet-500/10 text-violet-400 border border-violet-500/20">LESSON</div>
                                     <div className="flex items-center gap-3 mb-3">

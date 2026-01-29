@@ -189,7 +189,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/arena?tab=skills${treeId ? `&id=${treeId}` : ''}`);
+                            navigate('/skill-tree');
                         }}
                         className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 px-4 md:py-3 md:px-6 rounded-full text-xs md:text-sm transition-all flex items-center gap-2 shadow-lg shadow-violet-900/20"
                     >
@@ -207,7 +207,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
 
     return (
         <div
-            onClick={() => navigate(`/arena?tab=skills${treeId ? `&id=${treeId}` : ''}`)}
+            onClick={() => navigate('/skill-tree')}
             className="relative overflow-hidden w-full bg-[#121215] border border-zinc-800 p-6 md:p-8 rounded-[32px] cursor-pointer group hover:border-violet-500/50 transition-all duration-500"
         >
             {/* Background Effects */}

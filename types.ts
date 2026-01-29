@@ -194,6 +194,7 @@ export interface TrainingLog {
   userBelt?: string;
   date: string;
   durationMinutes: number;
+  durationSeconds?: number;
   techniques: string[];
   sparringRounds: number;
   notes: string;
@@ -222,6 +223,7 @@ export interface CompletedRoutineRecord {
   routineTitle: string;          // routine title
   routineThumbnail: string | null; // routine thumbnail
   durationMinutes: number;       // 소요 시간 (분)
+  durationSeconds?: number;      // 소요 시간 (초)
   completedAt: string;           // ISO timestamp
   date: string;                  // YYYY-MM-DD
   techniques: string[];          // 포함된 드릴 목록

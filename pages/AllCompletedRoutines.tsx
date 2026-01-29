@@ -93,7 +93,7 @@ export const AllCompletedRoutines: React.FC = () => {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => record.routineId && navigate(`/drill-routines/${record.routineId}`)}
+                                            onClick={() => record.routineId && navigate(`/routines/${record.routineId}`)}
                                             className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:bg-violet-600 hover:text-white transition-all shadow-lg"
                                         >
                                             <PlayCircle className="w-6 h-6" />

@@ -281,6 +281,7 @@ export const UploadLesson: React.FC = () => {
                         videoUrl={videoState.previewUrl}
                         onSave={handleCutsSave}
                         onCancel={() => setIsVideoEditorOpen(false)}
+                        thumbnailAspectRatio={5 / 4}
                     />
                 </div>
             </div>

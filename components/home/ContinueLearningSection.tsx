@@ -32,14 +32,23 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
     };
 
     const handleContinue = (item: ActivityItem) => {
+        if (!item.id || item.id === 'undefined') {
+            console.warn('[ContinueLearningSection] Invalid item ID', item);
+            return;
+        }
+
         if (item.type === 'lesson') {
+            if (!item.courseId) {
+                console.warn('[ContinueLearningSection] Missing courseId for lesson', item);
+                return;
+            }
             navigate(`/courses/${item.courseId}?lessonId=${item.id}&t=${item.watchedSeconds || 0}`);
         } else if (item.type === 'course') {
             navigate(`/courses/${item.id}`);
         } else if (item.type === 'routine') {
-            navigate(`/drill-routines/${item.id}`);
+            navigate(`/routines/${item.id}`);
         } else if (item.type === 'sparring') {
-            navigate('/sparring', { state: { highlightVideoId: item.id } });
+            navigate(`/sparring/${item.id}`);
         }
     };
 
