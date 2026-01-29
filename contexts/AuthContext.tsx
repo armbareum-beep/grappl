@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -63,11 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const creatorData = creatorResult.data;
 
             const newStatus = {
-                isAdmin: userData?.is_admin === true,
-                isSubscribed: userData?.is_subscriber === true,
+                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com'),
+                isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
-                isCreator: creatorData?.approved === true
+                isCreator: !!(creatorData?.approved === true)
             };
 
             // Update state
@@ -193,17 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
+                    const status = await checkUserStatus(baseUser.id);
+                    const finalIsAdmin = status.isAdmin || baseUser.email === 'armbareum@gmail.com';
                     if (mounted) {
-                        setUser({
-                            ...baseUser,
-                            isSubscriber: subscribed,
-                            subscription_tier: subscriptionTier,
-                            ownedVideoIds: ownedIds
-                        });
-                        setIsAdmin(admin);
-                        setIsCreator(creator);
-                        setIsSubscribed(subscribed);
+                        setUser({ ...baseUser, isSubscriber: status.isSubscribed });
+                        setIsAdmin(finalIsAdmin);
+                        setIsCreator(status.isCreator);
+                        setIsSubscribed(status.isSubscribed); // Ensure isSubscribed is also updated
                         setLoading(false);
                     }
                 }
