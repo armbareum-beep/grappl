@@ -27,7 +27,7 @@ export const Login: React.FC = () => {
         if (fromState?.pathname) {
             // 로그인 페이지나 루트에서 온 경우가 아니라면 원래 페이지로
             if (fromState.pathname !== '/login' && fromState.pathname !== '/') {
-                return `${fromState.pathname}${fromState.search || ''}${fromState.hash || ''}`;
+                return fromState;
             }
         } else if (typeof fromState === 'string' && fromState !== '/login' && fromState !== '/') {
             return fromState;
@@ -85,7 +85,10 @@ export const Login: React.FC = () => {
             const redirectPath = getRedirectPath();
             if (redirectPath !== '/home') {
                 try {
-                    localStorage.setItem('oauth_redirect_path', redirectPath);
+                    const pathString = typeof redirectPath === 'string'
+                        ? redirectPath
+                        : (redirectPath as any).pathname;
+                    localStorage.setItem('oauth_redirect_path', pathString);
                 } catch (e) {
                     console.warn('Failed to save redirect path:', e);
                 }

@@ -22,3 +22,10 @@ export function upgradeThumbnailQuality(url?: string | null): string {
 
     return url;
 }
+
+/**
+ * Simple helper to check if a string contains highlighted markers
+ */
+export function hasHighlight(text: string | null | undefined): boolean {
+    return !!text && text.includes('{') && text.includes('}');
+}

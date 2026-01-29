@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
@@ -402,7 +402,7 @@ export const Routines: React.FC<{
                 <div className={cn(
                     "grid gap-6 md:gap-8",
                     isEmbedded
-                        ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
                         : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                 )}>
                     {filteredRoutines.map(routine => (
@@ -413,41 +413,74 @@ export const Routines: React.FC<{
                         >
                             {/* Thumbnail Card */}
                             <div className={cn(
-                                "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
-                                isEmbedded ? "aspect-[9/16]" : "aspect-video"
+                                "relative w-full aspect-[4/5] bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30",
                             )}>
-                                {/* Badges */}
-                                <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
-                                    {routine.isDailyFree && (
-                                        <ContentBadge type="daily_free" />
-                                    )}
-                                    <div className="ml-auto">
-                                        {routine.rank ? (
-                                            <ContentBadge type="popular" rank={routine.rank} />
-                                        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                            <ContentBadge type="recent" />
-                                        ) : null}
-                                    </div>
-                                </div>
-                                {routine.thumbnailUrl ? (
-                                    <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-700 font-bold text-xs uppercase">No Image</div>
-                                )}
-                                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                {/* Blue filter overlay on hover - removed to match CourseCard clean look or keep if desired, keeping clean for now */}
+                                <Link to={`/routines/${routine.id}`} className="absolute inset-0 block">
+                                    <img
+                                        src={routine.thumbnailUrl}
+                                        alt={routine.title}
+                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                    />
 
-                                {/* Play Mini Icon */}
-                                <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
-                                    <PlayCircle className="w-4 h-4" />
-                                </div>
+                                    {/* Badges */}
+                                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
+                                        {routine.isDailyFree && (
+                                            <ContentBadge type="daily_free" />
+                                        )}
+                                        <div className="ml-auto">
+                                            {routine.rank ? (
+                                                <ContentBadge type="popular" rank={routine.rank} />
+                                            ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                                <ContentBadge type="recent" />
+                                            ) : null}
+                                        </div>
+                                    </div>
+
+                                    {/* Gradient Overlay */}
+                                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                    {/* Play Mini Icon */}
+                                    <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
+                                        <PlayCircle className="w-4 h-4" />
+                                    </div>
+                                </Link>
                             </div>
 
-                            {/* Text Info */}
-                            <div className="px-1">
-                                <h3 className="text-zinc-100 text-sm font-bold line-clamp-1 mb-0.5 group-hover:text-violet-400 transition-colors">
-                                    {routine.title}
-                                </h3>
-                                <p className="text-zinc-500 text-[11px] font-medium">{routine.creatorName}</p>
+                            {/* Info Area */}
+                            <div className="flex gap-3 px-1">
+                                {/* Creator Avatar */}
+                                <div className="shrink-0 pt-0.5">
+                                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden group-hover:border-violet-500/50 transition-colors">
+                                        {routine.creatorProfileImage ? (
+                                            <img src={routine.creatorProfileImage} alt={routine.creatorName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                                {routine.creatorName?.charAt(0)}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Text Info */}
+                                <div className="flex-1 min-w-0 pr-1">
+                                    <Link to={`/routines/${routine.id}`}>
+                                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                                            {routine.title}
+                                        </h3>
+                                    </Link>
+
+                                    <div className="flex items-center justify-between gap-4 mt-1.5">
+                                        <div className="text-xs md:text-sm text-zinc-400 font-medium truncate">
+                                            {routine.creatorName}
+                                        </div>
+
+                                        <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                                            <PlayCircle className="w-3 h-3" />
+                                            <span>{routine.drills?.length || 0} Drills</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ))}

@@ -12,6 +12,28 @@ interface Creator {
     subscriber_count: number;
 }
 
+const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
+    const [error, setError] = useState(false);
+
+    if (!src || error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                <Shield className="w-12 h-12 text-zinc-600" />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+            onError={() => setError(true)}
+        />
+    );
+};
+
 export const Instructors: React.FC = () => {
     const navigate = useNavigate();
     const [creators, setCreators] = useState<Creator[]>([]);
@@ -103,18 +125,7 @@ export const Instructors: React.FC = () => {
                                 <div className="relative -mt-16 flex justify-center mb-4 z-10">
                                     <div className="w-32 h-32 rounded-full p-1 bg-zinc-900 ring-4 ring-zinc-900 group-hover:ring-violet-500/30 transition-all duration-300 shadow-xl">
                                         <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800 relative">
-                                            {creator.profile_image ? (
-                                                <img
-                                                    src={creator.profile_image}
-                                                    alt={creator.name}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                    loading="lazy"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                                                    <Shield className="w-12 h-12 text-zinc-600" />
-                                                </div>
-                                            )}
+                                            <InstructorAvatar src={creator.profile_image} name={creator.name} />
                                         </div>
                                     </div>
                                 </div>

@@ -4,7 +4,7 @@ import { getDrills } from '../../lib/api';
 import { deleteDrill } from '../../lib/api-admin';
 import { Drill, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
-import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle } from 'lucide-react';
+import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const AdminDrillList: React.FC = () => {
@@ -161,6 +161,11 @@ export const AdminDrillList: React.FC = () => {
                                                     <Link to={`/drills/${drill.id}`}>
                                                         <button className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all">
                                                             <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </Link>
+                                                    <Link to={`/creator/drills/${drill.id}/edit`}>
+                                                        <button className="p-2.5 text-zinc-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-xl transition-all">
+                                                            <Edit className="w-4 h-4" />
                                                         </button>
                                                     </Link>
                                                     <button

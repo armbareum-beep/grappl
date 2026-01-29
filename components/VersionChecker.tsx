@@ -10,6 +10,9 @@ export const VersionChecker: React.FC = () => {
     const [latestVersion, setLatestVersion] = useState<string | null>(null);
     const isUpdating = useRef(false);
 
+    // 개발 환경 체크 - 훅 규칙 준수를 위해 상단 변수로 선언
+    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+
     const handleUpdate = async (newVersion: string) => {
         if (isUpdating.current) return;
 
@@ -89,6 +92,8 @@ export const VersionChecker: React.FC = () => {
     };
 
     useEffect(() => {
+        if (isDev) return;
+
         // Initial soft check
         checkVersion(false);
 

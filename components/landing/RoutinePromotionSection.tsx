@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Calendar, ChevronRight } from 'lucide-react';
+import { HighlightedText } from '../common/HighlightedText';
 
 // Mock data for the weekly planner grid
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -19,7 +20,7 @@ const drillItems = [
     { id: 3, text: 'Hip Escape Movement', reps: '30 reps' },
 ];
 
-export const RoutinePromotionSection: React.FC = () => {
+export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: string }> = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const [checkedItems, setCheckedItems] = useState<number[]>([]);
 
@@ -152,13 +153,10 @@ export const RoutinePromotionSection: React.FC = () => {
                             </span>
                         </div>
                         <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight tracking-tight">
-                            반복이 <br />
-                            실력을 만듭니다. <br />
-                            <span className="text-zinc-500">지치지 않는 꾸준함.</span>
+                            {title ? <HighlightedText text={title} highlightClass="text-zinc-500" /> : <>반복이 <br /> 실력을 만듭니다. <br /> <span className="text-zinc-500">지치지 않는 꾸준함.</span></>}
                         </h2>
                         <p className="text-zinc-400 text-lg md:text-xl leading-relaxed mb-10 max-w-lg">
-                            생각하기 전에 몸이 먼저 반응해야 합니다. <br className="hidden md:block" />
-                            오늘 연습할 기술과 연결 동작들을 주간 단위로 플래닝하고 실천하세요.
+                            {subtitle ? <HighlightedText text={subtitle} /> : <>생각하기 전에 몸이 먼저 반응해야 합니다. <br className="hidden md:block" /> 오늘 연습할 기술과 연결 동작들을 주간 단위로 플래닝하고 실천하세요.</>}
                         </p>
 
                         <button

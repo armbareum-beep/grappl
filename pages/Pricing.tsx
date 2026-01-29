@@ -51,12 +51,13 @@ export const Pricing: React.FC = () => {
   };
 
   const handleSubscription = (priceId: string) => {
+    const checkoutPath = `/checkout/subscription/${priceId}`;
     if (!user) {
-      navigate('/login');
+      navigate('/login', { state: { from: { pathname: checkoutPath, state: { returnUrl } } } });
       return;
     }
     // Pass returnUrl to checkout
-    navigate(`/checkout/subscription/${priceId}`, { state: { returnUrl } });
+    navigate(checkoutPath, { state: { returnUrl } });
   };
 
   const getMonthlyEquivalent = (yearlyPrice: number) => {

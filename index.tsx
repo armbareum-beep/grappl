@@ -20,8 +20,7 @@ root.render(
       <PayPalScriptProvider options={{
         clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
         currency: "USD", // PayPal is better with USD for global, we'll convert KRW to USD
-        intent: "capture",
-        vault: true // Required for subscriptions
+        intent: "capture"
       }}>
         <App />
       </PayPalScriptProvider>

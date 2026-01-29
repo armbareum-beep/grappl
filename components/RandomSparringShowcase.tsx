@@ -4,8 +4,9 @@ import { Play, ChevronRight, Activity } from 'lucide-react';
 import { getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
 import { VideoPlayer } from './VideoPlayer';
+import { HighlightedText } from './common/HighlightedText';
 
-export function RandomSparringShowcase() {
+export function RandomSparringShowcase({ title, subtitle }: { title?: string; subtitle?: string }) {
     const navigate = useNavigate();
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
@@ -55,13 +56,11 @@ export function RandomSparringShowcase() {
                         </div>
 
                         <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight text-zinc-50">
-                            이론이 실전이 되는 <br />
-                            순간을 확인하세요.
+                            {title ? <HighlightedText text={title} /> : <>이론이 실전이 되는 <br /> 순간을 확인하세요.</>}
                         </h2>
 
                         <p className="text-zinc-400 text-lg mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                            블랙벨트의 기술은 스파링에서 완성됩니다. <br className="hidden md:block" />
-                            컷 편집 없는 생생한 스파링 영상으로 기술의 타이밍과 흐름을 직접 체득하세요.
+                            {subtitle ? <HighlightedText text={subtitle} /> : <>블랙벨트의 기술은 스파링에서 완성됩니다. <br className="hidden md:block" /> 컷 편집 없는 생생한 스파링 영상으로 기술의 타이밍과 흐름을 직접 체득하세요.</>}
                         </p>
 
                         <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">

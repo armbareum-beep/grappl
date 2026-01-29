@@ -119,7 +119,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Video/Thumbnail Area (16:9) */}
-            <div className="relative w-full aspect-[16/9] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-colors group-hover:border-zinc-700">
+            <div className="relative w-full aspect-[5/4] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-colors group-hover:border-zinc-700">
                 <Link to={`/courses/${course.id}`} className="absolute inset-0 block overflow-hidden">
                     <img
                         src={course.thumbnailUrl}

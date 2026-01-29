@@ -8,8 +8,14 @@ import { Button } from './Button';
 import { VideoPlayer } from './VideoPlayer';
 import { ConfirmModal } from './common/ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
+import { HighlightedText } from './common/HighlightedText';
 
-export const ClassShowcase: React.FC = () => {
+interface ClassShowcaseProps {
+    title?: string;
+    subtitle?: string;
+}
+
+export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle }) => {
     console.log('🎬 ClassShowcase: Component mounted');
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
@@ -112,7 +118,7 @@ export const ClassShowcase: React.FC = () => {
     if (!courses.length) return null;
 
     return (
-        <section className="py-24 md:py-40 relative overflow-hidden">
+        <section className="py-24 md:py-40 relative overflow-hidden text-left md:text-center">
             {/* Background Decoration */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/5 rounded-full blur-[100px] pointer-events-none"></div>
 
@@ -125,12 +131,10 @@ export const ClassShowcase: React.FC = () => {
                         </span>
                     </div>
                     <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight break-keep">
-                        블랙벨트의 독점 <br className="md:hidden" />
-                        <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span>
+                        {title ? <HighlightedText text={title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>블랙벨트의 독점 <br className="md:hidden" /> <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span></>}
                     </h2>
                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium break-keep">
-                        1분 미리보기로 강의 스타일을 확인하고, 자신에게 맞는 기술을 찾으세요. <br className="md:hidden" />
-                        기초부터 심화까지 이어지는 블랙벨트의 완성된 로드맵을 제시합니다.
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>1분 미리보기로 강의 스타일을 확인하고, 자신에게 맞는 기술을 찾으세요. <br className="md:hidden" /> 기초부터 심화까지 이어지는 블랙벨트의 완성된 로드맵을 제시합니다.</>}
                     </p>
                 </div>
 

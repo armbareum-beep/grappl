@@ -4,9 +4,36 @@ import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../
 import { Drill, Lesson, SparringVideo } from '../types';
 import { Clock } from 'lucide-react';
 import { ContentBadge } from './common/ContentBadge';
+import { HighlightedText } from './common/HighlightedText';
 import { upgradeThumbnailQuality } from '../lib/utils';
 
-export const DailyFreeDrillSection: React.FC = () => {
+interface DailyFreeDrillSectionProps {
+    title?: string;
+    subtitle?: string;
+}
+
+const CreatorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
+    const [error, setError] = useState(false);
+
+    if (error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-[10px] text-zinc-500 font-bold">
+                {name?.charAt(0)}
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={name}
+            className="w-full h-full object-cover"
+            onError={() => setError(true)}
+        />
+    );
+};
+
+export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const [drill, setDrill] = useState<Drill | null>(null);
     const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -105,11 +132,11 @@ export const DailyFreeDrillSection: React.FC = () => {
                     </div>
 
                     <h2 className="text-5xl md:text-7xl font-black text-zinc-50 mb-6 tracking-tight">
-                        TODAY'S <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">FREE PASS</span>
+                        {title ? <HighlightedText text={title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>TODAY'S <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">FREE PASS</span></>}
                     </h2>
 
                     <p className="text-violet-300/80 text-xl font-medium max-w-2xl mx-auto break-keep">
-                        매일 프리미엄 콘텐츠가 무료로 공개됩니다.
+                        {subtitle ? <HighlightedText text={subtitle} /> : '매일 프리미엄 콘텐츠가 무료로 공개됩니다.'}
                     </p>
                 </div>
 
@@ -180,10 +207,9 @@ export const DailyFreeDrillSection: React.FC = () => {
                                         {isActive && (
                                             <div className="flex items-center gap-3 mt-2">
                                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 ring-1 ring-white/10">
-                                                    <img
+                                                    <CreatorAvatar
                                                         src={(item.data as any).creatorProfileImage || (item.data as any).creator?.profileImage || '/default-avatar.png'}
-                                                        alt={(item.data as any).creatorName || (item.data as any).creator?.name}
-                                                        className="w-full h-full object-cover"
+                                                        name={(item.data as any).creatorName || (item.data as any).creator?.name}
                                                     />
                                                 </div>
                                                 <span className="text-zinc-300 text-sm font-medium">

@@ -9,8 +9,23 @@ interface Props {
 
 export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) => {
   const navigate = useNavigate();
-
-  if (!routines || routines.length === 0) return null;
+  // 이전에는 데이터가 없으면 null을 반환하여 섹션이 사라졌으나, 
+  // 사용자가 혼란스러워하므로 "완료한 루틴이 없습니다" 메시지를 표시하도록 변경합니다.
+  if (!routines || routines.length === 0) {
+    return (
+      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+            <CheckCircle2 className="w-7 h-7 text-violet-400" />
+            최근 완료한 루틴
+          </h2>
+        </div>
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-8 text-center">
+          <p className="text-zinc-500 font-medium">아직 완료한 루틴이 없습니다. 첫 루틴을 완료해보세요!</p>
+        </div>
+      </section>
+    );
+  }
 
   // 시간 포맷 함수
   const formatDuration = (minutes: number) => {

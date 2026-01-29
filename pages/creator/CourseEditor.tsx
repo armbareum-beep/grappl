@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo } from '../../lib/api';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType } from '../../types';
+import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType, Creator } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
@@ -104,9 +104,13 @@ const SortableLessonItem = ({ lesson, index, onEdit, onDelete }: {
 export const CourseEditor: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const { success, error: toastError } = useToast();
     const isNew = !id || id === 'new';
+
+    // Admin State
+    const [creators, setCreators] = useState<Creator[]>([]);
+    const [selectedCreatorId, setSelectedCreatorId] = useState<string>('');
 
     const [activeTab, setActiveTab] = useState<'basic' | 'curriculum' | 'drills' | 'sparring'>('basic');
     const [loading, setLoading] = useState(!isNew);
@@ -194,6 +198,20 @@ export const CourseEditor: React.FC = () => {
 
     useEffect(() => {
         if (user) {
+            // Load creators for admin
+            if (isAdmin) {
+                getCreators().then(({ data }) => {
+                    if (data) {
+                        setCreators(data);
+                    }
+                }).catch(console.error);
+                if (isNew) {
+                    setSelectedCreatorId(user.id);
+                }
+            } else {
+                setSelectedCreatorId(user.id); // Non-admin users always create for themselves
+            }
+
             loadDrills();
             loadSparringVideos();
 
@@ -201,9 +219,11 @@ export const CourseEditor: React.FC = () => {
                 fetchCourseData(id);
                 loadBundledDrills();
                 loadBundledSparringVideos();
+            } else {
+                setLoading(false);
             }
         }
-    }, [id, isNew, user]);
+    }, [id, isNew, user, isAdmin]);
 
     async function fetchCourseData(courseId: string) {
         try {
@@ -211,7 +231,12 @@ export const CourseEditor: React.FC = () => {
                 getCourseById(courseId),
                 getLessonsByCourse(courseId)
             ]);
-            if (course) setCourseData(course);
+            if (course) {
+                setCourseData(course);
+                if (course.creatorId) {
+                    setSelectedCreatorId(course.creatorId);
+                }
+            }
             setLessons(courseLessons);
         } catch (error) {
             console.error('Error fetching course:', error);
@@ -394,7 +419,7 @@ export const CourseEditor: React.FC = () => {
             if (isNew) {
                 const { data, error } = await createCourse({
                     ...courseToSave,
-                    creatorId: user.id,
+                    creatorId: (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id,
                 });
                 if (error) throw error;
                 if (data) {
@@ -410,7 +435,7 @@ export const CourseEditor: React.FC = () => {
                         } else {
                             await createLesson({
                                 courseId: data.id,
-                                creatorId: user.id,
+                                creatorId: (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id,
                                 title: lesson.title,
                                 description: lesson.description || '',
                                 lessonNumber: i + 1,
@@ -471,7 +496,7 @@ export const CourseEditor: React.FC = () => {
                 await createLesson({
                     ...editingLesson,
                     courseId: id,
-                    creatorId: user.id,
+                    creatorId: (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id,
                     lessonNumber: lessons.length + 1,
                 });
             }
@@ -656,6 +681,25 @@ export const CourseEditor: React.FC = () => {
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                                     <div className="lg:col-span-2 space-y-8">
                                         <div className="space-y-6">
+                                            {isAdmin && (
+                                                <div className="p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl">
+                                                    <label className="block text-sm font-bold text-violet-400 mb-2">
+                                                        인스트럭터 선택 (관리자 대리 업로드)
+                                                    </label>
+                                                    <select
+                                                        value={selectedCreatorId}
+                                                        onChange={(e) => setSelectedCreatorId(e.target.value)}
+                                                        className="w-full px-4 py-3 bg-zinc-950 border border-violet-500/30 rounded-xl text-white outline-none focus:border-violet-500"
+                                                    >
+                                                        <option value="">본인 (관리자 계정)</option>
+                                                        {creators.map(creator => (
+                                                            <option key={creator.id} value={creator.id}>
+                                                                {creator.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="block text-sm font-semibold text-zinc-400 mb-2.5 ml-1">클래스 제목</label>
 

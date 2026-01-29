@@ -10,6 +10,8 @@ import { cn } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import Player from '@vimeo/player';
+import { useWakeLock } from '../hooks/useWakeLock';
+import { VideoPlayer } from '../components/VideoPlayer';
 
 const VideoItem: React.FC<{
     video: SparringVideo;
@@ -20,6 +22,8 @@ const VideoItem: React.FC<{
     const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    useWakeLock(isActive && isPlaying);
 
     // Interaction State
     const { user, isSubscribed, isAdmin } = useAuth();
@@ -338,34 +342,35 @@ const VideoItem: React.FC<{
 
         if (activeVimeoId) {
             return (
-                <div
-                    ref={containerRef}
-                    className="absolute inset-0 w-full h-full overflow-hidden"
-                    onClick={toggleMute}
+                <VideoPlayer
+                    vimeoId={activeVimeoId}
+                    title={video.title}
+                    playing={isActive}
+                    showControls={false}
+                    fillContainer={true}
+                    forceSquareRatio={true}
+                    onProgress={(s) => {
+                        // Sparse logging to avoid too many renders if not needed
+                    }}
+                    onDoubleTap={handleLike}
+                    onEnded={() => {
+                        if (!hasAccess && video.previewVimeoId) {
+                            setPreviewEnded(true);
+                        }
+                    }}
                 />
             );
         }
 
         return (
-            <video
-                ref={(el) => {
-                    if (el && isActive) {
-                        el.play().catch(() => {
-                            setMuted(true);
-                            if (el) el.muted = true;
-                            if (el) el.play();
-                        });
-                        el.muted = muted;
-                    } else if (el) {
-                        el.pause();
-                        el.currentTime = 0;
-                    }
-                }}
-                src={video.videoUrl}
-                className="w-full h-full object-cover"
-                loop
-                playsInline
-                onClick={toggleMute}
+            <VideoPlayer
+                vimeoId={video.videoUrl}
+                title={video.title}
+                playing={isActive}
+                showControls={false}
+                fillContainer={true}
+                forceSquareRatio={true}
+                onDoubleTap={handleLike}
             />
         );
     };
@@ -905,35 +910,75 @@ export const SparringFeed: React.FC<{
                                     setViewMode('reels');
                                 }}
                             >
-                                <div className="relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30">
-                                    <img
-                                        src={video.thumbnailUrl || (video.videoUrl && !video.videoUrl.startsWith('http') ? `https://vumbnail.com/${video.videoUrl}.jpg` : '')}
-                                        alt={video.title}
-                                        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
-                                    />
-                                    {/* Badges */}
-                                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
-                                        {video.isDailyFree && (
-                                            <ContentBadge type="daily_free" />
-                                        )}
-                                        <div className="ml-auto">
-                                            {video.rank ? (
-                                                <ContentBadge type="popular" rank={video.rank} />
-                                            ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                                <ContentBadge type="recent" />
-                                            ) : null}
+                                <div className="relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30">
+                                    <Link to={`?view=reels&id=${video.id}`} className="absolute inset-0 block" onClick={(e) => {
+                                        e.preventDefault();
+                                        setActiveIndex(idx);
+                                        setViewMode('reels');
+                                    }}>
+                                        <img
+                                            src={video.thumbnailUrl || (video.videoUrl && !video.videoUrl.startsWith('http') ? `https://vumbnail.com/${video.videoUrl}.jpg` : '')}
+                                            alt={video.title}
+                                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                                        />
+                                        {/* Badges */}
+                                        <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
+                                            {video.isDailyFree && (
+                                                <ContentBadge type="daily_free" />
+                                            )}
+                                            <div className="ml-auto">
+                                                {video.rank ? (
+                                                    <ContentBadge type="popular" rank={video.rank} />
+                                                ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                                    <ContentBadge type="recent" />
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
+                                            <PlaySquare className="w-4 h-4" />
+                                        </div>
+                                    </Link>
+                                </div>
+
+                                {/* Info Area */}
+                                <div className="flex gap-3 px-1">
+                                    {/* Creator Avatar */}
+                                    <Link to={`/creator/${video.creatorId}`} className="shrink-0 pt-0.5" onClick={e => e.stopPropagation()}>
+                                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-colors">
+                                            {(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage ? (
+                                                <img src={(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                                    {video.creator?.name?.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Link>
+
+                                    {/* Text Info */}
+                                    <div className="flex-1 min-w-0 pr-1">
+                                        <div onClick={(e) => {
+                                            e.preventDefault();
+                                            setActiveIndex(idx);
+                                            setViewMode('reels');
+                                        }}>
+                                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                                                {video.title}
+                                            </h3>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-4 mt-1.5">
+                                            <Link to={`/creator/${video.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium truncate hover:text-zinc-200 transition-colors" onClick={e => e.stopPropagation()}>
+                                                {video.creator?.name || 'Unknown'}
+                                            </Link>
+
+                                            <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                                                <PlaySquare className="w-3 h-3" />
+                                                <span>{video.views || 0} Views</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
-                                        <PlaySquare className="w-4 h-4" />
-                                    </div>
-                                </div>
-                                <div className="px-1">
-                                    <h3 className="text-zinc-100 text-sm font-bold line-clamp-1 mb-0.5 group-hover:text-violet-400 transition-colors">
-                                        {video.title}
-                                    </h3>
-                                    <p className="text-zinc-500 text-[11px] font-medium">{video.creator?.name || 'Unknown'}</p>
                                 </div>
                             </div>
                         ))}

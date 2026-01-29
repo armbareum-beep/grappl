@@ -19,6 +19,28 @@ interface InstructorCarouselProps {
     searchQuery?: string;
 }
 
+const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
+    const [error, setError] = useState(false);
+
+    if (!src || error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                <Shield className="w-10 h-10 text-zinc-600" />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+            onError={() => setError(true)}
+        />
+    );
+};
+
 export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '' }) => {
     const [creators, setCreators] = useState<Creator[]>([]);
     const [loading, setLoading] = useState(true);
@@ -110,18 +132,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                             <div className="absolute inset-0 bg-violet-600 rounded-full blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-300 -z-10"></div>
 
                                             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800">
-                                                {creator.profile_image ? (
-                                                    <img
-                                                        src={creator.profile_image}
-                                                        alt={creator.name}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                        loading="lazy"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                                                        <Shield className="w-10 h-10 text-zinc-600" />
-                                                    </div>
-                                                )}
+                                                <InstructorAvatar src={creator.profile_image} name={creator.name} />
                                             </div>
                                         </div>
                                     </div>

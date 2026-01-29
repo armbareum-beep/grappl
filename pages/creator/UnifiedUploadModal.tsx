@@ -4,14 +4,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
     QuantentPosition,
     ContentLevel,
-    UniformType
+    UniformType,
+    Creator
 } from '../../types';
 import {
     createDrill, getDrillById, updateDrill,
     createLesson, updateLesson,
     createSparringVideo, updateSparringVideo,
     uploadThumbnail,
-    getCoursesByCreator, createCourse
+    getCoursesByCreator, createCourse, getCreators
 } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
@@ -68,6 +69,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [contentType, setContentType] = useState<ContentType>(initialContentType || typeFromUrl || 'drill');
     const isEditMode = !!id;
     const { success, error: toastError } = useToast();
+    const { isAdmin } = useAuth(); // Destructure isAdmin
+
+    // Admin Proxy Upload State
+    const [creators, setCreators] = useState<Creator[]>([]);
+    const [selectedCreatorId, setSelectedCreatorId] = useState<string>('');
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -102,6 +108,21 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         if (!isEditMode || !id) return;
 
         async function fetchData() {
+            // Load creators for admin
+            if (isAdmin) {
+                try {
+                    const creatorList = await getCreators();
+                    setCreators(creatorList);
+                } catch (e) {
+                    console.error('Failed to load creators:', e);
+                }
+            }
+            if (!isEditMode) {
+                // If new and admin, set default selectedCreatorId to current user (if they are a creator) or empty
+                if (isAdmin) setSelectedCreatorId(user?.id || '');
+                return;
+            }
+
             try {
                 let result: any;
                 if (contentType === 'drill') {
@@ -139,6 +160,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             status: 'complete',
                             previewUrl: data.descriptionVideoUrl || null
                         }));
+                    }
+
+                    // Set creator ID for admin editing
+                    if (data.creatorId) {
+                        setSelectedCreatorId(data.creatorId);
                     }
                 }
             } catch (err) {
@@ -215,10 +241,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         if (contentId) return contentId;
 
         console.log(`Creating draft ${contentType}...`);
+
+        // Determine Creator ID: If Admin, use selected; otherwise use current user
+        const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user?.id;
+
         const commonData = {
             title: formData.title || `업로드 중인 ${CONTENT_LABELS[contentType]}...`,
             description: formData.description,
-            creatorId: user?.id,
+            creatorId: effectiveCreatorId,
             category: (contentType === 'sparring' ? formData.sparringType : formData.category) as any,
             difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
             uniformType: formData.uniformType,
@@ -518,9 +548,32 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 value={formData.title}
                                 onChange={e => setFormData({ ...formData, title: e.target.value })}
                                 className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 transition-all"
-                                placeholder={`${CONTENT_LABELS[contentType]} 제목을 입력하세요`}
                             />
                         </div>
+
+                        {/* Admin: Creator Selection */}
+                        {isAdmin && (
+                            <div className="p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl mb-4">
+                                <label className="block text-sm font-bold text-violet-400 mb-2">
+                                    인스트럭터 선택 (관리자 대리 업로드)
+                                </label>
+                                <select
+                                    value={selectedCreatorId}
+                                    onChange={(e) => setSelectedCreatorId(e.target.value)}
+                                    className="w-full px-4 py-3 bg-zinc-950 border border-violet-500/30 rounded-xl text-white outline-none focus:border-violet-500"
+                                >
+                                    <option value="">본인 (관리자 계정)</option>
+                                    {creators.map(creator => (
+                                        <option key={creator.id} value={creator.id}>
+                                            {creator.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-zinc-500 mt-2">
+                                    * 선택한 인스트럭터의 명의로 콘텐츠가 생성/수정됩니다.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {contentType === 'sparring' ? (

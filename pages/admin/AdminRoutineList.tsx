@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRoutines, deleteRoutine } from '../../lib/api-admin';
 import { DrillRoutine, Difficulty } from '../../types';
-import { Trash2, Eye, Search, Plus, ArrowLeft, Activity } from 'lucide-react';
+import { Trash2, Eye, Search, Plus, ArrowLeft, Activity, Edit } from 'lucide-react';
 
 export const AdminRoutineList: React.FC = () => {
     const navigate = useNavigate();
@@ -176,6 +176,11 @@ export const AdminRoutineList: React.FC = () => {
                                                 <Link to={`/routines/${routine.id}`}>
                                                     <button className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-white hover:border-zinc-700 transition-all">
                                                         <Eye className="w-4 h-4" />
+                                                    </button>
+                                                </Link>
+                                                <Link to={`/creator/routines/${routine.id}/edit`}>
+                                                    <button className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-violet-400 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all">
+                                                        <Edit className="w-4 h-4" />
                                                     </button>
                                                 </Link>
                                                 <button

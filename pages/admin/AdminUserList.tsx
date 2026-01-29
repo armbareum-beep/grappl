@@ -234,12 +234,12 @@ export const AdminUserList: React.FC = () => {
                                 {filteredUsers.map((user) => (
                                     <tr key={user.id} className="group hover:bg-zinc-800/20 transition-all">
                                         <td className="px-8 py-6 whitespace-nowrap">
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 group-hover:border-violet-500/30 group-hover:bg-violet-500/5 transition-all shadow-sm">
-                                                    <User className="h-7 w-7 group-hover:text-violet-400 transition-colors" />
+                                            <div className="flex items-center gap-5 group/user cursor-pointer" onClick={() => navigate(`/admin/users/${user.id}`)}>
+                                                <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 group-hover/user:border-violet-500/30 group-hover/user:bg-violet-500/5 transition-all shadow-sm">
+                                                    <User className="h-7 w-7 group-hover/user:text-violet-400 transition-colors" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-base font-extrabold text-white group-hover:text-violet-300 transition-colors">
+                                                    <div className="text-base font-extrabold text-white group-hover/user:text-violet-300 transition-colors">
                                                         {user.name || 'Anonymous Warrior'}
                                                     </div>
                                                     <div className="text-sm text-zinc-500 font-medium">{user.email}</div>

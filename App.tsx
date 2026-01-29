@@ -11,26 +11,29 @@ import { Pricing } from './pages/Pricing';
 import { CreatorDashboard } from './pages/creator/CreatorDashboard';
 import { UnifiedUploadModal } from './pages/creator/UnifiedUploadModal';
 import { CreateRoutine } from './pages/creator/CreateRoutine';
-import { UploadSparring } from './pages/creator/UploadSparring';
+// import { UploadSparring } from './pages/creator/UploadSparring'; // Deprecated
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
 // import { CommunityFeed } from './pages/CommunityFeed';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
-import { AdminCourseList } from './pages/admin/AdminCourseList';
-import { CreatorApprovalList } from './pages/admin/CreatorApprovalList';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { FeaturedContent } from './pages/admin/FeaturedContent';
+import { AdminCourseList } from './pages/admin/AdminCourseList';
 import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminPayouts } from './pages/admin/AdminPayouts';
 import { AdminUserList } from './pages/admin/AdminUserList';
+import { AdminUserDetail } from './pages/admin/AdminUserDetail';
 import { AdminDrillList } from './pages/admin/AdminDrillList';
 import { AdminRoutineList } from './pages/admin/AdminRoutineList';
-import { AdminReportList } from './pages/admin/AdminReportList';
-import { AdminTournamentList } from './pages/admin/AdminTournamentList';
+import { AdminLessonList } from './pages/admin/AdminLessonList';
+import { AdminSparringList } from './pages/admin/AdminSparringList';
+import { AdminSiteSettings } from './pages/admin/AdminSiteSettings';
+import { AdminCreatorList } from './pages/admin/AdminCreatorList';
 import { AdminSupportList } from './pages/admin/AdminSupportList';
-import { AdminTestimonials } from './pages/admin/AdminTestimonials';
+import { AdminContentApproval } from './pages/admin/AdminContentApproval';
+import { AdminSystemLogs } from './pages/admin/AdminSystemLogs';
+import { AdminNotifications } from './pages/admin/AdminNotifications';
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -284,7 +287,7 @@ const App: React.FC = () => {
                 } />
                 <Route path="/skill-tree" element={<TechniqueSkillTree />} />
                 <Route path="/creator/sparring/new" element={<UnifiedUploadModal initialContentType="sparring" />} />
-                <Route path="/creator/sparring/:id/edit" element={<UploadSparring />} />
+                <Route path="/creator/sparring/:id/edit" element={<UnifiedUploadModal initialContentType="sparring" />} />
 
                 <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                 <Route path="/lessons/:id" element={<LessonDetail />} />
@@ -322,14 +325,29 @@ const App: React.FC = () => {
                     <AdminRoutineList />
                   </AdminRoute>
                 } />
+                <Route path="/admin/lessons" element={
+                  <AdminRoute>
+                    <AdminLessonList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/sparring" element={
+                  <AdminRoute>
+                    <AdminSparringList />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/settings" element={
+                  <AdminRoute>
+                    <AdminSiteSettings />
+                  </AdminRoute>
+                } />
                 <Route path="/admin/reports" element={
                   <AdminRoute>
-                    <AdminReportList />
+                    <Navigate to="/admin" replace />
                   </AdminRoute>
                 } />
                 <Route path="/admin/tournaments" element={
                   <AdminRoute>
-                    <AdminTournamentList />
+                    <Navigate to="/admin" replace />
                   </AdminRoute>
                 } />
                 <Route path="/admin/support" element={
@@ -337,14 +355,14 @@ const App: React.FC = () => {
                     <AdminSupportList />
                   </AdminRoute>
                 } />
-                <Route path="/admin/creators" element={
+                <Route path="/admin/approval" element={
                   <AdminRoute>
-                    <CreatorApprovalList />
+                    <AdminContentApproval />
                   </AdminRoute>
                 } />
-                <Route path="/admin/featured" element={
+                <Route path="/admin/creators" element={
                   <AdminRoute>
-                    <FeaturedContent />
+                    <AdminCreatorList />
                   </AdminRoute>
                 } />
                 <Route path="/admin/marketing" element={
@@ -364,7 +382,27 @@ const App: React.FC = () => {
                 } />
                 <Route path="/admin/testimonials" element={
                   <AdminRoute>
-                    <AdminTestimonials />
+                    <Navigate to="/admin" replace />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/users/:id" element={
+                  <AdminRoute>
+                    <AdminUserDetail />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/logs" element={
+                  <AdminRoute>
+                    <AdminSystemLogs />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/notifications" element={
+                  <AdminRoute>
+                    <AdminNotifications />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/audit-logs" element={
+                  <AdminRoute>
+                    <Navigate to="/admin" replace />
                   </AdminRoute>
                 } />
 

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { GitBranch } from 'lucide-react';
+import { HighlightedText } from '../common/HighlightedText';
 
 
 // Types for our node data
@@ -23,7 +24,12 @@ const nodes: NodeData[] = [
     { id: 'armbar', label: 'Armbar Finish', x: 75, y: 85, mastery: 2, status: 'available', connections: [] },
 ];
 
-export const CapsuleRoadmapSection: React.FC = () => {
+interface CapsuleRoadmapSectionProps {
+    title?: string;
+    subtitle?: string;
+}
+
+export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
     const isInView = useInView(containerRef, { once: true, margin: "-100px" });
@@ -53,8 +59,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                                 </span>
                             </div>
                         </div>
-                        길을 잃지 않는 수련, <br className="md:hidden" />
-                        <span className="text-violet-500">당신의 다음 테크닉은 무엇입니까?</span>
+                        {title ? <HighlightedText text={title} /> : <>길을 잃지 않는 수련, <br className="md:hidden" /> <span className="text-violet-500">당신의 다음 테크닉은 무엇입니까?</span></>}
                     </motion.h2>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
@@ -63,8 +68,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                         transition={{ delay: 0.1 }}
                         className="text-zinc-400 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto break-keep"
                     >
-                        단편적인 기술 습득은 성장을 늦출 뿐입니다. <br />
-                        레슨과 드릴을 연결하여 당신의 주짓수를 끊김 없는 하나의 흐름으로 만듭니다.
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>단편적인 기술 습득은 성장을 늦출 뿐입니다. <br /> 레슨과 드릴을 연결하여 당신의 주짓수를 끊김 없는 하나의 흐름으로 만듭니다.</>}
                     </motion.p>
                 </div>
 
@@ -87,7 +91,7 @@ export const CapsuleRoadmapSection: React.FC = () => {
                 <div className="w-full pb-8">
                     <div
                         ref={containerRef}
-                        className="relative w-full max-w-4xl aspect-[4/5] md:aspect-[2/1] bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden"
+                        className="relative w-full max-w-4xl mx-auto aspect-[4/5] md:aspect-[2/1] bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden"
                     >
                         {/* Subtle Grid Background */}
                         <div className="absolute inset-0 opacity-[0.05]" style={{

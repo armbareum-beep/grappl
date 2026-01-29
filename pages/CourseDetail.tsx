@@ -470,6 +470,7 @@ export const CourseDetail: React.FC = () => {
                                 }
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                 isPaused={isPaywallOpen}
+                                onDoubleTap={handleLike}
                             />
                         </div>
                     ) : !hasAccess && hasPreview ? (
@@ -482,6 +483,7 @@ export const CourseDetail: React.FC = () => {
                                 maxPreviewDuration={60}
                                 isPreviewMode={true}
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                onDoubleTap={handleLike}
                             />
                         </div>
                     ) : (

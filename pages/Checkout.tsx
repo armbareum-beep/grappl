@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { PayPalButtons } from '@paypal/react-paypal-js';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import * as PortOne from '@portone/browser-sdk/v2';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -31,6 +31,7 @@ export const Checkout: React.FC = () => {
     const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
     const [couponError, setCouponError] = useState<string | null>(null);
     const [discountedAmount, setDiscountedAmount] = useState(0);
+    const [activeTab, setActiveTab] = useState<'domestic' | 'paypal'>('domestic');
 
     const isYearly = productTitle.includes('(연간)');
 
@@ -304,182 +305,182 @@ export const Checkout: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Right: Payment Methods */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 blur-[60px] rounded-full"></div>
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-8 shadow-2xl relative">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 blur-[60px] rounded-full pointer-events-none"></div>
 
                             <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2">
                                 Payment Method
                             </h2>
 
-                            <div className="space-y-8">
-                                {/* PayPal */}
-                                <div>
-                                    <div className="flex justify-between items-center mb-4">
+                            {/* Tabs Header */}
+                            <div className="flex bg-zinc-950 p-1.5 rounded-2xl mb-8 border border-zinc-800/50">
+                                <button
+                                    onClick={() => setActiveTab('domestic')}
+                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'domestic'
+                                        ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+                                        : 'text-zinc-600 hover:text-zinc-400'
+                                        }`}
+                                >
+                                    국내 결제
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('paypal')}
+                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'paypal'
+                                        ? 'bg-blue-500/10 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                                        : 'text-zinc-600 hover:text-zinc-400'
+                                        }`}
+                                >
+                                    해외 결제
+                                </button>
+                            </div>
+
+                            <div className="min-h-[400px]">
+                                {/* Domestic Tab */}
+                                {activeTab === 'domestic' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                                         <div className="flex items-center gap-2">
-                                            <Globe className="w-4 h-4 text-blue-400 font-bold" />
-                                            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">해외 (PayPal)</h3>
+                                            <CreditCard className="w-4 h-4 text-emerald-400" />
+                                            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">카드/간편결제 (KRW)</h3>
                                         </div>
-                                        <span className="text-xs font-black text-blue-400 italic">${usdAmount} USD</span>
-                                    </div>
-                                    <PayPalButtons
-                                        style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
-                                        createOrder={(_, actions) => {
-                                            return actions.order.create({
-                                                intent: "CAPTURE",
-                                                purchase_units: [
-                                                    {
-                                                        amount: {
-                                                            currency_code: "USD",
-                                                            value: usdAmount,
-                                                        },
-                                                        description: productTitle,
-                                                    },
-                                                ],
-                                            });
-                                        }}
-                                        onApprove={async (_, actions) => {
-                                            if (actions.order) {
-                                                const details = await actions.order.capture();
-                                                await handleSuccess(details);
-                                            }
-                                        }}
-                                        onError={(err) => {
-                                            console.error('PayPal Error:', err);
-                                            setError('PayPal 결제 중 오류가 발생했습니다.');
-                                        }}
-                                    />
-                                </div>
 
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-zinc-800"></div>
-                                    </div>
-                                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]">
-                                        <span className="px-4 bg-zinc-900 text-zinc-600">OR</span>
-                                    </div>
-                                </div>
-
-                                {/* Domestic */}
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-2">
-                                        <CreditCard className="w-4 h-4 text-emerald-400" />
-                                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">국내 (카드/간편결제)</h3>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Name</label>
-                                            <input
-                                                type="text"
-                                                placeholder="홍길동"
-                                                value={fullName}
-                                                onChange={(e) => setFullName(e.target.value)}
-                                                className="w-full bg-zinc-950 text-white rounded-2xl px-4 py-3 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                                            />
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Name</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="홍길동"
+                                                    value={fullName}
+                                                    onChange={(e) => setFullName(e.target.value)}
+                                                    className="w-full bg-zinc-950 text-white rounded-2xl px-4 py-3 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Phone</label>
+                                                <input
+                                                    type="tel"
+                                                    placeholder="010-0000-0000"
+                                                    value={phoneNumber}
+                                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                                    className="w-full bg-zinc-950 text-white rounded-2xl px-4 py-3 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Phone</label>
-                                            <input
-                                                type="tel"
-                                                placeholder="010-0000-0000"
-                                                value={phoneNumber}
-                                                onChange={(e) => setPhoneNumber(e.target.value)}
-                                                className="w-full bg-zinc-950 text-white rounded-2xl px-4 py-3 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                                            />
-                                        </div>
-                                    </div>
 
-                                    <button
-                                        onClick={async () => {
-                                            if (!phoneNumber || !fullName) {
-                                                alert('이름과 연락처를 모두 입력해주세요.');
-                                                return;
-                                            }
-                                            try {
-                                                const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
-
-                                                let response;
-                                                // Monthly Subscription -> Issue Billing Key
-                                                if (isMonthlySubscription) {
-                                                    response = await PortOne.requestIssueBillingKey({
-                                                        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
-                                                        billingKeyMethod: "CARD",
-                                                        issueName: productTitle,
-                                                        customer: {
-                                                            email: user?.email,
-                                                            phoneNumber: phoneNumber || undefined,
-                                                            fullName: fullName || undefined,
-                                                        },
-                                                    });
-                                                }
-                                                // Yearly Pass & Others -> One-time Payment
-                                                else {
-                                                    response = await PortOne.requestPayment({
-                                                        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
-                                                        paymentId: `payment-${Date.now()}`,
-                                                        orderName: productTitle,
-                                                        totalAmount: discountedAmount,
-                                                        currency: "KRW",
-                                                        payMethod: "CARD",
-                                                        customer: {
-                                                            email: user?.email,
-                                                            phoneNumber: phoneNumber || undefined,
-                                                            fullName: fullName || undefined,
-                                                        },
-                                                    });
-                                                }
-
-                                                if (response?.code != null) {
-                                                    alert(`결제/빌링키 발급 실패: ${response.message}`);
+                                        <button
+                                            onClick={async () => {
+                                                if (!phoneNumber || !fullName) {
+                                                    alert('이름과 연락처를 모두 입력해주세요.');
                                                     return;
                                                 }
+                                                try {
+                                                    const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
 
-                                                const { data: { session } } = await supabase.auth.getSession();
-                                                if (!session) throw new Error('Not authenticated');
-
-                                                const anyResponse = response as any;
-
-                                                const verifyResponse = await fetch(
-                                                    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-portone-payment`,
-                                                    {
-                                                        method: 'POST',
-                                                        headers: {
-                                                            'Content-Type': 'application/json',
-                                                            'Authorization': `Bearer ${session.access_token}`,
-                                                        },
-                                                        body: JSON.stringify({
-                                                            paymentId: anyResponse?.paymentId || '',
-                                                            billingKey: anyResponse?.billingKey || '', // Send billingKey if exists
-                                                            mode: type,
-                                                            id: id,
-                                                            userId: user?.id,
-                                                            couponCode: appliedCoupon?.code,
-                                                            amount: isMonthlySubscription ? discountedAmount : undefined // Send amount for initial charge
-                                                        }),
+                                                    let response;
+                                                    // Monthly Subscription -> Issue Billing Key
+                                                    if (isMonthlySubscription) {
+                                                        response = await PortOne.requestIssueBillingKey({
+                                                            storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+                                                            channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                            billingKeyMethod: "CARD",
+                                                            issueName: productTitle,
+                                                            customer: {
+                                                                email: user?.email,
+                                                                phoneNumber: phoneNumber || undefined,
+                                                                fullName: fullName || undefined,
+                                                            },
+                                                        });
                                                     }
-                                                );
+                                                    // Yearly Pass & Others -> One-time Payment
+                                                    else {
+                                                        response = await PortOne.requestPayment({
+                                                            storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+                                                            channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                            paymentId: `payment-${Date.now()}`,
+                                                            orderName: productTitle,
+                                                            totalAmount: discountedAmount,
+                                                            currency: "KRW",
+                                                            payMethod: "CARD",
+                                                            customer: {
+                                                                email: user?.email,
+                                                                phoneNumber: phoneNumber || undefined,
+                                                                fullName: fullName || undefined,
+                                                            },
+                                                        });
+                                                    }
 
-                                                if (!verifyResponse.ok) {
-                                                    const errData = await verifyResponse.json();
-                                                    throw new Error(errData.error || '결제 검증 실패');
+                                                    if (response?.code != null) {
+                                                        alert(`결제 실패: ${response.message}`);
+                                                        return;
+                                                    }
+
+                                                    const { data: { session } } = await supabase.auth.getSession();
+                                                    if (!session) throw new Error('Not authenticated');
+
+                                                    const anyResponse = response as any;
+
+                                                    const verifyResponse = await fetch(
+                                                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-portone-payment`,
+                                                        {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Authorization': `Bearer ${session.access_token}`,
+                                                            },
+                                                            body: JSON.stringify({
+                                                                paymentId: anyResponse?.paymentId || '',
+                                                                billingKey: anyResponse?.billingKey || '',
+                                                                mode: type,
+                                                                id: id,
+                                                                userId: user?.id,
+                                                                couponCode: appliedCoupon?.code,
+                                                                amount: isMonthlySubscription ? discountedAmount : undefined
+                                                            }),
+                                                        }
+                                                    );
+
+                                                    if (!verifyResponse.ok) throw new Error('결제 검증 실패');
+
+                                                    navigate('/payment/complete', { state: { returnUrl } });
+                                                } catch (err: any) {
+                                                    console.error(err);
+                                                    setError(`결제 처리 실패: ${err.message}`);
                                                 }
+                                            }}
+                                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg"
+                                        >
+                                            {type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기'}
+                                        </button>
+                                    </div>
+                                )}
 
-                                                // Pass returnUrl to payment complete page
-                                                navigate('/payment/complete', { state: { returnUrl } });
-                                            } catch (err: any) {
-                                                console.error(err);
-                                                setError(`결제 처리 실패: ${err.message || JSON.stringify(err)}`);
-                                            }
-                                        }}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg"
-                                    >
-                                        {type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기'}
-                                    </button>
-                                </div>
+                                {/* PayPal Tab */}
+                                {activeTab === 'paypal' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="flex justify-between items-center bg-blue-500/5 p-4 rounded-2xl border border-blue-500/10">
+                                            <div className="flex items-center gap-2">
+                                                <Globe className="w-4 h-4 text-blue-400 font-bold" />
+                                                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">해외 결제 (USD)</h3>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="block text-[10px] font-black text-blue-400/50 uppercase tracking-widest">Estimated</span>
+                                                <span className="text-sm font-black text-blue-400 italic">${usdAmount} USD</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="relative z-10 min-h-[150px] flex flex-col items-center justify-center">
+                                            <PayPalButtonsSection
+                                                usdAmount={usdAmount}
+                                                productTitle={productTitle}
+                                                handleSuccess={handleSuccess}
+                                                setError={setError}
+                                            />
+                                        </div>
+                                        <p className="text-[10px] text-zinc-500 text-center font-bold uppercase tracking-wider">
+                                            * Domestic cards might be declined by PayPal.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -500,6 +501,62 @@ export const Checkout: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </div>
+    );
+};
+
+// Helper component for PayPal buttons with loading state
+const PayPalButtonsSection: React.FC<{
+    usdAmount: string;
+    productTitle: string;
+    handleSuccess: (details: any) => Promise<void>;
+    setError: (msg: string) => void;
+}> = ({ usdAmount, productTitle, handleSuccess, setError }) => {
+    const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+    return (
+        <div className="w-full">
+            {isPending && (
+                <div className="flex flex-col items-center gap-4 py-8">
+                    <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic animate-pulse">Initializing Global Payment Engine...</p>
+                </div>
+            )}
+            {isRejected && (
+                <div className="flex flex-col items-center gap-4 py-8 bg-red-500/5 rounded-2xl border border-red-500/10">
+                    <AlertCircle className="w-8 h-8 text-red-500" />
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest italic">Failed to load PayPal Engine</p>
+                    <p className="text-[10px] text-zinc-500 text-center px-4">Possible reason: Missing Client ID or Network issue.</p>
+                </div>
+            )}
+            <PayPalButtons
+                style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
+                forceReRender={[usdAmount]}
+                createOrder={(_, actions) => {
+                    return actions.order.create({
+                        intent: "CAPTURE",
+                        purchase_units: [
+                            {
+                                amount: {
+                                    currency_code: "USD",
+                                    value: usdAmount,
+                                },
+                                description: productTitle,
+                            },
+                        ],
+                    });
+                }}
+                onApprove={async (_, actions) => {
+                    if (actions.order) {
+                        const details = await actions.order.capture();
+                        await handleSuccess(details);
+                    }
+                }}
+                onError={(err) => {
+                    console.error('PayPal Error:', err);
+                    setError('PayPal 결제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                }}
+            />
         </div>
     );
 };

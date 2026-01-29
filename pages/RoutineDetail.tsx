@@ -2,62 +2,17 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
-import Player from '@vimeo/player';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useWakeLock } from '../hooks/useWakeLock';
+import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
 
-// Internal component for Vimeo tracking
-const VimeoWrapper: React.FC<{ vimeoId: string; onProgress: () => void; currentDrillId: string; videoType: string; muted: boolean }> = ({ vimeoId, onProgress, currentDrillId, videoType, muted }) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const playerRef = useRef<Player | null>(null);
+// Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
-    useEffect(() => {
-        if (!iframeRef.current) return;
-
-        let player: Player;
-        try {
-            player = new Player(iframeRef.current);
-            playerRef.current = player;
-
-            player.on('timeupdate', () => {
-                onProgress();
-            });
-
-            // Sync initial state
-            player.setMuted(muted);
-        } catch (e) {
-            console.error('Vimeo init error:', e);
-        }
-
-        return () => {
-            if (player) {
-                player.off('timeupdate');
-            }
-        };
-    }, [vimeoId, currentDrillId, videoType, onProgress]); // Re-init on video change
-
-    // Sync muted state changes
-    useEffect(() => {
-        if (playerRef.current) {
-            playerRef.current.setMuted(muted);
-        }
-    }, [muted]);
-
-    return (
-        <iframe
-            ref={iframeRef}
-            src={`https://player.vimeo.com/video/${vimeoId}?background=0&autoplay=1&loop=1&autopause=0&muted=0&controls=0&title=0&byline=0&portrait=0&badge=0&dnt=1&color=ffffff`}
-            className="w-full h-full"
-            frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-        ></iframe>
-    );
-};
 
 export const RoutineDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -68,8 +23,8 @@ export const RoutineDetail: React.FC = () => {
     const { user, loading: authLoading, isSubscribed } = useAuth();
 
     // Playback Refs
-    const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(true);
+    useWakeLock(isPlaying);
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
     const [relatedCourse, setRelatedCourse] = useState<Course | null>(null);
     const [relatedRoutines, setRelatedRoutines] = useState<DrillRoutine[]>([]);
@@ -364,7 +319,7 @@ export const RoutineDetail: React.FC = () => {
         const durationMinutes = Math.ceil(elapsedSeconds / 60);
         let xpEarnedToday = 0; let currentStreak = 0; let bonusXp = 0;
         if (user) {
-            await createTrainingLog({ userId: user.id, userName: user.user_metadata?.name || 'Unknown', date: new Date().toISOString().split('T')[0], durationMinutes, notes: `[Routine Completed] ${routine?.title}`, techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [], isPublic: true, location: 'Gym', metadata: { routineId: routine?.id }, sparringRounds: 0 });
+            await createTrainingLog({ userId: user.id, userName: user.user_metadata?.name || 'Unknown', date: new Date().toISOString().split('T')[0], durationMinutes, notes: `[Routine Completed] ${routine?.title}`, techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [], isPublic: true, location: 'Gym', metadata: { routineId: routine?.id }, sparringRounds: 0, type: 'routine' });
             const xpResult = await awardTrainingXP(user.id, 'routine_complete', 50);
             if (xpResult.data) { xpEarnedToday = xpResult.data.xpEarned; currentStreak = xpResult.data.streak; bonusXp = xpResult.data.bonusXP; }
             setStreak(currentStreak); setXpEarned(xpEarnedToday);
@@ -389,8 +344,8 @@ export const RoutineDetail: React.FC = () => {
         }
     };
 
-    const handleSaveDrill = async (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleSaveDrill = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         if (!currentDrill || !user) { navigate('/login'); return; }
         const isSaved = savedDrills.has(currentDrill.id);
         const newSaved = new Set(savedDrills);
@@ -399,8 +354,8 @@ export const RoutineDetail: React.FC = () => {
         await toggleDrillSave(user.id, currentDrill.id);
     };
 
-    const handleLikeDrill = async (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleLikeDrill = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         if (!currentDrill || !user) { navigate('/login'); return; }
         const isLiked = likedDrills.has(currentDrill.id);
         const newLiked = new Set(likedDrills);
@@ -443,17 +398,9 @@ export const RoutineDetail: React.FC = () => {
 
     const progressPercent = (completedDrills.size / (routine?.drills?.length || 1)) * 100;
 
-    const extractVimeoId = (url?: string) => {
-        if (!url) return undefined;
-        if (/^\d+$/.test(url)) return url;
-        const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : undefined;
-    };
+
 
     const effectiveUrl = videoType === 'main' ? (currentDrill.videoUrl || currentDrill.vimeoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
-    const isVimeo = !!extractVimeoId(effectiveUrl);
-    const vimeoId = extractVimeoId(effectiveUrl);
-    const directVideoUrl = !isVimeo ? effectiveUrl : undefined;
     const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
     const isActionVideo = videoType === 'main';
 
@@ -663,9 +610,17 @@ export const RoutineDetail: React.FC = () => {
                             <div className="absolute inset-0 z-0" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                                 {hasAccess ? (
                                     <>
-                                        {isVimeo ? <div className="w-full h-full scale-[1.35]"><VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill.id} videoType={videoType} muted={muted} /></div> : <video key={`${currentDrill.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onClick={() => setIsPlaying(!isPlaying)} />}
-                                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90" />
-                                        {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"><PlayCircle className="w-20 h-20 text-white/80" /></div>}
+                                        <VideoPlayer
+                                            vimeoId={effectiveUrl || ''}
+                                            title={currentDrill.title}
+                                            autoplay={true}
+                                            showControls={false}
+                                            fillContainer={true}
+                                            onProgress={handleProgress}
+                                            onDoubleTap={() => handleLikeDrill()}
+                                            onEnded={() => handleDrillComplete()}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none" />
                                     </>
                                 ) : (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
@@ -920,8 +875,16 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
                                     {hasAccess ? (
                                         <>
-                                            {isVimeo ? <VimeoWrapper vimeoId={vimeoId!} onProgress={handleProgress} currentDrillId={currentDrill?.id || ''} videoType={videoType} muted={muted} /> : <video key={`${currentDrill?.id}-${videoType}`} ref={videoRef} src={directVideoUrl} className="w-full h-full object-cover" loop autoPlay playsInline muted={muted} onTimeUpdate={handleProgress} onClick={() => setIsPlaying(!isPlaying)} />}
-                                            {!isPlaying && !isTrainingMode && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/40 p-6 rounded-full"><PlayCircle className="w-16 h-16 text-white" /></div>}
+                                            <VideoPlayer
+                                                vimeoId={effectiveUrl || ''}
+                                                title={currentDrill?.title || ''}
+                                                autoplay={true}
+                                                showControls={false}
+                                                fillContainer={true}
+                                                onProgress={handleProgress}
+                                                onDoubleTap={() => handleLikeDrill()}
+                                                onEnded={() => handleDrillComplete()}
+                                            />
                                         </>
                                     ) : (
                                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-8 text-center">

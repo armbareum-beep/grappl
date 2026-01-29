@@ -825,3 +825,105 @@ export interface WeeklyRoutinePlan {
   creatorName?: string;
   creatorAvatar?: string;
 }
+
+// ==================== Site Settings ====================
+
+export interface SiteSettings {
+  id: string;
+  logos: {
+    main: string;
+    dark: string;
+    favicon: string;
+  };
+  footer: {
+    companyName: string;
+    representative: string;
+    address: string;
+    email: string;
+    phone: string;
+    registrationNumber: string;
+    mailOrderNumber: string;
+  };
+  hero: {
+    title: string;
+    subtitle: string;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+  };
+  // Landing Page Sections Toggle & Content
+  sections?: {
+    dailyFreePass: boolean;
+    instructors: boolean;
+    classShowcase: boolean;
+    drillReels: boolean;
+    sparringShowcase: boolean;
+    roadmap: boolean;
+    routinePromotion: boolean;
+    testimonials: boolean;
+    finalCTA: boolean;
+  };
+  sectionContent?: {
+    dailyFreePass?: { title: string; subtitle: string };
+    instructors?: { title: string; subtitle: string };
+    classShowcase?: { title: string; subtitle: string };
+    drillReels?: { title: string; subtitle: string };
+    sparringShowcase?: { title: string; subtitle: string };
+    roadmap?: { title: string; subtitle: string };
+    routinePromotion?: { title: string; subtitle: string };
+    testimonials?: { title: string; subtitle: string };
+    finalCTA?: { title: string; subtitle: string; buttonText?: string };
+  };
+  updatedAt: string;
+}
+
+// ==================== Audit Logs & Activity ====================
+
+export interface AuditLog {
+  id: string;
+  adminId: string;
+  adminName?: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  details: string;
+  createdAt: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'user_signup' | 'purchase' | 'report' | 'payout_request' | 'creator_application';
+  title: string;
+  description: string;
+  timestamp: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  amount?: number;
+  status?: string;
+}
+
+export interface AdminTopPerformers {
+  courses: Array<{
+    id: string;
+    title: string;
+    salesCount: number;
+    revenue: number;
+    instructor: string;
+  }>;
+  creators: Array<{
+    id: string;
+    name: string;
+    revenue: number;
+    subscribers: number;
+  }>;
+}
+
+export interface SystemStatus {
+  service: string;
+  status: 'operational' | 'degraded' | 'down';
+  latency?: number;
+  lastChecked: string;
+}
+

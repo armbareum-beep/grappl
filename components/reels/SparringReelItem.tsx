@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparringVideo } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, Clapperboard, List, ChevronRight, Play, X } from 'lucide-react';
+import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import Player from '@vimeo/player';
-import { ReelLoginModal } from '../auth/ReelLoginModal';
 import { extractVimeoId } from '../../lib/api';
+import { VideoPlayer } from '../VideoPlayer';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -15,16 +15,12 @@ interface SparringReelItemProps {
     video: SparringVideo;
     isActive: boolean;
     offset: number;
-    isDailyFreeSparring?: boolean;
     isSubscriber?: boolean;
     purchasedItemIds?: string[];
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isDailyFreeSparring, isSubscriber, purchasedItemIds = [] }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const playerRef = useRef<Player | null>(null);
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isSubscriber, purchasedItemIds = [] }) => {
     const [muted, setMuted] = useState(true);
-    const [isPlayerReady, setIsPlayerReady] = useState(false);
 
     // Interaction State
     const { user } = useAuth();
@@ -170,155 +166,15 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         setIsShareModalOpen(true);
     };
 
-    // Use the robust common extractor
     const vimeoFullId = extractVimeoId(video.videoUrl);
-    const [vimeoId, vimeoHash] = vimeoFullId?.split(':') || [vimeoFullId, null];
     // vimeoHash is re-calculated inside useEffect for options construction to ensure freshness
     // const vimeoHash = getVimeoHash(video.videoUrl);
 
-    // Initialize Player
+    // VideoPlayer handles initialization and cleanup
+
     useEffect(() => {
-        if (!containerRef.current || !vimeoId || vimeoId === 'undefined' || vimeoId === 'null') return;
-        if (offset !== 0) return;
-
-        // Ensure vimeoId is actually a number or a valid string
-        const numericId = Number(vimeoId);
-        if (isNaN(numericId) && !String(vimeoId).includes(':')) {
-            console.error('[SparringReel] Invalid vimeoId:', vimeoId);
-            return;
-        }
-
-        if (playerRef.current) {
-            // Keep if same
-        } else {
-            const rawUrl = video.videoUrl || '';
-            const options: any = {
-                background: true,
-                loop: true,
-                autoplay: false,
-                muted: true,
-                controls: false,
-                playsinline: true
-            };
-
-            console.log('[SparringReel] Strategy - vimeoId:', vimeoId, 'vimeoHash:', vimeoHash);
-
-            // Strategy: Manual Iframe for private videos (Vimeo Hash)
-            if (vimeoId && vimeoHash) {
-                const iframe = document.createElement('iframe');
-                const params = new URLSearchParams();
-                params.append('h', vimeoHash);
-                params.append('title', '0');
-                params.append('byline', '0');
-                params.append('portrait', '0');
-                params.append('badge', '0');
-                params.append('autopause', '1');
-                params.append('background', '1');
-                params.append('player_id', containerRef.current.id || `vimeo-${vimeoId}`);
-
-                iframe.src = `https://player.vimeo.com/video/${vimeoId}?${params.toString()}`;
-                iframe.width = '100%';
-                iframe.height = '100%';
-                iframe.frameBorder = '0';
-                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-                iframe.className = 'w-full h-full'; // Remove static scale class
-                iframe.style.setProperty('position', 'absolute', 'important');
-                iframe.style.setProperty('top', '50%', 'important');
-                iframe.style.setProperty('left', '50%', 'important');
-                iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-                iframe.style.setProperty('width', '177.78%', 'important');
-                iframe.style.setProperty('height', '177.78%', 'important');
-                iframe.style.setProperty('object-fit', 'cover', 'important');
-
-                // Clear container and mount iframe
-                containerRef.current.innerHTML = '';
-                containerRef.current.appendChild(iframe);
-
-                const player = new Player(iframe);
-                player.ready().then(() => {
-                    setIsPlayerReady(true);
-                    playerRef.current = player;
-                    player.on('timeupdate', (data) => {
-                        setProgress(data.percent * 100);
-                    });
-                    if (isActive) {
-                        player.play().catch(console.error);
-                    }
-                }).catch(err => {
-                    console.error('Vimeo player init error (Manual Iframe):', err);
-                });
-            } else {
-                // Public video or ID/URL - SDK handles it
-                if (vimeoId) {
-                    options.id = Number(vimeoId);
-                } else if (rawUrl.startsWith('http')) {
-                    options.url = rawUrl;
-                }
-
-                console.log('[SparringReel] Using SDK strategy with options:', options);
-                const player = new Player(containerRef.current, options);
-
-                player.ready().then(() => {
-                    setIsPlayerReady(true);
-                    playerRef.current = player;
-                    player.on('timeupdate', (data) => {
-                        setProgress(data.percent * 100);
-                    });
-                    if (isActive) {
-                        player.play().catch(console.error);
-                    }
-
-                    // Force 1:1 aspect ratio on SDK-created iframe
-                    const applySquareCrop = () => {
-                        const iframe = containerRef.current?.querySelector('iframe');
-                        if (iframe) {
-                            iframe.style.setProperty('position', 'absolute', 'important');
-                            iframe.style.setProperty('top', '50%', 'important');
-                            iframe.style.setProperty('left', '50%', 'important');
-                            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-                            iframe.style.setProperty('width', '177.78%', 'important');
-                            iframe.style.setProperty('height', '177.78%', 'important');
-                            iframe.style.setProperty('object-fit', 'cover', 'important');
-                            console.log('[SparringReel] Applied 1:1 crop');
-                        }
-                    };
-
-                    // Apply multiple times to ensure stability
-                    applySquareCrop();
-                    setTimeout(applySquareCrop, 100);
-                    setTimeout(applySquareCrop, 300);
-                    setTimeout(applySquareCrop, 600);
-                }).catch(err => {
-                    console.error('Vimeo player init error (SDK):', err);
-                });
-            }
-        }
-
-        return () => {
-            if (playerRef.current) {
-                playerRef.current.destroy();
-                playerRef.current = null;
-            }
-        };
-    }, [vimeoId, offset]);
-
-    // Handle Active State Changes
-    useEffect(() => {
-        if (!playerRef.current || !isPlayerReady) return;
-
-        if (isActive && !isPaused) {
-            playerRef.current.play().catch(() => {
-                playerRef.current?.setVolume(0);
-                setMuted(true);
-                playerRef.current?.play().catch(console.error);
-            });
-        } else {
-            playerRef.current.pause().catch(console.error);
-            if (!isActive) {
-                playerRef.current.setCurrentTime(0).catch(console.error);
-            }
-        }
-    }, [isActive, isPlayerReady, isPaused]);
+        // Parent sync if needed
+    }, [isActive]);
 
     // Record View History
     useEffect(() => {
@@ -389,9 +245,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                     if (newTime >= 30) {
                         // 30 seconds reached (updated from 60s)
                         setIsLoginModalOpen(true);
-                        if (playerRef.current) {
-                            playerRef.current.pause().catch(console.error);
-                        }
                         if (timerRef.current) {
                             clearInterval(timerRef.current);
                         }
@@ -415,16 +268,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
     }, [isActive, user]);
 
     const toggleMute = async () => {
-        const newMuteState = !muted;
-        setMuted(newMuteState);
-
-        if (playerRef.current) {
-            await playerRef.current.setVolume(newMuteState ? 0 : 1);
-            await playerRef.current.setMuted(newMuteState);
-        } else if (containerRef.current) {
-            const videoEl = containerRef.current.querySelector('video');
-            if (videoEl) videoEl.muted = newMuteState;
-        }
+        setMuted(!muted);
     };
 
     // Click Handling for Play/Pause and Like
@@ -450,8 +294,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
     const renderVideoContent = () => {
         const isError = video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error');
-        // Processing means we have a vimeoId but no full URL AND no thumbnail yet
-        const isProcessing = vimeoId && !isPlayerReady && !isError && !video.thumbnailUrl;
+        const isProcessing = vimeoFullId && !isError && !video.thumbnailUrl;
 
         if (isError) {
             return (
@@ -474,7 +317,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
                         <div className="absolute inset-0 rounded-full border-4 border-violet-500/20"></div>
                         <div className="absolute inset-0 rounded-full border-4 border-t-violet-500 animate-spin"></div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <Clapperboard className="w-8 h-8 text-violet-500" />
+                            <Play className="w-8 h-8 text-violet-500" />
                         </div>
                     </div>
                     <h3 className="text-2xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
@@ -493,41 +336,18 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
             );
         }
 
-        if (vimeoId) {
-            return (
-                <div
-                    ref={containerRef}
-                    className="absolute inset-0 w-full h-full overflow-hidden"
-                    onClick={toggleMute}
-                />
-            );
-        }
-
         return (
-            <video
-                ref={(el) => {
-                    if (el && isActive) {
-                        el.play().catch(() => {
-                            setMuted(true);
-                            if (el) el.muted = true;
-                            if (el) el.play();
-                        });
-                        el.muted = muted;
-                    } else if (el) {
-                        el.pause();
-                        el.currentTime = 0;
-                    }
+            <VideoPlayer
+                vimeoId={vimeoFullId || video.videoUrl || ''}
+                title={video.title}
+                playing={isActive && !isPaused}
+                showControls={false}
+                fillContainer={true}
+                forceSquareRatio={true}
+                onProgress={(s) => {
+                    setProgress(s);
                 }}
-                src={video.videoUrl}
-                className="w-full h-full object-cover"
-                loop
-                playsInline
-                onClick={toggleMute}
-                onTimeUpdate={(e) => {
-                    const videoEl = e.currentTarget;
-                    const percent = (videoEl.currentTime / videoEl.duration) * 100;
-                    setProgress(percent);
-                }}
+                onDoubleTap={handleLike}
             />
         );
     };

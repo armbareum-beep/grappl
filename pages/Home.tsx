@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 import {
-  Play, Clock
+  Play, Clock, Network, TrendingUp, Sparkles
 } from 'lucide-react';
 import {
   getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
@@ -470,18 +470,43 @@ export const Home: React.FC = () => {
       <ContinueLearningSection items={continueItems} />
 
       {/* 3. Mastery Roadmap Widget */}
-      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20"><MasteryRoadmapWidget /></section>
+      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <Network className="w-7 h-7 text-violet-400" />
+              마스터리 로드맵
+            </h2>
+            <p className="text-zinc-400 text-sm mt-1 font-medium">
+              블랙벨트를 향한 여정, 다음 단계에 도전하세요
+            </p>
+          </div>
+        </div>
+        <MasteryRoadmapWidget />
+      </section>
 
       {/* 4. Recent Completed Routines */}
       <RecentCompletedRoutinesSection routines={recentCompletedRoutines} />
 
       {/* 5-7. Popular Content Tabs */}
       <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-white/10">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <TrendingUp className="w-7 h-7 text-violet-400" />
+              실시간 인기 콘텐츠
+            </h2>
+            <p className="text-zinc-400 text-sm mt-1 font-medium">
+              지금 가장 주목받는 콘텐츠를 확인하세요
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4 md:mb-8 border-b border-white/10">
+          <div className="flex items-center gap-0 md:gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
             <button
               onClick={() => setActiveTrendingTab('course')}
-              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeTrendingTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               인기 클래스
@@ -491,7 +516,7 @@ export const Home: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTrendingTab('routine')}
-              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeTrendingTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               인기루틴
@@ -501,7 +526,7 @@ export const Home: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTrendingTab('sparring')}
-              className={`px-6 py-4 text-lg font-bold transition-all relative ${activeTrendingTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeTrendingTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               인기스파링
@@ -511,9 +536,6 @@ export const Home: React.FC = () => {
             </button>
           </div>
 
-          <div className="pb-4 px-6 md:px-0">
-            <p className="text-zinc-400 text-sm font-medium">실시간 가장 핫한 콘텐츠</p>
-          </div>
         </div>
 
         <div className="min-h-[400px]">
@@ -551,14 +573,25 @@ export const Home: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
       {/* 8. New Content Tabs */}
-      <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20">
-        <div className="flex items-center gap-2 mb-8 border-b border-white/10">
+      < section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mt-20 mb-20" >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <Sparkles className="w-7 h-7 text-violet-400" />
+              최신 업로드
+            </h2>
+            <p className="text-zinc-400 text-sm mt-1 font-medium">
+              따끈따끈한 새 콘텐츠를 만나보세요
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-0 md:gap-2 mb-8 border-b border-white/10 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
           <button
             onClick={() => setActiveNewTab('course')}
-            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeNewTab === 'course' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
           >
             신규 클래스
@@ -568,7 +601,7 @@ export const Home: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveNewTab('routine')}
-            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeNewTab === 'routine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
           >
             신규 루틴
@@ -578,7 +611,7 @@ export const Home: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveNewTab('sparring')}
-            className={`px-6 py-4 text-lg font-bold transition-all relative ${activeNewTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            className={`px-4 md:px-6 py-4 text-base md:text-lg font-bold transition-all relative whitespace-nowrap ${activeNewTab === 'sparring' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
           >
             신규 스파링
@@ -618,8 +651,8 @@ export const Home: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
-    </div>
+    </div >
   );
 };

@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoPlayer } from './VideoPlayer';
 import { supabase } from '../lib/supabase';
+import { HighlightedText } from './common/HighlightedText';
 
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -109,7 +110,12 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
     );
 };
 
-export const DrillReelsSection: React.FC = () => {
+interface DrillReelsSectionProps {
+    title?: string;
+    subtitle?: string;
+}
+
+export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const [drills, setDrills] = useState<Drill[]>([]);
     const [loading, setLoading] = useState(true);
@@ -176,6 +182,7 @@ export const DrillReelsSection: React.FC = () => {
                             title: d.title,
                             description: d.description,
                             thumbnailUrl: d.thumbnail_url || d.thumbnailUrl,
+                            vimeo_url: d.vimeo_url || d.vimeoUrl,
                             vimeoUrl: d.vimeo_url || d.vimeoUrl,
                             videoUrl: d.video_url || d.videoUrl,
                             creatorId: d.creator_id,
@@ -217,12 +224,11 @@ export const DrillReelsSection: React.FC = () => {
                             FREE SHORT DRILLS
                         </span>
                     </div>
-                    <h2 className="text-zinc-50 text-4xl md:text-5xl font-black tracking-tighter leading-[1.1] mb-6 whitespace-pre-line text-center">
-                        {"오늘의 무료 드릴부터,\n언제든지 체험 가능한 무료 기술까지."}
+                    <h2 className="text-zinc-50 text-4xl md:text-5xl font-black tracking-tighter leading-[1.1] mb-6 text-center">
+                        {title ? <HighlightedText text={title} /> : "오늘의 무료 드릴부터,\n언제든지 체험 가능한 무료 기술까지."}
                     </h2>
                     <p className="text-zinc-400 text-lg max-w-xl mx-auto text-center">
-                        따로 결제 없이 지금 바로 체험해보세요. <br />
-                        상하로 넘겨 60초의 핵심 디테일을 경험하실 수 있습니다.
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>따로 결제 없이 지금 바로 체험해보세요. <br /> 상하로 넘겨 60초의 핵심 디테일을 경험하실 수 있습니다.</>}
                     </p>
                 </div>
 

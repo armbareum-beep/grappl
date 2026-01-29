@@ -79,6 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem(cacheKey, JSON.stringify(newStatus));
 
             return {
+                isAdmin: newStatus.isAdmin,
+                isCreator: newStatus.isCreator,
                 isSubscribed: newStatus.isSubscribed,
                 subscriptionTier: newStatus.subscriptionTier,
                 ownedVideoIds: newStatus.ownedVideoIds
@@ -89,12 +91,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (cached) {
                 const parsed = JSON.parse(cached);
                 return {
+                    isAdmin: parsed.isAdmin,
+                    isCreator: parsed.isCreator,
                     isSubscribed: parsed.isSubscribed,
                     subscriptionTier: parsed.subscriptionTier,
                     ownedVideoIds: parsed.ownedVideoIds
                 };
             }
-            return { isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
+            return { isAdmin: false, isCreator: false, isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
         }
     };
 
@@ -137,6 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 subscription_tier: parsed.subscriptionTier,
                                 ownedVideoIds: parsed.ownedVideoIds
                             });
+                            // Set admin/creator statuses from cache too
+                            setIsAdmin(parsed.isAdmin || false);
+                            setIsCreator(parsed.isCreator || false);
+                            setIsSubscribed(parsed.isSubscribed || false);
+
                             // Set loading false immediately if we have cache
                             setLoading(false);
                         } catch (e) {
@@ -144,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         }
                     }
 
-                    const { isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
@@ -152,6 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             subscription_tier: subscriptionTier,
                             ownedVideoIds
                         });
+                        setIsAdmin(admin);
+                        setIsCreator(creator);
+                        setIsSubscribed(subscribed);
                     }
                 } else {
                     if (mounted) {
@@ -181,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
@@ -189,6 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             subscription_tier: subscriptionTier,
                             ownedVideoIds
                         });
+                        setIsAdmin(admin);
+                        setIsCreator(creator);
+                        setIsSubscribed(subscribed);
                         setLoading(false);
                     }
                 }

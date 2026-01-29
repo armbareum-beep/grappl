@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Player from '@vimeo/player';
-import { Lock } from 'lucide-react';
+import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 interface VideoPlayerProps {
     vimeoId: string;
@@ -19,6 +20,8 @@ interface VideoPlayerProps {
     fillContainer?: boolean;
     forceSquareRatio?: boolean;
     autoplay?: boolean;
+    onDoubleTap?: () => void;
+    onPlayingChange?: (isPlaying: boolean) => void;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -35,14 +38,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     showControls = true,
     fillContainer = false,
     forceSquareRatio = false,
-    autoplay = true
+    autoplay = true,
+    onDoubleTap,
+    onPlayingChange
 }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    useWakeLock(isPlaying);
+
+    useEffect(() => {
+        onPlayingChange?.(isPlaying);
+    }, [isPlaying, onPlayingChange]);
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [playerError, setPlayerError] = useState<any>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
     const [hasReachedPreviewLimit, setHasReachedPreviewLimit] = useState(false);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const onProgressRef = useRef(onProgress);
     const maxPreviewDurationRef = useRef(maxPreviewDuration);
@@ -158,6 +171,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 player = new Player(containerRef.current, options);
             }
             else {
+                // Check if it's a direct video URL (mp4, m3u8, etc)
+                const isDirectVideo = vimeoIdStr.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i) || vimeoIdStr.includes('storage.googleapis.com') || vimeoIdStr.includes('supabase.co/storage');
+
+                if (isDirectVideo) {
+                    console.log('[VideoPlayer] Strategy: Direct Video URL');
+                    // We don't initialize Vimeo Player for direct videos
+                    // But we still want to keep the same UI
+                    return;
+                }
+
                 // Fallback to URL
                 player = new Player(containerRef.current, options);
             }
@@ -180,6 +203,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     console.error('Vimeo Player Error:', data);
                     setPlayerError(data);
                 });
+
+                currentPlayer.on('play', () => setIsPlaying(true));
+                currentPlayer.on('pause', () => setIsPlaying(false));
+                currentPlayer.on('bufferstart', () => setIsPlaying(false));
+                currentPlayer.on('bufferend', () => setIsPlaying(true));
 
                 if (startTime && startTime > 0) {
                     currentPlayer.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
@@ -242,7 +270,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         return () => {
             if (player) {
-                try { player.destroy(); } catch (e) { }
+                try { player.destroy(); } catch (_e) { }
             }
         };
     }, [vimeoId]);
@@ -380,13 +408,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return (
         <div
             className={fillContainer ? 'relative w-full h-full' : 'relative w-full aspect-video'}
-            onClick={async () => {
-                if (!playerRef.current || showUpgradeOverlay) return;
-                const paused = await playerRef.current.getPaused();
-                if (paused) {
-                    playerRef.current.play();
+            onClick={async (_e) => {
+                if (clickTimeoutRef.current) {
+                    clearTimeout(clickTimeoutRef.current);
+                    clickTimeoutRef.current = null;
+
+                    // Double Tap detected
+                    if (onDoubleTap) {
+                        onDoubleTap();
+                        setShowLikeAnimation(true);
+                        setTimeout(() => setShowLikeAnimation(false), 1000);
+                    }
                 } else {
-                    playerRef.current.pause();
+                    clickTimeoutRef.current = setTimeout(async () => {
+                        clickTimeoutRef.current = null;
+
+                        if (!playerRef.current || showUpgradeOverlay) return;
+                        const paused = await playerRef.current.getPaused();
+                        if (paused) {
+                            playerRef.current.play();
+                        } else {
+                            playerRef.current.pause();
+                        }
+                    }, 300);
                 }
             }}
         >
@@ -400,6 +444,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     justifyContent: 'center'
                 }}
             />
+
+            {/* Direct Video Fallback */}
+            {(!playerRef.current && vimeoId && (vimeoId.includes('storage') || vimeoId.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i))) && (
+                <video
+                    src={vimeoId}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    autoPlay={autoplay}
+                    muted={autoplay}
+                    loop
+                    playsInline
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => onEnded?.()}
+                />
+            )}
 
             {/* Error Overlay */}
             {playerError && (
@@ -427,25 +486,35 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </div>
             )}
 
+            {/* Like Animation */}
+            {showLikeAnimation && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                    <Heart
+                        className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                        style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                    />
+                </div>
+            )}
+
             {/* 업그레이드 오버레이 (프리뷰 종료 시 표시) */}
             {showUpgradeOverlay && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/90 backdrop-blur-md">
                     <div className="max-w-md mx-4 text-center">
-                        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-violet-600/20 flex items-center justify-center border border-violet-500/30">
-                            <Lock className="w-8 h-8 text-violet-400" />
+                        <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-6 rounded-full bg-violet-600/20 flex items-center justify-center border border-violet-500/30">
+                            <Lock className="w-6 h-6 md:w-8 md:h-8 text-violet-400" />
                         </div>
 
-                        <h3 className="text-2xl font-bold text-white mb-3">
+                        <h3 className="text-lg md:text-2xl font-bold text-white mb-2 md:mb-3">
                             프리뷰가 종료되었습니다
                         </h3>
 
-                        <p className="text-zinc-400 mb-8 text-sm">
+                        <p className="text-zinc-400 mb-4 md:mb-8 text-xs md:text-sm px-2">
                             마음에 드셨나요? 이 강의와 수백 개의 다른 강의를 모두 시청하세요.
                         </p>
 
                         <div className="space-y-3">
                             <Link to="/pricing" className="block">
-                                <button className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-4 px-6 rounded-full shadow-lg shadow-violet-500/30 transition-colors">
+                                <button className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 md:py-4 px-4 md:px-6 rounded-full shadow-lg shadow-violet-500/30 transition-colors text-sm md:text-base">
                                     구독하고 모두 시청하기
                                 </button>
                             </Link>

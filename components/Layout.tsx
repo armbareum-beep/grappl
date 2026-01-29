@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
+import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -9,6 +9,8 @@ import { LevelUpModal } from './LevelUpModal';
 import { TitleEarnedModal } from './TitleEarnedModal';
 import { GlobalSearch } from '../pages/GlobalSearch';
 import { cn } from '../lib/utils';
+import { getSiteSettings } from '../lib/api-admin';
+import { SiteSettings } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +26,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Global Modals State
   const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);
   const [titleEarnedData, setTitleEarnedData] = React.useState<{ titleName: string; description?: string; rarity?: 'common' | 'rare' | 'epic' | 'legendary' } | null>(null);
+  const [siteSettings, setSiteSettings] = React.useState<SiteSettings | null>(null);
+
+  React.useEffect(() => {
+    getSiteSettings().then(res => {
+      if (res.data) setSiteSettings(res.data);
+    }).catch(err => console.error('Failed to fetch site settings for footer:', err));
+  }, []);
 
   const userMenuRef = React.useRef<HTMLDivElement>(null);
   const mobileMenuRef = React.useRef<HTMLDivElement>(null);
@@ -70,14 +79,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, []);
 
-  const navigation = [
-    { name: '홈', href: '/home', icon: Home },
-    { name: '라이브러리', href: '/library', icon: BookOpen },
-    { name: '피드', href: '/watch', icon: Clapperboard },
-    { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
-    { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
-    // { name: '아고라', href: '/agora', icon: Globe },
-  ];
+  const navigation = React.useMemo(() => {
+    const nav = [
+      { name: '홈', href: '/home', icon: Home },
+      { name: '라이브러리', href: '/library', icon: BookOpen },
+      { name: '피드', href: '/watch', icon: Clapperboard },
+      { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
+      { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
+    ];
+
+    if (isAdmin) {
+      nav.push({ name: '관리자', href: '/admin/dashboard', icon: Settings });
+    }
+
+    return nav;
+  }, [isAdmin]);
 
   const isActive = (path: string) => {
     const searchParams = new URLSearchParams(location.search);
@@ -227,16 +243,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Right side buttons */}
               <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
                 {user && <NotificationDropdown />}
-                {user && isAdmin && (
-                  <>
-                    <Link to="/admin/dashboard">
-                      <Button variant="outline" size="sm" className="flex items-center space-x-2 border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-400/50 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl font-bold transition-all duration-300">
-                        <Settings className="w-4 h-4 flex-shrink-0" />
-                        <span className="hidden lg:inline">관리자</span>
-                      </Button>
-                    </Link>
-                  </>
-                )}
+
 
                 {user && isCreator && (
                   <Link to="/creator">
@@ -253,8 +260,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
                       className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500 transition-all duration-300 whitespace-nowrap h-9 text-sm font-bold shadow-lg shadow-violet-900/30"
                     >
-                      <User className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden lg:inline">{
+
+                      <span className="">{
                         (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
                           ? user.user_metadata.name
                           : user.email?.split('@')[0]
@@ -539,11 +546,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
               <div className="border-t border-zinc-900 mt-16 pt-10">
                 <div className="mb-8 text-[11px] text-zinc-600 space-y-1.5 leading-relaxed">
-                  <p><strong>상호명:</strong> 그래플레이 | <strong>대표자:</strong> 이바름</p>
-                  <p><strong>사업자등록번호:</strong> 111-39-34149</p>
-                  <p><strong>주소:</strong> 서울 동작대로29길 119, 102-1207</p>
-                  <p><strong>이메일:</strong> coach0179@naver.com | <strong>전화번호:</strong> 02-599-6315</p>
-                  <p>* 통신판매업 신고 진행 중</p>
+                  <p><strong>상호명:</strong> {siteSettings?.footer?.companyName || '그래플레이'} | <strong>대표자:</strong> {siteSettings?.footer?.representative || '이바름'}</p>
+                  <p><strong>사업자등록번호:</strong> {siteSettings?.footer?.registrationNumber || '111-39-34149'} | <strong>통신판매업 신고번호:</strong> {siteSettings?.footer?.mailOrderNumber || '진행 중'}</p>
+                  <p><strong>주소:</strong> {siteSettings?.footer?.address || '서울 동작대로29길 119, 102-1207'}</p>
+                  <p><strong>이메일:</strong> {siteSettings?.footer?.email || 'coach0179@naver.com'} | <strong>전화번호:</strong> {siteSettings?.footer?.phone || '02-599-6315'}</p>
                 </div>
 
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">

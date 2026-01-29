@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone } from 'lucide-react';
-import { updateUserProfile, uploadProfileImage, updateCreatorProfile, getCreatorById, updatePassword, getUserSubscription, cancelSubscription } from '../lib/api';
+import { updateUserProfile, uploadProfileImage, getCreatorById, updatePassword, getUserSubscription, cancelSubscription } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { format } from 'date-fns';
@@ -130,6 +130,14 @@ export const Settings: React.FC = () => {
                     avatar_url: url,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'id' });
+
+                // Sync with creators table if user is a creator
+                if (isCreator) {
+                    await supabase.from('creators').update({
+                        profile_image: url,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', user.id);
+                }
             }
 
             setMessage({ type: 'success', text: '프로필 이미지가 업데이트되었습니다.' });
@@ -159,8 +167,12 @@ export const Settings: React.FC = () => {
             }, { onConflict: 'id' });
 
             if (isCreator) {
-                const { error: bioError } = await updateCreatorProfile(user.id, { bio });
-                if (bioError) throw bioError;
+                // Sync bio and name with creator profile
+                await supabase.from('creators').update({
+                    name: displayName,
+                    bio: bio,
+                    updated_at: new Date().toISOString()
+                }).eq('id', user.id);
             }
 
             setMessage({ type: 'success', text: '프로필이 업데이트되었습니다.' });

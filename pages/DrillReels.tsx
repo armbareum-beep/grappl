@@ -92,28 +92,36 @@ export function DrillReels() {
             const allCreatorIds = allDrills?.map((d: any) => d.creator_id).filter(Boolean) || [];
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
-            const processedDrills = (allDrills || []).map((d: any) => ({
-                id: d.id,
-                title: d.title,
-                description: d.description,
-                creatorId: d.creator_id,
-                creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
-                creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
-                category: d.category,
-                difficulty: d.difficulty,
-                thumbnailUrl: d.thumbnail_url,
-                videoUrl: d.video_url,
-                vimeoUrl: d.vimeo_url,
-                descriptionVideoUrl: d.description_video_url,
-                aspectRatio: '9:16' as const,
-                views: d.views || 0,
-                durationMinutes: d.duration_minutes || 0,
-                length: d.length || d.duration,
-                tags: d.tags || [],
-                likes: d.likes || 0,
-                price: d.price || 0,
-                createdAt: d.created_at,
-            }));
+            const processedDrills = (allDrills || [])
+                .filter((d: any) => {
+                    // Filter out drills with known error messages in URLs
+                    const hasError = (d.vimeo_url?.toString().includes('ERROR')) ||
+                        (d.video_url?.toString().includes('ERROR')) ||
+                        (d.description_video_url?.toString().includes('ERROR'));
+                    return !hasError;
+                })
+                .map((d: any) => ({
+                    id: d.id,
+                    title: d.title,
+                    description: d.description,
+                    creatorId: d.creator_id,
+                    creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
+                    creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
+                    category: d.category,
+                    difficulty: d.difficulty,
+                    thumbnailUrl: d.thumbnail_url,
+                    videoUrl: d.video_url,
+                    vimeoUrl: d.vimeo_url,
+                    descriptionVideoUrl: d.description_video_url,
+                    aspectRatio: '9:16' as const,
+                    views: d.views || 0,
+                    durationMinutes: d.duration_minutes || 0,
+                    length: d.length || d.duration,
+                    tags: d.tags || [],
+                    likes: d.likes || 0,
+                    price: d.price || 0,
+                    createdAt: d.created_at,
+                }));
 
             // Shuffle
             for (let i = processedDrills.length - 1; i > 0; i--) {

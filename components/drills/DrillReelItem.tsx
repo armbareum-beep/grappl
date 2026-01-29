@@ -5,6 +5,7 @@ import { Heart, Bookmark, Share2, Zap, MessageCircle, ListVideo, Volume2, Volume
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import Player from '@vimeo/player';
+import { useWakeLock } from '../../hooks/useWakeLock';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 // Lazy load ShareModal
@@ -13,15 +14,6 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 // --- Helper Functions ---
 import { extractVimeoId, recordDrillView } from '../../lib/api';
 
-const getVimeoHash = (url?: string) => {
-    if (!url) return undefined;
-    if (url.includes(':')) {
-        const [, hash] = url.split(':');
-        return hash;
-    }
-    const match = url.match(/[?&]h=([a-z0-9]+)/i);
-    return match ? match[1] : undefined;
-};
 
 // --- Sub-Component: Single Video Player ---
 interface SingleVideoPlayerProps {
@@ -54,12 +46,11 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const playerRef = useRef<Player | null>(null);
     const [_isPlaying, setIsPlaying] = useState(false);
     const [ready, setReady] = useState(false);
+    useWakeLock(isActive && isVisible && _isPlaying);
 
     // Analyze URL
     const vimeoId = useMemo(() => extractVimeoId(url), [url]);
-    const _vimeoHash = useMemo(() => getVimeoHash(url), [url]);
     const useVimeo = !!vimeoId;
-    const _isPlaceholder = !url || url.includes('placeholder') || url.includes('placehold.co');
 
     // --- Vimeo Lifecycle ---
     useEffect(() => {
@@ -76,21 +67,20 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
 
         // Initialize Vimeo
         if (!playerRef.current) {
-            // console.log('[SinglePlayer] Initializing Vimeo:', vimeoId);
+            const fullId = extractVimeoId(url);
+            if (!fullId) return;
+
             const options: any = {
                 background: true,
-                autoplay: false, // Control manually
+                autoplay: false,
                 loop: true,
                 muted: isMuted,
                 autopause: false,
                 controls: false,
-                // responsive: true // Removing responsive to allow manual 9:16 control if needed
                 playsinline: true
             };
 
-            const fullId = extractVimeoId(url);
-            const [baseId, hash] = fullId?.includes(':') ? fullId.split(':') : [fullId, null];
-
+            const [baseId, hash] = fullId.includes(':') ? fullId.split(':') : [fullId, null];
             if (hash) {
                 options.url = `https://vimeo.com/${baseId}/${hash}`;
             } else {
@@ -102,7 +92,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
 
             player.ready().then(() => {
                 setReady(true);
-                onReady();
+                onReady(); // Notify parent that this SPECIFIC player is ready
                 player.setVolume(isMuted ? 0 : 1);
             }).catch(err => {
                 console.error('Vimeo Error:', err);
@@ -116,8 +106,14 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                 console.error('[DrillPlayer] Vimeo Error Event:', err);
                 onError('재생 오류가 발생했습니다');
             });
+        } else {
+            // Player already exists, if it's already ready, re-trigger onReady 
+            // to ensure parent state (mainVideoReady/descVideoReady) is in sync
+            if (ready) {
+                onReady();
+            }
         }
-    }, [shouldLoad, useVimeo, url, isMuted]); // Re-init if URL changes
+    }, [shouldLoad, useVimeo, url, ready, onReady]); // Added ready and onReady to deps to ensure sync
 
     // --- Playback Control ---
     useEffect(() => {
@@ -222,14 +218,19 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     isLoggedIn,
     isDailyFreeDrill = false
 }) => {
-    // Logic: Active(0) and Neighbors(+/-1) -> Load. Others -> Unload.
-    const shouldLoad = Math.abs(offset) <= 1;
+    // Logic: 
+    // Main Video: Active(0) and Neighbors(+/-1) -> Load for fast feed scrolling.
+    // Description Video: Active(0) only -> Load while watching main video. 
+    // (Optimization: Don't load neighbor descriptions to save bandwidth for current video)
+    const shouldLoadMain = Math.abs(offset) <= 1;
+    const shouldLoadDesc = offset === 0;
 
     // State
     const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
     const [progress, setProgress] = useState(0);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [isVideoReady, setIsVideoReady] = useState(false); // Valid if CURRENT visible video is ready
+    const [mainVideoReady, setMainVideoReady] = useState(false);
+    const [descVideoReady, setDescVideoReady] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
@@ -237,31 +238,25 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [watchTime, setWatchTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+    const isVideoReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
+
     const navigate = useNavigate();
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Reset view to main and clear errors when scrolling away or back
+    // Reset error state and clear ready states when scrolling away or back
     useEffect(() => {
         if (!isActive) {
             // Optional: reset to main when scrolling away
             if (Math.abs(offset) > 1) {
                 setCurrentVideoType('main');
+                setMainVideoReady(false);
+                setDescVideoReady(false);
             }
         } else {
-            // Reset error state and ready state when this item becomes active
-            // to allow a fresh attempt at playback
+            // Reset error state when this item becomes active
             setLoadError(null);
-            setIsVideoReady(false);
         }
     }, [isActive, offset]);
-
-    // Reset error state when switching video types
-    useEffect(() => {
-        if (isActive) {
-            setLoadError(null);
-            setIsVideoReady(false);
-        }
-    }, [currentVideoType, isActive]);
 
     // Watch time tracking for history and preview
     const { user } = useAuth();
@@ -269,36 +264,33 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     // Record view for history as soon as it's active
     useEffect(() => {
         if (isActive && user) {
-            recordDrillView(user.id, drill.id).catch(console.error);
+            recordDrillView(drill.id, user.id);
         }
-    }, [isActive, user, drill.id]);
+    }, [isActive, drill.id, user]);
 
+    // Watch Time Timer
     useEffect(() => {
-        if (!user && isActive) {
-            // Start timer for non-logged-in preview (30s)
-            setWatchTime(0);
+        if (isActive && !isPaused && isVideoReady) {
             timerRef.current = setInterval(() => {
-                setWatchTime((prev: number) => {
-                    const newTime = prev + 1;
-                    if (newTime >= 30) {
-                        setIsLoginModalOpen(true);
-                        setIsPaused(true);
-                        if (timerRef.current) clearInterval(timerRef.current);
-                    }
-                    return newTime;
-                });
+                setWatchTime(prev => prev + 1);
             }, 1000);
-        } else if (user && isActive) {
-            // For drills, we currently just record the initial view (recordDrillView above)
-            // If we want to track 'watched_seconds' in the future, we can add it here.
-            // For now, we'll just keep the timer for progress bar sync if needed, 
-            // but the progress is actually driven by SingleVideoPlayer's onProgress.
+        } else {
+            if (timerRef.current) clearInterval(timerRef.current);
         }
-
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [isActive, user, drill.id]);
+    }, [isActive, isPaused, isVideoReady]);
+
+    // Free Preview Check
+    useEffect(() => {
+        // If not logged in, limit to 30s
+        if (!isLoggedIn && isActive && watchTime >= 30) {
+            setIsPaused(true);
+            setIsLoginModalOpen(true);
+        }
+    }, [watchTime, isLoggedIn, isActive]);
+
 
     // Auto polling for processing status
 
@@ -308,44 +300,59 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
     // URLs
     const actionUrl = drill.vimeoUrl || drill.videoUrl;
-    const _descUrl = drill.descriptionVideoUrl || drill.vimeoUrl; // Fallback to main if desc missing? No, logic was diff before.
-    // Original logic:
-    // const rawVimeoUrl = isActionVideo ? drill.vimeoUrl : (drill.descriptionVideoUrl || drill.vimeoUrl);
-    // So if desc is missing, use main.
-    const finalDescUrl = drill.descriptionVideoUrl || drill.vimeoUrl;
+    // Prepare description url
+    let finalDescUrl = drill.descriptionVideoUrl;
+    // If not absolute, assume vimeo ID or path?
+    // Actually our api returns signed urls or vimeo urls.
 
-    // --- Click Handling for Play/Pause and Like ---
-    const handleVideoClick = () => {
+    // --- Handlers ---
+    const handleVideoClick = (e: React.MouseEvent) => {
         if (clickTimeoutRef.current) {
-            // Double click detected
             clearTimeout(clickTimeoutRef.current);
             clickTimeoutRef.current = null;
-
-            // Trigger like
-            onLike();
-            setShowLikeAnimation(true);
-            setTimeout(() => setShowLikeAnimation(false), 800);
+            handleDoubleTap(e);
         } else {
-            // Single click - wait to see if double click follows
             clickTimeoutRef.current = setTimeout(() => {
                 clickTimeoutRef.current = null;
-                // Toggle play/pause
-                setIsPaused(!isPaused);
-            }, 250);
+                togglePlay();
+            }, 300);
         }
     };
 
-    // --- Touch Handling ---
-    const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    const handleDoubleTap = (_e: React.MouseEvent) => {
+        // Like animation
+
+        setShowLikeAnimation(true);
+        setTimeout(() => setShowLikeAnimation(false), 1000);
+        if (!isLiked) onLike();
     };
+
+    const togglePlay = () => {
+        setIsPaused(!isPaused);
+    };
+
+    // --- Touch/Swipe Logic ---
+    const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
+
+    // Swipe needs to be handled carefully. 
+    // We already have vertical swipe in parent. Here we want Horizontal swipe for Video Type.
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setTouchStart({
+            x: e.targetTouches[0].clientX,
+            y: e.targetTouches[0].clientY
+        });
+    };
+
     const handleTouchEnd = (e: React.TouchEvent) => {
         if (!touchStart) return;
-        const touchEnd = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-        const xDistance = touchStart.x - touchEnd.x;
-        const yDistance = touchStart.y - touchEnd.y;
 
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+
+        const xDistance = touchStart.x - touchEndX;
+        const yDistance = touchStart.y - touchEndY;
+
+        // Horizontal Swipes (check if horizontal movement is dominant)
         if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 50) {
             if (xDistance > 0) { // Swipe Left -> Show Description
                 if (currentVideoType === 'main') {
@@ -359,8 +366,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                 }
             }
         }
+        // Vertical swipes are handled by parent (propagation)
+
         setTouchStart(null);
     };
+
 
     const isProcessing = !drill.vimeoUrl && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
 
@@ -390,10 +400,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         thumbnailUrl={drill.thumbnailUrl}
                         isActive={isActive}
                         isVisible={currentVideoType === 'main'}
-                        shouldLoad={shouldLoad}
+                        shouldLoad={shouldLoadMain}
                         isMuted={isMuted}
                         isPaused={isPaused}
-                        onReady={() => { if (currentVideoType === 'main') setIsVideoReady(true); }}
+                        onReady={() => setMainVideoReady(true)}
                         onProgress={(p) => { if (currentVideoType === 'main') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
                     />
@@ -404,10 +414,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         thumbnailUrl={drill.thumbnailUrl} // Or desc thumbnail?
                         isActive={isActive}
                         isVisible={currentVideoType === 'description'}
-                        shouldLoad={shouldLoad} // Load both!
+                        shouldLoad={shouldLoadDesc} // Load only when active (or neighborhood if we wanted)
                         isMuted={isMuted}
                         isPaused={isPaused}
-                        onReady={() => { if (currentVideoType === 'description') setIsVideoReady(true); }}
+                        onReady={() => setDescVideoReady(true)}
                         onProgress={(p) => { if (currentVideoType === 'description') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
                     />
@@ -429,7 +439,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                     )}
 
                     {/* Loading Overlay (only if current video not ready) */}
-                    {shouldLoad && !isVideoReady && !loadError && (
+                    {shouldLoadMain && !isVideoReady && !loadError && (
                         <div className="absolute inset-0 z-20 pointer-events-none">
                             <img src={drill.thumbnailUrl} className="w-full h-full object-cover" alt="" />
                             {isActive && (

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord } from '../types';
+import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
 
 
 // Revenue split constants
@@ -188,7 +188,8 @@ function transformCreator(data: any): Creator {
         id: data.id,
         name: data.name,
         bio: data.bio || '',
-        profileImage: data.profile_image || data.avatar_url || '',
+        // Prioritize user avatar if available (from join), then profile_image (creators table), then fallback to avatar_url (legacy/flat)
+        profileImage: data.user?.avatar_url || data.profile_image || data.avatar_url || '',
         subscriberCount: data.subscriber_count || 0,
     };
 }
@@ -199,7 +200,7 @@ function transformVideo(data: any): Video {
         title: data.title,
         description: data.description,
         creatorId: data.creator_id,
-        creatorName: data.creator?.name || 'Unknown',
+        creatorName: data.creator?.name || '알 수 없음',
         category: data.category,
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
@@ -217,7 +218,7 @@ function transformCourse(data: any): Course {
         title: data.title,
         description: data.description,
         creatorId: data.creator_id,
-        creatorName: data.creator?.name || 'Unknown',
+        creatorName: data.creator?.name || '알 수 없음',
         creatorProfileImage: data.creator?.profile_image || null,
         category: data.category,
         difficulty: data.difficulty,
@@ -292,7 +293,7 @@ export async function getCreators(): Promise<Creator[]> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
+                .select('*, user:users(avatar_url)')
                 .eq('approved', true)
                 .order('subscriber_count', { ascending: false }),
             5000 // 5s timeout
@@ -315,7 +316,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
+                .select('*, user:users(avatar_url)')
                 .eq('id', id)
                 .maybeSingle(),
             5000
@@ -590,7 +591,7 @@ export async function searchContent(query: string) {
                     price: v.price || 0,
                     creator: creator ? {
                         id: creator.id,
-                        name: creator.name || 'Unknown',
+                        name: creator.name || '알 수 없음',
                         profileImage: creator.avatar_url,
                         bio: '',
                         subscriberCount: 0
@@ -936,7 +937,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     isPublished: v.is_published ?? true,
                     creator: creator ? {
                         id: creator.id,
-                        name: creator.name || 'Unknown',
+                        name: creator.name || '알 수 없음',
                         profileImage: creator.avatar_url,
                         bio: '',
                         subscriberCount: 0
@@ -1887,39 +1888,6 @@ export async function getPublicLessons(limit: number = 50) {
 }
 
 
-// ==================== FEATURED CONTENT (HOME PAGE) ====================
-
-/**
- * Get featured content for Home page
- */
-export async function getFeaturedContent() {
-    // In a real app, this would fetch from a 'featured_content' table
-    // For MVP, we'll use a mock or local storage to simulate persistence
-    const stored = localStorage.getItem('featured_content');
-    if (stored) {
-        return { data: JSON.parse(stored), error: null };
-    }
-
-    // Default fallback
-    return {
-        data: {
-            heroVideoId: null, // Use default logic if null
-            heroImageUrl: null, // Custom hero image URL
-            featuredCourseIds: [], // Empty means use default "Popular" logic
-            featuredCreatorIds: [] // Empty means use default logic
-        },
-        error: null
-    };
-}
-
-/**
- * Update featured content
- */
-export async function updateFeaturedContent(content: any) {
-    // In a real app, this would update a table
-    localStorage.setItem('featured_content', JSON.stringify(content));
-    return { error: null };
-}
 
 // ==================== Admin Functions ====================
 
@@ -2884,25 +2852,43 @@ export async function getRecentCompletedRoutines(
     userId: string,
     limit: number = 3
 ): Promise<CompletedRoutineRecord[]> {
-    const { data, error } = await withTimeout(
+    // DB query: Fetch a generous amount of recent logs to ensure we find the routines.
+    // We avoid complex OR queries for now to guarantee no syntax errors silently fail.
+    const { data: allLogs, error } = await withTimeout(
         supabase
             .from('training_logs')
             .select('*')
             .eq('user_id', userId)
-            .eq('type', 'routine')
             .order('created_at', { ascending: false })
-            .limit(limit),
+            .limit(50), // Fetch last 50 logs to be safe
         5000
     );
 
     if (error) {
-        console.error('Error fetching completed routines:', error);
-        throw error;
+        console.error('Error fetching training logs for routines:', error);
+        return [];
+    }
+
+    if (!allLogs || allLogs.length === 0) {
+        return [];
+    }
+
+    // JS-side filtering for 100% reliability
+    // Matches if type is 'routine' OR notes contains the tag
+    const routineLogs = allLogs.filter((log: any) =>
+        log.type === 'routine' ||
+        (log.notes && typeof log.notes === 'string' && log.notes.includes('[Routine Completed]'))
+    ).slice(0, limit);
+
+    if (routineLogs.length === 0) {
+        return [];
     }
 
     // 각 기록에서 루틴 정보를 가져와서 결합
-    const enrichedData = await Promise.all(
-        (data || []).map(async (log: any) => {
+    const enrichedData: CompletedRoutineRecord[] = [];
+
+    for (const log of routineLogs) {
+        try {
             const routineId = log.metadata?.routineId;
             let rawNotes = log.notes?.replace('[Routine Completed] ', '') || '';
             let routineTitle = rawNotes.split('\n')[0].trim() || 'Unknown Routine';
@@ -2910,35 +2896,34 @@ export async function getRecentCompletedRoutines(
 
             // 루틴 정보 가져오기
             if (routineId) {
-                try {
-                    const { data: routine } = await supabase
-                        .from('drill_routines')
-                        .select('title, thumbnail')
-                        .eq('id', routineId)
-                        .maybeSingle();
+                const { data: routine } = await supabase
+                    .from('routines')
+                    .select('title, thumbnail_url')
+                    .eq('id', routineId)
+                    .maybeSingle();
 
-                    if (routine) {
-                        routineTitle = routine.title;
-                        routineThumbnail = routine.thumbnail;
-                    }
-                } catch (e) {
-                    console.error('Error fetching routine details:', e);
+                if (routine) {
+                    routineTitle = routine.title;
+                    routineThumbnail = routine.thumbnail_url;
                 }
             }
 
-            return {
+            enrichedData.push({
                 id: log.id,
                 routineId: routineId,
                 routineTitle: routineTitle,
                 routineThumbnail: routineThumbnail,
-                durationMinutes: log.duration_minutes,
+                durationMinutes: log.duration_minutes || 0,
                 completedAt: log.created_at,
-                date: log.date,
+                date: log.date || new Date(log.created_at).toISOString().split('T')[0],
                 techniques: log.techniques || []
-            };
-        })
-    );
+            });
+        } catch (itemError) {
+            console.error('[getRecentCompletedRoutines] Error processing log item:', itemError);
+        }
+    }
 
+    console.log(`[getRecentCompletedRoutines] Returning ${enrichedData.length} records`);
     return enrichedData;
 }
 
@@ -5781,7 +5766,7 @@ export async function getDailyFreeSparring() {
             if (userData) {
                 creatorInfo = {
                     id: userData.id,
-                    name: userData.name || 'Unknown',
+                    name: userData.name || '알 수 없음',
                     profileImage: userData.avatar_url,
                     bio: '',
                     subscriberCount: 0
@@ -6776,13 +6761,14 @@ export async function createFeedPost(post: {
             const userName = user.user_metadata?.name ||
                 user.user_metadata?.full_name ||
                 user.email?.split('@')[0] ||
-                'User';
+                '사용자';
 
             await supabase
                 .from('users')
                 .upsert({
                     id: post.userId,
                     name: userName,
+                    avatar_url: user.user_metadata?.avatar_url,
                     updated_at: new Date().toISOString()
                 }, {
                     onConflict: 'id'
@@ -7565,7 +7551,7 @@ export async function fetchDrillsBase(limit: number = 20) {
             title: d.title,
             description: d.description,
             creatorId: d.creator_id,
-            creatorName: 'Loading...', // Placeholder
+            creatorName: '로딩 중...', // Placeholder
             category: d.category,
             difficulty: d.difficulty,
             thumbnailUrl: d.thumbnail_url,
@@ -7620,7 +7606,7 @@ export async function fetchAllDrills(limit: number = 50) {
             title: d.title,
             description: d.description,
             creatorId: d.creator_id,
-            creatorName: 'Loading...', // Will be populated by Drills.tsx
+            creatorName: '로딩 중...', // Will be populated by Drills.tsx
             category: d.category,
             difficulty: d.difficulty,
             thumbnailUrl: d.thumbnail_url,
@@ -7705,7 +7691,7 @@ export async function fetchDrillsSafe(limit: number = 20) {
 
     const result = drills.map((d: any) => ({
         ...d,
-        creatorName: creatorsMap[d.creatorId] || 'Unknown'
+        creatorName: creatorsMap[d.creatorId] || '알 수 없음'
     }));
 
     return { data: result, error: null };
@@ -8491,4 +8477,29 @@ export async function incrementSparringView(id: string) {
     const { error } = await supabase.rpc('increment_sparring_view', { p_id: id });
     if (error) console.error('Error incrementing sparring view:', error);
     return { error };
+}
+
+// ==================== Site Settings ====================
+
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+    const { data, error } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('id', 'default')
+        .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is no rows
+        console.error('Error fetching site settings:', error);
+        return null;
+    }
+
+    if (!data) return null;
+
+    return {
+        id: data.id,
+        logos: data.logos,
+        footer: data.footer,
+        hero: data.hero,
+        updatedAt: data.updated_at
+    };
 }

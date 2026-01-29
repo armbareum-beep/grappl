@@ -3,9 +3,9 @@ import { Lesson } from '../../types';
 import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched } from '../../lib/api';
+import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched, extractVimeoId } from '../../lib/api';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
-import Player from '@vimeo/player';
+import { VideoPlayer } from '../VideoPlayer';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -19,116 +19,25 @@ interface LessonReelItemProps {
 export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive, offset }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const containerRef = useRef<HTMLDivElement>(null);
-    const playerRef = useRef<Player | null>(null);
     const [muted, setMuted] = useState(true);
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isFollowed, setIsFollowed] = useState(false);
-    const [likeCount, setLikeCount] = useState(0);
+    const [likeCount, setLikeCount] = useState((lesson as any).likes || 0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
-    const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Helper to get Vimeo ID from URL or ID string
-    const getVimeoId = (url: string) => {
-        if (!url) return null;
-        const trimmed = url.trim();
-        if (/^\d+$/.test(trimmed)) return trimmed;
-        if (trimmed.includes(':')) {
-            const [id] = trimmed.split(':');
-            return /^\d+$/.test(id) ? id : null;
-        }
-        const match = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        return match ? match[1] : null;
-    };
+    const vimeoFullId = extractVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
 
-    const getVimeoHash = (url: string) => {
-        if (!url) return null;
-        const trimmed = url.trim();
-        if (trimmed.includes(':')) {
-            const [, hash] = trimmed.split(':');
-            return hash;
-        }
-        const match = trimmed.match(/[?&]h=([a-z0-9]+)/i);
-        return match ? match[1] : null;
-    };
+    // VideoPlayer handles initialization
 
-    const vimeoId = getVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
-    const vimeoHash = getVimeoHash(lesson.vimeoUrl || lesson.videoUrl || '');
-
-    // Initialize Vimeo Player
-    useEffect(() => {
-        if (!containerRef.current || !vimeoId) return;
-        if (offset !== 0) return;
-
-        if (!playerRef.current) {
-            // Build Player options
-            const options: any = {
-                responsive: true,
-                background: true,
-                loop: true,
-                autoplay: isActive,
-                muted: true,
-                controls: false,
-                playsinline: true
-            };
-
-            // Calculate the best initialization method
-            if (vimeoHash) {
-                // For private videos with hash, the full URL is the most reliable method
-                // format: https://vimeo.com/{id}/{hash}
-                options.url = `https://vimeo.com/${vimeoId}/${vimeoHash}`;
-                console.log('[LessonReel] Using Private URL:', options.url);
-            } else {
-                // Public videos can use ID directly
-                options.id = Number(vimeoId);
-                console.log('[LessonReel] Using Public ID:', options.id);
-            }
-
-            console.log('[LessonReel] Initializing with:', options);
-            const player = new Player(containerRef.current, options);
-
-            player.ready().then(() => {
-                setIsPlayerReady(true);
-                playerRef.current = player;
-            }).catch(err => console.error('Vimeo player error:', err));
-
-            player.on('timeupdate', (data: { percent: number }) => {
-                setProgress(data.percent * 100);
-            });
-        }
-
-        return () => {
-            if (playerRef.current && offset !== 0) {
-                playerRef.current.destroy();
-                playerRef.current = null;
-                setIsPlayerReady(false);
-            }
-        };
-    }, [vimeoId, vimeoHash, offset]);
-
-    // Play/Pause based on isActive and isPaused
-    useEffect(() => {
-        if (!playerRef.current || !isPlayerReady) return;
-        if (isActive && !isPaused) {
-            playerRef.current.play().catch(() => { });
-        } else {
-            playerRef.current.pause().catch(() => { });
-        }
-    }, [isActive, isPlayerReady, isPaused]);
-
-    // Mute/Unmute
-    useEffect(() => {
-        if (!playerRef.current || !isPlayerReady) return;
-        playerRef.current.setMuted(muted).catch(() => { });
-    }, [muted, isPlayerReady]);
+    // VideoPlayer handles playback and mute
 
     useEffect(() => {
         if (user && isActive && lesson.creatorId) {
@@ -164,9 +73,6 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
                     if (newTime >= 30) {
                         // 30 seconds reached, show login modal
                         setIsLoginModalOpen(true);
-                        if (playerRef.current) {
-                            playerRef.current.pause().catch(() => { });
-                        }
                         if (timerRef.current) {
                             clearInterval(timerRef.current);
                         }
@@ -220,7 +126,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
             return;
         }
         setIsLiked(!isLiked);
-        setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+        setLikeCount((prev: number) => isLiked ? prev - 1 : prev + 1);
         await toggleLessonLike(user.id, lesson.id);
     };
 
@@ -259,10 +165,14 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         >
             <div className="w-full h-full relative flex items-center justify-center">
                 <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
-                    <div
-                        ref={containerRef}
-                        className="w-full h-full [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover"
-                        style={{ pointerEvents: 'none' }}
+                    <VideoPlayer
+                        vimeoId={vimeoFullId || ''}
+                        title={lesson.title}
+                        playing={isActive && !isPaused}
+                        showControls={false}
+                        fillContainer={true}
+                        onProgress={(s) => setProgress(s)}
+                        onDoubleTap={handleLike}
                     />
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
 

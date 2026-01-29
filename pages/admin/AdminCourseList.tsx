@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCourses, deleteCourse } from '../../lib/api';
 import { Course } from '../../types';
 import { Button } from '../../components/Button';
-import { Trash2, Eye, Search, Plus, ArrowLeft } from 'lucide-react';
+import { Trash2, Eye, Search, Plus, ArrowLeft, Edit } from 'lucide-react';
 
 export const AdminCourseList: React.FC = () => {
     const navigate = useNavigate();
@@ -149,6 +149,11 @@ export const AdminCourseList: React.FC = () => {
                                                     <Link to={`/courses/${course.id}`}>
                                                         <button className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all">
                                                             <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </Link>
+                                                    <Link to={`/creator/courses/${course.id}/edit`}>
+                                                        <button className="p-2.5 text-zinc-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-xl transition-all">
+                                                            <Edit className="w-4 h-4" />
                                                         </button>
                                                     </Link>
                                                     <button
