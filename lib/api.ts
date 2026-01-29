@@ -1547,7 +1547,10 @@ export async function getRecentActivity(userId: string) {
                 *,
                 lesson:lessons (
                     id, title, lesson_number,
-                    course:courses ( id, title, thumbnail_url, category )
+                    course:courses (
+                        id, title, thumbnail_url, category,
+                        creator:creators ( name )
+                    )
                 )
             `)
             .eq('user_id', userId)
@@ -1583,7 +1586,8 @@ export async function getRecentActivity(userId: string) {
             .select(`
                  last_watched_at,
                  drills (
-                     id, title, thumbnail_url
+                     id, title, thumbnail_url,
+                     creator:creators ( name )
                  )
              `)
             .eq('user_id', userId)
@@ -1598,7 +1602,8 @@ export async function getRecentActivity(userId: string) {
             courseId: l?.course?.id,
             type: 'lesson',
             title: l?.title,
-            courseTitle: l?.course?.title || l?.title,
+            courseTitle: l?.course?.creator?.name || l?.course?.title || '레슨',
+            creatorName: l?.course?.creator?.name,
             progress: item.completed ? 100 : 50,
             watchedSeconds: item.watched_seconds || 0,
             thumbnail: l?.course?.thumbnail_url || l?.thumbnail_url,
@@ -1613,7 +1618,8 @@ export async function getRecentActivity(userId: string) {
             id: metadata.routineId,
             type: 'routine',
             title: metadata.routineTitle || 'Drill Routine',
-            courseTitle: '훈련 기록',
+            courseTitle: metadata.sharedRoutine?.creatorName || '루틴',
+            creatorName: metadata.sharedRoutine?.creatorName,
             progress: 100,
             thumbnail: metadata.sharedRoutine?.thumbnailUrl || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
             lastWatched: new Date(log.created_at).toISOString(),
@@ -1625,6 +1631,7 @@ export async function getRecentActivity(userId: string) {
         type: 'sparring',
         title: item.sparring_videos?.title,
         courseTitle: item.sparring_videos?.creator?.name || '스파링',
+        creatorName: item.sparring_videos?.creator?.name,
         progress: 0,
         thumbnail: item.sparring_videos?.thumbnail_url,
         lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
@@ -1634,14 +1641,15 @@ export async function getRecentActivity(userId: string) {
         id: item.drills?.id,
         type: 'drill',
         title: item.drills?.title,
-        courseTitle: '드릴 연습',
+        courseTitle: item.drills?.creator?.name || '드릴',
+        creatorName: item.drills?.creator?.name,
         progress: 0,
         thumbnail: item.drills?.thumbnail_url,
         lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
     })).filter(item => item.id && item.id !== 'undefined');
 
-    // Merge and Sort
-    const allActivity = [...lessons, ...routines, ...sparring, ...drills]
+    // Merge and Sort (Only Lessons and Routines as requested)
+    const allActivity = [...lessons, ...routines]
         .filter(item => item.id) // Ensure we have unique ID
         .sort((a, b) => {
             const dateA = new Date(a.lastWatched).getTime();
@@ -2458,7 +2466,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
     const { data: ownedRoutines } = await supabase
         .from('user_routine_purchases')
         .select(`
-            user_id, 
+            user_id,
             routine_id,
             routine:routines (
                 routine_drills ( drill_id )
@@ -2599,7 +2607,7 @@ export async function getCreatorRevenueStats(creatorId: string) {
         }));
 
         (data || []).forEach((_row: any) => {
-            // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
+            // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part,
             // BUT the final select DOES `GROUP BY ... settlement_month`.
             // Ah, looking at the view definition:
             /*
@@ -4425,9 +4433,9 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
     } else if (drillId) {
         matchQuery.drill_id = drillId;
         conflictTarget = 'user_id,drill_id,date'; // Assuming user added constraint: UNIQUE(user_id, drill_id, date)
-        // If constraint relies on index name, you might need to check DB. 
-        // For now, let's assume standard unique index naming or it will fall back to PK if id is used? 
-        // No, video_watch_logs usually has a composite key. 
+        // If constraint relies on index name, you might need to check DB.
+        // For now, let's assume standard unique index naming or it will fall back to PK if id is used?
+        // No, video_watch_logs usually has a composite key.
         // We might need to ensure the constraint exists for drill_id.
     }
 
@@ -4440,7 +4448,7 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
 
     if (fetchError) {
         console.error('Error fetching watch log:', fetchError);
-        // Continue to try upsert anyway? 
+        // Continue to try upsert anyway?
     }
 
     // 2. Upsert

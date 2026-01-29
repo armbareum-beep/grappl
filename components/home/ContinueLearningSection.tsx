@@ -5,7 +5,7 @@ import { Play, Dumbbell, Target, Video, ChevronLeft, ChevronRight, History } fro
 interface ActivityItem {
     id: string;
     courseId?: string;
-    type: 'lesson' | 'course' | 'routine' | 'sparring';
+    type: 'lesson' | 'course' | 'routine' | 'sparring' | 'drill';
     title: string;
     courseTitle?: string;
     thumbnail?: string;
@@ -49,6 +49,8 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
             navigate(`/routines/${item.id}`);
         } else if (item.type === 'sparring') {
             navigate(`/sparring/${item.id}`);
+        } else if (item.type === 'drill') {
+            navigate(`/drills/${item.id}`);
         }
     };
 
@@ -56,15 +58,18 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
         switch (type) {
             case 'routine': return <Dumbbell className="w-3 h-3" />;
             case 'sparring': return <Target className="w-3 h-3" />;
+            case 'drill': return <Dumbbell className="w-3 h-3" />;
             default: return <Video className="w-3 h-3" />;
         }
     };
 
     const getTypeLabel = (type: string) => {
         switch (type) {
-            case 'routine': return 'Drill Routine';
-            case 'sparring': return 'Sparring';
-            default: return '강좌';
+            case 'routine': return '루틴';
+            case 'sparring': return '스파링';
+            case 'drill': return '드릴';
+            case 'lesson': return '레슨';
+            default: return '콘텐츠';
         }
     };
 
@@ -147,17 +152,18 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
                             </div>
 
                             {/* Meta Info */}
-                            <div className="mt-4 px-1">
-                                <h3 className="text-lg font-bold text-white line-clamp-1 group-hover:text-violet-400 transition-colors">
+                            <div className="mt-3 px-1">
+                                <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-1 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
                                     {item.title}
                                 </h3>
-                                <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500 font-medium">
-                                    <span>{item.courseTitle || 'Training'}</span>
+                                <div className="flex items-center justify-between mt-2">
+                                    <p className="text-zinc-500 text-xs font-medium truncate max-w-[70%]">
+                                        {item.courseTitle || 'Training'}
+                                    </p>
                                     {item.lessonNumber && (
-                                        <>
-                                            <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                                            <span>Ep. {item.lessonNumber}</span>
-                                        </>
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                            Ep. {item.lessonNumber}
+                                        </span>
                                     )}
                                 </div>
                             </div>

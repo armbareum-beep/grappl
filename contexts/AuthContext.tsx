@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const creatorData = creatorResult.data;
 
             const newStatus = {
-                isAdmin: userData?.is_admin === true,
+                isAdmin: userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com'),
                 isSubscribed: userData?.is_subscriber === true,
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
@@ -71,9 +71,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
 
             // Update state
-            setIsAdmin(newStatus.isAdmin);
-            setIsSubscribed(newStatus.isSubscribed);
-            setIsCreator(newStatus.isCreator);
+            setIsAdmin(!!newStatus.isAdmin);
+            setIsSubscribed(!!newStatus.isSubscribed);
+            setIsCreator(!!newStatus.isCreator);
 
             // Update cache
             localStorage.setItem(cacheKey, JSON.stringify(newStatus));
@@ -154,6 +154,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
 
                     const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
+                    const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
+
                     if (mounted) {
                         setUser({
                             ...baseUser,
@@ -161,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             subscription_tier: subscriptionTier,
                             ownedVideoIds: ownedIds
                         });
-                        setIsAdmin(admin);
+                        setIsAdmin(finalIsAdmin);
                         setIsCreator(creator);
                         setIsSubscribed(subscribed);
                     }
@@ -194,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
                     const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
+                    const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
+
                     if (mounted) {
                         setUser({
                             ...baseUser,
@@ -201,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             subscription_tier: subscriptionTier,
                             ownedVideoIds: ownedIds
                         });
-                        setIsAdmin(admin);
+                        setIsAdmin(finalIsAdmin);
                         setIsCreator(creator);
                         setIsSubscribed(subscribed);
                         setLoading(false);
