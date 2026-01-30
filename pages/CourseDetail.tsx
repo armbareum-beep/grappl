@@ -646,6 +646,7 @@ export const CourseDetail: React.FC = () => {
                     {hasAccess && hasVideo ? (
                         <div className="relative h-full">
                             <VideoPlayer
+                                key={vimeoIdToSend}
                                 vimeoId={vimeoIdToSend}
                                 title={selectedLesson!.title}
                                 startTime={initialStartTime}
@@ -663,6 +664,7 @@ export const CourseDetail: React.FC = () => {
                     ) : !hasAccess && hasPreview ? (
                         <div className="relative h-full">
                             <VideoPlayer
+                                key={`preview-${previewIdToSend}`}
                                 vimeoId={previewIdToSend!}
                                 title={`[미리보기] ${course!.title}`}
                                 onEnded={() => setIsPaywallOpen(true)}
