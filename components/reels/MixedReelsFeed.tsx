@@ -50,7 +50,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     const [followingCreators, setFollowingCreators] = useState<Set<string>>(new Set());
 
     // Mute state shared
-    const [isMuted, setIsMuted] = useState(true);
+    const [isMuted, setIsMuted] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Watch time tracking for non-logged-in users moved to individual items
@@ -246,6 +246,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isDailyFreeSparring={dailyFreeSparringId === item.data.id}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
+                            isMuted={isMuted}
+                            onToggleMute={() => setIsMuted(!isMuted)}
                         />
                     );
                 } else if (item.type === 'lesson') {
@@ -259,6 +261,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={isLoggedIn}
                             isDailyFreeLesson={dailyFreeLessonId === item.data.id}
+                            isMuted={isMuted}
+                            onToggleMute={() => setIsMuted(!isMuted)}
                         />
                     );
                 }

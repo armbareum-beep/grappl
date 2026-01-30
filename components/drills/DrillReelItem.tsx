@@ -300,9 +300,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
     // Auto polling for processing status
 
-    // Access Control
-    const hasAccessToAction = isDailyFreeDrill || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(drill.id)));
-    const hasAccessToDescription = hasAccessToAction;
 
     // URLs
     const actionUrl = drill.vimeoUrl || drill.videoUrl;
@@ -463,31 +460,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         </div>
                     )}
 
-                    {/* Locked Overlays */}
-                    {/* Action Locked */}
-                    {currentVideoType === 'main' && !hasAccessToAction && (
-                        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-md text-center">
-                            <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mb-6">
-                                <Zap className="w-10 h-10 text-violet-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">구독자 전용 드릴입니다</h3>
-                            <button onClick={() => navigate('/pricing')} className="px-8 py-3 bg-violet-600 text-white font-bold rounded-full hover:bg-violet-700 mt-4">
-                                멤버십 시작하기
-                            </button>
-                        </div>
-                    )}
-                    {/* Description Locked */}
-                    {currentVideoType === 'description' && !hasAccessToDescription && (
-                        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-md text-center">
-                            <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mb-6">
-                                <MessageCircle className="w-10 h-10 text-zinc-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">설명 영상은 구독자 전용입니다</h3>
-                            <button onClick={() => navigate('/pricing')} className="px-8 py-3 bg-violet-600 text-white font-bold rounded-full hover:bg-violet-700 mt-4">
-                                멤버십 시작하기
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -513,8 +485,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                     }}
                                     className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
                                 >
-                                    <MessageCircle className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'description' ? (hasAccessToDescription ? "currentColor" : "none") : "none"} />
-                                    {!hasAccessToDescription && <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-600 rounded-full flex items-center justify-center"><Zap className="w-2 h-2 text-white" fill="currentColor" /></div>}
+                                    <MessageCircle className={`w-5 h-5 md:w-5 md:h-5 ${currentVideoType === 'description' ? 'fill-current' : 'fill-none'}`} />
                                 </button>
                             </div>
                         </div>

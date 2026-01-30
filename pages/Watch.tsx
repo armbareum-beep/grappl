@@ -15,6 +15,45 @@ interface UserPermissions {
 
 type WatchTab = 'mix' | 'lesson' | 'drill' | 'sparring';
 
+// Utility to diversify content by interleaving different sources
+const diversifyContent = (array: MixedItem[]) => {
+    const grouped: Record<string, MixedItem[]> = {};
+    array.forEach(item => {
+        let key = 'unknown';
+        if (item.type === 'lesson') key = item.data.courseId || 'lesson-misc';
+        else if (item.type === 'drill') key = (item.data as any).creatorId || 'drill-misc';
+        else if (item.type === 'sparring') key = item.data.creatorId || 'sparring-misc';
+
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+    });
+
+    // Shuffle each group's internal order
+    Object.values(grouped).forEach(group => {
+        for (let i = group.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [group[i], group[j]] = [group[j], group[i]];
+        }
+    });
+
+    const result: MixedItem[] = [];
+    const keys = Object.keys(grouped).sort(() => Math.random() - 0.5);
+    let hasMore = true;
+    let pickIndex = 0;
+
+    while (hasMore) {
+        hasMore = false;
+        keys.forEach(key => {
+            if (grouped[key][pickIndex]) {
+                result.push(grouped[key][pickIndex]);
+                hasMore = true;
+            }
+        });
+        pickIndex++;
+    }
+    return result;
+};
+
 export function Watch() {
     const { user, isSubscribed } = useAuth();
     const [searchParams] = useSearchParams();
@@ -329,48 +368,27 @@ export function Watch() {
                 }
             }
 
-            // Improved Shuffle to ensure diversity
-            // Group by source (course_id for lessons/drills, creator_id for sparring)
-            // then interleave them
-            const diversifyContent = (array: MixedItem[]) => {
-                const grouped: Record<string, MixedItem[]> = {};
-                array.forEach(item => {
-                    let key = 'unknown';
-                    if (item.type === 'lesson') key = item.data.courseId || 'lesson-misc';
-                    else if (item.type === 'drill') key = item.data.creatorId || 'drill-misc';
-                    else if (item.type === 'sparring') key = item.data.creatorId || 'sparring-misc';
+            // --- Strict Filtering Logic ---
+            const dailyFreeIds = new Set([
+                dailyDrillRes.data?.id,
+                dailyLessonRes.data?.id,
+                dailySparringRes.data?.id
+            ].filter(Boolean));
 
-                    if (!grouped[key]) grouped[key] = [];
-                    grouped[key].push(item);
-                });
+            const filteredItems = allItems.filter(item => {
+                // 1. Subscribers see everything
+                if (userPermissions.isSubscriber) return true;
 
-                // Shuffle each group's internal order
-                Object.values(grouped).forEach(group => {
-                    for (let i = group.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [group[i], group[j]] = [group[j], group[i]];
-                    }
-                });
-
-                const result: MixedItem[] = [];
-                const keys = Object.keys(grouped).sort(() => Math.random() - 0.5);
-                let hasMore = true;
-                let pickIndex = 0;
-
-                while (hasMore) {
-                    hasMore = false;
-                    keys.forEach(key => {
-                        if (grouped[key][pickIndex]) {
-                            result.push(grouped[key][pickIndex]);
-                            hasMore = true;
-                        }
-                    });
-                    pickIndex++;
+                // 2. Logged-in non-subscribers see daily free + purchased
+                if (user) {
+                    return dailyFreeIds.has(item.data.id) || userPermissions.purchasedItemIds.includes(item.data.id);
                 }
-                return result;
-            };
 
-            let finalizedItems = diversifyContent(allItems);
+                // 3. Guests (not logged in) see only daily free
+                return dailyFreeIds.has(item.data.id);
+            });
+
+            const finalizedItems = diversifyContent(filteredItems);
 
             // If a specific ID is requested, find it and move to front
             if (targetId) {

@@ -20,6 +20,8 @@ interface SparringReelItemProps {
     purchasedItemIds?: string[];
     isLoggedIn?: boolean;
     isDailyFreeSparring?: boolean;
+    isMuted?: boolean;
+    onToggleMute?: () => void;
 }
 
 export const SparringReelItem: React.FC<SparringReelItemProps> = ({
@@ -29,10 +31,10 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
     isSubscriber,
     purchasedItemIds = [],
     isLoggedIn,
-    isDailyFreeSparring = false
+    isDailyFreeSparring = false,
+    isMuted = false,
+    onToggleMute
 }) => {
-    const [muted, setMuted] = useState(true);
-
     // Interaction State
     const { user } = useAuth();
     const [isFollowed, setIsFollowed] = useState(false);
@@ -283,7 +285,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
     }, [isActive, user]);
 
     const toggleMute = async () => {
-        setMuted(!muted);
+        onToggleMute?.();
     };
 
     // Click Handling for Play/Pause and Like
@@ -354,36 +356,19 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
         return (
             <div className="relative w-full h-full">
-                {hasAccess ? (
-                    <VideoPlayer
-                        vimeoId={vimeoFullId || video.videoUrl || ''}
-                        title={video.title}
-                        playing={isActive && !isPaused}
-                        showControls={false}
-                        fillContainer={true}
-                        forceSquareRatio={true}
-                        onProgress={(s) => {
-                            setProgress(s);
-                        }}
-                        onDoubleTap={handleLike}
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-md text-center z-50">
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-zinc-800 flex items-center justify-center mb-6">
-                            <Play className="w-8 h-8 md:w-10 md:h-10 text-violet-500" />
-                        </div>
-                        <h3 className="text-lg md:text-xl font-bold text-white mb-2">구독자 전용 스파링입니다</h3>
-                        <p className="text-zinc-400 text-sm md:text-base mb-6 max-w-xs">
-                            멤버십을 구독하고<br />다양한 스파링 분석 영상을 확인해보세요!
-                        </p>
-                        <button
-                            onClick={() => navigate('/pricing')}
-                            className="px-8 py-3 bg-violet-600 text-white font-bold rounded-full hover:bg-violet-700 transition-all active:scale-95 shadow-lg shadow-violet-600/20"
-                        >
-                            멤버십 시작하기
-                        </button>
-                    </div>
-                )}
+                <VideoPlayer
+                    vimeoId={vimeoFullId || video.videoUrl || ''}
+                    title={video.title}
+                    playing={isActive && !isPaused}
+                    showControls={false}
+                    fillContainer={true}
+                    forceSquareRatio={true}
+                    onProgress={(s) => {
+                        setProgress(s);
+                    }}
+                    onDoubleTap={handleLike}
+                    muted={isMuted}
+                />
             </div>
         );
     };
@@ -433,7 +418,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
                         <div className="pointer-events-auto">
                             <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
-                                {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                             </button>
                         </div>
                     </div>

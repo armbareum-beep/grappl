@@ -42,7 +42,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     autoplay = true,
     onDoubleTap,
     onPlayingChange,
-    muted = true // Default to true to maintain existing behavior
+    muted = false // Default to false
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
@@ -384,6 +384,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         syncPlaybackState();
     }, [isPaused, playing, hasReachedPreviewLimit]);
+
+    // Handle muted prop changes
+    useEffect(() => {
+        const player = playerRef.current;
+        if (!player) return;
+
+        const updateMuteState = async () => {
+            try {
+                // Try setMuted if available in SDK, fallback to setVolume
+                await player.setMuted(muted);
+                // Also set volume just in case, though setMuted should be enough
+                await player.setVolume(muted ? 0 : 1);
+            } catch (err) {
+                // setMuted might filter out if not supported by current strategy
+                try {
+                    await player.setVolume(muted ? 0 : 1);
+                } catch (_e) {
+                    console.warn('[VideoPlayer] Failed to update volume:', _e);
+                }
+            }
+        };
+
+        updateMuteState();
+    }, [muted]);
 
     // Force 1:1 aspect ratio on iframes (ONLY if requested)
     useEffect(() => {
