@@ -1350,28 +1350,7 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
 
     if (data) return true;
 
-    // Check manual ownership via owned_video_ids
-    try {
-        const { data: userData } = await supabase
-            .from('users')
-            .select('owned_video_ids')
-            .eq('id', userId)
-            .maybeSingle();
 
-        if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(id => String(id).trim().toLowerCase());
-            const targetId = String(courseId).trim().toLowerCase();
-            if (ownedIds.includes(targetId)) return true;
-        }
-    } catch (e) {
-        console.warn('Manual ownership check failed', e);
-    }
-
-    if (error) {
-        return false;
-    }
-
-    return false;
 }
 
 export async function getUserCourses(userId: string): Promise<Course[]> {
@@ -6662,22 +6641,8 @@ export async function checkDrillRoutineOwnership(userId: string, routineId: stri
 
     if (data) return true;
 
-    // Check manual ownership via owned_video_ids
-    try {
-        const { data: userData } = await supabase
-            .from('users')
-            .select('owned_video_ids')
-            .eq('id', userId)
-            .maybeSingle();
 
-        if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(id => String(id).trim().toLowerCase());
-            const targetId = String(routineId).trim().toLowerCase();
-            if (ownedIds.includes(targetId)) return true;
-        }
-    } catch (e) {
-        console.warn('Manual ownership check failed', e);
-    }
+
 
     // Check if creator
     const { data: routine } = await supabase
