@@ -18,9 +18,19 @@ interface SparringReelItemProps {
     offset: number;
     isSubscriber?: boolean;
     purchasedItemIds?: string[];
+    isLoggedIn?: boolean;
+    isDailyFreeSparring?: boolean;
 }
 
-export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isActive, offset, isSubscriber, purchasedItemIds = [] }) => {
+export const SparringReelItem: React.FC<SparringReelItemProps> = ({
+    video,
+    isActive,
+    offset,
+    isSubscriber,
+    purchasedItemIds = [],
+    isLoggedIn,
+    isDailyFreeSparring = false
+}) => {
     const [muted, setMuted] = useState(true);
 
     // Interaction State
@@ -278,6 +288,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
     // Click Handling for Play/Pause and Like
     const handleVideoClick = () => {
+        if (!hasAccess) return;
         if (clickTimeoutRef.current) {
             // Double click detected
             clearTimeout(clickTimeoutRef.current);
@@ -342,20 +353,43 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
         }
 
         return (
-            <VideoPlayer
-                vimeoId={vimeoFullId || video.videoUrl || ''}
-                title={video.title}
-                playing={isActive && !isPaused}
-                showControls={false}
-                fillContainer={true}
-                forceSquareRatio={true}
-                onProgress={(s) => {
-                    setProgress(s);
-                }}
-                onDoubleTap={handleLike}
-            />
+            <div className="relative w-full h-full">
+                {hasAccess ? (
+                    <VideoPlayer
+                        vimeoId={vimeoFullId || video.videoUrl || ''}
+                        title={video.title}
+                        playing={isActive && !isPaused}
+                        showControls={false}
+                        fillContainer={true}
+                        forceSquareRatio={true}
+                        onProgress={(s) => {
+                            setProgress(s);
+                        }}
+                        onDoubleTap={handleLike}
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-md text-center z-50">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-zinc-800 flex items-center justify-center mb-6">
+                            <Play className="w-8 h-8 md:w-10 md:h-10 text-violet-500" />
+                        </div>
+                        <h3 className="text-lg md:text-xl font-bold text-white mb-2">구독자 전용 스파링입니다</h3>
+                        <p className="text-zinc-400 text-sm md:text-base mb-6 max-w-xs">
+                            멤버십을 구독하고<br />다양한 스파링 분석 영상을 확인해보세요!
+                        </p>
+                        <button
+                            onClick={() => navigate('/pricing')}
+                            className="px-8 py-3 bg-violet-600 text-white font-bold rounded-full hover:bg-violet-700 transition-all active:scale-95 shadow-lg shadow-violet-600/20"
+                        >
+                            멤버십 시작하기
+                        </button>
+                    </div>
+                )}
+            </div>
         );
     };
+
+    // Access Control
+    const hasAccess = isDailyFreeSparring || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(video.id)));
 
     return (
         <div

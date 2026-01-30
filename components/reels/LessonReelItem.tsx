@@ -15,9 +15,21 @@ interface LessonReelItemProps {
     lesson: Lesson;
     isActive: boolean;
     offset: number;
+    isSubscriber?: boolean;
+    purchasedItemIds?: string[];
+    isLoggedIn?: boolean;
+    isDailyFreeLesson?: boolean;
 }
 
-export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive, offset }) => {
+export const LessonReelItem: React.FC<LessonReelItemProps> = ({
+    lesson,
+    isActive,
+    offset,
+    isSubscriber,
+    purchasedItemIds = [],
+    isLoggedIn,
+    isDailyFreeLesson = false
+}) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [muted, setMuted] = useState(true);
@@ -151,6 +163,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
 
     // Click Handling for Play/Pause and Like
     const handleVideoClick = () => {
+        if (!hasAccess) return;
         if (clickTimeoutRef.current) {
             // Double click detected
             clearTimeout(clickTimeoutRef.current);
@@ -170,6 +183,9 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         }
     };
 
+    // Access Control
+    const hasAccess = isDailyFreeLesson || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
+
     return (
         <div
             ref={containerRef}
@@ -178,15 +194,33 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({ lesson, isActive
         >
             <div className="w-full h-full relative flex items-center justify-center">
                 <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
-                    <VideoPlayer
-                        vimeoId={vimeoFullId || ''}
-                        title={lesson.title}
-                        playing={isActive && !isPaused}
-                        showControls={false}
-                        fillContainer={true}
-                        onProgress={(s) => setProgress(s)}
-                        onDoubleTap={handleLike}
-                    />
+                    {hasAccess ? (
+                        <VideoPlayer
+                            vimeoId={vimeoFullId || ''}
+                            title={lesson.title}
+                            playing={isActive && !isPaused}
+                            showControls={false}
+                            fillContainer={true}
+                            onProgress={(s) => setProgress(s)}
+                            onDoubleTap={handleLike}
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-md text-center z-50">
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-zinc-800 flex items-center justify-center mb-6">
+                                <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-violet-500" />
+                            </div>
+                            <h3 className="text-lg md:text-xl font-bold text-white mb-2">구독자 전용 레슨입니다</h3>
+                            <p className="text-zinc-400 text-sm md:text-base mb-6 max-w-xs">
+                                멤버십을 구독하고<br />전문적인 가이드 영상을 시청하세요!
+                            </p>
+                            <button
+                                onClick={() => navigate('/pricing')}
+                                className="px-8 py-3 bg-violet-600 text-white font-bold rounded-full hover:bg-violet-700 transition-all active:scale-95 shadow-lg shadow-violet-600/20"
+                            >
+                                멤버십 시작하기
+                            </button>
+                        </div>
+                    )}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
 
                     {/* Like Animation */}

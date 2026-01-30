@@ -35,6 +35,7 @@ export function Watch() {
     });
 
     const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | undefined>(undefined);
+    const [dailyFreeLessonId, setDailyFreeLessonId] = useState<string | undefined>(undefined);
     const [dailyFreeSparringId, setDailyFreeSparringId] = useState<string | undefined>(undefined);
 
     const tabs = [
@@ -159,11 +160,10 @@ export function Watch() {
                 getDailyFreeSparring()
             ]);
 
-            const dailyFreeDrillIds = dailyDrillRes.data?.id ? [dailyDrillRes.data.id] : [];
-            const dailyFreeLessonIds = dailyLessonRes.data?.id ? [dailyLessonRes.data.id] : [];
-            const dailyFreeSparringIds = dailySparringRes.data?.id ? [dailySparringRes.data.id] : [];
+            // Daily free IDs logic
 
             setDailyFreeDrillId(dailyDrillRes.data?.id);
+            setDailyFreeLessonId(dailyLessonRes.data?.id);
             setDailyFreeSparringId(dailySparringRes.data?.id);
 
             let allItems: MixedItem[] = [];
@@ -452,6 +452,7 @@ export function Watch() {
                             userPermissions={userPermissions}
                             isLoggedIn={!!user}
                             dailyFreeDrillId={dailyFreeDrillId}
+                            dailyFreeLessonId={dailyFreeLessonId}
                             dailyFreeSparringId={dailyFreeSparringId}
                         />
                     ) : (

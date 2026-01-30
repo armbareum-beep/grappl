@@ -22,6 +22,7 @@ interface MixedReelsFeedProps {
     };
     isLoggedIn?: boolean;
     dailyFreeDrillId?: string;
+    dailyFreeLessonId?: string;
     dailyFreeSparringId?: string;
 }
 
@@ -31,6 +32,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     userPermissions: externalPermissions,
     isLoggedIn: externalIsLoggedIn,
     dailyFreeDrillId,
+    dailyFreeLessonId,
     dailyFreeSparringId
 }) => {
     const { user } = useAuth();
@@ -253,6 +255,10 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             lesson={item.data}
                             isActive={isActive}
                             offset={offset}
+                            isSubscriber={userPermissions.isSubscriber}
+                            purchasedItemIds={userPermissions.purchasedItemIds}
+                            isLoggedIn={isLoggedIn}
+                            isDailyFreeLesson={dailyFreeLessonId === item.data.id}
                         />
                     );
                 }
