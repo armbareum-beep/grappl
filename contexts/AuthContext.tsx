@@ -64,11 +64,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[AuthContext DEBUG] checkUserStatus STARTED for userId:', userId);
 
         try {
+            console.log('[AuthContext DEBUG] About to execute Supabase queries...');
+
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
                 supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
+
+            console.log('[AuthContext DEBUG] Queries completed!');
+            console.log('[AuthContext DEBUG] userResult FULL:', JSON.stringify(userResult, null, 2));
+            console.log('[AuthContext DEBUG] userResult.data:', userResult.data);
+            console.log('[AuthContext DEBUG] userResult.error:', userResult.error);
 
             const userData = userResult.data;
             const creatorData = creatorResult.data;
