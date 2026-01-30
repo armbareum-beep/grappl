@@ -151,36 +151,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    // Check cache first to unblock UI immediately
+                    // TEMPORARILY DISABLED CACHE FOR DEBUGGING
+                    // Clear any existing cache
                     const cacheKey = `user_status_${baseUser.id}`;
-                    const cached = localStorage.getItem(cacheKey);
-                    if (cached) {
-                        try {
-                            const parsed = JSON.parse(cached);
-                            const cacheAge = Date.now() - (parsed._cachedAt || 0);
-                            const CACHE_TTL = 5 * 60 * 1000; // 5분
-
-                            if (cacheAge < CACHE_TTL) {
-                                setUser({
-                                    ...baseUser,
-                                    isSubscriber: parsed.isSubscribed,
-                                    subscription_tier: parsed.subscriptionTier,
-                                    ownedVideoIds: parsed.ownedVideoIds
-                                });
-                                // Set admin/creator statuses from cache too
-                                setIsAdmin(parsed.isAdmin || false);
-                                setIsCreator(parsed.isCreator || false);
-                                setIsSubscribed(parsed.isSubscribed || false);
-
-                                // Set loading false immediately if we have valid cache
-                                setLoading(false);
-                            } else {
-                                localStorage.removeItem(cacheKey);
-                            }
-                        } catch (e) {
-                            console.error('Error parsing user cache', e);
-                        }
-                    }
+                    localStorage.removeItem(cacheKey);
+                    console.log('[AuthContext] Cache disabled, fetching fresh data from DB');
 
                     const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
                     const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
