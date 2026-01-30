@@ -214,7 +214,7 @@ export const CourseDetail: React.FC = () => {
         }
 
         fetchData();
-    }, [id, user, location.search]);
+    }, [id, user, location.search, isSubscribed, isAdmin]);
 
     const handlePurchase = async () => {
         if (!user) {

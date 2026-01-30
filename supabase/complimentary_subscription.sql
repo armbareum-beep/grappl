@@ -12,14 +12,23 @@ CREATE OR REPLACE FUNCTION grant_complimentary_subscription(
 )
 RETURNS VOID AS $$
 BEGIN
+    -- users 테이블 업데이트
     UPDATE users
-    SET 
+    SET
         is_subscriber = TRUE,
         is_complimentary_subscription = TRUE,
         subscription_tier = 'premium',
         subscription_end_date = end_date,
         updated_at = NOW()
     WHERE id = target_user_id;
+
+    -- 기존 무료 구독 레코드 삭제 후 재생성 (has_premium_subscription, check_routine_access 등 DB 함수 호환)
+    DELETE FROM subscriptions
+    WHERE user_id = target_user_id
+    AND stripe_subscription_id = 'complimentary';
+
+    INSERT INTO subscriptions (user_id, status, subscription_tier, plan_interval, current_period_start, current_period_end, stripe_subscription_id)
+    VALUES (target_user_id, 'active', 'premium', 'month', NOW(), end_date, 'complimentary');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -30,7 +39,7 @@ CREATE OR REPLACE FUNCTION revoke_complimentary_subscription(
 RETURNS VOID AS $$
 BEGIN
     UPDATE users
-    SET 
+    SET
         is_subscriber = FALSE,
         is_complimentary_subscription = FALSE,
         subscription_tier = NULL,
@@ -38,6 +47,11 @@ BEGIN
         updated_at = NOW()
     WHERE id = target_user_id
     AND is_complimentary_subscription = TRUE;
+
+    -- subscriptions 테이블에서도 무료 구독 레코드 삭제
+    DELETE FROM subscriptions
+    WHERE user_id = target_user_id
+    AND stripe_subscription_id = 'complimentary';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

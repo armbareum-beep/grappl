@@ -59,7 +59,7 @@ export const VideoDetail: React.FC = () => {
       }
     }
     fetchData();
-  }, [id, user]);
+  }, [id, user, isSubscribed, isAdmin]);
 
   const handleProgress = async (_seconds: number) => {
     if (!user || !video) return;

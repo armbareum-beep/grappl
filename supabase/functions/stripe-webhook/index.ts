@@ -508,23 +508,43 @@ Deno.serve(async (req) => {
                 const userId = subscription.metadata.userId
 
                 if (userId) {
-                    const { error } = await supabaseClient
+                    // Check if user has a complimentary subscription before revoking
+                    const { data: userData } = await supabaseClient
                         .from('users')
-                        .update({
-                            is_subscriber: false,
-                            subscription_end_date: null,
-                            stripe_subscription_id: null,
-                        })
+                        .select('is_complimentary_subscription')
                         .eq('id', userId)
+                        .single()
 
-                    if (error) {
-                        console.error('Error revoking subscription:', error)
-                        await logWebhook('error', event.type, { userId, subscription: subscription.id }, error.message);
-                        throw error
+                    if (userData?.is_complimentary_subscription === true) {
+                        // User has admin-granted complimentary subscription, only clear Stripe fields
+                        await supabaseClient
+                            .from('users')
+                            .update({
+                                stripe_subscription_id: null,
+                            })
+                            .eq('id', userId)
+
+                        console.log(`Stripe subscription deleted for user ${userId}, but complimentary subscription preserved`)
+                        await logWebhook('success', event.type, { userId, subscription: subscription.id }, 'Stripe sub deleted, complimentary preserved');
+                    } else {
+                        const { error } = await supabaseClient
+                            .from('users')
+                            .update({
+                                is_subscriber: false,
+                                subscription_end_date: null,
+                                stripe_subscription_id: null,
+                            })
+                            .eq('id', userId)
+
+                        if (error) {
+                            console.error('Error revoking subscription:', error)
+                            await logWebhook('error', event.type, { userId, subscription: subscription.id }, error.message);
+                            throw error
+                        }
+
+                        console.log(`Subscription cancelled for user ${userId}`)
+                        await logWebhook('success', event.type, { userId, subscription: subscription.id }, 'Subscription revoked');
                     }
-
-                    console.log(`Subscription cancelled for user ${userId}`)
-                    await logWebhook('success', event.type, { userId, subscription: subscription.id }, 'Subscription revoked');
                 }
                 break
             }

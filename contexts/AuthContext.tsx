@@ -34,18 +34,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // Check user status from database
-    // Check user status from database
     const checkUserStatus = async (userId: string) => {
         const cacheKey = `user_status_${userId}`;
         const cached = localStorage.getItem(cacheKey);
 
-        // Use cache immediately if available
+        // Use cache immediately if available and not expired (5 min TTL)
         if (cached) {
             try {
                 const parsed = JSON.parse(cached);
-                setIsAdmin(parsed.isAdmin);
-                setIsSubscribed(parsed.isSubscribed);
-                setIsCreator(parsed.isCreator);
+                const cacheAge = Date.now() - (parsed._cachedAt || 0);
+                const CACHE_TTL = 5 * 60 * 1000; // 5분
+
+                if (cacheAge < CACHE_TTL) {
+                    setIsAdmin(parsed.isAdmin);
+                    setIsSubscribed(parsed.isSubscribed);
+                    setIsCreator(parsed.isCreator);
+                } else {
+                    // 캐시 만료 - stale 데이터 사용 안함
+                    localStorage.removeItem(cacheKey);
+                }
                 // Don't return here, we still want to revalidate in background
             } catch (e) {
                 console.error('Error parsing user cache', e);
@@ -75,8 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsSubscribed(!!newStatus.isSubscribed);
             setIsCreator(!!newStatus.isCreator);
 
-            // Update cache
-            localStorage.setItem(cacheKey, JSON.stringify(newStatus));
+            // Update cache with timestamp
+            localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
 
             return {
                 isAdmin: newStatus.isAdmin,
@@ -135,19 +142,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     if (cached) {
                         try {
                             const parsed = JSON.parse(cached);
-                            setUser({
-                                ...baseUser,
-                                isSubscriber: parsed.isSubscribed,
-                                subscription_tier: parsed.subscriptionTier,
-                                ownedVideoIds: parsed.ownedVideoIds
-                            });
-                            // Set admin/creator statuses from cache too
-                            setIsAdmin(parsed.isAdmin || false);
-                            setIsCreator(parsed.isCreator || false);
-                            setIsSubscribed(parsed.isSubscribed || false);
+                            const cacheAge = Date.now() - (parsed._cachedAt || 0);
+                            const CACHE_TTL = 5 * 60 * 1000; // 5분
 
-                            // Set loading false immediately if we have cache
-                            setLoading(false);
+                            if (cacheAge < CACHE_TTL) {
+                                setUser({
+                                    ...baseUser,
+                                    isSubscriber: parsed.isSubscribed,
+                                    subscription_tier: parsed.subscriptionTier,
+                                    ownedVideoIds: parsed.ownedVideoIds
+                                });
+                                // Set admin/creator statuses from cache too
+                                setIsAdmin(parsed.isAdmin || false);
+                                setIsCreator(parsed.isCreator || false);
+                                setIsSubscribed(parsed.isSubscribed || false);
+
+                                // Set loading false immediately if we have valid cache
+                                setLoading(false);
+                            } else {
+                                localStorage.removeItem(cacheKey);
+                            }
                         } catch (e) {
                             console.error('Error parsing user cache', e);
                         }
