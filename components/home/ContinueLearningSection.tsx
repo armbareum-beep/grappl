@@ -1,35 +1,38 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Dumbbell, Target, Video, ChevronLeft, ChevronRight, History } from 'lucide-react';
+import { History, ChevronRight, Play } from 'lucide-react';
 
 interface ActivityItem {
     id: string;
+    creatorId?: string;
     courseId?: string;
     type: 'lesson' | 'course' | 'routine' | 'sparring' | 'drill';
     title: string;
     courseTitle?: string;
     thumbnail?: string;
     progress: number;
+    creatorProfileImage?: string;
+    creatorName?: string;
     watchedSeconds?: number;
     lastWatched: string;
     lessonNumber?: number;
+    durationMinutes?: number;
 }
 
 interface ContinueLearningSectionProps {
     items: ActivityItem[];
+    title?: string;
+    subtitle?: string;
+    hideHeader?: boolean;
 }
 
-export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = ({ items }) => {
+export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = ({
+    items,
+    title = "계속 수련하기",
+    subtitle = "지난번 수련을 이어서 진행해보세요.",
+    hideHeader = false
+}) => {
     const navigate = useNavigate();
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    const scroll = (direction: 'left' | 'right') => {
-        if (scrollRef.current) {
-            const { current } = scrollRef;
-            const scrollAmount = direction === 'left' ? -400 : 400;
-            current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        }
-    };
 
     const handleContinue = (item: ActivityItem) => {
         if (!item.id || item.id === 'undefined') {
@@ -54,24 +57,7 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
         }
     };
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            case 'routine': return <Dumbbell className="w-3 h-3" />;
-            case 'sparring': return <Target className="w-3 h-3" />;
-            case 'drill': return <Dumbbell className="w-3 h-3" />;
-            default: return <Video className="w-3 h-3" />;
-        }
-    };
 
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'routine': return '루틴';
-            case 'sparring': return '스파링';
-            case 'drill': return '드릴';
-            case 'lesson': return '레슨';
-            default: return '콘텐츠';
-        }
-    };
 
     return (
         <section className="px-4 md:px-6 lg:px-12 max-w-[1440px] mx-auto mb-20 relative group/section">
@@ -87,19 +73,15 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
                 </div>
 
                 {/* Navigation Buttons (Visible on Hover/Desktop) */}
+                {/* Navigation Buttons (Visible on Hover/Desktop) */}
                 {items && items.length > 0 && (
-                    <div className="hidden md:flex items-center gap-2 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-4">
                         <button
-                            onClick={() => scroll('left')}
-                            className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 hover:text-white transition-colors"
+                            onClick={() => navigate('/history')}
+                            className="text-sm font-bold text-violet-400 hover:text-violet-300 transition-colors bg-violet-500/10 px-4 py-2 rounded-full border border-violet-500/20 flex items-center"
                         >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => scroll('right')}
-                            className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 hover:text-white transition-colors"
-                        >
-                            <ChevronRight className="w-4 h-4" />
+                            더 보기
+                            <ChevronRight className="w-4 h-4 ml-1" />
                         </button>
                     </div>
                 )}
@@ -111,7 +93,6 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
                 </div>
             ) : (
                 <div
-                    ref={scrollRef}
                     className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory hide-scrollbar"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
@@ -145,26 +126,50 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
                                 </div>
 
                                 {/* Type Badge */}
-                                <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-bold uppercase tracking-wider text-white flex items-center gap-1.5 border border-white/10">
-                                    {getTypeIcon(item.type)}
-                                    {getTypeLabel(item.type)}
-                                </div>
+
                             </div>
 
                             {/* Meta Info */}
-                            <div className="mt-3 px-1">
-                                <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-1 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
-                                    {item.title}
-                                </h3>
-                                <div className="flex items-center justify-between mt-2">
-                                    <p className="text-zinc-500 text-xs font-medium truncate max-w-[70%]">
-                                        {item.courseTitle || 'Training'}
-                                    </p>
-                                    {item.lessonNumber && (
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                            Ep. {item.lessonNumber}
+                            <div className="mt-3 flex gap-2.5 px-1">
+                                {/* Creator Avatar (Left side) */}
+                                {/* Creator Avatar (Left side) */}
+                                <div
+                                    className="shrink-0 pt-0.5 cursor-pointer"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (item.creatorId) {
+                                            navigate(`/creator/${item.creatorId}`);
+                                        }
+                                    }}
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden group-hover:border-violet-500/50 transition-colors">
+                                        {item.creatorProfileImage ? (
+                                            <img
+                                                src={item.creatorProfileImage}
+                                                alt={item.creatorName}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                                {item.creatorName?.[0]}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Text Content (Right side) */}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
+                                        {item.title}
+                                    </h3>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-zinc-500 text-xs font-medium truncate max-w-[60%]">
+                                            {item.creatorName}
+                                        </p>
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 line-clamp-1 max-w-[40%] text-right overflow-hidden text-ellipsis whitespace-nowrap">
+                                            {item.courseTitle || '클래스'}
                                         </span>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

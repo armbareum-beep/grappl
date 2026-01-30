@@ -33,6 +33,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
             setSearchTerm('');
             setResults({ courses: [], routines: [], feeds: [], sparring: [], arena: [] });
             setActiveTab('all');
+        } else {
+            // Handle back button to close search
+            const handlePopState = () => {
+                onClose();
+            };
+            window.addEventListener('popstate', handlePopState);
+            return () => window.removeEventListener('popstate', handlePopState);
         }
     }, [isOpen]);
 
@@ -84,7 +91,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center">
+                <div className="fixed inset-0 z-[15000] flex items-end md:items-center justify-center">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -142,7 +149,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="text-zinc-400 hover:text-white font-medium whitespace-nowrap px-1"
+                                        className="text-zinc-500 hover:text-white font-bold whitespace-nowrap px-2 py-2 -mr-2 flex items-center justify-center min-w-[44px] transition-colors"
                                     >
                                         취소
                                     </button>
@@ -250,7 +257,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                                                 <h4 className="font-bold text-white line-clamp-1 text-sm group-hover:text-emerald-400 transition-colors">{routine.title}</h4>
                                                                 <div className="flex gap-2 mt-2">
                                                                     <span className="text-[10px] px-2 py-0.5 bg-zinc-800 rounded-md text-zinc-400 font-bold border border-zinc-700/50">{routine.difficulty}</span>
-                                                                    <span className="text-[10px] px-2 py-0.5 bg-zinc-800 rounded-md text-zinc-400 font-bold border border-zinc-700/50">{routine.drillCount} Drills</span>
+                                                                    <span className="text-[10px] px-2 py-0.5 bg-zinc-800 rounded-md text-zinc-400 font-bold border border-zinc-700/50">{(routine.views || 0).toLocaleString()} 조회수</span>
                                                                     <span className="text-[10px] px-2 py-0.5 bg-zinc-800 rounded-md text-zinc-400 font-bold border border-zinc-700/50">{routine.creatorName}</span>
                                                                 </div>
                                                             </div>

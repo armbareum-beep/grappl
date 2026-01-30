@@ -63,7 +63,7 @@ export const UploadDrill: React.FC = () => {
     const [activeEditor, setActiveEditor] = useState<'action' | 'desc' | null>(null);
 
     // Overall Progress
-    const [createdDrillId, setCreatedDrillId] = useState<string | null>(null);
+    const [createdDrillId] = useState<string | null>(null);
 
     // Tab State for "Swipe" view
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
@@ -385,7 +385,8 @@ export const UploadDrill: React.FC = () => {
                     title: `[Drill] ${formData.title}`,
                     description: formData.description,
                     drillId: drillId as string,
-                    videoType: 'action'
+                    videoType: 'action',
+                    instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown'
                 });
             }
 
@@ -404,7 +405,8 @@ export const UploadDrill: React.FC = () => {
                     title: `[Drill Explanation] ${formData.title}`,
                     description: `Explanation for ${formData.title}`,
                     drillId: drillId as string,
-                    videoType: 'desc'
+                    videoType: 'desc',
+                    instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown'
                 });
             }
 
@@ -624,7 +626,7 @@ export const UploadDrill: React.FC = () => {
                             onSave={handleCutsSave}
                             onCancel={() => setActiveEditor(null)}
                             aspectRatio="9:16"
-                            thumbnailAspectRatio={4 / 5}
+                            thumbnailAspectRatio={9 / 16}
                         />
                     )}
                 </div>

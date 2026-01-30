@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Clock, BarChart } from 'lucide-react';
+import { Lock, Clock, PlayCircle } from 'lucide-react';
 import { DrillRoutine } from '../types';
 
 interface DrillRoutineGridProps {
@@ -45,8 +45,8 @@ export const DrillRoutineGrid: React.FC<DrillRoutineGridProps> = ({
                         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className={`px-2 py-1 rounded text-xs font-bold ${routine.difficulty === 'Beginner' ? 'bg-green-500/80' :
-                                        routine.difficulty === 'Intermediate' ? 'bg-blue-500/80' :
-                                            'bg-purple-500/80'
+                                    routine.difficulty === 'Intermediate' ? 'bg-blue-500/80' :
+                                        'bg-purple-500/80'
                                     }`}>
                                     {routine.difficulty === 'Beginner' ? '초급' :
                                         routine.difficulty === 'Intermediate' ? '중급' : '상급'}
@@ -63,8 +63,8 @@ export const DrillRoutineGrid: React.FC<DrillRoutineGridProps> = ({
                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
                                 <div className="flex items-center gap-4 text-sm text-white/80">
                                     <div className="flex items-center gap-1">
-                                        <BarChart className="w-4 h-4" />
-                                        <span>{routine.drillCount || 0} 드릴</span>
+                                        <PlayCircle className="w-4 h-4" />
+                                        <span>{(routine.views || 0).toLocaleString()} 조회수</span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <Clock className="w-4 h-4" />

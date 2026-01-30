@@ -3,21 +3,22 @@ import { useNavigate, Link } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
-import { Search, PlayCircle, ChevronDown } from 'lucide-react';
+import { Search, PlayCircle, ChevronDown, Bookmark, Share2 } from 'lucide-react';
 import { ContentBadge } from '../components/common/ContentBadge';
 
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { cn } from '../lib/utils';
+import { UnifiedContentCard } from '../components/library/UnifiedContentCard';
 
 
-import { LibraryTabs } from '../components/library/LibraryTabs';
+import { LibraryTabs, LibraryTabType } from '../components/library/LibraryTabs';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Routines: React.FC<{
     isEmbedded?: boolean;
-    activeTab?: 'classes' | 'routines' | 'sparring';
-    onTabChange?: (tab: 'classes' | 'routines' | 'sparring') => void;
+    activeTab?: LibraryTabType;
+    onTabChange?: (tab: LibraryTabType) => void;
 }> = ({ isEmbedded, activeTab, onTabChange }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -168,7 +169,7 @@ export const Routines: React.FC<{
                 )}
 
                 {/* Header & Filter System */}
-                <div className="flex flex-col gap-8 mb-12">
+                <div className="flex flex-col gap-8 mb-8 mt-8">
                     {!isEmbedded && <h1 className="text-3xl font-bold text-white mb-2">루틴</h1>}
 
                     {/* Search & Stats */}
@@ -406,83 +407,25 @@ export const Routines: React.FC<{
                         : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                 )}>
                     {filteredRoutines.map(routine => (
-                        <div
+                        <UnifiedContentCard
                             key={routine.id}
-                            onClick={() => navigate(`/routines/${routine.id}`)}
-                            className="group cursor-pointer"
-                        >
-                            {/* Thumbnail Card */}
-                            <div className={cn(
-                                "relative w-full aspect-[4/5] bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30",
-                            )}>
-                                {/* Blue filter overlay on hover - removed to match CourseCard clean look or keep if desired, keeping clean for now */}
-                                <Link to={`/routines/${routine.id}`} className="absolute inset-0 block">
-                                    <img
-                                        src={routine.thumbnailUrl}
-                                        alt={routine.title}
-                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    />
-
-                                    {/* Badges */}
-                                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
-                                        {routine.isDailyFree && (
-                                            <ContentBadge type="daily_free" />
-                                        )}
-                                        <div className="ml-auto">
-                                            {routine.rank ? (
-                                                <ContentBadge type="popular" rank={routine.rank} />
-                                            ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                                <ContentBadge type="recent" />
-                                            ) : null}
-                                        </div>
-                                    </div>
-
-                                    {/* Gradient Overlay */}
-                                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                    {/* Play Mini Icon */}
-                                    <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
-                                        <PlayCircle className="w-4 h-4" />
-                                    </div>
-                                </Link>
-                            </div>
-
-                            {/* Info Area */}
-                            <div className="flex gap-3 px-1">
-                                {/* Creator Avatar */}
-                                <div className="shrink-0 pt-0.5">
-                                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden group-hover:border-violet-500/50 transition-colors">
-                                        {routine.creatorProfileImage ? (
-                                            <img src={routine.creatorProfileImage} alt={routine.creatorName} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                                {routine.creatorName?.charAt(0)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Text Info */}
-                                <div className="flex-1 min-w-0 pr-1">
-                                    <Link to={`/routines/${routine.id}`}>
-                                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
-                                            {routine.title}
-                                        </h3>
-                                    </Link>
-
-                                    <div className="flex items-center justify-between gap-4 mt-1.5">
-                                        <div className="text-xs md:text-sm text-zinc-400 font-medium truncate">
-                                            {routine.creatorName}
-                                        </div>
-
-                                        <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
-                                            <PlayCircle className="w-3 h-3" />
-                                            <span>{routine.drills?.length || 0} Drills</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            className="aspect-[9/16]"
+                            item={{
+                                id: routine.id,
+                                type: 'routine',
+                                title: routine.title,
+                                thumbnailUrl: routine.thumbnailUrl,
+                                creatorName: routine.creatorName,
+                                creatorProfileImage: routine.creatorProfileImage,
+                                creatorId: routine.creatorId,
+                                createdAt: routine.createdAt,
+                                views: routine.views,
+                                rank: routine.rank,
+                                isDailyFree: routine.isDailyFree,
+                                drillCount: routine.drills?.length,
+                                originalData: routine,
+                            }}
+                        />
                     ))}
                 </div>
             )}

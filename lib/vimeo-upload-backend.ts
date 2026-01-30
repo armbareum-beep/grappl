@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 // Smart environment detection:
 // - Development: Use backend server (localhost:3003)
 // - Production: Use Vercel serverless function (/api/upload-to-vimeo) or Backend if available
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3003';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export interface VimeoUploadResult {
     vimeoId: string;
@@ -50,9 +50,10 @@ export async function processAndUploadVideo(params: {
     contentId: string;
     videoType?: 'action' | 'desc' | 'preview';
     cuts?: { start: number; end: number }[];
+    instructorName?: string;
     onProgress?: (stage: string, progress: number) => void;
 }): Promise<VimeoUploadResult> {
-    const { bucketName, filePath, title, description, contentType, contentId, videoType, cuts, onProgress } = params;
+    const { bucketName, filePath, title, description, contentType, contentId, videoType, cuts, instructorName, onProgress } = params;
 
     try {
         if (onProgress) onProgress('upload', 100); // TUS upload is done
@@ -70,7 +71,8 @@ export async function processAndUploadVideo(params: {
             cuts: cuts || [],
             title,
             description,
-            videoType: videoType || 'action'
+            videoType: videoType || 'action',
+            instructorName
         };
 
         if (contentType === 'drill') payload.drillId = contentId;

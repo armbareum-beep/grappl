@@ -236,7 +236,8 @@ export const UploadLesson: React.FC = () => {
                     title: formData.title,
                     description: formData.description,
                     lessonId: lessonId, // Attach to this lesson
-                    videoType: 'action'
+                    videoType: 'action',
+                    instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown'
                 });
             }
 
@@ -281,7 +282,7 @@ export const UploadLesson: React.FC = () => {
                         videoUrl={videoState.previewUrl}
                         onSave={handleCutsSave}
                         onCancel={() => setIsVideoEditorOpen(false)}
-                        thumbnailAspectRatio={5 / 4}
+                        thumbnailAspectRatio={16 / 9}
                     />
                 </div>
             </div>

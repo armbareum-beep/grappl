@@ -33,6 +33,7 @@ export const RoutineDetail: React.FC = () => {
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
+    const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | null>(null);
     const [muted, setMuted] = useState(true);
 
     const toggleMute = () => setMuted(prev => !prev);
@@ -252,6 +253,17 @@ export const RoutineDetail: React.FC = () => {
                     await getCompletedRoutinesToday(user.id);
                 }
 
+                // Check daily free drill
+                try {
+                    const { getDailyFreeDrill } = await import('../lib/api');
+                    const { data: dailyDrill } = await getDailyFreeDrill();
+                    if (dailyDrill) {
+                        setDailyFreeDrillId(dailyDrill.id);
+                    }
+                } catch (e) {
+                    console.warn('Failed to check daily free drill:', e);
+                }
+
                 // Increment view count
                 if (!id.startsWith('custom-')) {
                     incrementRoutineView(id);
@@ -466,11 +478,13 @@ export const RoutineDetail: React.FC = () => {
     const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
     const isActionVideo = videoType === 'main';
 
-    // Description videos require subscription or ownership
+    // Description videos require subscription or ownership (or daily free drill)
+    const isDailyFreeDrill = currentDrill?.id === dailyFreeDrillId;
     const hasDescriptionAccess =
         isSubscribed ||
         (!isCustomRoutine && (owns || routine?.price === 0)) ||
-        currentDrill?.price === 0;
+        currentDrill?.price === 0 ||
+        isDailyFreeDrill;
 
     // Action videos are ALWAYS accessible (even for non-logged-in users)
     // Description videos require hasDescriptionAccess
@@ -524,7 +538,7 @@ export const RoutineDetail: React.FC = () => {
                                 {routine.drills?.map((drill, idx) => {
                                     const d = typeof drill === 'string' ? null : drill;
                                     return (
-                                        <div key={idx} onClick={() => { if (hasFullAccess) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors cursor-pointer">
+                                        <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors cursor-pointer">
                                             <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-zinc-800/50">
                                                 {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover" />}
                                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -532,7 +546,14 @@ export const RoutineDetail: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-zinc-200 truncate">{d?.title || `Drill ${idx + 1}`}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="text-sm font-bold text-zinc-200 truncate">{d?.title || `Drill ${idx + 1}`}</h4>
+                                                    {d?.id === dailyFreeDrillId && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold flex items-center gap-1 shrink-0">
+                                                            <Clock className="w-2.5 h-2.5" /> 오늘의 무료
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{d?.description}</p>
                                             </div>
                                         </div>
@@ -847,7 +868,7 @@ export const RoutineDetail: React.FC = () => {
                                         {routine.drills?.map((drill, idx) => {
                                             const d = typeof drill === 'string' ? null : drill;
                                             return (
-                                                <div key={idx} onClick={() => { if (hasFullAccess) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
+                                                <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
                                                     <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-zinc-800">
                                                         {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-all" />}
                                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -855,7 +876,14 @@ export const RoutineDetail: React.FC = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 py-1">
-                                                        <h4 className="text-lg font-bold text-zinc-100">{d?.title || `Drill ${idx + 1}`}</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-lg font-bold text-zinc-100">{d?.title || `Drill ${idx + 1}`}</h4>
+                                                            {d?.id === dailyFreeDrillId && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold flex items-center gap-1 shrink-0">
+                                                                    <Clock className="w-2.5 h-2.5" /> 오늘의 무료 드릴
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-sm text-zinc-400 mt-1 line-clamp-1">{d?.description}</p>
                                                     </div>
                                                 </div>

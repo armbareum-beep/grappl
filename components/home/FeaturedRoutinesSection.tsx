@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { LayoutGrid, PlayCircle, ArrowRight } from 'lucide-react';
 import { DrillRoutine } from '../../types';
 import { cn } from '../../lib/utils';
@@ -56,7 +56,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                         {/* Thumbnail Card */}
                         <div className={cn(
                             "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
-                            "aspect-[4/5]"
+                            "aspect-[9/16]"
                         )}>
                             {routine.thumbnailUrl ? (
                                 <img
@@ -99,15 +99,39 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                         </div>
 
                         {/* Text Info */}
-                        <div className="px-1">
-                            <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
-                                {routine.title}
-                            </h3>
-                            <div className="flex items-center justify-between mt-2">
-                                <p className="text-zinc-500 text-xs font-medium truncate max-w-[60%]">{routine.creatorName || 'Unknown'}</p>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                    {routine.difficulty || 'Beginner'}
-                                </span>
+                        <div className="flex gap-2.5 px-1">
+                            {/* Creator Avatar */}
+                            <Link
+                                to={`/creator/${routine.creatorId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0 pt-0.5"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden hover:border-violet-500/50 transition-colors">
+                                    {routine.creatorProfileImage ? (
+                                        <img src={routine.creatorProfileImage} alt={routine.creatorName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                            {routine.creatorName?.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                            </Link>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
+                                    {routine.title}
+                                </h3>
+                                <div className="flex items-center justify-between">
+                                    <Link
+                                        to={`/creator/${routine.creatorId}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-zinc-500 text-xs font-medium truncate max-w-[60%] hover:text-zinc-300 transition-colors"
+                                    >
+                                        {routine.creatorName || 'Unknown'}
+                                    </Link>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                        {routine.difficulty || 'Beginner'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

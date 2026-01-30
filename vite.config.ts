@@ -81,7 +81,21 @@ export default defineConfig({
     },
     server: {
         port: 8080,
-        open: true
+        open: true,
+        proxy: {
+            '/process': {
+                target: 'http://localhost:8081',
+                changeOrigin: true,
+            },
+            '/api': {
+                target: 'http://localhost:8081',
+                changeOrigin: true,
+            },
+            '/temp': {
+                target: 'http://localhost:8081',
+                changeOrigin: true,
+            }
+        }
     }
 })
 

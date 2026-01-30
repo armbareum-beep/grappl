@@ -11,7 +11,9 @@ import {
   getUserSavedLessons,
   getCreatorCourses,
   getCourses,
-  getPurchasedSparringVideos
+  getPurchasedSparringVideos,
+  toggleLessonSave,
+  toggleDrillSave
 } from '../lib/api';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { Course, DrillRoutine, SparringVideo, UserSkillTree, Drill, Lesson } from '../types';
@@ -428,24 +430,7 @@ export const MyLibrary: React.FC = () => {
                             rank={getRank(course, myCourses)}
                             hasAccess={isSubscribed || ownedCourseIds.has(course.id)}
                           />
-                          <div className="mt-3 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-xl border border-zinc-800">
-                            <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-2">
-                              <span>진도율</span>
-                              <span>{Math.round(course.progress || 0)}%</span>
-                            </div>
-                            <div className="w-full bg-zinc-800 rounded-full h-2 mb-3">
-                              <div
-                                className="bg-violet-600 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${course.progress || 0}%` }}
-                              ></div>
-                            </div>
-                            <Link to={`/courses/${course.id}`}>
-                              <button className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold py-2 rounded-lg transition-colors">
-                                <PlayCircle className="w-4 h-4" />
-                                {course.progress === 100 ? '다시 보기' : course.progress && course.progress > 0 ? '이어보기' : '학습 시작하기'}
-                              </button>
-                            </Link>
-                          </div>
+                          {/* Progress Removed */}
                         </div>
                       ))}
                     </div>
@@ -509,7 +494,7 @@ export const MyLibrary: React.FC = () => {
                   <div className="space-y-12">
                     <div>
                       <h3 className="text-lg font-bold text-white mb-6">My Routines ({allRoutines.length})</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {allRoutines.map((routine) => (
                           <DrillRoutineCard
                             key={routine.id}
@@ -581,7 +566,7 @@ export const MyLibrary: React.FC = () => {
                               </div>
                               <div className="min-w-0">
                                 <h5 className="font-medium text-sm text-zinc-200 truncate">{routine.title}</h5>
-                                <p className="text-xs text-zinc-500">{routine.totalDurationMinutes}분 • {routine.drillCount}개 드릴</p>
+                                <p className="text-xs text-zinc-500">{routine.totalDurationMinutes}분 • {(routine.views || 0).toLocaleString()} 조회수</p>
                               </div>
                             </Link>
                           );
@@ -613,14 +598,33 @@ export const MyLibrary: React.FC = () => {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {savedLessons.map((lesson) => (
                     <div key={lesson.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/watch?lessonId=${lesson.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <Link to={`/watch?lessonId=${lesson.id}`} className="relative aspect-video rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
                         <img src={lesson.thumbnailUrl} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
                           <PlayCircle className="w-10 h-10 text-white" />
                         </div>
+                        {/* Delete Button */}
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm('이 레슨을 저장 목록에서 삭제하시겠습니까?')) {
+                              try {
+                                await toggleLessonSave(user?.id || '', lesson.id);
+                                setSavedLessons(prev => prev.filter(l => l.id !== lesson.id));
+                              } catch (err) {
+                                console.error('Failed to remove lesson', err);
+                                alert('삭제에 실패했습니다.');
+                              }
+                            }
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-zinc-400 hover:text-red-400 hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100 z-20"
+                        >
+                          <Bookmark className="w-4 h-4 fill-current" />
+                        </button>
                         {getRank(lesson, savedLessons) ? (
                           <ContentBadge type="popular" rank={getRank(lesson, savedLessons)} className="absolute top-2 right-2" />
                         ) : isRecent(lesson.createdAt) ? (
@@ -659,11 +663,30 @@ export const MyLibrary: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {savedDrills.map((drill) => (
                     <div key={drill.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                      <Link to={`/watch?id=${drill.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                      <Link to={`/watch?id=${drill.id}`} className="relative aspect-[9/16] rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
                         <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
                           <PlayCircle className="w-10 h-10 text-white" />
                         </div>
+                        {/* Delete Button */}
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm('이 드릴을 저장 목록에서 삭제하시겠습니까?')) {
+                              try {
+                                await toggleDrillSave(user?.id || '', drill.id);
+                                setSavedDrills(prev => prev.filter(d => d.id !== drill.id));
+                              } catch (err) {
+                                console.error('Failed to remove drill', err);
+                                alert('삭제에 실패했습니다.');
+                              }
+                            }
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-zinc-400 hover:text-red-400 hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100 z-20"
+                        >
+                          <Bookmark className="w-4 h-4 fill-current" />
+                        </button>
                         {getRank(drill, savedDrills) ? (
                           <ContentBadge type="popular" rank={getRank(drill, savedDrills)} className="absolute top-2 right-2" />
                         ) : isRecent(drill.createdAt) ? (
@@ -691,7 +714,7 @@ export const MyLibrary: React.FC = () => {
                   <Dumbbell className="w-6 h-6 text-violet-500" />
                   My Sparring
                 </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {mySparring.map((video) => (
                     <SparringCard
                       key={video.id}

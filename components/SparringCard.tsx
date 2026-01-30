@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SparringVideo } from '../types';
-import { Play } from 'lucide-react';
+import { Play, Bookmark } from 'lucide-react';
 import Player from '@vimeo/player';
+import { toggleSparringSave, checkSparringSaved } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
 
@@ -13,6 +15,15 @@ interface SparringCardProps {
 }
 
 export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAccess = false }) => {
+    const { user } = useAuth();
+    const [isSaved, setIsSaved] = useState(false);
+
+    useEffect(() => {
+        if (user && video.id) {
+            checkSparringSaved(user.id, video.id).then(setIsSaved).catch(console.error);
+        }
+    }, [user, video.id]);
+
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -126,40 +137,66 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
             onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
-            <Link to={`/sparring/${video.id}`} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
-                <img
-                    src={video.thumbnailUrl}
-                    alt={video.title}
-                    className={cn(
-                        "w-full h-full object-cover transition-transform duration-500",
-                        isHovering && hasAccess ? 'scale-110' : 'group-hover:scale-105'
-                    )}
-                />
+            <div className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-all">
+                <Link to={`/sparring/${video.id}`} className="absolute inset-0 block">
+                    <img
+                        src={video.thumbnailUrl}
+                        alt={video.title}
+                        className={cn(
+                            "w-full h-full object-cover transition-transform duration-500",
+                            isHovering && hasAccess ? 'scale-110' : 'group-hover:scale-105'
+                        )}
+                    />
 
-                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                {!showVideo && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                            <Play className="w-6 h-6 text-white fill-white/20" />
+                    {!showVideo && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
+                            <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
+                                <Play className="w-6 h-6 text-white fill-white/20" />
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </Link>
 
                 {hasAccess && (
-                    <div className="absolute top-2 left-2 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
+                    <div className="absolute top-2 left-2 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none z-10">
                         OWNED
                     </div>
                 )}
 
+                {/* Save Button */}
+                {!hasAccess && (
+                    <button
+                        className={cn(
+                            "absolute top-2 right-2 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                        )}
+                        onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!user) return;
+                            try {
+                                await toggleSparringSave(user.id, video.id);
+                                setIsSaved(!isSaved);
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        }}
+                        aria-label="저장"
+                    >
+                        <Bookmark className={cn("w-4 h-4", isSaved && "fill-current")} />
+                    </button>
+                )}
+
                 {rank ? (
-                    <ContentBadge type="popular" rank={rank} className="absolute top-2 right-2" />
+                    <ContentBadge type="popular" rank={rank} className="absolute bottom-2 right-2 pointer-events-none" />
                 ) : isRecent(video.createdAt) ? (
-                    <ContentBadge type="recent" className="absolute top-2 right-2" />
+                    <ContentBadge type="recent" className="absolute bottom-2 right-2 pointer-events-none" />
                 ) : null}
 
                 {showVideo && vimeoId && hasAccess && (
-                    <div className="absolute inset-0 z-10 bg-black animate-fade-in">
+                    <div className="absolute inset-0 z-10 bg-black animate-fade-in pointer-events-none">
                         <iframe
                             ref={iframeRef}
                             src={`https://player.vimeo.com/video/${vimeoId}?background=1&muted=1&controls=0&badge=0&title=0&byline=0&portrait=0&dnt=1`}
@@ -184,7 +221,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                         />
                     </div>
                 )}
-            </Link>
+            </div>
 
             <div className="px-1">
                 <Link to={`/sparring/${video.id}`}>

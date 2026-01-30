@@ -63,7 +63,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
     const countLabel = {
         course: '레슨',
-        routine: '드릴',
+        routine: '조회수',
         sparring: '',
         lesson: '',
         drill: ''

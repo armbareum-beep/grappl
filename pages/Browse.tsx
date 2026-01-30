@@ -5,14 +5,14 @@ import { Search, ChevronDown } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { cn } from '../lib/utils';
-import { LibraryTabs } from '../components/library/LibraryTabs';
+import { LibraryTabs, LibraryTabType } from '../components/library/LibraryTabs';
 import { useAuth } from '../contexts/AuthContext';
 
 
 export const Browse: React.FC<{
   isEmbedded?: boolean;
-  activeTab?: 'classes' | 'routines' | 'sparring';
-  onTabChange?: (tab: 'classes' | 'routines' | 'sparring') => void;
+  activeTab?: LibraryTabType;
+  onTabChange?: (tab: LibraryTabType) => void;
 }> = ({ isEmbedded, activeTab, onTabChange }) => {
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -173,7 +173,7 @@ export const Browse: React.FC<{
           )}
 
           {/* Header & Filter System */}
-          <div className="flex flex-col gap-8 mb-12">
+          <div className="flex flex-col gap-8 mb-8 mt-8">
             {!isEmbedded && <h1 className="text-3xl font-bold text-white mb-2">클래스</h1>}
 
             {/* Search & Stats */}

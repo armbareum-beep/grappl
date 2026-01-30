@@ -3,15 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import { Browse } from './Browse';
 import { Routines } from './Routines';
 import { SparringFeed } from './SparringFeed';
-
-type LibraryTab = 'classes' | 'routines' | 'sparring';
+import { AllContentFeed } from '../components/library/AllContentFeed';
+import { LibraryTabType } from '../components/library/LibraryTabs';
 
 export const Library: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const initialTab = (searchParams.get('tab') as LibraryTab) || 'classes';
-    const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
+    const initialTab = (searchParams.get('tab') as LibraryTabType) || 'all';
+    const [activeTab, setActiveTab] = useState<LibraryTabType>(initialTab);
 
-    const handleTabChange = (tab: LibraryTab) => {
+    const handleTabChange = (tab: LibraryTabType) => {
         setActiveTab(tab);
         setSearchParams({ tab });
     };
@@ -20,6 +20,12 @@ export const Library: React.FC = () => {
         <div className="min-h-screen bg-zinc-950 text-white pb-24 px-6 md:px-10">
             {/* Content Area */}
             <div className="max-w-[1600px] mx-auto mt-8">
+                {activeTab === 'all' && (
+                    <AllContentFeed
+                        activeTab={activeTab}
+                        onTabChange={handleTabChange}
+                    />
+                )}
                 {activeTab === 'classes' && (
                     <Browse
                         isEmbedded={true}

@@ -23,6 +23,7 @@ export interface UploadTask {
         sparringId?: string; // For sparring uploads
         courseId?: string; // For course uploads
         videoType: 'action' | 'desc' | 'sparring' | 'preview';
+        instructorName?: string;
     };
 }
 
@@ -133,6 +134,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 contentId: contentId,
                                 videoType: task.processingParams!.videoType as 'action' | 'desc' | 'preview' | undefined,
                                 cuts: task.processingParams!.cuts,
+                                instructorName: task.processingParams!.instructorName,
                                 onProgress: (stage, progress) => {
                                     console.log(`[${task.id}] ${stage}: ${progress}%`);
                                     // Update task progress

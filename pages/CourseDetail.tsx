@@ -1003,7 +1003,7 @@ export const CourseDetail: React.FC = () => {
                                     onClick={() => navigate(`/courses/${course.id}`)}
                                     className="group cursor-pointer"
                                 >
-                                    <div className="aspect-[4/5] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
+                                    <div className="aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
                                         {course.thumbnailUrl ? (
                                             <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                         ) : (

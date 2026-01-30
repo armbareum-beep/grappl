@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DrillRoutine, WeeklySchedule, WeeklyRoutinePlan } from '../../types';
-import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, FilePlus, Dumbbell } from 'lucide-react';
+import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, FilePlus, PlayCircle } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { ShareModal } from '../../components/social/ShareModal';
 import { useAuth } from '../../contexts/AuthContext';
@@ -609,7 +609,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                                         <span>{routine.totalDurationMinutes}분</span>
                                                     </div>
                                                     <div className="text-zinc-500">
-                                                        드릴 {routine.drills?.length || 0}개
+                                                        {(routine.views || 0).toLocaleString()} 조회수
                                                     </div>
                                                 </div>
                                             </div>
@@ -676,7 +676,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                                     <div className="font-medium text-zinc-200 truncate">{routine.title}</div>
                                     <div className="text-xs text-zinc-500 flex items-center gap-2">
                                         <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" /> {routine.totalDurationMinutes}분</span>
-                                        <span className="flex items-center gap-0.5"><Dumbbell className="w-3 h-3" /> 드릴 {routine.drillCount || routine.drills?.length || 0}개</span>
+                                        <span className="flex items-center gap-0.5"><PlayCircle className="w-3 h-3" /> {(routine.views || 0).toLocaleString()} 조회수</span>
                                     </div>
                                 </div>
                             </div>

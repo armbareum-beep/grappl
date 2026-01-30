@@ -227,6 +227,9 @@ export interface CompletedRoutineRecord {
   completedAt: string;           // ISO timestamp
   date: string;                  // YYYY-MM-DD
   techniques: string[];          // 포함된 드릴 목록
+  creatorId?: string;            // routine creator ID
+  creatorName?: string;          // routine creator name
+  creatorProfileImage?: string;  // routine creator profile image
 }
 
 export interface SparringVideo {

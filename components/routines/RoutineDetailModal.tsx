@@ -1,4 +1,4 @@
-import { X, Clock, BarChart, Check, Lock, PlayCircle } from 'lucide-react';
+import { X, Clock, Check, Lock, PlayCircle } from 'lucide-react';
 import { DrillRoutine } from '../../types';
 
 interface RoutineDetailModalProps {
@@ -79,8 +79,8 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({
                                 className="flex items-center gap-6 text-sm font-black italic text-zinc-300"
                             >
                                 <div className="flex items-center gap-2">
-                                    <BarChart className="w-5 h-5 text-violet-400" />
-                                    <span>{routine.drillCount || 0} DRILLS</span>
+                                    <PlayCircle className="w-5 h-5 text-violet-400" />
+                                    <span>{(routine.views || 0).toLocaleString()} 조회수</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Clock className="w-5 h-5 text-violet-400" />

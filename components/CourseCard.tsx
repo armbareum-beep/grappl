@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Course } from '../types';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, Bookmark, Share2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { toggleCourseSave, checkCourseSaved } from '../lib/api';
 import Player from '@vimeo/player';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
+
+const ShareModal = React.lazy(() => import('./social/ShareModal'));
 
 interface CourseCardProps {
     course: Course;
@@ -23,6 +27,36 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
     const playerRef = useRef<Player | null>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const seekBarRef = useRef<HTMLDivElement>(null);
+
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [isSaved, setIsSaved] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            checkCourseSaved(user.id, course.id).then(setIsSaved).catch(console.error);
+        }
+    }, [user, course.id]);
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault(); e.stopPropagation();
+        if (!user) { navigate('/login'); return; }
+
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+
+        try {
+            await toggleCourseSave(user.id, course.id);
+        } catch {
+            setIsSaved(!newStatus);
+        }
+    };
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.preventDefault(); e.stopPropagation();
+        setIsShareModalOpen(true);
+    };
 
     const getVimeoId = (url?: string) => {
         if (!url) return null;
@@ -119,7 +153,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Video/Thumbnail Area (16:9) */}
-            <div className="relative w-full aspect-[5/4] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-colors group-hover:border-zinc-700">
+            <div className="relative w-full aspect-[16/9] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-colors group-hover:border-zinc-700">
                 <Link to={`/courses/${course.id}`} className="absolute inset-0 block overflow-hidden">
                     <img
                         src={course.thumbnailUrl}
@@ -127,19 +161,40 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering && hasAccess ? 'scale-110' : 'scale-100')}
                     />
 
-                    {/* Left side badges: Free status */}
-                    {(isDailyFree || (course as any).isDailyFree) && (
-                        <ContentBadge type="daily_free" className="absolute top-2 left-2" />
-                    )}
-
-                    {/* Right side badges: Popularity or Recent */}
-                    <div className="absolute top-2 right-2">
-                        {rank || (course as any).rank ? (
+                    {/* Badge — top-left, single: FREE > HOT > NEW */}
+                    <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
+                        {(isDailyFree || (course as any).isDailyFree) ? (
+                            <ContentBadge type="daily_free" />
+                        ) : (rank || (course as any).rank) ? (
                             <ContentBadge type="popular" rank={rank || (course as any).rank} />
                         ) : (course.createdAt && new Date(course.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
                             <ContentBadge type="recent" />
                         ) : null}
                     </div>
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 z-[1]" />
+
+                    {/* Save — top-right */}
+                    <button
+                        className={cn(
+                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                        )}
+                        onClick={handleSave}
+                        aria-label="저장"
+                    >
+                        <Bookmark className={cn("w-4 h-4", isSaved && "fill-violet-500")} />
+                    </button>
+
+                    {/* Share — bottom-right */}
+                    <button
+                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                        onClick={handleShare}
+                        aria-label="공유"
+                    >
+                        <Share2 className="w-4 h-4" />
+                    </button>
 
                     {showVideo && vimeoId && hasAccess && (
                         <div className="absolute inset-0 z-10 bg-black animate-fade-in">
@@ -172,6 +227,19 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                 )}
             </div>
 
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={course.title}
+                        text={`${course.creatorName || 'Grapplay'}님의 강좌를 확인해보세요!`}
+                        imageUrl={course.thumbnailUrl}
+                        url={`${window.location.origin}/courses/${course.id}`}
+                    />
+                )}
+            </React.Suspense>
+
             {/* Information Area (Below Video) */}
             <div className="flex gap-3 px-1">
                 {/* Creator Avatar */}
@@ -202,7 +270,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
                         <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
                             <PlayCircle className="w-3 h-3" />
-                            <span>{course.lessonCount || 0} Lessons</span>
+                            <span>{(course.views || 0).toLocaleString()} 조회수</span>
                         </div>
                     </div>
                 </div>

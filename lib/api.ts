@@ -293,7 +293,7 @@ export async function getCreators(): Promise<Creator[]> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*, user:users(avatar_url)')
+                .select('*')
                 .eq('approved', true)
                 .order('subscriber_count', { ascending: false }),
             5000 // 5s timeout
@@ -316,7 +316,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*, user:users(avatar_url)')
+                .select('*')
                 .eq('id', id)
                 .maybeSingle(),
             5000
@@ -330,7 +330,43 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
             throw error;
         }
 
-        return data ? transformCreator(data) : null;
+        if (data) {
+            // If no profile_image in creators, try to get avatar from users table
+            if (!data.profile_image) {
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('avatar_url')
+                    .eq('id', id)
+                    .maybeSingle();
+                if (userData?.avatar_url) {
+                    data.profile_image = userData.avatar_url;
+                }
+            }
+            return transformCreator(data);
+        }
+
+        // Fallback: If not found in creators table, check users table
+        const { data: userData, error: userError } = await withTimeout(
+            supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .eq('id', id)
+                .maybeSingle(),
+            5000
+        );
+
+        if (userError || !userData) {
+            return null;
+        }
+
+        // Return user data as a Creator object
+        return {
+            id: userData.id,
+            name: userData.name || 'Unknown',
+            bio: '',
+            profileImage: userData.avatar_url || '',
+            subscriberCount: 0,
+        };
     } catch (e) {
         console.error('getCreatorById timeout/fail:', e);
         return null;
@@ -890,7 +926,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                 .from('sparring_videos')
                 .select('*')
                 .eq('is_published', true)
-                .gt('price', 0)
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .limit(limit),
             5000
@@ -1539,7 +1575,7 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
 
 // Enhanced Recent Activity (Lessons + Routines + Sparring)
 export async function getRecentActivity(userId: string) {
-    const [lessonRes, routineLogRes, sparringRes, drillRes] = await Promise.all([
+    const [lessonRes] = await Promise.all([
         // 1. Lessons Progress
         withTimeout(supabase
             .from('lesson_progress')
@@ -1549,50 +1585,13 @@ export async function getRecentActivity(userId: string) {
                     id, title, lesson_number,
                     course:courses (
                         id, title, thumbnail_url, category,
-                        creator:creators ( name )
+                        creator:creators ( id, name, profile_image )
                     )
                 )
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(5), 5000),
-
-        // 2. Completed Routines (Using training_logs as history)
-        withTimeout(supabase
-            .from('training_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .not('metadata->>routineId', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(5), 2000),
-
-        // 3. Sparring View History
-        withTimeout(supabase
-            .from('user_sparring_views')
-            .select(`
-                last_watched_at,
-                sparring_videos (
-                    id, title, thumbnail_url, video_url,
-                    creator:creators ( name )
-                )
-            `)
-            .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 2000),
-
-        // 4. Drill View History
-        withTimeout(supabase
-            .from('user_drill_views')
-            .select(`
-                 last_watched_at,
-                 drills (
-                     id, title, thumbnail_url,
-                     creator:creators ( name )
-                 )
-             `)
-            .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 2000)
+            .limit(10), 5000)
     ]);
 
     const lessons = (lessonRes.data || []).map((item: any) => {
@@ -1602,8 +1601,10 @@ export async function getRecentActivity(userId: string) {
             courseId: l?.course?.id,
             type: 'lesson',
             title: l?.title,
-            courseTitle: l?.course?.creator?.name || l?.course?.title || '레슨',
+            courseTitle: l?.course?.title || '레슨',
             creatorName: l?.course?.creator?.name,
+            creatorId: l?.course?.creator?.id,
+            creatorProfileImage: l?.course?.creator?.profile_image,
             progress: item.completed ? 100 : 50,
             watchedSeconds: item.watched_seconds || 0,
             thumbnail: l?.course?.thumbnail_url || l?.thumbnail_url,
@@ -1612,53 +1613,70 @@ export async function getRecentActivity(userId: string) {
         };
     }).filter(item => item.id && item.id !== 'undefined' && item.courseId && item.courseId !== 'undefined');
 
-    const routines = (routineLogRes.data || []).map((log: any) => {
-        const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : (log.metadata || {});
+    return lessons;
+}
+
+export async function getLessonHistory(userId: string, limit: number = 100) {
+    const { data, error } = await supabase
+        .from('lesson_progress')
+        .select(`
+            *,
+            lesson:lessons (
+                id, title, lesson_number,
+                course:courses (
+                    id, title, thumbnail_url, category,
+                    creator:creators ( name, profile_image )
+                )
+            )
+        `)
+        .eq('user_id', userId)
+        .order('last_watched_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching lesson history:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => {
+        const l = item.lesson;
+        // Use fake progress if duration is unknown, or 100 if completed
+        const watchedSec = item.watched_seconds || 0;
+        let progress = 0;
+
+        if (item.completed) {
+            progress = 100;
+        } else if (watchedSec > 0) {
+            // If we have watched seconds but no duration, assume 30% or show partial
+            // Or better: check if we can get duration from somewhere else? 
+            // For now, use a visual indicator or fallback.
+            // Let's just create a progress based on a rough estimate (e.g. 10 mins) if needed
+            // OR just stick to what getRecentActivity does.
+            // But History usually needs accurate progress.
+            // Since we can't get duration, we'll try to use a default or 50% for "in progress".
+            progress = item.progress_percent || 50;
+            // NOTE: item.progress_percent might not exist in this table logic, 
+            // so we fallback to a visual "started" (e.g. 30% or whatever looks okay).
+            // Actually, let's keep it simple:
+            progress = item.percentage || 30; // Just show *some* progress if watched.
+        }
+
         return {
-            id: metadata.routineId,
-            type: 'routine',
-            title: metadata.routineTitle || 'Drill Routine',
-            courseTitle: metadata.sharedRoutine?.creatorName || '루틴',
-            creatorName: metadata.sharedRoutine?.creatorName,
-            progress: 100,
-            thumbnail: metadata.sharedRoutine?.thumbnailUrl || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
-            lastWatched: new Date(log.created_at).toISOString(),
+            id: l?.id,
+            courseId: l?.course?.id,
+            type: 'lesson',
+            title: l?.title,
+            courseTitle: l?.course?.title || '레슨',
+            creatorName: l?.course?.creator?.name,
+            creatorProfileImage: l?.course?.creator?.profile_image,
+            progress: item.completed ? 100 : (item.watched_seconds ? 50 : 0), // Fallback simplified
+            watchedSeconds: watchedSec,
+            thumbnail: l?.course?.thumbnail_url,
+            lastWatched: item.last_watched_at || item.created_at,
+            lessonNumber: l?.lesson_number,
+            durationMinutes: 0 // Duration unavailable via this query
         };
-    }).filter(item => item.id && item.id !== 'undefined');
-
-    const sparring = (sparringRes.data || []).map((item: any) => ({
-        id: item.sparring_videos?.id,
-        type: 'sparring',
-        title: item.sparring_videos?.title,
-        courseTitle: item.sparring_videos?.creator?.name || '스파링',
-        creatorName: item.sparring_videos?.creator?.name,
-        progress: 0,
-        thumbnail: item.sparring_videos?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    })).filter(item => item.id && item.id !== 'undefined');
-
-    const drills = (drillRes.data || []).map((item: any) => ({
-        id: item.drills?.id,
-        type: 'drill',
-        title: item.drills?.title,
-        courseTitle: item.drills?.creator?.name || '드릴',
-        creatorName: item.drills?.creator?.name,
-        progress: 0,
-        thumbnail: item.drills?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    })).filter(item => item.id && item.id !== 'undefined');
-
-    // Merge and Sort (Only Lessons and Routines as requested)
-    const allActivity = [...lessons, ...routines]
-        .filter(item => item.id) // Ensure we have unique ID
-        .sort((a, b) => {
-            const dateA = new Date(a.lastWatched).getTime();
-            const dateB = new Date(b.lastWatched).getTime();
-            return dateB - dateA;
-        })
-        .slice(0, 10);
-
-    return allActivity;
+    }).filter((item: any) => item.id && item.courseId);
 }
 
 // Creator Dashboard API
@@ -2912,13 +2930,45 @@ export async function getRecentCompletedRoutines(
             // 루틴 정보 가져오기
             const { data: routine } = await supabase
                 .from('routines')
-                .select('title, thumbnail_url')
+                .select('title, thumbnail_url, creator_id')
                 .eq('id', routineId)
                 .maybeSingle();
+
+            let creatorId: string | undefined;
+            let creatorName: string | undefined;
+            let creatorProfileImage: string | undefined;
 
             if (routine) {
                 routineTitle = routine.title;
                 routineThumbnail = routine.thumbnail_url;
+                creatorId = routine.creator_id;
+
+                // creator 프로필 정보 가져오기
+                if (routine.creator_id) {
+                    // 1. Try fetching from creators table
+                    const { data: creator } = await supabase
+                        .from('creators')
+                        .select('name, profile_image')
+                        .eq('id', routine.creator_id)
+                        .maybeSingle();
+
+                    if (creator) {
+                        creatorName = creator.name;
+                        creatorProfileImage = creator.profile_image;
+                    } else {
+                        // 2. Fallback: Try fetching from users table (for self-made routines by normal users)
+                        const { data: userCreator } = await supabase
+                            .from('users')
+                            .select('name, avatar_url')
+                            .eq('id', routine.creator_id)
+                            .maybeSingle();
+
+                        if (userCreator) {
+                            creatorName = userCreator.name;
+                            creatorProfileImage = userCreator.avatar_url;
+                        }
+                    }
+                }
             }
 
             enrichedData.push({
@@ -2930,7 +2980,10 @@ export async function getRecentCompletedRoutines(
                 durationSeconds: log.duration || metadata.durationSeconds, // Use metadata from parsed object
                 completedAt: log.created_at,
                 date: log.date || new Date(log.created_at).toISOString().split('T')[0],
-                techniques: log.techniques || []
+                techniques: log.techniques || [],
+                creatorId,
+                creatorName,
+                creatorProfileImage,
             });
         } catch (itemError) {
             console.error('[getRecentCompletedRoutines] Error processing log item:', itemError);
@@ -5748,7 +5801,6 @@ export async function getDailyFreeSparring() {
                     .select('*')
                     .eq('is_published', true)
                     .is('deleted_at', null)
-                    .gt('price', 0)
                     .neq('video_url', '')
                     .not('video_url', 'like', 'ERROR%')
                     .order('id')
@@ -8527,3 +8579,4 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
         updatedAt: data.updated_at
     };
 }
+

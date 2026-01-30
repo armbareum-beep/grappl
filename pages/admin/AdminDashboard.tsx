@@ -18,7 +18,9 @@ export const AdminDashboard: React.FC = () => {
         totalUsers: 0,
         totalDrills: 0,
         pendingCreators: 0,
-        totalCourses: 0
+        totalCreators: 0,
+        totalCourses: 0,
+        totalSparring: 0
     });
     const [chartData, setChartData] = useState<{ salesData: any[]; userGrowthData: any[] }>({ salesData: [], userGrowthData: [] });
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
@@ -79,7 +81,7 @@ export const AdminDashboard: React.FC = () => {
                 },
                 {
                     title: "스파링 관리",
-                    desc: "스파링 및 대회 영상",
+                    desc: `총 ${stats.totalSparring}개의 영상`,
                     icon: Swords,
                     bg: "bg-rose-400/10",
                     link: "/admin/sparring"
@@ -112,7 +114,7 @@ export const AdminDashboard: React.FC = () => {
                 },
                 {
                     title: "인스트럭터 관리",
-                    desc: `${stats.pendingCreators}건의 대기 중인 신청`,
+                    desc: `총 ${stats.totalCreators}명의 인스트럭터 (${stats.pendingCreators}건 대기)`,
                     icon: Shield,
                     bg: "bg-purple-400/10",
                     link: "/admin/creators",
@@ -158,13 +160,22 @@ export const AdminDashboard: React.FC = () => {
                     bg: "bg-orange-400/10",
                     link: "/admin/marketing"
                 },
+
                 {
                     title: "정산 모니터링",
                     desc: "매출 및 정산 현황",
                     icon: DollarSign,
                     bg: "bg-green-400/10",
                     link: "/admin/payouts"
+                },
+                {
+                    title: "Vimeo 클린업",
+                    desc: "미연동 영상 및 저장소 정리",
+                    icon: Video,
+                    bg: "bg-rose-400/10",
+                    link: "/admin/vimeo"
                 }
+
             ]
         }
     ];
@@ -200,8 +211,8 @@ export const AdminDashboard: React.FC = () => {
                     {[
                         { label: '총 사용자', value: stats.totalUsers, icon: Users, color: 'violet' },
                         { label: '총 강좌', value: stats.totalCourses, icon: BookOpen, color: 'blue' },
-                        { label: '총 드릴', value: stats.totalDrills, icon: Dumbbell, color: 'emerald' },
-                        { label: '승인 대기', value: stats.pendingCreators, icon: Shield, color: 'rose', alert: stats.pendingCreators > 0 }
+                        { label: '인스트럭터', value: stats.totalCreators, icon: Shield, color: 'purple', alert: stats.pendingCreators > 0 },
+                        { label: '스파링 영상', value: stats.totalSparring, icon: Swords, color: 'rose' }
                     ].map((kpi, i) => (
                         <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group relative overflow-hidden">
                             <div className="flex items-center justify-between mb-4">

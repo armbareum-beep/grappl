@@ -191,15 +191,15 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
                                         onClick={() => !alreadyAdded && handleAddToRoutine(routine)}
                                         disabled={alreadyAdded}
                                         className={`w-full bg-slate-800 rounded-xl p-4 text-left transition-all ${alreadyAdded
-                                                ? 'opacity-50 cursor-not-allowed'
-                                                : 'hover:bg-slate-700 hover:border-blue-500'
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : 'hover:bg-slate-700 hover:border-blue-500'
                                             } border border-slate-700`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="text-white font-bold text-sm mb-1">{routine.title}</h4>
                                                 <p className="text-slate-400 text-xs">
-                                                    {routine.drillCount || 0}개 드릴 · {routine.totalDurationMinutes || 0}분
+                                                    {(routine.views || 0).toLocaleString()} 조회수 · {routine.totalDurationMinutes || 0}분
                                                 </p>
                                             </div>
                                             {alreadyAdded && (

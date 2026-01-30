@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingScreen } from './components/LoadingScreen';
 import { Home } from './pages/Home';
+import { History } from './pages/History';
 import { Browse } from './pages/Browse';
 import { VideoDetail } from './pages/VideoDetail';
 import { Pricing } from './pages/Pricing';
@@ -34,6 +35,8 @@ import { AdminSupportList } from './pages/admin/AdminSupportList';
 import { AdminContentApproval } from './pages/admin/AdminContentApproval';
 import { AdminSystemLogs } from './pages/admin/AdminSystemLogs';
 import { AdminNotifications } from './pages/admin/AdminNotifications';
+import { AdminVimeoManagement } from './pages/admin/AdminVimeoManagement';
+
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
 import { CreatorProfile } from './pages/CreatorProfile';
@@ -237,6 +240,11 @@ const App: React.FC = () => {
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/v2" element={<LandingPageV2 />} />
                 <Route path="/home" element={<Home />} />
+                <Route path="/history" element={
+                  <ProtectedRoute>
+                    <History />
+                  </ProtectedRoute>
+                } />
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/bundles" element={<Bundles />} />
                 <Route path="/courses" element={<Browse />} />
@@ -400,6 +408,12 @@ const App: React.FC = () => {
                     <AdminNotifications />
                   </AdminRoute>
                 } />
+                <Route path="/admin/vimeo" element={
+                  <AdminRoute>
+                    <AdminVimeoManagement />
+                  </AdminRoute>
+                } />
+
                 <Route path="/admin/audit-logs" element={
                   <AdminRoute>
                     <Navigate to="/admin" replace />

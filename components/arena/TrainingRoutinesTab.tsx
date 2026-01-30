@@ -3,7 +3,7 @@ import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, Chevr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getUserSavedDrills, toggleDrillSave } from '../../lib/api';
+import { getUserSavedDrills, toggleDrillSave, getUserSavedRoutines } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
@@ -163,8 +163,12 @@ export const TrainingRoutinesTab: React.FC = () => {
             } else {
                 // Logged in user logic
                 const { getUserRoutines } = await import('../../lib/api');
-                const result = await getUserRoutines(user.id);
-                if (result.error) throw result.error;
+                const [createdRes, savedRoutines] = await Promise.all([
+                    getUserRoutines(user.id),
+                    getUserSavedRoutines(user.id)
+                ]);
+
+                if (createdRes.error) throw createdRes.error;
 
                 let customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
 
@@ -184,14 +188,27 @@ export const TrainingRoutinesTab: React.FC = () => {
                 }));
                 localStorage.setItem('my_custom_routines', JSON.stringify(customRoutines));
 
-                if (result.data) {
-                    const combined = [...customRoutines, ...result.data];
-                    // Sort by creation date new -> old
-                    combined.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                    setRoutines(combined);
-                } else {
-                    setRoutines(customRoutines);
-                }
+                // Combine: Custom + Created + Saved (deduplicated)
+                const routineMap = new Map<string, DrillRoutine>();
+
+                const allRoutines = [
+                    ...customRoutines,
+                    ...(createdRes.data || []),
+                    ...(savedRoutines || [])
+                ];
+
+                allRoutines.forEach(r => {
+                    if (!routineMap.has(r.id)) {
+                        routineMap.set(r.id, r);
+                    }
+                });
+
+                const uniqueRoutines = Array.from(routineMap.values());
+
+                // Sort by creation date new -> old
+                uniqueRoutines.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+                setRoutines(uniqueRoutines);
             }
         } catch (err: any) {
             console.error('Error loading routines:', err);
@@ -692,8 +709,8 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                         {routine.totalDurationMinutes || 0}분
                                                     </span>
                                                     <span className="flex items-center gap-1">
-                                                        <Dumbbell className="w-3.5 h-3.5 text-zinc-500" />
-                                                        {routine.drillCount || 0}개 드릴
+                                                        <PlaySquare className="w-3.5 h-3.5 text-zinc-500" />
+                                                        {(routine.views || 0).toLocaleString()} 조회수
                                                     </span>
                                                 </div>
                                                 {/* Creator Info */}
@@ -807,7 +824,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             </h3>
                                             <p className="text-xs text-zinc-500 mb-1.5 whitespace-pre-wrap">{routine.description}</p>
                                             <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
-                                                <span>{routine.drillCount}개 드릴</span>
+                                                <span>{(routine.views || 0).toLocaleString()} 조회수</span>
                                                 <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="pt-3 border-t border-zinc-800/50 flex items-center justify-between group/creator">

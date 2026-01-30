@@ -223,7 +223,7 @@ export const LandingPage: React.FC = () => {
                 <div className="z-10 mt-8 md:mt-12 flex flex-col sm:flex-row gap-4">
                     <button
                         className="relative group bg-zinc-100 hover:bg-white text-black font-bold rounded-full px-8 py-4 transition-all transform hover:-translate-y-1 shadow-[0_0_25px_rgba(255,255,255,0.2)] overflow-hidden"
-                        onClick={() => navigate('/watch')}
+                        onClick={() => navigate('/library?tab=all')}
                     >
                         <span className="relative z-10">독점 강의 지금 보기</span>
                         <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>

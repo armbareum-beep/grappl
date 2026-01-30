@@ -378,7 +378,7 @@ export const CreatorProfile: React.FC = () => {
                 {activeTab === 'sparring' && (
                     <>
                         {sparringVideos.length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {sparringVideos.map((video) => (
                                     <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
                                         <Link to={`/sparring?id=${video.id}`} className="relative aspect-square bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all">
@@ -397,10 +397,14 @@ export const CreatorProfile: React.FC = () => {
                                             <Link to={`/sparring?id=${video.id}`}>
                                                 <h4 className="font-bold text-zinc-100 text-sm md:text-base line-clamp-1 leading-tight mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h4>
                                             </Link>
-                                            <div className="flex items-center text-[10px] md:text-xs text-zinc-500 gap-2 font-medium">
-                                                <span>{video.views.toLocaleString()} views</span>
-                                                <span>•</span>
-                                                <span>{new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
+                                            <div className="flex items-center justify-between gap-4 mt-1.5">
+                                                <p className="text-zinc-500 text-[11px] md:text-xs font-medium truncate">
+                                                    {creator.name}
+                                                </p>
+                                                <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                                                    <PlayCircle className="w-3 h-3" />
+                                                    <span>{(video.views || 0).toLocaleString()} 조회수</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -4,7 +4,7 @@ import { getDrillRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineV
 import { DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { PlayCircle, List, Eye, ArrowLeft, Clock, Share2 } from 'lucide-react';
+import { PlayCircle, Eye, ArrowLeft, Clock, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 
@@ -161,8 +161,8 @@ export const DrillRoutineDetail: React.FC = () => {
                             <div className="absolute bottom-4 left-4 right-4">
                                 <div className="flex items-center gap-3 text-white text-sm">
                                     <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded px-3 py-1.5">
-                                        <List className="w-4 h-4" />
-                                        <span className="font-semibold">{routine.drillCount}개 드릴</span>
+                                        <PlayCircle className="w-4 h-4" />
+                                        <span className="font-semibold">{(routine.views || 0).toLocaleString()} 조회수</span>
                                     </div>
                                     <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded px-3 py-1.5">
                                         <Clock className="w-4 h-4" />

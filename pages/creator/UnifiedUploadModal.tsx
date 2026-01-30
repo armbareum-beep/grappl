@@ -342,6 +342,18 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 if (url) thumbnailUrl = url;
             }
 
+            // Determine instructor name for Vimeo folder organization
+            let instructorName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown';
+            if (isAdmin && selectedCreatorId) {
+                const selectedCreator = creators.find(c => c.id === selectedCreatorId);
+                if (selectedCreator) instructorName = selectedCreator.name;
+            } else if (user?.id) {
+                // If not admin or no selected creator, but user is logged in, try to find their creator name
+                // (though user.name is usually sufficient)
+                const creator = creators.find(c => c.id === user.id);
+                if (creator) instructorName = creator.name;
+            }
+
             const commonData = {
                 title: formData.title,
                 description: formData.description,
@@ -383,7 +395,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     drillId: contentType === 'drill' ? contentId : undefined,
                     lessonId: contentType === 'lesson' ? contentId : undefined,
                     sparringId: contentType === 'sparring' ? contentId : undefined,
-                    videoType: contentType === 'sparring' ? 'sparring' : 'action'
+                    videoType: contentType === 'sparring' ? 'sparring' : 'action',
+                    instructorName
                 });
             }
 
@@ -402,7 +415,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     title: `[DRILL DESC] ${formData.title}`,
                     description: formData.description,
                     drillId: contentId,
-                    videoType: 'desc'
+                    videoType: 'desc',
+                    instructorName
                 });
             }
 
@@ -501,8 +515,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             onCancel={() => setActiveEditor(null)}
                             aspectRatio={contentType === 'drill' ? '9:16' : '16:9'}
                             thumbnailAspectRatio={
-                                contentType === 'drill' ? 4 / 5 :
-                                    contentType === 'lesson' ? 5 / 4 :
+                                contentType === 'drill' ? 9 / 16 :
+                                    contentType === 'lesson' ? 16 / 9 :
                                         1
                             }
                         />

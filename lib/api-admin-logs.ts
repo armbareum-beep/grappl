@@ -1,4 +1,6 @@
 
+import { supabase } from './supabase';
+
 // ==================== System Logs ====================
 
 export async function getSystemLogs(limit = 100) {

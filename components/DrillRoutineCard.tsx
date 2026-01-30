@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { DrillRoutine } from '../types';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, Bookmark, Share2 } from 'lucide-react';
 import Player from '@vimeo/player';
+import { toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
 
@@ -13,6 +15,14 @@ interface DrillRoutineCardProps {
 }
 
 export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false }) => {
+    const { user } = useAuth();
+    const [isSaved, setIsSaved] = useState(false);
+
+    useEffect(() => {
+        if (user && routine.id) {
+            checkRoutineSaved(user.id, routine.id).then(setIsSaved).catch(console.error);
+        }
+    }, [user, routine.id]);
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -128,23 +138,48 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                         )}
                     />
 
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Badge — top-left, single: FREE > HOT > NEW */}
+                    <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
+                        {rank ? (
+                            <ContentBadge type="popular" rank={rank} />
+                        ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                            <ContentBadge type="recent" />
+                        ) : null}
+                    </div>
 
-                    {/* Play Icon Overlay */}
-                    {!showVideo && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                                <PlayCircle className="w-8 h-8 text-white fill-white/20" />
-                            </div>
-                        </div>
-                    )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 z-[1]" />
 
-                    {(rank) ? (
-                        <ContentBadge type="popular" rank={rank} className="absolute top-2 right-2 z-20" />
-                    ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                        <ContentBadge type="recent" className="absolute top-2 right-2 z-20" />
-                    ) : null}
+                    {/* Save — top-right */}
+                    <button
+                        className={cn(
+                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                        )}
+                        onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!user) return;
+                            try {
+                                await toggleRoutineSave(user.id, routine.id);
+                                setIsSaved(!isSaved);
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        }}
+                        aria-label="저장"
+                    >
+                        <Bookmark className={cn("w-4 h-4", isSaved && "fill-current")} />
+                    </button>
+
+                    {/* Share — bottom-right */}
+                    <button
+                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        aria-label="공유"
+                    >
+                        <Share2 className="w-4 h-4" />
+                    </button>
 
                     {showVideo && vimeoId && hasAccess && (
                         <div className="absolute inset-0 z-10 bg-black animate-fade-in">
@@ -182,9 +217,15 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                         {routine.title}
                     </h3>
                 </Link>
-                <p className="text-zinc-500 text-[11px] md:text-xs font-medium">
-                    {routine.creatorName}
-                </p>
+                <div className="flex items-center justify-between gap-4 mt-1.5">
+                    <p className="text-zinc-500 text-[11px] md:text-xs font-medium truncate">
+                        {routine.creatorName}
+                    </p>
+                    <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                        <PlayCircle className="w-3 h-3" />
+                        <span>{(routine.views || 0).toLocaleString()} 조회수</span>
+                    </div>
+                </div>
             </div>
             <style>{`
                 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

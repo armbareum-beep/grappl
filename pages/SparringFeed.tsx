@@ -414,8 +414,8 @@ const VideoItem: React.FC<{
                                         </button>
                                         <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                                     </div>
-                                    <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                        <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
+                                    <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className={cn("p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl", isSaved ? "text-violet-500" : "text-white")}>
+                                        <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-violet-500")} />
                                     </button>
                                     <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
                                         <Share2 className="w-5 h-5 md:w-6 md:h-6" />
@@ -506,14 +506,164 @@ const VideoItem: React.FC<{
     );
 };
 
+const SparringGridItem: React.FC<{
+    video: SparringVideo;
+    idx: number;
+    setActiveIndex: (idx: number) => void;
+    setViewMode: (mode: 'reels' | 'grid') => void;
+}> = ({ video, idx, setActiveIndex, setViewMode }) => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [isSaved, setIsSaved] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            import('../lib/api').then(({ checkSparringSaved }) => {
+                checkSparringSaved(user.id, video.id).then(setIsSaved).catch(() => { });
+            });
+        }
+    }, [user, video.id]);
+
+    const handleSave = async () => {
+        if (!user) { navigate('/login'); return; }
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+        try {
+            const { toggleSparringSave } = await import('../lib/api');
+            await toggleSparringSave(user.id, video.id);
+        } catch {
+            setIsSaved(!newStatus);
+        }
+    };
+
+    const handleShare = () => {
+        setIsShareModalOpen(true);
+    };
+
+    return (
+        <div
+            className="group cursor-pointer"
+            onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                setActiveIndex(idx);
+                setViewMode('reels');
+            }}
+        >
+            {/* Thumbnail Card */}
+            <div className="relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30">
+                <Link to={`?view=reels&id=${video.id}`} className="absolute inset-0 block" onClick={(e) => {
+                    e.preventDefault();
+                    setActiveIndex(idx);
+                    setViewMode('reels');
+                }}>
+                    <img
+                        src={video.thumbnailUrl || (video.videoUrl && !video.videoUrl.startsWith('http') ? `https://vumbnail.com/${video.videoUrl}.jpg` : '')}
+                        alt={video.title}
+                        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                    />
+
+                    {/* Badge — top-left, single: FREE > HOT > NEW */}
+                    <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
+                        {video.isDailyFree ? (
+                            <ContentBadge type="daily_free" />
+                        ) : video.rank ? (
+                            <ContentBadge type="popular" rank={video.rank} />
+                        ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                            <ContentBadge type="recent" />
+                        ) : null}
+                    </div>
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+
+                    {/* Save — top-right */}
+                    <button
+                        className={cn(
+                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                        )}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSave(); }}
+                        aria-label="저장"
+                    >
+                        <Bookmark className={cn("w-4 h-4", isSaved && "fill-violet-500")} />
+                    </button>
+
+                    {/* Share — bottom-right */}
+                    <button
+                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }}
+                        aria-label="공유"
+                    >
+                        <Share2 className="w-4 h-4" />
+                    </button>
+                </Link>
+            </div>
+
+            <React.Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={video.title}
+                        text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
+                        imageUrl={video.thumbnailUrl}
+                        url={`${window.location.origin}/sparring?id=${video.id}`}
+                    />
+                )}
+            </React.Suspense>
+
+            {/* Info Area */}
+            <div className="flex gap-3 px-1">
+                {/* Creator Avatar */}
+                <Link to={`/creator/${video.creatorId}`} className="shrink-0 pt-0.5" onClick={e => e.stopPropagation()}>
+                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-colors">
+                        {(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage ? (
+                            <img src={(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                {video.creator?.name?.charAt(0)}
+                            </div>
+                        )}
+                    </div>
+                </Link>
+
+                {/* Text Info */}
+                <div className="flex-1 min-w-0 pr-1">
+                    <div onClick={(e) => {
+                        e.preventDefault();
+                        setActiveIndex(idx);
+                        setViewMode('reels');
+                    }}>
+                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                            {video.title}
+                        </h3>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 mt-1.5">
+                        <Link to={`/creator/${video.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium truncate hover:text-zinc-200 transition-colors" onClick={e => e.stopPropagation()}>
+                            {video.creator?.name || 'Unknown'}
+                        </Link>
+
+                        <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                            <PlaySquare className="w-3 h-3" />
+                            <span>{video.views || 0} Views</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
-import { LibraryTabs } from '../components/library/LibraryTabs';
+import { LibraryTabs, LibraryTabType } from '../components/library/LibraryTabs';
 
 export const SparringFeed: React.FC<{
     isEmbedded?: boolean;
-    activeTab?: 'classes' | 'routines' | 'sparring';
-    onTabChange?: (tab: 'classes' | 'routines' | 'sparring') => void;
+    activeTab?: LibraryTabType;
+    onTabChange?: (tab: LibraryTabType) => void;
     forceViewMode?: 'grid' | 'reels';
 }> = ({ isEmbedded, activeTab, onTabChange, forceViewMode }) => {
     const [videos, setVideos] = useState<SparringVideo[]>([]);
@@ -692,7 +842,7 @@ export const SparringFeed: React.FC<{
                 )}
 
                 {/* Header & Filter System - Hidden if embedded */}
-                <div className="flex flex-col gap-8 mb-12">
+                <div className="flex flex-col gap-8 mb-8 mt-8">
                     {!isEmbedded && <h1 className="text-3xl font-bold text-white mb-2">스파링</h1>}
 
                     {/* Search & Stats */}
@@ -900,87 +1050,13 @@ export const SparringFeed: React.FC<{
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8">
                         {filteredVideos.map((video, idx) => (
-                            <div
+                            <SparringGridItem
                                 key={video.id}
-                                className="group cursor-pointer"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setActiveIndex(idx);
-                                    setViewMode('reels');
-                                }}
-                            >
-                                <div className="relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30">
-                                    <Link to={`?view=reels&id=${video.id}`} className="absolute inset-0 block" onClick={(e) => {
-                                        e.preventDefault();
-                                        setActiveIndex(idx);
-                                        setViewMode('reels');
-                                    }}>
-                                        <img
-                                            src={video.thumbnailUrl || (video.videoUrl && !video.videoUrl.startsWith('http') ? `https://vumbnail.com/${video.videoUrl}.jpg` : '')}
-                                            alt={video.title}
-                                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
-                                        />
-                                        {/* Badges */}
-                                        <div className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
-                                            {video.isDailyFree && (
-                                                <ContentBadge type="daily_free" />
-                                            )}
-                                            <div className="ml-auto">
-                                                {video.rank ? (
-                                                    <ContentBadge type="popular" rank={video.rank} />
-                                                ) : (video.createdAt && new Date(video.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                                    <ContentBadge type="recent" />
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="absolute top-3 right-3 text-white/30 group-hover:text-violet-400 transition-colors">
-                                            <PlaySquare className="w-4 h-4" />
-                                        </div>
-                                    </Link>
-                                </div>
-
-                                {/* Info Area */}
-                                <div className="flex gap-3 px-1">
-                                    {/* Creator Avatar */}
-                                    <Link to={`/creator/${video.creatorId}`} className="shrink-0 pt-0.5" onClick={e => e.stopPropagation()}>
-                                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-colors">
-                                            {(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage ? (
-                                                <img src={(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                                    {video.creator?.name?.charAt(0)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </Link>
-
-                                    {/* Text Info */}
-                                    <div className="flex-1 min-w-0 pr-1">
-                                        <div onClick={(e) => {
-                                            e.preventDefault();
-                                            setActiveIndex(idx);
-                                            setViewMode('reels');
-                                        }}>
-                                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
-                                                {video.title}
-                                            </h3>
-                                        </div>
-
-                                        <div className="flex items-center justify-between gap-4 mt-1.5">
-                                            <Link to={`/creator/${video.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium truncate hover:text-zinc-200 transition-colors" onClick={e => e.stopPropagation()}>
-                                                {video.creator?.name || 'Unknown'}
-                                            </Link>
-
-                                            <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
-                                                <PlaySquare className="w-3 h-3" />
-                                                <span>{video.views || 0} Views</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                video={video}
+                                idx={idx}
+                                setActiveIndex={setActiveIndex}
+                                setViewMode={setViewMode}
+                            />
                         ))}
                     </div>
                 )}

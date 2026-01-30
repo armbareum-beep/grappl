@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+export * from './api-admin-logs';
 import { AuditLog, SiteSettings } from '../types';
 
 
@@ -7,27 +8,33 @@ export interface AdminStats {
     totalUsers: number;
     totalDrills: number;
     pendingCreators: number;
+    totalCreators: number;
     totalCourses: number;
+    totalSparring: number;
 }
 
 export const getAdminStats = async (): Promise<AdminStats> => {
     try {
-        const [users, drills, creators, courses] = await Promise.all([
+        const [users, drills, pendingCreators, creators, courses, sparring] = await Promise.all([
             supabase.from('users').select('*', { count: 'exact', head: true }),
             supabase.from('drills').select('*', { count: 'exact', head: true }),
-            supabase.from('creator_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-            supabase.from('courses').select('*', { count: 'exact', head: true })
+            supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', false),
+            supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', true),
+            supabase.from('courses').select('*', { count: 'exact', head: true }),
+            supabase.from('sparring_videos').select('*', { count: 'exact', head: true }).is('deleted_at', null)
         ]);
 
         return {
             totalUsers: users.count || 0,
             totalDrills: drills.count || 0,
-            pendingCreators: creators.count || 0,
-            totalCourses: courses.count || 0
+            pendingCreators: pendingCreators.count || 0,
+            totalCreators: creators.count || 0,
+            totalCourses: courses.count || 0,
+            totalSparring: sparring.count || 0
         };
     } catch (error) {
         console.error('Error fetching admin stats:', error);
-        return { totalUsers: 0, totalDrills: 0, pendingCreators: 0, totalCourses: 0 };
+        return { totalUsers: 0, totalDrills: 0, pendingCreators: 0, totalCreators: 0, totalCourses: 0, totalSparring: 0 };
     }
 };
 
@@ -153,7 +160,7 @@ export async function deleteLessonAdmin(lessonId: string) {
     return { error };
 }
 
-export async function getSparringVideosAdmin() {
+export async function getSparringVideosAdmin(): Promise<any[]> {
     const { data, error } = await supabase
         .from('sparring_videos')
         .select(`
@@ -163,12 +170,28 @@ export async function getSparringVideosAdmin() {
         .order('created_at', { ascending: false });
 
     if (error) {
-        // If table doesn't exist, return empty array
         if (error.code === '42P01') return [];
         console.error('Error fetching sparring videos:', error);
         return [];
     }
-    return data || [];
+
+    // Transform to frontend-friendly camelCase
+    return (data || []).map(row => ({
+        ...row,
+        creatorId: row.creator_id,
+        videoUrl: row.video_url,
+        thumbnailUrl: row.thumbnail_url,
+        uniformType: row.uniform_type,
+        isPublished: row.is_published,
+        previewVimeoId: row.preview_vimeo_id,
+        createdAt: row.created_at,
+        price: typeof row.price === 'string' ? parseInt(row.price) : (row.price || 0),
+        creator: row.creator ? {
+            id: row.creator_id,
+            name: (row.creator as any).name,
+            profileImage: (row.creator as any).profile_image
+        } : null
+    }));
 }
 
 export async function deleteSparringVideoAdmin(videoId: string) {
@@ -446,13 +469,15 @@ export async function getAdminTopPerformers() {
             courses: topCourses.data?.map(c => ({
                 id: c.id,
                 title: c.title,
-                salesCount: c.views, // Using views as a proxy for now if sales data per course is not directly summarized
+                salesCount: c.views, // Using views as a proxy
+                revenue: (c.views || 0) * 10000, // Proxy revenue
                 instructor: (c.creator as any)?.name
             })) || [],
             creators: topCreators.data?.map(cr => ({
                 id: cr.id,
                 name: cr.name,
-                subscribers: cr.subscriber_count
+                subscribers: cr.subscriber_count,
+                revenue: (cr.subscriber_count || 0) * 50000 // Proxy revenue
             })) || []
         };
     } catch (error) {
@@ -743,14 +768,31 @@ export async function getUserActivityStats(userId: string) {
     };
 }
 
-// ==================== System Logs ====================
 
-export async function getSystemLogs(limit = 100) {
-    const { data, error } = await supabase
-        .from('system_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+// ==================== Vimeo Management ====================
 
-    return { data, error };
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://grappl-video-backend.onrender.com';
+
+export interface VimeoOrphan {
+    id: string;
+    name: string;
+    link: string;
+    createdAt: string;
+    duration: number;
+    thumbnail?: string;
 }
+
+export async function getVimeoOrphans(): Promise<{ count: number; total: number; orphans: VimeoOrphan[] }> {
+    const response = await fetch(`${BACKEND_URL}/api/admin/vimeo/orphans`);
+    if (!response.ok) throw new Error('Failed to fetch Vimeo orphans');
+    return response.json();
+}
+
+export async function deleteVimeoVideo(videoId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${BACKEND_URL}/api/admin/vimeo/${videoId}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete Vimeo video');
+    return response.json();
+}
+

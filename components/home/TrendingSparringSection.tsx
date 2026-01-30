@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Target, PlayCircle, ArrowRight } from 'lucide-react';
 import { SparringVideo } from '../../types';
 import { ContentBadge } from '../common/ContentBadge';
@@ -46,7 +46,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                 </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
                 {videos.map((video) => (
                     <div
                         key={video.id}
@@ -91,15 +91,39 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                         </div>
 
                         {/* Text Info */}
-                        <div className="px-1">
-                            <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
-                                {video.title}
-                            </h3>
-                            <div className="flex items-center justify-between mt-2">
-                                <p className="text-zinc-500 text-xs font-medium truncate max-w-[60%]">{video.creator?.name || 'Unknown'}</p>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                    {video.category || 'Sparring'}
-                                </span>
+                        <div className="flex gap-2.5 px-1">
+                            {/* Creator Avatar */}
+                            <Link
+                                to={`/creator/${video.creatorId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0 pt-0.5"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden hover:border-violet-500/50 transition-colors">
+                                    {(video.creatorProfileImage || video.creator?.profileImage) ? (
+                                        <img src={video.creatorProfileImage || video.creator?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                            {video.creator?.name?.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                            </Link>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-zinc-100 text-sm md:text-base font-bold line-clamp-2 leading-snug mb-1 group-hover:text-violet-400 transition-colors">
+                                    {video.title}
+                                </h3>
+                                <div className="flex items-center justify-between">
+                                    <Link
+                                        to={`/creator/${video.creatorId}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-zinc-500 text-xs font-medium truncate max-w-[60%] hover:text-zinc-300 transition-colors"
+                                    >
+                                        {video.creator?.name || 'Unknown'}
+                                    </Link>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                        {video.category || 'Sparring'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

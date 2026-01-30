@@ -79,6 +79,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, []);
 
+  // Close search and mobile menu on route change
+  React.useEffect(() => {
+    setSearchModalOpen(false);
+    setMobileMenuOpen(false);
+  }, [location]);
+
   const navigation = React.useMemo(() => {
     const nav = [
       { name: '홈', href: '/home', icon: Home },

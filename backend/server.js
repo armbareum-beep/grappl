@@ -113,7 +113,7 @@ console.log('[DEBUG] Supabase URL:', supabaseUrl);
 console.log('[DEBUG] Loading Priority: .env.local -> .env.production -> .env');
 // -------------------------
 
-const PORT = process.env.PORT || process.env.BACKEND_PORT || 3003;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 8081;
 
 // Middleware (MUST be before routes)
 app.use(cors({
@@ -126,6 +126,8 @@ app.use(express.json());
 
 // In-memory job status storage
 const jobStatus = {};
+// In-memory Vimeo folder cache
+const vimeoFolderCache = {};
 
 // Basic Health Check (Root)
 app.get('/', (req, res) => {
@@ -479,7 +481,7 @@ async function logToDB(processId, level, message, details = {}) {
 
 // 3. Process & Upload (Cut, Concat, Vimeo)
 app.post('/process', async (req, res) => {
-    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType, sparringId, courseId } = req.body;
+    const { videoId, filename, cuts, title, description, drillId, lessonId, videoType, sparringId, courseId, instructorName } = req.body;
 
     // Validate: exactly one of drillId, lessonId, sparringId, or courseId must be present
     const idCount = [drillId, lessonId, sparringId, courseId].filter(id => !!id).length;
@@ -699,6 +701,54 @@ app.post('/process', async (req, res) => {
             const Vimeo = require('vimeo').Vimeo;
             const client = new Vimeo(vimeoClientId, vimeoSecret, vimeoToken);
 
+            // Helper to get or create a Vimeo folder
+            async function getOrCreateVimeoFolder(folderName) {
+                if (!folderName) return null;
+                if (vimeoFolderCache[folderName]) return vimeoFolderCache[folderName];
+
+                try {
+                    console.log(`[Vimeo] Searching for folder: ${folderName}`);
+                    // Search for existing folders
+                    let foldersResponse = await new Promise((resolve, reject) => {
+                        client.request({
+                            method: 'GET',
+                            path: '/me/projects',
+                            query: { query: folderName, per_page: 50 }
+                        }, (error, body, status_code, headers) => {
+                            if (error) reject(error);
+                            else resolve(body);
+                        });
+                    });
+
+                    let folder = foldersResponse.data.find(f => f.name === folderName);
+
+                    if (!folder) {
+                        console.log(`[Vimeo] Folder not found. Creating: ${folderName}`);
+                        folder = await new Promise((resolve, reject) => {
+                            client.request({
+                                method: 'POST',
+                                path: '/me/projects',
+                                query: { name: folderName }
+                            }, (error, body, status_code, headers) => {
+                                if (error) {
+                                    console.error(`[Vimeo] Folder creation failed for "${folderName}":`, error);
+                                    reject(error);
+                                } else resolve(body);
+                            });
+                        });
+                        console.log(`[Vimeo] Folder created: ${folder.uri} (Name: ${folderName})`);
+                    } else {
+                        console.log(`[Vimeo] Folder found: ${folder.uri} (Name: ${folderName})`);
+                    }
+
+                    vimeoFolderCache[folderName] = folder.uri;
+                    return folder.uri;
+                } catch (err) {
+                    console.error(`[Vimeo] Folder management error for ${folderName}:`, err);
+                    return null; // Fallback to no folder
+                }
+            }
+
             // Helper function to upload to Vimeo with timeout
             const uploadToVimeoWithTimeout = (filePath, metadata, timeoutMs = 600000) => {
                 return new Promise((resolve, reject) => {
@@ -752,15 +802,26 @@ app.post('/process', async (req, res) => {
                 try {
                     logToDB(processId, 'info', `Vimeo upload attempt ${attempt}/${maxRetries}`, {
                         fileSize: fs.statSync(finalPath).size,
-                        title: title
+                        title: title,
+                        instructorName: instructorName
                     });
+
+                    // Get folder URI if instructor name is provided
+                    console.log(`[Vimeo] Attempting folder organization for: "${instructorName}"`);
+                    const folderUri = await getOrCreateVimeoFolder(instructorName);
+                    if (folderUri) {
+                        console.log(`[Vimeo] Using folder: ${folderUri} for instructor: ${instructorName}`);
+                    } else {
+                        console.warn(`[Vimeo] No folder URI returned for instructor: ${instructorName}`);
+                    }
 
                     const uri = await uploadToVimeoWithTimeout(
                         finalPath,
                         {
                             'name': title || 'Edited Video',
                             'description': description || 'Edited with Grappl Editor',
-                            'privacy': { 'view': 'anybody', 'embed': 'public' }
+                            'privacy': { 'view': 'anybody', 'embed': 'public' },
+                            ...(folderUri ? { 'folder_uri': folderUri } : {})
                         },
                         600000 // 10 minute timeout
                     );
@@ -1041,7 +1102,134 @@ app.post('/process', async (req, res) => {
     })();
 });
 
+
+// --- Admin Vimeo Management ---
+
+async function getAllVimeoIdsFromDB() {
+    const ids = new Set();
+    try {
+        // 1. Lessons
+        const { data: lessons } = await supabase.from('lessons').select('video_url, vimeo_url');
+        lessons?.forEach(l => {
+            if (l.video_url) ids.add(l.video_url.toString().trim());
+            if (l.vimeo_url) ids.add(l.vimeo_url.toString().trim());
+        });
+
+        // 2. Sparring Videos
+        const { data: sparring } = await supabase.from('sparring_videos').select('video_url, preview_vimeo_id');
+        sparring?.forEach(s => {
+            if (s.video_url) ids.add(s.video_url.toString().trim());
+            if (s.preview_vimeo_id) ids.add(s.preview_vimeo_id.toString().trim());
+        });
+
+        // 3. Drills
+        const { data: drills } = await supabase.from('drills').select('vimeo_url, description_video_url');
+        drills?.forEach(d => {
+            if (d.vimeo_url) ids.add(d.vimeo_url.toString().trim());
+            if (d.description_video_url) ids.add(d.description_video_url.toString().trim());
+        });
+
+        // 4. Courses
+        const { data: courses } = await supabase.from('courses').select('preview_vimeo_id');
+        courses?.forEach(c => {
+            if (c.preview_vimeo_id) ids.add(c.preview_vimeo_id.toString().trim());
+        });
+
+        return Array.from(ids).filter(id => id && id.length > 5);
+    } catch (err) {
+        console.error('Error fetching DB IDs:', err);
+        return [];
+    }
+}
+
+app.get('/api/admin/vimeo/orphans', async (req, res) => {
+    try {
+        console.log('[Admin] Searching for unlinked Vimeo videos...');
+        const dbIds = new Set(await getAllVimeoIdsFromDB());
+
+        const vimeoClientId = process.env.VIMEO_CLIENT_ID || process.env.VITE_VIMEO_CLIENT_ID;
+        const vimeoSecret = process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET;
+        const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+        const { Vimeo } = require('vimeo');
+        const client = new Vimeo(vimeoClientId, vimeoSecret, vimeoToken);
+
+        let allVideos = [];
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore) {
+            const response = await new Promise((resolve, reject) => {
+                client.request({
+                    method: 'GET',
+                    path: '/me/videos',
+                    query: { page, per_page: 50, fields: 'uri,name,link,created_time,duration,pictures' }
+                }, (error, body) => {
+                    if (error) reject(error);
+                    else resolve(body);
+                });
+            });
+
+            allVideos = allVideos.concat(response.data);
+            if (response.paging.next) page++;
+            else hasMore = false;
+        }
+
+        const orphans = allVideos.filter(video => {
+            const id = video.uri.split('/').pop();
+            return !dbIds.has(id);
+        });
+
+        res.json({
+            count: orphans.length,
+            total: allVideos.length,
+            orphans: orphans.map(v => ({
+                id: v.uri.split('/').pop(),
+                name: v.name,
+                link: v.link,
+                createdAt: v.created_time,
+                duration: v.duration,
+                thumbnail: v.pictures?.sizes?.[2]?.link
+            }))
+        });
+    } catch (err) {
+        console.error('Orphan check failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/vimeo/:videoId', async (req, res) => {
+    try {
+        const { videoId } = req.params;
+        console.log(`[Admin] Deleting Vimeo video: ${videoId}`);
+
+        const vimeoClientId = process.env.VIMEO_CLIENT_ID || process.env.VITE_VIMEO_CLIENT_ID;
+        const vimeoSecret = process.env.VIMEO_CLIENT_SECRET || process.env.VITE_VIMEO_CLIENT_SECRET;
+        const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+        const { Vimeo } = require('vimeo');
+        const client = new Vimeo(vimeoClientId, vimeoSecret, vimeoToken);
+
+        await new Promise((resolve, reject) => {
+            client.request({
+                method: 'DELETE',
+                path: `/videos/${videoId}`
+            }, (error, body, status) => {
+                if (error && status !== 404) reject(error);
+                else resolve(body);
+            });
+        });
+
+        console.log(`[Admin] Video ${videoId} deleted successfully.`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Vimeo deletion failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Start Server
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

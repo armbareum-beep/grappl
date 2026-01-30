@@ -13,6 +13,18 @@ export const AllCompletedRoutines: React.FC = () => {
     const [routines, setRoutines] = useState<CompletedRoutineRecord[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const formatDuration = (seconds: number) => {
+        if (seconds <= 0) return '0초';
+
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        if (hrs > 0) return `${hrs}시간 ${mins}분`;
+        if (mins > 0) return `${mins}분 ${secs}초`;
+        return `${secs}초`;
+    };
+
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -84,7 +96,9 @@ export const AllCompletedRoutines: React.FC = () => {
                                             <div className="flex items-center gap-4">
                                                 <div className="flex items-center gap-1.5 text-zinc-400 text-sm">
                                                     <Clock className="w-4 h-4" />
-                                                    <span>{record.durationMinutes}분</span>
+                                                    <span>
+                                                        {formatDuration(record.durationSeconds ?? (record.durationMinutes * 60))}
+                                                    </span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 text-zinc-400 text-sm">
                                                     <Dumbbell className="w-4 h-4" />
