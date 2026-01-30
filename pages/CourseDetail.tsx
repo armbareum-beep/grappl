@@ -232,6 +232,7 @@ export const CourseDetail: React.FC = () => {
         if (isAdmin) return true;
         if (ownsCourse) return true;
         if (isSubscribed && !course?.isSubscriptionExcluded) return true;
+        if (user && (user.ownedVideoIds?.includes(lesson.id) || (course && user.ownedVideoIds?.includes(course.id)))) return true;
 
         if (course?.price === 0) return true;
 

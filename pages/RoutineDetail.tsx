@@ -248,7 +248,7 @@ export const RoutineDetail: React.FC = () => {
                         setOwns(true);
                     } else {
                         const isOwned = await checkDrillRoutineOwnership(user.id, id);
-                        if (isOwned) setOwns(true);
+                        if (isOwned || (user.ownedVideoIds?.includes(id))) setOwns(true);
                     }
                     await getCompletedRoutinesToday(user.id);
                 }

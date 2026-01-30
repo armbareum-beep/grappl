@@ -116,7 +116,7 @@ export const LessonDetail: React.FC = () => {
                     const isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
 
                     // Core Permission Check
-                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
+                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.includes(lessonData.id) || (lessonData.courseId && user.ownedVideoIds?.includes(lessonData.courseId))));
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
                     if (!hasAccess && (courseData && courseData.price === 0)) {
