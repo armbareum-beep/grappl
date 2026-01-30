@@ -138,6 +138,10 @@ export const CourseDetail: React.FC = () => {
                         console.log('[CourseDetail DEBUG] User email:', user.email);
                         console.log('[CourseDetail DEBUG] Course ID:', id);
                         console.log('[CourseDetail DEBUG] User ownedVideoIds from context:', user.ownedVideoIds);
+                        console.log('[CourseDetail DEBUG] isSubscribed:', isSubscribed);
+                        console.log('[CourseDetail DEBUG] isAdmin:', isAdmin);
+                        console.log('[CourseDetail DEBUG] Course isSubscriptionExcluded:', courseData?.isSubscriptionExcluded);
+                        console.log('[CourseDetail DEBUG] Should have access (subscriber)?', isSubscribed && !courseData?.isSubscriptionExcluded);
 
                         let owns = await checkCourseOwnership(user.id, id);
                         console.log('[CourseDetail DEBUG] checkCourseOwnership result:', owns);
