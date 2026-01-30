@@ -501,24 +501,32 @@ export function Watch() {
                     {loading ? (
                         <LoadingScreen message={`${currentTab.label} 피드를 준비하고 있습니다...`} />
                     ) : items.length > 0 ? (
-                        <MixedReelsFeed
-                            items={items}
-                            userPermissions={userPermissions}
-                            isLoggedIn={!!user}
-                            dailyFreeDrillId={dailyFreeDrillId}
-                            dailyFreeSparringId={dailyFreeSparringId}
-                        />
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
-                            <div className="w-16 h-16 rounded-3xl bg-zinc-900 flex items-center justify-center">
-                                <Clapperboard className="w-8 h-8 text-zinc-700" />
-                            </div>
-                            <p className="font-bold text-sm">표시할 콘텐츠가 없습니다</p>
-                        </div>
-                    )}
+                        {/* DEBUG OVERLAY */ }
+                        < div className="fixed top-20 right-4 bg-black/80 text-white p-4 rounded z-50 text-xs font-mono border border-red-500">
+                    <div>Subscribed (Context): {isSubscribed ? 'TRUE' : 'FALSE'}</div>
+                    <div>UserPerms.isSubscriber: {userPermissions.isSubscriber ? 'TRUE' : 'FALSE'}</div>
+                    <div>Items: {items.length}</div>
+                    <div>Tab: {activeTab}</div>
                 </div>
+
+                <MixedReelsFeed
+                    items={items}
+                    userPermissions={userPermissions}
+                    isLoggedIn={!!user}
+                    dailyFreeDrillId={dailyFreeDrillId}
+                    dailyFreeSparringId={dailyFreeSparringId}
+                />
+                ) : (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
+                    <div className="w-16 h-16 rounded-3xl bg-zinc-900 flex items-center justify-center">
+                        <Clapperboard className="w-8 h-8 text-zinc-700" />
+                    </div>
+                    <p className="font-bold text-sm">표시할 콘텐츠가 없습니다</p>
+                </div>
+                    )}
             </div>
         </div>
+        </div >
     );
 }
 
