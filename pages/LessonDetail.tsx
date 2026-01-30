@@ -11,6 +11,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
+import { supabase } from '../lib/supabase';
 
 
 export const LessonDetail: React.FC = () => {
@@ -113,10 +114,30 @@ export const LessonDetail: React.FC = () => {
                     }
 
                     const isCreator = user && courseData && courseData.creatorId === user.id;
-                    const isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
+                    let isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
+
+                    // Double check manual ownership client-side
+                    if (!isOwner && user) {
+                        const { data: directUserData } = await supabase
+                            .from('users')
+                            .select('owned_video_ids')
+                            .eq('id', user.id)
+                            .maybeSingle();
+
+                        if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
+                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
+                            const lessonIdTrimmed = String(lessonData.id).trim();
+                            const courseIdTrimmed = lessonData.courseId ? String(lessonData.courseId).trim() : '';
+
+                            if (directIds.includes(lessonIdTrimmed) || (courseIdTrimmed && directIds.includes(courseIdTrimmed))) {
+                                console.log('Manual ownership verified via direct check (LessonDetail)');
+                                isOwner = true;
+                            }
+                        }
+                    }
 
                     // Core Permission Check
-                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.includes(lessonData.id) || (lessonData.courseId && user.ownedVideoIds?.includes(lessonData.courseId))));
+                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.some(oid => String(oid).trim() === String(lessonData.id).trim()) || (lessonData.courseId && user.ownedVideoIds?.some(oid => String(oid).trim() === String(lessonData.courseId).trim()))));
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
                     if (!hasAccess && (courseData && courseData.price === 0)) {
@@ -206,6 +227,7 @@ export const LessonDetail: React.FC = () => {
                                             vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                             title={lesson.title}
                                             isPreviewMode={!owns}
+                                            muted={false} // Default sound on
                                             maxPreviewDuration={
                                                 owns ? undefined : // Full access
                                                     (user && isDailyFree) ? undefined : // Logged-in + daily free: full access

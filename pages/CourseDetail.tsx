@@ -13,6 +13,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 
 
@@ -133,8 +134,26 @@ export const CourseDetail: React.FC = () => {
 
                     if (user) {
                         console.log('[CourseDetail] Checking ownership...');
-                        const owns = await checkCourseOwnership(user.id, id);
-                        setOwnsCourse(owns || (user.ownedVideoIds?.includes(id)) || false);
+                        let owns = await checkCourseOwnership(user.id, id);
+
+                        // Double check manual ownership client-side to be absolutely sure
+                        if (!owns) {
+                            const { data: directUserData } = await supabase
+                                .from('users')
+                                .select('owned_video_ids')
+                                .eq('id', user.id)
+                                .maybeSingle();
+
+                            if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
+                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
+                                if (directIds.includes(String(id).trim())) {
+                                    console.log('Manual ownership verified via direct check');
+                                    owns = true;
+                                }
+                            }
+                        }
+
+                        setOwnsCourse(owns || (user.ownedVideoIds?.some(oid => String(oid).trim() === String(id).trim())) || false);
 
                         // Fetch lesson progress
                         console.log('[CourseDetail] Checking progress...');
@@ -511,6 +530,7 @@ export const CourseDetail: React.FC = () => {
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                 isPaused={isPaywallOpen}
                                 onDoubleTap={handleLike}
+                                muted={false}
                             />
                         </div>
                     ) : !hasAccess && hasPreview ? (
@@ -524,6 +544,7 @@ export const CourseDetail: React.FC = () => {
                                 isPreviewMode={true}
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                 onDoubleTap={handleLike}
+                                muted={false}
                             />
                         </div>
                     ) : (

@@ -22,6 +22,7 @@ interface VideoPlayerProps {
     autoplay?: boolean;
     onDoubleTap?: () => void;
     onPlayingChange?: (isPlaying: boolean) => void;
+    muted?: boolean;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -40,7 +41,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     forceSquareRatio = false,
     autoplay = true,
     onDoubleTap,
-    onPlayingChange
+    onPlayingChange,
+    muted = true // Default to true to maintain existing behavior
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
@@ -85,9 +87,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 controls: showControls,
                 color: 'ffffff',
                 badge: false,
-                muted: true,
+                muted: muted,
                 playsinline: true, // Support mobile autoplay
                 background: !showControls && autoplay, // Only use background mode if autoplay is intentional
+                dnt: true, // Prevent tracking and hide some personal buttons
+                // Custom params to try and hide the share/embed button
+                // Note: These often require a Plus/Pro account setting to fully take effect,
+                // but passing them here forces the player to respect them if allowed.
+                share: false,
             };
 
             const vimeoIdStr = String(vimeoId || '').trim();
@@ -136,10 +143,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('badge', '0');
                 params.append('autopause', '1');
                 params.append('autoplay', autoplay ? '1' : '0');
-                params.append('muted', autoplay ? '1' : '0');
+                params.append('muted', muted ? '1' : '0');
                 if (!showControls && autoplay) params.append('background', '1'); // Extra safety for silent background play
                 params.append('player_id', containerRef.current.id || `vimeo-${numericId}`);
                 params.append('app_id', '122963');
+                params.append('dnt', '1');
+                params.append('share', '0');
                 if (!showControls) params.append('controls', '0');
 
                 iframe.src = `https://player.vimeo.com/video/${numericId}?${params.toString()}`;
@@ -456,7 +465,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     src={vimeoId}
                     className="absolute inset-0 w-full h-full object-cover"
                     autoPlay={autoplay}
-                    muted={autoplay}
+                    muted={muted}
                     loop
                     playsInline
                     onPlay={() => setIsPlaying(true)}

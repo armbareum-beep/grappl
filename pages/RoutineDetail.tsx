@@ -11,6 +11,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/use-toast';
+import { supabase } from '../lib/supabase';
 
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
@@ -247,8 +248,26 @@ export const RoutineDetail: React.FC = () => {
                     if (id.startsWith('custom-')) {
                         setOwns(true);
                     } else {
-                        const isOwned = await checkDrillRoutineOwnership(user.id, id);
-                        if (isOwned || (user.ownedVideoIds?.includes(id))) setOwns(true);
+                        let isOwned = await checkDrillRoutineOwnership(user.id, id);
+
+                        // Double check manual ownership client-side
+                        if (!isOwned) {
+                            const { data: directUserData } = await supabase
+                                .from('users')
+                                .select('owned_video_ids')
+                                .eq('id', user.id)
+                                .maybeSingle();
+
+                            if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
+                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
+                                if (directIds.includes(String(id).trim())) {
+                                    console.log('Manual ownership verified via direct check (RoutineDetail)');
+                                    isOwned = true;
+                                }
+                            }
+                        }
+
+                        if (isOwned || (user.ownedVideoIds?.some(oid => String(oid).trim() === String(id).trim()))) setOwns(true);
                     }
                     await getCompletedRoutinesToday(user.id);
                 }
