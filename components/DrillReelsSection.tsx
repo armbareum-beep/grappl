@@ -9,11 +9,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { VideoPlayer } from './VideoPlayer';
 import { supabase } from '../lib/supabase';
 import { HighlightedText } from './common/HighlightedText';
+import { ReelLoginModal } from './auth/ReelLoginModal';
 
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [previewEnded, setPreviewEnded] = useState(false);
-    const { isSubscribed, isAdmin } = useAuth();
+    const { isSubscribed, isAdmin, user } = useAuth();
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const canWatchFull = isSubscribed || isAdmin;
 
     const getVimeoId = (url?: string) => {
@@ -34,6 +36,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
     useEffect(() => {
         if (!isHovered) {
             setPreviewEnded(false);
+            setIsLoginModalOpen(false);
         }
     }, [isHovered]);
 
@@ -64,7 +67,12 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     title={drill.title}
                     playing={isHovered}
                     maxPreviewDuration={canWatchFull ? undefined : 10}
-                    onPreviewLimitReached={() => setPreviewEnded(true)}
+                    onPreviewLimitReached={() => {
+                        setPreviewEnded(true);
+                        if (!user) {
+                            setIsLoginModalOpen(true);
+                        }
+                    }}
                     showControls={false}
                     isPaused={!isHovered || previewEnded}
                     fillContainer={true}
@@ -106,6 +114,12 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
             )}>
                 <Play className="w-3.5 h-3.5 text-white fill-white" />
             </div>
+
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl="/routines"
+            />
         </div>
     );
 };

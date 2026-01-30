@@ -12,6 +12,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/use-toast';
 import { supabase } from '../lib/supabase';
+import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
@@ -62,6 +63,8 @@ export const RoutineDetail: React.FC = () => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [showMobileList, setShowMobileList] = useState(false);
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
+    const [currentTime, setCurrentTime] = useState(0);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     // Check Routine Save Status
     useEffect(() => {
@@ -179,7 +182,8 @@ export const RoutineDetail: React.FC = () => {
     const lastTickRef = useRef<number>(0);
     const accumulatedTimeRef = useRef<number>(0);
 
-    const handleProgress = async () => {
+    const handleProgress = async (seconds: number) => {
+        setCurrentTime(seconds);
         if (!user || owns || !isSubscribed || !currentDrill) return;
         const now = Date.now();
         if (lastTickRef.current === 0) { lastTickRef.current = now; return; }
@@ -711,6 +715,9 @@ export const RoutineDetail: React.FC = () => {
                                             fillContainer={true}
                                             onProgress={handleProgress}
                                             onEnded={() => handleDrillComplete()}
+                                            maxPreviewDuration={user ? undefined : 10}
+                                            onPreviewLimitReached={() => setIsLoginModalOpen(true)}
+                                            isPaused={isLoginModalOpen}
                                         />
                                         <div
                                             className="absolute inset-0 z-10"
@@ -1199,7 +1206,22 @@ export const RoutineDetail: React.FC = () => {
                 bonusReward={bonusReward}
                 continueLabel={(id && playlist.indexOf(id) !== -1 && playlist.indexOf(id) < playlist.length - 1) ? '다음 루틴 시작하기' : '수련 완료'}
             />
-            {isShareModalOpen && shareModalData2 && <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} title={shareModalData2.title} text={shareModalData2.text} url={shareModalData2.url} imageUrl={currentDrill.thumbnailUrl} />}
+            {isShareModalOpen && shareModalData2 && (
+                <ShareModal
+                    isOpen={isShareModalOpen}
+                    onClose={() => setIsShareModalOpen(false)}
+                    title={shareModalData2.title}
+                    text={shareModalData2.text}
+                    url={shareModalData2.url}
+                    imageUrl={currentDrill.thumbnailUrl}
+                />
+            )}
+
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/routines/${id}`}
+            />
         </div >
     );
 };

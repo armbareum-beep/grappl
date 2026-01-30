@@ -12,6 +12,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { supabase } from '../lib/supabase';
+import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 
 export const LessonDetail: React.FC = () => {
@@ -165,11 +166,8 @@ export const LessonDetail: React.FC = () => {
                         const { data: dailyLesson } = await getDailyFreeLesson();
                         if (dailyLesson && dailyLesson.id === id) {
                             setIsDailyFree(true);
-                            if (user) {
-                                // Logged-in users: full access to daily free lesson
-                                hasAccess = true;
-                                setOwns(true);
-                            }
+                            // Allow guest access for daily free lesson
+                            setOwns(true);
                         }
                     } catch (e) {
                         console.warn('Failed to check daily free lesson access:', e);
@@ -243,9 +241,9 @@ export const LessonDetail: React.FC = () => {
                                             isPreviewMode={!owns}
                                             muted={false} // Default sound on
                                             maxPreviewDuration={
-                                                owns ? undefined : // Full access
+                                                owns ? (isDailyFree && !user ? 30 : undefined) : // If it's daily free and guest, limit to 30s
                                                     (user && isDailyFree) ? undefined : // Logged-in + daily free: full access
-                                                        60 // Non-logged or non-daily-free: 1min preview
+                                                        60 // Other previews: 1min
                                             }
                                             onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                             isPaused={isPaywallOpen}
@@ -303,7 +301,7 @@ export const LessonDetail: React.FC = () => {
                                     <div
                                         className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear"
                                         style={{
-                                            width: `${(currentTime / (user && isDailyFree ? 1 : 60)) * 100}%`,
+                                            width: `${(currentTime / (user ? (isDailyFree ? 1 : 60) : (isDailyFree ? 30 : 60))) * 100}%`,
                                             transitionDuration: '1000ms'
                                         }}
                                     />
@@ -317,7 +315,7 @@ export const LessonDetail: React.FC = () => {
                                         {user
                                             ? `1분 후 구독 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
                                             : isDailyFree
-                                                ? `로그인하면 전체 시청 가능 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
+                                                ? `로그인하면 전체 시청 가능 (${Math.max(0, 30 - Math.floor(currentTime))}초 남음)`
                                                 : `1분 후 로그인 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
                                         }
                                     </p>
@@ -443,18 +441,22 @@ export const LessonDetail: React.FC = () => {
                     />
                 </React.Suspense>
             )}
-            {isPaywallOpen && (
+            {isPaywallOpen && !user ? (
+                <ReelLoginModal
+                    isOpen={isPaywallOpen}
+                    onClose={() => setIsPaywallOpen(false)}
+                    redirectUrl={`/lessons/${id}`}
+                />
+            ) : isPaywallOpen && (
                 <ConfirmModal
                     isOpen={isPaywallOpen}
                     onClose={() => setIsPaywallOpen(false)}
                     onConfirm={() => navigate(user ? '/pricing' : '/login')}
-                    title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
+                    title="1분 무료 체험 종료"
                     message={
                         user
                             ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
-                            : isDailyFree
-                                ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
-                                : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
+                            : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
                     }
                     confirmText={user ? "구독 요금제 보기" : "로그인하기"}
                     cancelText="나중에 하기"

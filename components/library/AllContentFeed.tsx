@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
-import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring } from '../../lib/api';
+import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring, getDailyFreeDrill } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
 import { cn } from '../../lib/utils';
 import { LoadingScreen } from '../LoadingScreen';
@@ -26,18 +27,19 @@ interface AllContentFeedProps {
  * - Square: Sparring(Square) -> Takes 1 col (needs pair)
  */
 function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
-    // Create shallow copies of arrays to use as queues
-    const wideItems = items.filter(i => (i.type === 'class') || (i.type === 'sparring' && i.variant === 'wide'));
-    const tallItems = items.filter(i => (i.type === 'routine') || (i.type === 'sparring' && i.variant === 'tall'));
-    const squareItems = items.filter(i => (i.type === 'sparring' && (!i.variant || i.variant === 'square')));
+    // Wide: Class -> Takes 2 cols
+    // Tall: Routine -> Takes 1 col (9:16)
+    // Square: Sparring -> Takes 1 col (1:1)
+
+    const wideItems = items.filter(i => i.variant === 'wide' || i.type === 'class');
+    const tallItems = items.filter(i => i.variant === 'tall' || i.type === 'routine');
+    const squareItems = items.filter(i => i.variant === 'square' || i.type === 'sparring');
 
     const result: UnifiedContentItem[] = [];
 
-    // Safety break
     let loopCount = 0;
     const maxLoops = items.length * 2 + 100;
 
-    // Continue as long as ANY queue has items
     while ((wideItems.length > 0 || tallItems.length > 0 || squareItems.length > 0) && loopCount < maxLoops) {
         loopCount++;
 
@@ -46,33 +48,27 @@ function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
             result.push(wideItems.shift()!);
         }
 
-        // 2. Two Tall Items (Occupies 1+1 cols)
+        // 2. Pair Tall Items (Occupies 1+1 cols)
         let tCount = 0;
         while (tCount < 2 && tallItems.length > 0) {
             result.push(tallItems.shift()!);
             tCount++;
         }
 
-        // 3. Another Wide Item
-        if (wideItems.length > 0) {
-            result.push(wideItems.shift()!);
-        }
-
-        // 4. Two Square Items (Occupy 1+1 cols)
+        // 3. Pair Square Items (Occupy 1+1 cols)
         let sCount = 0;
         while (sCount < 2 && squareItems.length > 0) {
             result.push(squareItems.shift()!);
             sCount++;
         }
 
-        // Fallback: If wide queue is empty, flush others
+        // Fallback: Flush queues if no wide items left
         if (wideItems.length === 0) {
             if (tallItems.length > 0) result.push(tallItems.shift()!);
             if (squareItems.length > 0) result.push(squareItems.shift()!);
         }
     }
 
-    // Final flush of any remains
     return [...result, ...wideItems, ...tallItems, ...squareItems];
 }
 
@@ -111,20 +107,37 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 sparringRes,
                 dailyFreeLessonRes,
                 dailyFreeSparringRes,
+                dailyFreeDrillRes,
             ] = await Promise.all([
                 getCourses(100),
                 fetchRoutines(100),
                 getSparringVideos(100, undefined, true),
                 getDailyFreeLesson(),
                 getDailyFreeSparring(),
+                getDailyFreeDrill(),
             ]);
 
             // Extract daily free IDs
-            const dailyFreeIds = {
+            const dailyFreeIds: { course?: string; sparring?: string; routineIds: string[] } = {
                 course: dailyFreeLessonRes.data?.courseId,
                 sparring: dailyFreeSparringRes.data?.id,
+                routineIds: []
             };
-            setFreeIds(dailyFreeIds);
+
+            if (dailyFreeDrillRes.data) {
+                const { data: relations } = await supabase
+                    .from('routine_drills')
+                    .select('routine_id')
+                    .eq('drill_id', dailyFreeDrillRes.data.id);
+                if (relations) {
+                    dailyFreeIds.routineIds = relations.map((r: any) => r.routine_id);
+                }
+            }
+
+            setFreeIds({
+                course: dailyFreeIds.course,
+                sparring: dailyFreeIds.sparring
+            });
 
             const now = Date.now();
             const getHotScore = (item: { views?: number; createdAt?: string }) => {
@@ -178,9 +191,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     createdAt: routine.createdAt,
                     views: routine.views,
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+                    isDailyFree: dailyFreeIds.routineIds.includes(routine.id),
                     drillCount: routine.drills?.length || 0,
                     originalData: routine,
-                    variant: 'tall', // Routines are always tall
+                    variant: 'tall', // Routines are now tall (9:16) in the ALL feed
                 };
             });
 
@@ -190,13 +204,8 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 .filter(s => (s.views || 0) >= 5)
                 .sort((a, b) => getHotScore(b) - getHotScore(a));
 
-            // Cycle variants for sparring: Wide -> Tall -> Square
-            const sparringVariants: CardVariant[] = ['wide', 'tall', 'square'];
-
-            const sparringItems: UnifiedContentItem[] = sparring.map((video, index) => {
+            const sparringItems: UnifiedContentItem[] = sparring.map((video) => {
                 const hotIndex = hotSparring.findIndex(hs => hs.id === video.id);
-                // Assign variant based on index
-                const variant = sparringVariants[index % sparringVariants.length];
 
                 return {
                     id: video.id,
@@ -211,7 +220,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
                     isDailyFree: video.id === dailyFreeIds.sparring,
                     originalData: video,
-                    variant: variant,
+                    variant: 'square', // Sparring is now square (1:1) in the ALL feed
                 };
             });
 

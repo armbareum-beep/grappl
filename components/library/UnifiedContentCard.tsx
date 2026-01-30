@@ -42,16 +42,15 @@ interface UnifiedContentCardProps {
 
 const getSpanClass = (type: ContentType, variant?: CardVariant): string => {
     if (type === 'class') return 'col-span-2 row-span-4'; // Always wide
-    if (type === 'routine') return 'row-span-6'; // Always tall
 
-    // For sparring, use variant if provided, otherwise default to square (1:1)
+    // For routines, always tall (9:16)
+    if (type === 'routine') {
+        return 'col-span-1 row-span-6';
+    }
+
+    // For sparring, always square (1:1)
     if (type === 'sparring') {
-        switch (variant) {
-            case 'wide': return 'col-span-2 row-span-4';
-            case 'tall': return 'row-span-6';
-            case 'square': return 'row-span-4';
-            default: return 'row-span-4'; // Default to square if no variant
-        }
+        return 'col-span-1 row-span-4';
     }
 
     return 'row-span-4';

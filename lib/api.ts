@@ -5869,9 +5869,28 @@ export async function fetchRoutines(limit: number = 20) {
 
         if (error) throw error;
 
-        // Need to ensure creators are fetched if needed, similar to drills.
-        // For simplicity, just transforming.
-        const result = (data || []).map(transformDrillRoutine);
+        // Extract creator IDs for manual fetch (mirroring getSparringVideos logic)
+        const creatorIds = Array.from(new Set((data || []).map(r => r.creator_id).filter(Boolean)));
+
+        // Fetch creator details from 'users' table
+        let userMap: Record<string, any> = {};
+        if (creatorIds.length > 0) {
+            const { data: users } = await supabase
+                .from('users')
+                .select('id, name, avatar_url')
+                .in('id', creatorIds);
+
+            if (users) {
+                users.forEach(u => {
+                    userMap[u.id] = u;
+                });
+            }
+        }
+
+        const result = (data || []).map(routine => transformDrillRoutine({
+            ...routine,
+            creator: userMap[routine.creator_id]
+        }));
 
         return { data: result, error: null };
     } catch (error) {
@@ -6339,8 +6358,8 @@ function transformDrillRoutine(data: any): DrillRoutine {
         title: data.title,
         description: data.description || '',
         creatorId: data.creator_id,
-        creatorName: data.creator_name || data.creator?.name || 'Grapplay Team',
-        creatorProfileImage: data.creator?.profile_image || data.creator?.avatar_url || undefined,
+        creatorName: data.creator?.name || data.creator_name || 'Grapplay Team',
+        creatorProfileImage: data.creator?.avatar_url || data.creator?.profile_image || data.creatorProfileImage || undefined,
         thumbnailUrl: data.thumbnail_url || data.thumbnailUrl || '', // Support both snake and camel case
         price: data.price || 0,
         views: data.views || 0,

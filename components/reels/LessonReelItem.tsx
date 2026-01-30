@@ -198,7 +198,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
             <div className="w-full h-full relative flex items-center justify-center">
                 <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     <VideoPlayer
-                        vimeoId={vimeoFullId || ''}
+                        vimeoId={vimeoFullId || lesson.videoUrl || ''}
                         title={lesson.title}
                         playing={isActive && !isPaused}
                         showControls={false}

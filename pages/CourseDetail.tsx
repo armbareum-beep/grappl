@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved, getDailyFreeLesson } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -11,6 +11,7 @@ import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
+import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -383,7 +384,7 @@ export const CourseDetail: React.FC = () => {
         if (course?.price === 0) return true;
 
         if (lesson.id === dailyFreeLessonId) {
-            return !!user;
+            return true; // Allow guests so they can see the 30s preview
         }
 
         if (lesson.isPreview) return true;
@@ -653,7 +654,8 @@ export const CourseDetail: React.FC = () => {
                                 onEnded={handleVideoEnded}
                                 onProgress={handleProgress}
                                 maxPreviewDuration={
-                                    isPreviewMode(selectedLesson!) ? 60 : undefined
+                                    !user && selectedLesson?.id === dailyFreeLessonId ? 30 :
+                                        isPreviewMode(selectedLesson!) ? 60 : undefined
                                 }
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                 isPaused={isPaywallOpen}
@@ -1191,36 +1193,24 @@ export const CourseDetail: React.FC = () => {
                 }
 
                 {
-                    isPaywallOpen && (
+                    isPaywallOpen && !user ? (
+                        <ReelLoginModal
+                            isOpen={isPaywallOpen}
+                            onClose={() => setIsPaywallOpen(false)}
+                            redirectUrl={`/courses/${id}${selectedLesson ? `?lessonId=${selectedLesson.id}` : ''}`}
+                        />
+                    ) : isPaywallOpen && (
                         <ConfirmModal
                             isOpen={isPaywallOpen}
                             onClose={() => setIsPaywallOpen(false)}
                             onConfirm={() => {
-                                if (!user) {
-                                    // Non-logged-in users: redirect to login with current course info
-                                    navigate('/login', {
-                                        state: {
-                                            from: {
-                                                pathname: `/courses/${id}`,
-                                                search: selectedLesson ? `?lessonId=${selectedLesson.id}` : ''
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    // Logged-in users: redirect to pricing with return URL
-                                    const returnUrl = `/courses/${id}${selectedLesson ? `?lessonId=${selectedLesson.id}` : ''}`;
-                                    navigate('/pricing', { state: { returnUrl } });
-                                }
+                                // Logged-in users: redirect to pricing with return URL
+                                const returnUrl = `/courses/${id}${selectedLesson ? `?lessonId=${selectedLesson.id}` : ''}`;
+                                navigate('/pricing', { state: { returnUrl } });
                             }}
-                            title={user ? "1분 무료 체험 종료" : "로그인이 필요합니다"}
-                            message={
-                                user
-                                    ? "이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
-                                    : (selectedLesson?.id === dailyFreeLessonId)
-                                        ? "오늘의 무료 레슨을 제한 없이 시청하려면 로그인이 필요합니다. 로그인 후 전체 영상을 무료로 시청하세요!"
-                                        : "이 레슨을 계속 시청하려면 로그인이 필요합니다."
-                            }
-                            confirmText={user ? "구독 요금제 보기" : "로그인하기"}
+                            title="1분 무료 체험 종료"
+                            message="이 레슨의 뒷부분과 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
+                            confirmText="구독 요금제 보기"
                             cancelText="나중에 하기"
                             variant="info"
                         />

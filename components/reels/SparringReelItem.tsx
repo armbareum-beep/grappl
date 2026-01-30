@@ -259,8 +259,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
             timerRef.current = setInterval(() => {
                 setWatchTime((prev: number) => {
                     const newTime = prev + 1;
-                    if (newTime >= 30) {
-                        // 30 seconds reached (updated from 60s)
+                    if (newTime >= 60) {
+                        // 60 seconds reached (1 minute)
                         setIsLoginModalOpen(true);
                         if (timerRef.current) {
                             clearInterval(timerRef.current);
@@ -542,7 +542,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                     <div
                         className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                        style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
+                        style={{ width: `${!user ? (watchTime / 60) * 100 : progress}%` }}
                     />
                 </div>
 

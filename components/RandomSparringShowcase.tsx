@@ -99,6 +99,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                                 autoplay={true}
                                 isPaused={isPaused}
                                 forceSquareRatio={true}
+                                muted={true}
                             />
 
                             {/* Gradient Overlay */}
