@@ -61,6 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
 
+        console.log('[AuthContext DEBUG] checkUserStatus STARTED for userId:', userId);
+
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
