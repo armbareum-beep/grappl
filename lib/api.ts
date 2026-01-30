@@ -1296,8 +1296,8 @@ export async function checkSparringOwnership(userId: string, videoId: string): P
             .maybeSingle();
 
         if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(String);
-            if (ownedIds.includes(videoId)) return true;
+            const ownedIds = userData.owned_video_ids.map(id => String(id).trim());
+            if (ownedIds.includes(String(videoId).trim())) return true;
         }
 
         if (error) {
@@ -1358,8 +1358,8 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
             .maybeSingle();
 
         if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(String);
-            if (ownedIds.includes(courseId)) return true;
+            const ownedIds = userData.owned_video_ids.map(id => String(id).trim());
+            if (ownedIds.includes(String(courseId).trim())) return true;
         }
     } catch (e) {
         console.warn('Manual ownership check failed', e);
@@ -6669,8 +6669,8 @@ export async function checkDrillRoutineOwnership(userId: string, routineId: stri
             .maybeSingle();
 
         if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(String);
-            if (ownedIds.includes(routineId)) return true;
+            const ownedIds = userData.owned_video_ids.map(id => String(id).trim());
+            if (ownedIds.includes(String(routineId).trim())) return true;
         }
     } catch (e) {
         console.warn('Manual ownership check failed', e);

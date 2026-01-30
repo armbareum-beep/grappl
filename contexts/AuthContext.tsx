@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),
                 isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
-                ownedVideoIds: Array.isArray(userData?.owned_video_ids) ? userData.owned_video_ids.map(String) : [],
+                ownedVideoIds: Array.isArray(userData?.owned_video_ids) ? userData.owned_video_ids.map(id => String(id).trim()) : [],
                 isCreator: !!(creatorData?.approved === true)
             };
 
