@@ -16,7 +16,7 @@ interface UserPermissions {
 type WatchTab = 'mix' | 'lesson' | 'drill' | 'sparring';
 
 export function Watch() {
-    const { user } = useAuth();
+    const { user, isSubscribed } = useAuth();
     const [searchParams] = useSearchParams();
 
     // Initialize tab from URL or default to 'mix'
@@ -65,7 +65,7 @@ export function Watch() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Load user permissions
+    // Load user permissions (Sync with AuthContext + Fetch Purchases)
     useEffect(() => {
         const loadUserPermissions = async () => {
             if (!user?.id) {
@@ -74,29 +74,25 @@ export function Watch() {
             }
 
             try {
-                const [userRes, purchasesRes] = await Promise.all([
-                    supabase
-                        .from('users')
-                        .select('is_subscriber')
-                        .eq('id', user.id)
-                        .maybeSingle(),
-                    supabase
-                        .from('purchases')
-                        .select('item_id')
-                        .eq('user_id', user.id)
-                ]);
+                // Fetch purchases only (isSubscriber comes from AuthContext)
+                const { data: purchases } = await supabase
+                    .from('purchases')
+                    .select('item_id')
+                    .eq('user_id', user.id);
 
                 setUserPermissions({
-                    isSubscriber: userRes.data?.is_subscriber === true,
-                    purchasedItemIds: purchasesRes.data?.map(p => p.item_id) || []
+                    isSubscriber: isSubscribed, // Use value from AuthContext
+                    purchasedItemIds: purchases?.map(p => p.item_id) || []
                 });
             } catch (error) {
                 console.error('Error loading user permissions:', error);
+                // Fallback to AuthContext value even if purchases fail
+                setUserPermissions(prev => ({ ...prev, isSubscriber: isSubscribed }));
             }
         };
 
         loadUserPermissions();
-    }, [user?.id]);
+    }, [user?.id, isSubscribed]);
 
     // Load Data based on activeTab
     useEffect(() => {
