@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-route
 import { useAuth } from '../contexts/AuthContext';
 import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime, updateLastWatched } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
+import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
@@ -27,13 +28,33 @@ export const LessonDetail: React.FC = () => {
     const [isDailyFree, setIsDailyFree] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
 
+
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);
 
-    const handleProgress = React.useCallback(async (seconds: number) => {
+    // Mastery Tracking Refs
+    const hasRecordedStartRef = React.useRef(false);
+    const hasRecordedHalfRef = React.useRef(false);
+
+    const handleProgress = React.useCallback(async (seconds: number, duration?: number, percent?: number) => {
         setCurrentTime(seconds);
 
         if (!user || !lesson) return;
+
+        // Mastery Level Logic (Start & 50%)
+        if (percent) {
+            // Level 1: Started (> 0%)
+            if (percent > 0.01 && !hasRecordedStartRef.current) {
+                hasRecordedStartRef.current = true;
+                updateMasteryFromWatch(user.id, lesson.id, percent, false).catch(console.error);
+            }
+
+            // Level 2: Halfway (> 50%)
+            if (percent > 0.5 && !hasRecordedHalfRef.current) {
+                hasRecordedHalfRef.current = true;
+                updateMasteryFromWatch(user.id, lesson.id, percent, false).catch(console.error);
+            }
+        }
 
         const now = Date.now();
         if (lastTickRef.current === 0) {
@@ -192,7 +213,20 @@ export const LessonDetail: React.FC = () => {
                                             }
                                             onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                             isPaused={isPaywallOpen}
-                                            onEnded={() => { }}
+                                            onEnded={() => {
+                                                if (user && lesson) {
+                                                    // Level 3/4/5: Finished
+                                                    // Reset refs for re-watch in same session?
+                                                    // User might want to watch multiple times to get Lv 5 quickly.
+                                                    // So we allow multiple 'finish' calls.
+                                                    updateMasteryFromWatch(user.id, lesson.id, 1, true).catch(console.error);
+
+                                                    // Reset check refs for next loop if applicable?
+                                                    // Usually 'onEnded' means loop.
+                                                    hasRecordedStartRef.current = false;
+                                                    hasRecordedHalfRef.current = false;
+                                                }
+                                            }}
                                             onProgress={handleProgress}
                                         />
                                     ) : (

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import Player from '@vimeo/player';
+import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
@@ -39,7 +41,36 @@ export const DrillDetail: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [muted, setMuted] = useState(true);
+
     const [canAccessDescription, setCanAccessDescription] = useState(false);
+
+    // Mastery Tracking Refs
+    const hasRecordedStartRef = useRef(false);
+    const hasRecordedHalfRef = useRef(false);
+
+    const handleMasteryUpdate = (percent: number, isFinished: boolean) => {
+        if (!contextUser || !drill) return;
+
+        // Start (> 1%)
+        if (percent > 0.01 && !hasRecordedStartRef.current) {
+            hasRecordedStartRef.current = true;
+            updateMasteryFromWatch(contextUser.id, drill.id, percent, false).catch(console.error);
+        }
+
+        // Half (> 50%)
+        if (percent > 0.5 && !hasRecordedHalfRef.current) {
+            hasRecordedHalfRef.current = true;
+            updateMasteryFromWatch(contextUser.id, drill.id, percent, false).catch(console.error);
+        }
+
+        // Finish
+        if (isFinished) {
+            updateMasteryFromWatch(contextUser.id, drill.id, 1, true).catch(console.error);
+            // Reset for loop
+            hasRecordedStartRef.current = false;
+            hasRecordedHalfRef.current = false;
+        }
+    };
 
     const navigateToCreator = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -346,7 +377,44 @@ export const DrillDetail: React.FC = () => {
         setIsVideoReady(false); // Reset ready state when changing video tabs
     }, [currentVideoType]);
 
-    // Unified Play/Pause logic for Detail View
+    // Auto-play current video
+    useEffect(() => {
+        setIsVideoReady(false); // Reset ready state when changing video tabs
+        // Reset mastery refs when video changes (optional, but good if switching between action/desc)
+        // But logic says: watching action counts for mastery? Or description?
+        // Probably both count towards "Drill Mastery".
+        // Let's keep refs persistent per drill session, OR reset.
+        // If we reset, switching videos allows 'start' bonus again? No, mastery function handles checks.
+        // But 'attempt count' might incr. 
+        // Let's NOT reset refs on video type change to avoid double counting.
+    }, [currentVideoType]);
+
+    // Initialize Vimeo Player for Tracking
+    useEffect(() => {
+        if (useVimeo && iframeRef.current) {
+            try {
+                const player = new Player(iframeRef.current);
+
+                const onTimeUpdate = (data: { seconds: number; duration: number; percent: number }) => {
+                    handleMasteryUpdate(data.percent, false);
+                };
+
+                const onEnded = () => {
+                    handleMasteryUpdate(1, true);
+                };
+
+                player.on('timeupdate', onTimeUpdate);
+                player.on('ended', onEnded);
+
+                return () => {
+                    player.off('timeupdate', onTimeUpdate);
+                    player.off('ended', onEnded);
+                };
+            } catch (e) {
+                console.error('Error init Vimeo player:', e);
+            }
+        }
+    }, [useVimeo, vimeoId, currentVideoType, contextUser, drill]);
     const applyPlaybackState = (playing: boolean) => {
         if (useVimeo) {
             const iframe = iframeRef.current;
@@ -378,6 +446,11 @@ export const DrillDetail: React.FC = () => {
         const updateProgress = () => {
             const progress = (video.currentTime / video.duration) * 100;
             setProgress(progress);
+
+            // Mastery Update
+            if (video.duration > 0) {
+                handleMasteryUpdate(video.currentTime / video.duration, false);
+            }
         };
 
         video.addEventListener('timeupdate', updateProgress);
@@ -392,6 +465,8 @@ export const DrillDetail: React.FC = () => {
         const handleEnded = () => {
             video.currentTime = 0;
             video.play();
+            // Mastery Finish
+            handleMasteryUpdate(1, true);
         };
 
         video.addEventListener('ended', handleEnded);

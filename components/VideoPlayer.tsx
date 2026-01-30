@@ -13,7 +13,7 @@ interface VideoPlayerProps {
     maxPreviewDuration?: number; // In seconds
     isPreviewMode?: boolean; // For compatibility
     onEnded?: () => void;
-    onProgress?: (seconds: number) => void;
+    onProgress?: (seconds: number, duration?: number, percent?: number) => void;
     onPreviewLimitReached?: () => void;
     onPreviewEnded?: () => void; // For compatibility
     showControls?: boolean;
@@ -245,7 +245,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 player.on('timeupdate', (data) => {
                     const seconds = data.seconds;
-                    if (onProgressRef.current) onProgressRef.current(seconds);
+                    if (onProgressRef.current) {
+                        onProgressRef.current(seconds, data.duration, data.percent);
+                    }
                     checkTimeLimit(seconds);
 
                     const max = maxPreviewDurationRef.current;

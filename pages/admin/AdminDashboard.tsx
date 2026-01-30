@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import {
     Star, BookOpen, Users, Home, Package, DollarSign,
     Dumbbell, Activity, Shield, AlertTriangle, MessageSquare,
-    Video, Swords, Bell, Download, TrendingUp, Cpu,
-    ArrowRight, CheckCircle2, Clock, Map
+    Video, Swords, Bell, Download, TrendingUp,
+    ArrowRight, Map
 } from 'lucide-react';
 import {
     getAdminStats, AdminStats, getAdminChartData,
-    getAdminRecentActivity, getAdminTopPerformers, getSystemHealth
+    getAdminRecentActivity, getAdminTopPerformers
 } from '../../lib/api-admin';
-import { ActivityItem, AdminTopPerformers, SystemStatus } from '../../types';
+import { ActivityItem, AdminTopPerformers } from '../../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const AdminDashboard: React.FC = () => {
@@ -25,7 +25,7 @@ export const AdminDashboard: React.FC = () => {
     const [chartData, setChartData] = useState<{ salesData: any[]; userGrowthData: any[] }>({ salesData: [], userGrowthData: [] });
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
     const [topPerformers, setTopPerformers] = useState<AdminTopPerformers | null>(null);
-    const [systemHealth, setSystemHealth] = useState<SystemStatus[]>([]);
+
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -35,18 +35,18 @@ export const AdminDashboard: React.FC = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [statsData, charts, activity, performers, health] = await Promise.all([
+            const [statsData, charts, activity, performers] = await Promise.all([
                 getAdminStats(),
                 getAdminChartData(30),
                 getAdminRecentActivity(),
                 getAdminTopPerformers(),
-                getSystemHealth()
+
             ]);
             setStats(statsData);
             setChartData(charts);
             setRecentActivity(activity);
             setTopPerformers(performers);
-            setSystemHealth(health);
+
         } catch (error) {
             console.error('Error loading dashboard data:', error);
         } finally {
@@ -344,40 +344,7 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* System Health */}
-                        <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-xl">
-                            <div className="flex items-center gap-2 mb-6">
-                                <Cpu className="w-5 h-5 text-emerald-400" />
-                                <h3 className="font-bold">시스템 상태</h3>
-                            </div>
-                            <div className="space-y-4">
-                                {systemHealth.map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            {item.status === 'operational' ? (
-                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                            ) : (
-                                                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-                                            )}
-                                            <span className="text-xs text-zinc-300">{item.service}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {item.latency && <span className="text-[10px] font-mono text-zinc-600">{item.latency}ms</span>}
-                                            <span className={`text-[10px] font-bold uppercase ${item.status === 'operational' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                {item.status}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-6 pt-4 border-t border-zinc-800/50 flex items-center justify-between">
-                                <div className="text-[10px] text-zinc-600 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    최종 확인: {new Date().toLocaleTimeString()}
-                                </div>
-                                <button className="text-[10px] font-bold text-violet-400 hover:text-violet-300">새로고침</button>
-                            </div>
-                        </div>
+                        {/* System Health Removed */}
                     </div>
                 </div>
 

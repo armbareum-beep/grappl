@@ -47,11 +47,11 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {routines.map((routine) => (
+                {routines.map((routine, idx) => (
                     <div
                         key={routine.id}
                         onClick={() => navigate(`/routines/${routine.id}`)}
-                        className="group cursor-pointer"
+                        className={cn("group cursor-pointer", idx >= 4 && "hidden md:block")}
                     >
                         {/* Thumbnail Card */}
                         <div className={cn(

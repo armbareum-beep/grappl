@@ -93,7 +93,7 @@ export const AdminCourseList: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                <div className="hidden md:block bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
@@ -176,6 +176,71 @@ export const AdminCourseList: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                {/* Mobile Card List */}
+                <div className="md:hidden space-y-4">
+                    {filteredCourses.length > 0 ? (
+                        filteredCourses.map((course) => (
+                            <div key={course.id} className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-4 backdrop-blur-xl">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="w-20 h-20 flex-shrink-0 relative overflow-hidden rounded-xl bg-zinc-800 border border-zinc-700/50">
+                                        <img
+                                            src={course.thumbnailUrl}
+                                            alt={course.title}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-bold text-zinc-100 text-lg mb-1 truncate">{course.title}</div>
+                                        <div className="text-sm text-zinc-500 mb-2">{course.category}</div>
+                                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                                            <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] border border-zinc-700">
+                                                {course.creatorName?.charAt(0)}
+                                            </div>
+                                            {course.creatorName}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <div className="text-sm font-bold text-zinc-200">
+                                        {course.price === 0 ? (
+                                            <span className="text-emerald-400">Free</span>
+                                        ) : (
+                                            `₩${course.price.toLocaleString()}`
+                                        )}
+                                    </div>
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        ACTIVE
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Link to={`/courses/${course.id}`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-bold transition-all">
+                                            View
+                                        </button>
+                                    </Link>
+                                    <Link to={`/creator/courses/${course.id}/edit`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-violet-400 rounded-xl text-xs font-bold transition-all">
+                                            Edit
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(course.id)}
+                                        className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                            <p className="text-zinc-500">No courses found matching your search.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

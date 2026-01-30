@@ -96,7 +96,7 @@ export const AdminDrillList: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                <div className="hidden md:block bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
@@ -188,6 +188,77 @@ export const AdminDrillList: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                {/* Mobile Card List */}
+                <div className="md:hidden space-y-4">
+                    {filteredDrills.length > 0 ? (
+                        filteredDrills.map((drill) => (
+                            <div key={drill.id} className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-4 backdrop-blur-xl">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex items-center justify-center text-zinc-600 flex-shrink-0">
+                                        {drill.thumbnailUrl ? (
+                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <PlayCircle className="w-8 h-8" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-bold text-zinc-100 text-lg mb-1 truncate">{drill.title}</div>
+                                        <div className="flex flex-wrap gap-1.5 mb-2">
+                                            {drill.tags?.slice(0, 3).map((tag, i) => (
+                                                <span key={i} className="text-[10px] font-medium text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                                        <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] border border-zinc-700 overflow-hidden">
+                                            {drill.creatorProfileImage ? (
+                                                <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                                drill.creatorName?.charAt(0) || 'U'
+                                            )}
+                                        </div>
+                                        {drill.creatorName || 'System'}
+                                    </div>
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border
+                                        ${drill.difficulty === Difficulty.Beginner ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                            drill.difficulty === Difficulty.Intermediate ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' :
+                                                'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                        {drill.difficulty}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Link to={`/drills/${drill.id}`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-bold transition-all">
+                                            View
+                                        </button>
+                                    </Link>
+                                    <Link to={`/creator/drills/${drill.id}/edit`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-violet-400 rounded-xl text-xs font-bold transition-all">
+                                            Edit
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(drill.id)}
+                                        className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                            <p className="text-zinc-500">No drills found.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

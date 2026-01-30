@@ -11,7 +11,8 @@ import {
     MasteryLevel,
     Course,
     Drill,
-    DrillRoutine
+    DrillRoutine,
+    MASTERY_XP_THRESHOLDS
 } from '../types';
 
 // ============================================================================
@@ -241,6 +242,83 @@ function getDefaultXpForSource(sourceType: TechniqueXpSourceType): number {
         manual: 0
     };
     return xpMap[sourceType] || 0;
+}
+
+export async function updateMasteryFromWatch(
+    userId: string,
+    techniqueId: string,
+    progressPercent: number,
+    isFinished: boolean
+) {
+    // 1. Get current mastery
+    const { data: currentMastery } = await getUserTechniqueMasteryById(userId, techniqueId);
+
+    let newLevel = currentMastery?.masteryLevel || 0;
+    let newSuccessCount = currentMastery?.totalSuccessCount || 0;
+    let newAttemptCount = (currentMastery?.totalAttemptCount || 0);
+
+    // Only increment attempt count if starting a new session (approx logic handled at client or just strictly increment on finish?)
+    // Let's assume attempt count tracks "views" roughly. We can increment on 'start' (progress > 0 && progress < small) or on 'finish'.
+    // Here we focus on LEVEL logic.
+
+    // 2. Logic
+    if (isFinished) {
+        newSuccessCount++;
+        // Level 3, 4, 5 Logic
+        if (newSuccessCount >= 3) newLevel = Math.max(newLevel, 5);
+        else if (newSuccessCount === 2) newLevel = Math.max(newLevel, 4);
+        else if (newSuccessCount === 1) newLevel = Math.max(newLevel, 3);
+    } else {
+        if (progressPercent >= 0.5) { // 50%
+            newLevel = Math.max(newLevel, 2);
+        } else if (progressPercent > 0) {
+            newLevel = Math.max(newLevel, 1);
+        }
+    }
+
+    // 3. Update if changed
+    // Only update if level increased OR counts changed (counts always change on finish)
+    // Or if progress percent increased significantly
+    const shouldUpdate =
+        newLevel !== currentMastery?.masteryLevel ||
+        isFinished ||
+        (progressPercent > (currentMastery?.progressPercent || 0));
+
+    if (!shouldUpdate) return { data: currentMastery, error: null };
+
+    const newXp = MASTERY_XP_THRESHOLDS[newLevel as MasteryLevel] || 0;
+
+    const updates = {
+        user_id: userId,
+        technique_id: techniqueId,
+        mastery_level: newLevel || 1,
+        mastery_xp: newXp,
+        progress_percent: Math.max(progressPercent * 100, currentMastery?.progressPercent || 0), // Store as 0-100
+        total_success_count: newSuccessCount,
+        total_attempt_count: isFinished ? (currentMastery?.totalAttemptCount || 0) + 1 : (currentMastery?.totalAttemptCount || 0), // Increment attempt on finish? Or start? 
+        // Better: client increments view count via 'incrementView', here we track completions.
+        // Let's just track completion count in success_count.
+        updated_at: new Date().toISOString()
+    };
+
+    // If new record
+    if (!currentMastery) {
+        (updates as any).created_at = new Date().toISOString();
+        (updates as any).total_attempt_count = 1; // First attempt
+    }
+
+    const { data, error } = await supabase
+        .from('user_technique_mastery')
+        .upsert(updates)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating mastery from watch:', error);
+        return { data: null, error };
+    }
+
+    return { data: transformUserTechniqueMastery(data), error: null };
 }
 
 // ============================================================================

@@ -47,11 +47,11 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {courses.map((course) => (
+                {courses.map((course, idx) => (
                     <div
                         key={course.id}
                         onClick={() => navigate(`/courses/${course.id}`)}
-                        className="group cursor-pointer"
+                        className={cn("group cursor-pointer", idx >= 3 && "hidden md:block")}
                     >
                         {/* Thumbnail Card */}
                         <div className={cn(

@@ -103,7 +103,7 @@ export const AdminRoutineList: React.FC = () => {
                 </div>
 
                 {/* Table Container */}
-                <div className="bg-zinc-900/20 rounded-[2.5rem] border border-zinc-800/50 backdrop-blur-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="hidden md:block bg-zinc-900/20 rounded-[2.5rem] border border-zinc-800/50 backdrop-blur-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-zinc-800/50">
                             <thead>
@@ -204,6 +204,75 @@ export const AdminRoutineList: React.FC = () => {
                             <h3 className="text-xl font-bold text-zinc-500">No matching routines identified</h3>
                             <p className="text-zinc-700 text-sm mt-2">Try adjusting your filters or search terms.</p>
                         </div>
+                    )}
+                </div>
+
+                {/* Mobile Card List */}
+                <div className="md:hidden space-y-4">
+                    {filteredRoutines.length === 0 ? (
+                        <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                            <p className="text-zinc-500">No routines found.</p>
+                        </div>
+                    ) : (
+                        filteredRoutines.map((routine) => (
+                            <div key={routine.id} className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-4 backdrop-blur-xl">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex items-center justify-center text-zinc-400 shadow-sm flex-shrink-0">
+                                        {(routine as any).thumbnailUrl || (routine as any).thumbnail_url ? (
+                                            <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <Activity className="h-8 w-8" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-lg font-extrabold text-white mb-1 truncate">{routine.title}</div>
+                                        <div className="text-xs text-zinc-500 font-medium line-clamp-2">
+                                            {routine.description || 'No detailed description provided.'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/50 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                        {routine.drills?.length || 0} Drills
+                                    </div>
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm
+                                        ${routine.difficulty === Difficulty.Beginner ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                            routine.difficulty === Difficulty.Intermediate ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' :
+                                                'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                        {routine.difficulty}
+                                    </span>
+                                    {routine.price === 0 ? (
+                                        <div className="px-3 py-1 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/5 border border-emerald-500/10">
+                                            Free
+                                        </div>
+                                    ) : (
+                                        <div className="px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest bg-zinc-800">
+                                            ₩{routine.price?.toLocaleString() || 0}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Link to={`/routines/${routine.id}`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-white hover:border-zinc-700 transition-all text-xs font-bold">
+                                            View
+                                        </button>
+                                    </Link>
+                                    <Link to={`/creator/routines/${routine.id}/edit`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-violet-400 hover:border-violet-500/30 transition-all text-xs font-bold">
+                                            Edit
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(routine.id)}
+                                        className="w-full py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-rose-400 hover:border-rose-500/30 transition-all text-xs font-bold"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
             </div>

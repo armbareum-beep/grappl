@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, ArrowRight, Play, Star } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getLatestUserSkillTree } from '../../lib/api-skill-tree';
+import { listUserSkillTrees } from '../../lib/api-skill-tree';
 import { getUserTechniqueMastery, getTechniqueById } from '../../lib/api-technique-mastery';
 import { getLessonById, getDrillById } from '../../lib/api';
 import { UserTechniqueMastery } from '../../types';
@@ -29,105 +29,110 @@ async function fetchContentTitle(contentId: string, type: 'technique' | 'lesson'
     }
 }
 
+interface RoadmapCardData {
+    treeId: string;
+    treeTitle: string;
+    nodeId: string;
+    techniqueId: string;
+    title: string;
+    mastery?: UserTechniqueMastery;
+}
+
 export const MasteryRoadmapWidget: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [nextTechnique, setNextTechnique] = useState<{
-        nodeId: string;
-        techniqueId: string;
-        title: string;
-        mastery?: UserTechniqueMastery;
-    } | null>(null);
-    const [treeId, setTreeId] = useState<string | null>(null);
+    const [roadmaps, setRoadmaps] = useState<RoadmapCardData[]>([]);
 
     useEffect(() => {
         if (!user) return;
 
         const fetchData = async () => {
             try {
-                // 1. Get Latest Skill Tree
-                let tree;
+                // 1. Get ALL Skill Trees
+                let trees;
                 try {
-                    const res = await getLatestUserSkillTree(user.id);
-                    tree = res.data;
+                    const res = await listUserSkillTrees(user.id);
+                    trees = res.data;
                 } catch (e) {
-                    console.error('Error fetching skill tree:', e);
+                    console.error('Error fetching skill trees:', e);
                     setLoading(false);
                     return;
                 }
 
-                if (!tree || !tree.nodes || tree.nodes.length === 0) {
+                if (!trees || trees.length === 0) {
                     setLoading(false);
                     return;
                 }
 
-                setTreeId(tree.id);
-
-                // 2. Extract Lesson/Drill Nodes
-                // Priority: 'lesson' and 'drill'
-                const contentNodes = tree.nodes.filter((n: any) =>
-                    (n.contentType === 'lesson' || n.contentType === 'drill') && n.contentId
-                );
-
-                if (contentNodes.length === 0) {
-                    setLoading(false);
-                    return;
-                }
-
-                // 3. Get Mastery Data (Still useful for lessons/drills if they are linked to techniques)
+                // 2. Get Mastery Data (Shared across all trees)
                 const { data: allMasteries } = await getUserTechniqueMastery(user.id);
                 const masteryMap = new Map((allMasteries || []).map((m: any) => [m.techniqueId, m]));
 
-                // 4. Find the "Next Step"
-                let targetNode = null;
-                let targetMastery = undefined;
+                const computedRoadmaps: RoadmapCardData[] = [];
 
-                for (const node of contentNodes) {
-                    const contentId = node.contentId || node.data?.contentId;
-                    let label = node.data?.label || node.data?.lesson?.title || node.data?.drill?.title;
+                // 3. Process EACH tree to find its "Next Step"
+                for (const tree of trees) {
+                    if (!tree.nodes || tree.nodes.length === 0) continue;
 
-                    const mastery = masteryMap.get(contentId);
+                    // Extract Lesson/Drill Nodes
+                    const contentNodes = tree.nodes.filter((n: any) =>
+                        (n.contentType === 'lesson' || n.contentType === 'drill') && n.contentId
+                    );
 
-                    // If label is missing, try to fetch it
-                    if (!label || label === 'Unknown Technique' || label === 'New Node' || label === 'Unknown') {
-                        label = await fetchContentTitle(contentId, node.contentType || 'lesson');
+                    if (contentNodes.length === 0) continue;
+
+                    let targetNode = null;
+                    let targetMastery = undefined;
+
+                    for (const node of contentNodes) {
+                        const contentId = node.contentId || node.data?.contentId;
+                        let label = node.data?.label || node.data?.lesson?.title || node.data?.drill?.title;
+                        const mastery = masteryMap.get(contentId);
+
+                        // If label is missing (lazy fetch later or settle for placeholder? Better to fetch if critical)
+                        // Fetching inside loop is slow. For now, try to use node data.
+                        // If really needed, we should fetch concurrently. Let's do lazy fetch just for the TARGET node.
+
+                        if (!mastery) {
+                            targetNode = { nodeId: node.id, techniqueId: contentId, title: label, contentType: node.contentType };
+                            break;
+                        }
+
+                        if (mastery.masteryLevel < 6) {
+                            targetNode = { nodeId: node.id, techniqueId: contentId, title: label, contentType: node.contentType };
+                            targetMastery = mastery;
+                            break;
+                        }
                     }
 
-                    // For lessons/drills, we might not have a mastery Level 6 record.
-                    // If no mastery record, it's the next step.
-                    if (!mastery) {
-                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Content' };
-                        break;
+                    // If all mastered, pick last
+                    if (!targetNode && contentNodes.length > 0) {
+                        const last = contentNodes[contentNodes.length - 1];
+                        const contentId = last.contentId || last.data?.contentId;
+                        targetNode = { nodeId: last.id, techniqueId: contentId, title: last.data?.label, contentType: last.contentType };
+                        targetMastery = masteryMap.get(contentId);
                     }
 
-                    // If it has mastery (level < 6), this is the one
-                    if (mastery.masteryLevel < 6) {
-                        targetNode = { nodeId: node.id, techniqueId: contentId, title: label || 'Unknown Content' };
-                        targetMastery = mastery;
-                        break;
+                    if (targetNode) {
+                        // Fetch title if missing
+                        let finalTitle = targetNode.title;
+                        if (!finalTitle || finalTitle === 'Unknown Technique' || finalTitle === 'New Node' || finalTitle === 'Unknown') {
+                            finalTitle = await fetchContentTitle(targetNode.techniqueId, targetNode.contentType || 'lesson');
+                        }
+
+                        computedRoadmaps.push({
+                            treeId: tree.id,
+                            treeTitle: tree.title,
+                            nodeId: targetNode.nodeId,
+                            techniqueId: targetNode.techniqueId,
+                            title: finalTitle || 'Unknown Content',
+                            mastery: targetMastery
+                        });
                     }
                 }
 
-                // If all mastered, pick the last one or show a "All Mastered" state
-                // For now, if all mastered, just show the last one
-                if (!targetNode && contentNodes.length > 0) {
-                    const last = contentNodes[contentNodes.length - 1];
-                    const contentId = last.contentId || last.data?.contentId;
-                    let label = last.data?.label || last.data?.lesson?.title || 'Unknown';
-
-                    if (!label || label === 'Unknown Technique' || label === 'New Node') {
-                        label = await fetchContentTitle(contentId, last.contentType || 'technique');
-                    }
-
-                    targetNode = { nodeId: last.id, techniqueId: contentId, title: label };
-                    targetMastery = masteryMap.get(contentId);
-                }
-
-                setNextTechnique({
-                    ...targetNode!,
-                    mastery: targetMastery
-                });
+                setRoadmaps(computedRoadmaps);
 
             } catch (error) {
                 console.error("Error loading roadmap widget:", error);
@@ -139,11 +144,12 @@ export const MasteryRoadmapWidget: React.FC = () => {
         fetchData();
     }, [user]);
 
-    // [DEMO] Mock Data Fallback for User Visualization
-    // If loading finishes and we still don't have a technique (e.g. no tree exists), show a demo one.
+    // [DEMO] Mock Data Fallback
     useEffect(() => {
-        if (!loading && !nextTechnique) {
-            setNextTechnique({
+        if (!loading && roadmaps.length === 0) {
+            setRoadmaps([{
+                treeId: 'demo-tree',
+                treeTitle: '나의 첫 로드맵 (예시)',
                 nodeId: 'demo-node',
                 techniqueId: 'demo-tech',
                 title: '데라히바 가드 셋업 (Demo)',
@@ -159,9 +165,9 @@ export const MasteryRoadmapWidget: React.FC = () => {
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 }
-            });
+            }]);
         }
-    }, [loading, nextTechnique, user]);
+    }, [loading, roadmaps.length, user]);
 
     if (!user) return null;
 
@@ -175,7 +181,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
         );
     }
 
-    if (!nextTechnique) {
+    if (roadmaps.length === 0) {
         return (
             <div className="relative overflow-hidden w-full bg-zinc-900/40 border border-zinc-800/50 p-6 md:p-8 rounded-[32px] group hover:border-violet-500/30 transition-all">
                 <div className="relative z-10 flex flex-row items-center justify-between gap-4">
@@ -201,65 +207,71 @@ export const MasteryRoadmapWidget: React.FC = () => {
         );
     }
 
-    const level = nextTechnique.mastery ? nextTechnique.mastery.masteryLevel : 1;
-    const progress = nextTechnique.mastery ? nextTechnique.mastery.progressPercent : 0;
-    const isMastered = level >= 6;
-
     return (
-        <div
-            onClick={() => navigate('/skill-tree')}
-            className="relative overflow-hidden w-full bg-[#121215] border border-zinc-800 p-6 md:p-8 rounded-[32px] cursor-pointer group hover:border-violet-500/50 transition-all duration-500"
-        >
-            {/* Background Effects */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-violet-900/10 blur-[80px] rounded-full group-hover:bg-violet-900/20 transition-all" />
+        <div className="w-full overflow-x-auto pb-4 -mb-4 hide-scrollbar snap-x snap-mandatory flex gap-4">
+            {roadmaps.map((mapData, idx) => {
+                const level = mapData.mastery ? mapData.mastery.masteryLevel : 1;
+                const progress = mapData.mastery ? mapData.mastery.progressPercent : 0;
+                const isMastered = level >= 6;
 
-            <div className="relative z-10 flex flex-row gap-4 items-center justify-between">
+                return (
+                    <div
+                        key={mapData.treeId}
+                        onClick={() => navigate(`/skill-tree?id=${mapData.treeId}`)} // Navigate to specific tree
+                        className="snap-center relative flex-shrink-0 w-full md:w-[600px] overflow-hidden bg-[#121215] border border-zinc-800 p-6 md:p-8 rounded-[32px] cursor-pointer group hover:border-violet-500/50 transition-all duration-500"
+                    >
+                        {/* Background Effects (Only for first item to distinguish 'Active' focus?) Or all? Let's do all but slightly different color? No keep consistent */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-violet-900/10 blur-[80px] rounded-full group-hover:bg-violet-900/20 transition-all" />
 
-                {/* Left: Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="px-3 py-1 bg-violet-500/10 text-violet-300 text-[10px] font-bold rounded-full border border-violet-500/20 flex items-center gap-1.5 uppercase tracking-wider">
-                            <Network className="w-3 h-3" />
-                            다음 단계
-                        </span>
-                        <span className="hidden sm:inline text-zinc-500 text-xs font-medium">
-                            마스터리 로드맵
-                        </span>
-                    </div>
+                        <div className="relative z-10 flex flex-row gap-4 items-center justify-between">
+                            {/* Left: Info */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className={`px-3 py-1 text-[10px] font-bold rounded-full border flex items-center gap-1.5 uppercase tracking-wider ${idx === 0 ? 'bg-violet-500/10 text-violet-300 border-violet-500/20' : 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>
+                                        <Network className="w-3 h-3" />
+                                        {idx === 0 ? '현재 진행 중' : '저장된 로드맵'}
+                                    </span>
+                                    <span className="hidden sm:inline text-zinc-500 text-xs font-medium truncate max-w-[150px]">
+                                        {mapData.treeTitle}
+                                    </span>
+                                </div>
 
-                    <h3 className="text-xl md:text-3xl font-black text-white mb-2 truncate leading-tight group-hover:text-violet-200 transition-colors">
-                        {nextTechnique.title}
-                    </h3>
+                                <h3 className="text-xl md:text-3xl font-black text-white mb-2 truncate leading-tight group-hover:text-violet-200 transition-colors">
+                                    {mapData.title}
+                                </h3>
 
-                    <div className="flex items-center gap-4 mt-2 md:mt-4">
-                        <div className="flex flex-col gap-1.5">
-                            <div className="flex items-end gap-2 text-sm font-bold text-zinc-300">
-                                <span>Level {level}</span>
-                                <span className="text-xs text-zinc-500 font-normal mb-0.5">
-                                    {isMastered ? '마스터 완료' : '진행도'}
-                                </span>
+                                <div className="flex items-center gap-4 mt-2 md:mt-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-end gap-2 text-sm font-bold text-zinc-300">
+                                            <span>Level {level}</span>
+                                            <span className="text-xs text-zinc-500 font-normal mb-0.5">
+                                                {isMastered ? '마스터 완료' : '진행도'}
+                                            </span>
+                                        </div>
+                                        <div className="w-32 sm:w-48 h-1.5 md:h-2 bg-zinc-800/80 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full shadow-[0_0_10px_rgba(139,92,246,0.5)] transition-all duration-1000 ${isMastered ? 'bg-gradient-to-r from-violet-600 to-indigo-500' : 'bg-gradient-to-r from-violet-600 to-indigo-500'}`}
+                                                style={{ width: `${isMastered ? 100 : Math.max(5, progress)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="w-32 sm:w-48 h-1.5 md:h-2 bg-zinc-800/80 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 shadow-[0_0_10px_rgba(139,92,246,0.5)] transition-all duration-1000"
-                                    style={{ width: `${isMastered ? 100 : Math.max(5, progress)}%` }}
-                                />
+
+                            {/* Right: Action */}
+                            <div className="flex-shrink-0">
+                                <button className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 group-hover:bg-violet-600 group-hover:border-violet-500 flex items-center justify-center transition-all duration-300 shadow-xl">
+                                    {isMastered ? (
+                                        <Star className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current" />
+                                    ) : (
+                                        <Play className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current ml-0.5 md:ml-1" />
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Right: Action */}
-                <div className="flex-shrink-0">
-                    <button className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 group-hover:bg-violet-600 group-hover:border-violet-500 flex items-center justify-center transition-all duration-300 shadow-xl">
-                        {isMastered ? (
-                            <Star className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current" />
-                        ) : (
-                            <Play className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 group-hover:text-white fill-current ml-0.5 md:ml-1" />
-                        )}
-                    </button>
-                </div>
-            </div>
+                );
+            })}
         </div>
     );
 };

@@ -90,7 +90,7 @@ export const AdminSparringList: React.FC = () => {
                 </div>
 
                 {/* List */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -169,6 +169,69 @@ export const AdminSparringList: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                {/* Mobile Card List */}
+                <div className="md:hidden space-y-4">
+                    {filteredVideos.length > 0 ? (
+                        filteredVideos.map((video) => (
+                            <div key={video.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="w-20 h-28 rounded-xl overflow-hidden bg-zinc-800 relative flex-shrink-0">
+                                        {video.thumbnailUrl ? (
+                                            <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                <PlayCircle className="w-6 h-6" />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium backdrop-blur-sm">
+                                            {(video.views || 0).toLocaleString()} views
+                                        </div>
+                                    </div>
+                                    <div className="min-w-0 flex-1 flex flex-col justify-between py-1">
+                                        <div>
+                                            <div className="font-bold text-white mb-1 line-clamp-2">{video.title}</div>
+                                            <div className="text-xs text-zinc-400">
+                                                {video.creator?.name || '-'}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-medium ${video.price > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-zinc-800 text-zinc-400'}`}>
+                                                {video.price > 0 ? `₩${video.price.toLocaleString()}` : '무료'}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-500">
+                                                {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Link to={`/sparring/${video.id}`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-medium transition-all">
+                                            View
+                                        </button>
+                                    </Link>
+                                    <Link to={`/creator/sparring/${video.id}/edit`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-violet-400 rounded-xl text-xs font-medium transition-all">
+                                            Edit
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(video.id)}
+                                        className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-medium transition-all"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                            <p className="text-zinc-500">No sparring videos found.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -211,7 +211,7 @@ export const AdminUserList: React.FC = () => {
                 </div>
 
                 {/* Table Container */}
-                <div className="bg-zinc-900/20 rounded-[2.5rem] border border-zinc-800/50 backdrop-blur-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="hidden md:block bg-zinc-900/20 rounded-[2.5rem] border border-zinc-800/50 backdrop-blur-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-zinc-800/50">
                             <thead>
@@ -339,6 +339,95 @@ export const AdminUserList: React.FC = () => {
                             <h3 className="text-xl font-bold text-zinc-500">No matching personnel found</h3>
                             <p className="text-zinc-700 text-sm mt-2">Adjust your search parameters to find the users you're looking for.</p>
                         </div>
+                    )}
+                </div>
+
+                {/* Mobile View - Card List */}
+                <div className="md:hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    {filteredUsers.length === 0 ? (
+                        <div className="text-center py-16 bg-zinc-900/40 rounded-[2rem] border border-zinc-800/50">
+                            <Search className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-zinc-500">사용자를 찾을 수 없습니다</h3>
+                            <p className="text-zinc-600 text-sm mt-2 px-4">검색 조건을 변경해보세요.</p>
+                        </div>
+                    ) : (
+                        filteredUsers.map((user) => (
+                            <div key={user.id} className="bg-zinc-900/40 border border-zinc-800/50 rounded-[2rem] p-6 backdrop-blur-sm">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div className="flex items-center gap-4 group/mobile-user" onClick={() => navigate(`/admin/users/${user.id}`)}>
+                                        <div className="w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 shadow-sm">
+                                            <User className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <div className="text-lg font-extrabold text-white mb-0.5">{user.name || 'Anonymous'}</div>
+                                            <div className="text-xs text-zinc-500 font-medium">{user.email}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest pt-1.5">
+                                        {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 mb-6">
+                                    {user.is_admin && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                            Administrator
+                                        </span>
+                                    )}
+                                    {user.is_creator && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                            Instructor
+                                        </span>
+                                    )}
+                                    {user.is_complimentary_subscription && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                                            <Gift className="w-3 h-3 mr-1.5" /> 무료 구독
+                                        </span>
+                                    )}
+                                    {user.is_subscriber && !user.is_complimentary_subscription && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                            Premium
+                                        </span>
+                                    )}
+                                    {!user.is_admin && !user.is_creator && !user.is_subscriber && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-zinc-800/50 text-zinc-500 border border-zinc-800">
+                                            Standard
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    {user.is_complimentary_subscription ? (
+                                        <button
+                                            onClick={() => handleRevokeSubscription(user.id, user.name)}
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 active:scale-95 transition-transform"
+                                        >
+                                            <X className="w-3 h-3" /> 구독 취소
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleOpenSubscriptionModal(user)}
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-pink-500/10 text-pink-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-500/20 active:scale-95 transition-transform"
+                                        >
+                                            <Gift className="w-3 h-3" /> 무료 구독
+                                        </button>
+                                    )}
+
+                                    {!user.is_creator ? (
+                                        <button
+                                            onClick={() => handlePromote(user.id, user.name)}
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-violet-500/30 shadow-lg shadow-violet-500/20 active:scale-95 transition-transform"
+                                        >
+                                            <UserCheck className="w-3 h-3" /> 승격
+                                        </button>
+                                    ) : (
+                                        <div className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-950 text-emerald-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest border border-zinc-800">
+                                            <Shield className="w-3 h-3" /> Authorized
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
             </div>

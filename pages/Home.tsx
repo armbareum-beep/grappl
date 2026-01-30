@@ -44,7 +44,7 @@ export const Home: React.FC = () => {
   const [newSparring, setNewSparring] = useState<SparringVideo[]>([]);
 
   // Tab State
-  const [activeNewTab, setActiveNewTab] = useState<'sparring' | 'routine' | 'course'>('sparring');
+  const [activeNewTab, setActiveNewTab] = useState<'sparring' | 'routine' | 'course'>('course');
   const [activeTrendingTab, setActiveTrendingTab] = useState<'course' | 'routine' | 'sparring'>('course');
 
   // User info

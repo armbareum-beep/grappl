@@ -8352,7 +8352,7 @@ export async function getUserSubscription(userId: string) {
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
-    const { data, error } = await withTimeout(
+    let { data, error } = await withTimeout(
         supabase
             .from('routines')
             .select('*, creator:creators(name, profile_image)')
@@ -8360,6 +8360,21 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
             .order('created_at', { ascending: false }),
         5000
     );
+
+    // Filter out if data is null, but if error is present, try fallback
+    if (error) {
+        console.warn('⚠️ getFeaturedRoutines with creator failed, retrying without creator:', error);
+        const fallback = await withTimeout(
+            supabase
+                .from('routines')
+                .select('*')
+                .limit(50)
+                .order('created_at', { ascending: false }),
+            5000
+        );
+        data = fallback.data;
+        error = fallback.error;
+    }
 
     if (error) return [];
 

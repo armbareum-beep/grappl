@@ -90,7 +90,7 @@ export const AdminLessonList = () => {
                 </div>
 
                 {/* List */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -165,6 +165,67 @@ export const AdminLessonList = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                {/* Mobile Card List */}
+                <div className="md:hidden space-y-4">
+                    {filteredLessons.length > 0 ? (
+                        filteredLessons.map((lesson) => (
+                            <div key={lesson.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                                <div className="flex gap-4 mb-4">
+                                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-800 relative flex-shrink-0">
+                                        {lesson.thumbnailUrl ? (
+                                            <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                <PlayCircle className="w-6 h-6" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1 flex flex-col justify-between py-1">
+                                        <div>
+                                            <div className="font-bold text-white mb-1 line-clamp-2">{lesson.title}</div>
+                                            <div className="text-xs text-zinc-400">
+                                                {/* @ts-ignore - joined data */}
+                                                {lesson.course?.title || 'No Course'}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="px-2 py-1 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300">
+                                                {lesson.difficulty}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-500">
+                                                {new Date(lesson.createdAt).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Link to={`/lessons/${lesson.id}`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-medium transition-all">
+                                            View
+                                        </button>
+                                    </Link>
+                                    <Link to={`/creator/lessons/${lesson.id}/edit`} className="w-full">
+                                        <button className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-violet-400 rounded-xl text-xs font-medium transition-all">
+                                            Edit
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(lesson.id)}
+                                        className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-medium transition-all"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
+                            <p className="text-zinc-500">No lessons found.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
