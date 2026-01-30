@@ -13,7 +13,7 @@ export default function DebugAccess() {
             // Get user data
             const { data: userData } = await supabase
                 .from('users')
-                .select('id, email, owned_video_ids, is_subscriber, subscription_tier')
+                .select('id, email, is_subscriber, subscription_tier')
                 .eq('id', user.id)
                 .single();
 
@@ -59,12 +59,10 @@ export default function DebugAccess() {
                     </div>
                 </div>
 
-                {/* Owned Video IDs from DB */}
+                {/* Owned Video IDs from DB - REMOVED */}
                 <div className="bg-gray-800 p-4 rounded">
-                    <h2 className="text-xl font-semibold mb-3">DB owned_video_ids (원본)</h2>
-                    <pre className="bg-gray-900 p-3 rounded overflow-x-auto text-xs">
-                        {JSON.stringify(debugInfo.user.owned_video_ids, null, 2)}
-                    </pre>
+                    <h2 className="text-xl font-semibold mb-3">DB owned_video_ids (제거됨)</h2>
+                    <p className="text-gray-400 text-sm">컬럼이 삭제되었습니다.</p>
                 </div>
 
                 {/* Owned Video IDs from Context */}

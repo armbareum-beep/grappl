@@ -250,84 +250,12 @@ export const RoutineDetail: React.FC = () => {
                     } else {
                         let isOwned = await checkDrillRoutineOwnership(user.id, id);
 
-                        // Double check manual ownership client-side
-                        if (!isOwned) {
-                            const { data: directUserData } = await supabase
-                                .from('users')
-                                .select('owned_video_ids')
-                                .eq('id', user.id)
-                                .maybeSingle();
-
-                            if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
-
-                                // Check routine UUID
-                                if (directIds.includes(String(id).trim().toLowerCase())) {
-                                    console.log('Manual ownership verified via direct check (RoutineDetail - UUID)');
-                                    isOwned = true;
-                                }
-
-                                // Also check routine Vimeo IDs (if any drills have vimeo URLs)
-                                if (!isOwned && drillsData && drillsData.length > 0) {
-                                    for (const drill of drillsData) {
-                                        const drillVimeoIds = [
-                                            drill.videoUrl,
-                                            // @ts-ignore
-                                            drill.video_url,
-                                            drill.vimeoUrl,
-                                            // @ts-ignore
-                                            drill.vimeo_url
-                                        ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                        for (const vimeoId of drillVimeoIds) {
-                                            if (directIds.includes(vimeoId)) {
-                                                console.log('Manual ownership verified via drill Vimeo ID (RoutineDetail)');
-                                                isOwned = true;
-                                                break;
-                                            }
-                                        }
-                                        if (isOwned) break;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Also check context ownedVideoIds with Vimeo ID matching
-                        if (!isOwned && user.ownedVideoIds) {
-                            const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
-
-                            // Check routine UUID
-                            if (normalizedOwnedIds.includes(String(id).trim().toLowerCase())) {
-                                isOwned = true;
-                            }
-
-                            // Check drill Vimeo IDs
-                            if (!isOwned && drillsData && drillsData.length > 0) {
-                                for (const drill of drillsData) {
-                                    const drillVimeoIds = [
-                                        drill.videoUrl,
-                                        // @ts-ignore
-                                        drill.video_url,
-                                        drill.vimeoUrl,
-                                        // @ts-ignore
-                                        drill.vimeo_url
-                                    ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                    for (const vimeoId of drillVimeoIds) {
-                                        if (normalizedOwnedIds.includes(vimeoId)) {
-                                            isOwned = true;
-                                            break;
-                                        }
-                                    }
-                                    if (isOwned) break;
-                                }
-                            }
-                        }
-
                         if (isOwned) setOwns(true);
+
+                        await getCompletedRoutinesToday(user.id);
                     }
-                    await getCompletedRoutinesToday(user.id);
                 }
+
 
                 // Check daily free drill
                 try {

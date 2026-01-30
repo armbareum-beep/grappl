@@ -116,44 +116,7 @@ export const LessonDetail: React.FC = () => {
                     const isCreator = user && courseData && courseData.creatorId === user.id;
                     let isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
 
-                    // Double check manual ownership client-side
-                    if (!isOwner && user) {
-                        const { data: directUserData } = await supabase
-                            .from('users')
-                            .select('owned_video_ids')
-                            .eq('id', user.id)
-                            .maybeSingle();
 
-                        if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
-                            const lessonIdTrimmed = String(lessonData.id).trim().toLowerCase();
-                            const courseIdTrimmed = lessonData.courseId ? String(lessonData.courseId).trim().toLowerCase() : '';
-
-                            // Check lesson UUID and course UUID
-                            if (directIds.includes(lessonIdTrimmed) || (courseIdTrimmed && directIds.includes(courseIdTrimmed))) {
-                                console.log('Manual ownership verified via direct check (LessonDetail - UUID)');
-                                isOwner = true;
-                            }
-
-                            // Also check lesson Vimeo IDs
-                            if (!isOwner) {
-                                const lessonVimeoIds = [
-                                    lessonData.vimeoUrl,
-                                    // @ts-ignore
-                                    lessonData.vimeo_url,
-                                    lessonData.videoUrl
-                                ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                for (const vimeoId of lessonVimeoIds) {
-                                    if (directIds.includes(vimeoId)) {
-                                        console.log('Manual ownership verified via direct check (LessonDetail - Vimeo ID)');
-                                        isOwner = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     // Core Permission Check - also check Vimeo IDs
                     let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;

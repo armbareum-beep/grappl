@@ -1288,18 +1288,7 @@ export async function checkSparringOwnership(userId: string, videoId: string): P
 
         if (data) return true;
 
-        // Check manual ownership
-        const { data: userData } = await supabase
-            .from('users')
-            .select('owned_video_ids')
-            .eq('id', userId)
-            .maybeSingle();
 
-        if (userData && Array.isArray(userData.owned_video_ids)) {
-            const ownedIds = userData.owned_video_ids.map(id => String(id).trim().toLowerCase());
-            const targetId = String(videoId).trim().toLowerCase();
-            if (ownedIds.includes(targetId)) return true;
-        }
 
         if (error) {
             console.error('Error checking sparring ownership:', error);
