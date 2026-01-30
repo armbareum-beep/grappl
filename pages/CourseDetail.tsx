@@ -43,6 +43,7 @@ export const CourseDetail: React.FC = () => {
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+    const [actualIsSubscribed, setActualIsSubscribed] = useState<boolean | null>(null); // Direct DB check to bypass AuthContext
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
     const [_currentTime, setCurrentTime] = useState<number>(0);
@@ -138,13 +139,28 @@ export const CourseDetail: React.FC = () => {
                         console.log('[CourseDetail DEBUG] User email:', user.email);
                         console.log('[CourseDetail DEBUG] Course ID:', id);
                         console.log('[CourseDetail DEBUG] User ownedVideoIds from context:', user.ownedVideoIds);
-                        console.log('[CourseDetail DEBUG] isSubscribed:', isSubscribed);
+                        console.log('[CourseDetail DEBUG] isSubscribed from context:', isSubscribed);
                         console.log('[CourseDetail DEBUG] isAdmin:', isAdmin);
                         console.log('[CourseDetail DEBUG] Course isSubscriptionExcluded:', courseData?.isSubscriptionExcluded);
-                        console.log('[CourseDetail DEBUG] Should have access (subscriber)?', isSubscribed && !courseData?.isSubscriptionExcluded);
 
-                        // TEMPORARY DEBUG ALERT
-                        alert(`DEBUG INFO:\nisSubscribed: ${isSubscribed}\nisAdmin: ${isAdmin}\nCourse excluded: ${courseData?.isSubscriptionExcluded}\nShould have access: ${isSubscribed && !courseData?.isSubscriptionExcluded}`);
+                        // DIRECT DB CHECK - Bypass AuthContext 400 error
+                        const { data: directUserData } = await supabase
+                            .from('users')
+                            .select('owned_video_ids, is_subscriber')
+                            .eq('id', user.id)
+                            .maybeSingle();
+
+                        console.log('[CourseDetail DEBUG] Direct DB check:', directUserData);
+                        console.log('[CourseDetail DEBUG] Direct DB is_subscriber:', directUserData?.is_subscriber);
+
+                        // Use direct DB value if available, otherwise fall back to context
+                        const dbIsSubscribed = directUserData?.is_subscriber ?? isSubscribed;
+                        setActualIsSubscribed(dbIsSubscribed); // Store in state for canWatchLesson
+                        console.log('[CourseDetail DEBUG] Final isSubscribed value:', dbIsSubscribed);
+                        console.log('[CourseDetail DEBUG] Should have access (subscriber)?', dbIsSubscribed && !courseData?.isSubscriptionExcluded);
+
+                        // Update alert to show actual value
+                        alert(`DEBUG INFO (DIRECT DB):\nisSubscribed from context: ${isSubscribed}\nis_subscriber from DB: ${directUserData?.is_subscriber}\nFinal value: ${dbIsSubscribed}\nCourse excluded: ${courseData?.isSubscriptionExcluded}\nShould have access: ${dbIsSubscribed && !courseData?.isSubscriptionExcluded}`);
 
                         let owns = await checkCourseOwnership(user.id, id);
                         console.log('[CourseDetail DEBUG] checkCourseOwnership result:', owns);
@@ -312,7 +328,10 @@ export const CourseDetail: React.FC = () => {
     const canWatchLesson = (lesson: Lesson) => {
         if (isAdmin) return true;
         if (ownsCourse) return true;
-        if (isSubscribed && !course?.isSubscriptionExcluded) return true;
+
+        // Use direct DB check value if available, otherwise fall back to context
+        const subscriptionStatus = actualIsSubscribed ?? isSubscribed;
+        if (subscriptionStatus && !course?.isSubscriptionExcluded) return true;
 
         // Check owned_video_ids for lesson UUID, course UUID, and Vimeo IDs
         if (user && user.ownedVideoIds) {
