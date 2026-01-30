@@ -145,15 +145,15 @@ export const CourseDetail: React.FC = () => {
                                 .maybeSingle();
 
                             if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
-                                if (directIds.includes(String(id).trim())) {
+                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                                if (directIds.includes(String(id).trim().toLowerCase())) {
                                     console.log('Manual ownership verified via direct check');
                                     owns = true;
                                 }
                             }
                         }
 
-                        setOwnsCourse(owns || (user.ownedVideoIds?.some(oid => String(oid).trim() === String(id).trim())) || false);
+                        setOwnsCourse(owns || (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(id).trim().toLowerCase())) || false);
 
                         // Fetch lesson progress
                         console.log('[CourseDetail] Checking progress...');
@@ -251,7 +251,7 @@ export const CourseDetail: React.FC = () => {
         if (isAdmin) return true;
         if (ownsCourse) return true;
         if (isSubscribed && !course?.isSubscriptionExcluded) return true;
-        if (user && (user.ownedVideoIds?.includes(lesson.id) || (course && user.ownedVideoIds?.includes(course.id)))) return true;
+        if (user && (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lesson.id).trim().toLowerCase()) || (course && user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(course.id).trim().toLowerCase())))) return true;
 
         if (course?.price === 0) return true;
 

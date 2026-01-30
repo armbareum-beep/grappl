@@ -259,15 +259,15 @@ export const RoutineDetail: React.FC = () => {
                                 .maybeSingle();
 
                             if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
-                                if (directIds.includes(String(id).trim())) {
+                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                                if (directIds.includes(String(id).trim().toLowerCase())) {
                                     console.log('Manual ownership verified via direct check (RoutineDetail)');
                                     isOwned = true;
                                 }
                             }
                         }
 
-                        if (isOwned || (user.ownedVideoIds?.some(oid => String(oid).trim() === String(id).trim()))) setOwns(true);
+                        if (isOwned || (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(id).trim().toLowerCase()))) setOwns(true);
                     }
                     await getCompletedRoutinesToday(user.id);
                 }

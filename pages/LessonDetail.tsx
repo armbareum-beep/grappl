@@ -125,9 +125,9 @@ export const LessonDetail: React.FC = () => {
                             .maybeSingle();
 
                         if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim());
-                            const lessonIdTrimmed = String(lessonData.id).trim();
-                            const courseIdTrimmed = lessonData.courseId ? String(lessonData.courseId).trim() : '';
+                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                            const lessonIdTrimmed = String(lessonData.id).trim().toLowerCase();
+                            const courseIdTrimmed = lessonData.courseId ? String(lessonData.courseId).trim().toLowerCase() : '';
 
                             if (directIds.includes(lessonIdTrimmed) || (courseIdTrimmed && directIds.includes(courseIdTrimmed))) {
                                 console.log('Manual ownership verified via direct check (LessonDetail)');
@@ -137,7 +137,7 @@ export const LessonDetail: React.FC = () => {
                     }
 
                     // Core Permission Check
-                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.some(oid => String(oid).trim() === String(lessonData.id).trim()) || (lessonData.courseId && user.ownedVideoIds?.some(oid => String(oid).trim() === String(lessonData.courseId).trim()))));
+                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lessonData.id).trim().toLowerCase()) || (lessonData.courseId && user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lessonData.courseId).trim().toLowerCase()))));
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
                     if (!hasAccess && (courseData && courseData.price === 0)) {

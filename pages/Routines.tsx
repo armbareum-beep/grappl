@@ -140,11 +140,12 @@ export const Routines: React.FC<{
         const matchesDifficulty = selectedDifficulty === 'All' || r.difficulty === selectedDifficulty;
         const matchesUniform = selectedUniform === 'All' || (r as any).uniformType === selectedUniform; // Soft check for uniform
 
+        const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(r.id).trim().toLowerCase());
         let matchesOwnership = true;
         if (selectedOwnership === 'Purchased') {
-            matchesOwnership = user?.ownedVideoIds?.includes(r.id) || false;
+            matchesOwnership = !!isOwnedManually;
         } else if (selectedOwnership === 'Not Purchased') {
-            matchesOwnership = !(user?.ownedVideoIds?.includes(r.id));
+            matchesOwnership = !isOwnedManually;
         }
 
         return matchesSearch && matchesCategory && matchesDifficulty && matchesUniform && matchesOwnership;

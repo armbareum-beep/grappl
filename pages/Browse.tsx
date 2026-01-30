@@ -106,10 +106,12 @@ export const Browse: React.FC<{
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;
 
     let matchesOwnership = true;
+    const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(course.id).trim().toLowerCase()) || course.creatorId === user?.id;
+
     if (selectedOwnership === 'My Classes') {
-      matchesOwnership = user?.ownedVideoIds?.includes(course.id) || course.creatorId === user?.id || false;
+      matchesOwnership = !!isOwnedManually;
     } else if (selectedOwnership === 'Not Purchased') {
-      matchesOwnership = !(user?.ownedVideoIds?.includes(course.id) || course.creatorId === user?.id);
+      matchesOwnership = !isOwnedManually;
     }
 
     return matchesSearch && (matchesCategory || selectedCategory === 'All') && matchesDifficulty && matchesUniform && matchesOwnership;

@@ -782,10 +782,11 @@ export const SparringFeed: React.FC<{
         let matchesCategory = selectedCategory === 'All' || video.category === selectedCategory;
 
         let matchesOwnership = true;
+        const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(video.id).trim().toLowerCase());
         if (selectedOwnership === 'Purchased') {
-            matchesOwnership = user?.ownedVideoIds?.includes(video.id) || false;
+            matchesOwnership = !!isOwnedManually;
         } else if (selectedOwnership === 'Not Purchased') {
-            matchesOwnership = !(user?.ownedVideoIds?.includes(video.id));
+            matchesOwnership = !isOwnedManually;
         }
 
         return matchesSearch && matchesUniform && matchesCategory && matchesOwnership;
