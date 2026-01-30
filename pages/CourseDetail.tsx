@@ -143,6 +143,9 @@ export const CourseDetail: React.FC = () => {
                         console.log('[CourseDetail DEBUG] Course isSubscriptionExcluded:', courseData?.isSubscriptionExcluded);
                         console.log('[CourseDetail DEBUG] Should have access (subscriber)?', isSubscribed && !courseData?.isSubscriptionExcluded);
 
+                        // TEMPORARY DEBUG ALERT
+                        alert(`DEBUG INFO:\nisSubscribed: ${isSubscribed}\nisAdmin: ${isAdmin}\nCourse excluded: ${courseData?.isSubscriptionExcluded}\nShould have access: ${isSubscribed && !courseData?.isSubscriptionExcluded}`);
+
                         let owns = await checkCourseOwnership(user.id, id);
                         console.log('[CourseDetail DEBUG] checkCourseOwnership result:', owns);
 
