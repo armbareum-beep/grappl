@@ -1286,12 +1286,26 @@ export async function checkSparringOwnership(userId: string, videoId: string): P
             .eq('status', 'completed')
             .maybeSingle();
 
+        if (data) return true;
+
+        // Check manual ownership
+        const { data: userData } = await supabase
+            .from('users')
+            .select('owned_video_ids')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (userData && Array.isArray(userData.owned_video_ids)) {
+            const ownedIds = userData.owned_video_ids.map(String);
+            if (ownedIds.includes(videoId)) return true;
+        }
+
         if (error) {
             console.error('Error checking sparring ownership:', error);
             return false;
         }
 
-        return !!data;
+        return false;
     } catch (e) {
         console.error('Exception checking sparring ownership:', e);
         return false;
@@ -1333,11 +1347,29 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
         .eq('course_id', courseId)
         .maybeSingle();
 
+    if (data) return true;
+
+    // Check manual ownership via owned_video_ids
+    try {
+        const { data: userData } = await supabase
+            .from('users')
+            .select('owned_video_ids')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (userData && Array.isArray(userData.owned_video_ids)) {
+            const ownedIds = userData.owned_video_ids.map(String);
+            if (ownedIds.includes(courseId)) return true;
+        }
+    } catch (e) {
+        console.warn('Manual ownership check failed', e);
+    }
+
     if (error) {
         return false;
     }
 
-    return !!data;
+    return false;
 }
 
 export async function getUserCourses(userId: string): Promise<Course[]> {
@@ -6627,6 +6659,22 @@ export async function checkDrillRoutineOwnership(userId: string, routineId: stri
         .maybeSingle();
 
     if (data) return true;
+
+    // Check manual ownership via owned_video_ids
+    try {
+        const { data: userData } = await supabase
+            .from('users')
+            .select('owned_video_ids')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (userData && Array.isArray(userData.owned_video_ids)) {
+            const ownedIds = userData.owned_video_ids.map(String);
+            if (ownedIds.includes(routineId)) return true;
+        }
+    } catch (e) {
+        console.warn('Manual ownership check failed', e);
+    }
 
     // Check if creator
     const { data: routine } = await supabase
