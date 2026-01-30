@@ -134,7 +134,7 @@ export const CourseDetail: React.FC = () => {
                     if (user) {
                         console.log('[CourseDetail] Checking ownership...');
                         const owns = await checkCourseOwnership(user.id, id);
-                        setOwnsCourse(owns);
+                        setOwnsCourse(owns || (user.ownedVideoIds?.includes(id)) || false);
 
                         // Fetch lesson progress
                         console.log('[CourseDetail] Checking progress...');
