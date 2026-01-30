@@ -105,7 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ownedVideoIds: newStatus.ownedVideoIds
             };
         } catch (error) {
-            console.error('Error checking user status:', error);
+            console.error('[AuthContext ERROR] Error checking user status:', error);
+            console.error('[AuthContext ERROR] Error details:', JSON.stringify(error, null, 2));
+            alert(`AuthContext ERROR:\n${error}\n\nCheck console for details`);
+
             // If network fails but we had cache, keep using cache
             if (cached) {
                 const parsed = JSON.parse(cached);
