@@ -71,6 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userData = userResult.data;
             const creatorData = creatorResult.data;
 
+            console.log('[AuthContext DEBUG] checkUserStatus called for userId:', userId);
+            console.log('[AuthContext DEBUG] userResult:', userResult);
+            console.log('[AuthContext DEBUG] userData:', userData);
+            console.log('[AuthContext DEBUG] userData.is_subscriber:', userData?.is_subscriber);
+            console.log('[AuthContext DEBUG] userData.is_admin:', userData?.is_admin);
+
             const newStatus = {
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),
                 isSubscribed: !!(userData?.is_subscriber === true),
@@ -78,6 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ownedVideoIds: Array.isArray(userData?.owned_video_ids) ? userData.owned_video_ids.map(id => String(id).trim().toLowerCase()) : [],
                 isCreator: !!(creatorData?.approved === true)
             };
+
+            console.log('[AuthContext DEBUG] newStatus.isSubscribed:', newStatus.isSubscribed);
 
             // Update state
             setIsAdmin(!!newStatus.isAdmin);
