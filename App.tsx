@@ -80,6 +80,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
 import { GlobalUploadProgress } from './components/GlobalUploadProgress';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import DebugAccess from './pages/DebugAccess';
 
 import { LandingPageV2 } from './pages/LandingPageV2';
 
@@ -307,6 +308,7 @@ const App: React.FC = () => {
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/debug-access" element={<DebugAccess />} />
                 {/* <Route path="/search" element={<GlobalSearch />} /> */}
 
                 {/* Admin Routes */}
