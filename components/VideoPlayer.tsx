@@ -76,6 +76,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         let player: Player | null = null;
         setPlayerError(null);
 
+        // Explicitly clear any existing content to prevent duplicates/ghosts
+        if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+        }
+
         try {
             const options: any = {
                 autoplay: autoplay,
@@ -279,263 +284,280 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
         }
 
-        return () => {
-            if (player) {
-                try { player.destroy(); } catch (_e) { }
-            }
-        };
     }, [vimeoId]);
 
-    // Polling fallback to ensure preview limit is enforced
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const player = playerRef.current;
-            if (!player) return;
+    // Cleanup function for the effect
+    return () => {
+        // IMMEDIATE SYNCHRONOUS CLEANUP
+        // 1. Force clear the container to remove the iframe/video element from DOM immediately
+        // This is the most effective way to kill audio from a detached element
+        if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+        }
 
-            player.getCurrentTime().then((seconds) => {
-                if (typeof seconds === 'number') {
-                    if (onProgressRef.current) onProgressRef.current(seconds);
+        if (player) {
+            try {
+                // 2. Attempt to pause/destroy via SDK (best effort)
+                // We don't wait for these promises because the component is unmounting
+                player.pause().catch(() => { });
+                player.destroy().catch(() => { });
+            } catch (_e) {
+                // Ignore errors during destroy
+            }
+        }
+    };
+}, [vimeoId]);
 
-                    const max = maxPreviewDurationRef.current;
-                    const isPreview = isPreviewModeRef.current;
-
-                    // STRICT ENFORCEMENT
-                    if (isPreview && max) {
-                        if (seconds >= max) {
-                            console.log(`[VideoPlayer] STRICT LIMIT HIT: ${seconds}s >= ${max}s. Forcing pause.`);
-                            player.pause().catch(console.warn);
-
-                            if (!hasReachedRef.current) {
-                                hasReachedRef.current = true;
-                                setHasReachedPreviewLimit(true);
-                                setShowUpgradeOverlay(true);
-                                if (onPreviewLimitReached) onPreviewLimitReached();
-                                if (onPreviewEnded) onPreviewEnded();
-                            }
-                        } else {
-                            // Only reset if we are significantly below the limit (to prevent flickering)
-                            if (seconds < max - 1) {
-                                hasReachedRef.current = false;
-                            }
-                        }
-                    }
-                }
-            }).catch(() => { });
-        }, 500); // Check every 500ms
-        return () => clearInterval(interval);
-    }, []);
-
-
-    // Handle external play/pause control with a single robust effect
-    useEffect(() => {
+// Polling fallback to ensure preview limit is enforced
+useEffect(() => {
+    const interval = setInterval(() => {
         const player = playerRef.current;
         if (!player) return;
 
-        const syncPlaybackState = async () => {
-            try {
-                // If paused prop or preview limit reached, we should pause
-                if (isPaused || hasReachedPreviewLimit) {
-                    await player.pause();
-                } else if (playing) {
-                    // Only play if 'playing' is true and not reached limit
-                    await player.play();
-                } else {
-                    // If playing is explicitly false, pause
-                    await player.pause();
+        player.getCurrentTime().then((seconds) => {
+            if (typeof seconds === 'number') {
+                if (onProgressRef.current) onProgressRef.current(seconds);
+
+                const max = maxPreviewDurationRef.current;
+                const isPreview = isPreviewModeRef.current;
+
+                // STRICT ENFORCEMENT
+                if (isPreview && max) {
+                    if (seconds >= max) {
+                        console.log(`[VideoPlayer] STRICT LIMIT HIT: ${seconds}s >= ${max}s. Forcing pause.`);
+                        player.pause().catch(console.warn);
+
+                        if (!hasReachedRef.current) {
+                            hasReachedRef.current = true;
+                            setHasReachedPreviewLimit(true);
+                            setShowUpgradeOverlay(true);
+                            if (onPreviewLimitReached) onPreviewLimitReached();
+                            if (onPreviewEnded) onPreviewEnded();
+                        }
+                    } else {
+                        // Only reset if we are significantly below the limit (to prevent flickering)
+                        if (seconds < max - 1) {
+                            hasReachedRef.current = false;
+                        }
+                    }
                 }
-            } catch (err: any) {
-                // Check if it's an expected interruption error
-                if (err?.name === 'AbortError' || err?.name === 'PlayInterrupted') {
-                    // Silently ignore interruptions from rapid state changes
-                    return;
-                }
-                console.warn('[VideoPlayer] Playback sync error:', err);
             }
-        };
+        }).catch(() => { });
+    }, 500); // Check every 500ms
+    return () => clearInterval(interval);
+}, []);
 
-        syncPlaybackState();
-    }, [isPaused, playing, hasReachedPreviewLimit]);
 
-    // Force 1:1 aspect ratio on iframes (ONLY if requested)
-    useEffect(() => {
-        if (!containerRef.current || !forceSquareRatio) return;
+// Handle external play/pause control with a single robust effect
+useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
 
-        const applySquareCrop = () => {
-            const iframe = containerRef.current?.querySelector('iframe');
-            if (iframe) {
-                // Check if style is already correct to avoid infinite loops
-                if (iframe.style.width === '177.78%' &&
-                    iframe.style.height === '177.78%' &&
-                    iframe.style.transform === 'translate(-50%, -50%)') {
-                    return;
-                }
-
-                iframe.style.width = '177.78%';
-                iframe.style.height = '177.78%';
-                iframe.style.position = 'absolute';
-                iframe.style.top = '50%';
-                iframe.style.left = '50%';
-                iframe.style.transform = 'translate(-50%, -50%)';
-                iframe.style.objectFit = 'cover';
-                console.log('[VideoPlayer] Applied 1:1 crop to iframe');
+    const syncPlaybackState = async () => {
+        try {
+            // If paused prop or preview limit reached, we should pause
+            if (isPaused || hasReachedPreviewLimit) {
+                await player.pause();
+            } else if (playing) {
+                // Only play if 'playing' is true and not reached limit
+                await player.play();
+            } else {
+                // If playing is explicitly false, pause
+                await player.pause();
             }
-        };
+        } catch (err: any) {
+            // Check if it's an expected interruption error
+            if (err?.name === 'AbortError' || err?.name === 'PlayInterrupted') {
+                // Silently ignore interruptions from rapid state changes
+                return;
+            }
+            console.warn('[VideoPlayer] Playback sync error:', err);
+        }
+    };
 
-        // Apply immediately
-        applySquareCrop();
+    syncPlaybackState();
+}, [isPaused, playing, hasReachedPreviewLimit]);
 
-        // Observe style changes on the iframe
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    applySquareCrop();
-                }
-                // Also handle childList changes if iframe is re-injected
-                if (mutation.type === 'childList') {
-                    applySquareCrop();
-                }
-            });
+// Force 1:1 aspect ratio on iframes (ONLY if requested)
+useEffect(() => {
+    if (!containerRef.current || !forceSquareRatio) return;
+
+    const applySquareCrop = () => {
+        const iframe = containerRef.current?.querySelector('iframe');
+        if (iframe) {
+            // Check if style is already correct to avoid infinite loops
+            if (iframe.style.width === '177.78%' &&
+                iframe.style.height === '177.78%' &&
+                iframe.style.transform === 'translate(-50%, -50%)') {
+                return;
+            }
+
+            iframe.style.width = '177.78%';
+            iframe.style.height = '177.78%';
+            iframe.style.position = 'absolute';
+            iframe.style.top = '50%';
+            iframe.style.left = '50%';
+            iframe.style.transform = 'translate(-50%, -50%)';
+            iframe.style.objectFit = 'cover';
+            console.log('[VideoPlayer] Applied 1:1 crop to iframe');
+        }
+    };
+
+    // Apply immediately
+    applySquareCrop();
+
+    // Observe style changes on the iframe
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                applySquareCrop();
+            }
+            // Also handle childList changes if iframe is re-injected
+            if (mutation.type === 'childList') {
+                applySquareCrop();
+            }
         });
+    });
 
-        observer.observe(containerRef.current, {
-            attributes: true,
-            childList: true,
-            subtree: true,
-            attributeFilter: ['style']
-        });
+    observer.observe(containerRef.current, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['style']
+    });
 
-        // Also apply after short delays to catch SDK initialization
-        const timers = [
-            setTimeout(applySquareCrop, 100),
-            setTimeout(applySquareCrop, 500),
-            setTimeout(applySquareCrop, 1000),
-            setTimeout(applySquareCrop, 2000)
-        ];
+    // Also apply after short delays to catch SDK initialization
+    const timers = [
+        setTimeout(applySquareCrop, 100),
+        setTimeout(applySquareCrop, 500),
+        setTimeout(applySquareCrop, 1000),
+        setTimeout(applySquareCrop, 2000)
+    ];
 
-        return () => {
-            observer.disconnect();
-            timers.forEach(clearTimeout);
-        };
-    }, [playerRef.current, vimeoId, forceSquareRatio]);
+    return () => {
+        observer.disconnect();
+        timers.forEach(clearTimeout);
+    };
+}, [playerRef.current, vimeoId, forceSquareRatio]);
 
 
-    return (
-        <div
-            className={fillContainer ? 'relative w-full h-full' : 'relative w-full aspect-video'}
-            onClick={async (_e) => {
-                if (clickTimeoutRef.current) {
-                    clearTimeout(clickTimeoutRef.current);
+return (
+    <div
+        className={fillContainer ? 'relative w-full h-full' : 'relative w-full aspect-video'}
+        onClick={async (_e) => {
+            if (clickTimeoutRef.current) {
+                clearTimeout(clickTimeoutRef.current);
+                clickTimeoutRef.current = null;
+
+                // Double Tap detected
+                if (onDoubleTap) {
+                    onDoubleTap();
+                    setShowLikeAnimation(true);
+                    setTimeout(() => setShowLikeAnimation(false), 1000);
+                }
+            } else {
+                clickTimeoutRef.current = setTimeout(async () => {
                     clickTimeoutRef.current = null;
 
-                    // Double Tap detected
-                    if (onDoubleTap) {
-                        onDoubleTap();
-                        setShowLikeAnimation(true);
-                        setTimeout(() => setShowLikeAnimation(false), 1000);
+                    if (!playerRef.current || showUpgradeOverlay) return;
+                    const paused = await playerRef.current.getPaused();
+                    if (paused) {
+                        playerRef.current.play();
+                    } else {
+                        playerRef.current.pause();
                     }
-                } else {
-                    clickTimeoutRef.current = setTimeout(async () => {
-                        clickTimeoutRef.current = null;
-
-                        if (!playerRef.current || showUpgradeOverlay) return;
-                        const paused = await playerRef.current.getPaused();
-                        if (paused) {
-                            playerRef.current.play();
-                        } else {
-                            playerRef.current.pause();
-                        }
-                    }, 300);
-                }
+                }, 300);
+            }
+        }}
+    >
+        {/* Vimeo Player Container - Isolated to prevent overwriting overlays */}
+        <div
+            ref={containerRef}
+            className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
             }}
-        >
-            {/* Vimeo Player Container - Isolated to prevent overwriting overlays */}
-            <div
-                ref={containerRef}
-                className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}
+        />
+
+        {/* Direct Video Fallback */}
+        {(!playerRef.current && vimeoId && (vimeoId.includes('storage') || vimeoId.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i))) && (
+            <video
+                src={vimeoId}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay={autoplay}
+                muted={muted}
+                loop
+                playsInline
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => onEnded?.()}
             />
+        )}
 
-            {/* Direct Video Fallback */}
-            {(!playerRef.current && vimeoId && (vimeoId.includes('storage') || vimeoId.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i))) && (
-                <video
-                    src={vimeoId}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    autoPlay={autoplay}
-                    muted={muted}
-                    loop
-                    playsInline
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => onEnded?.()}
+        {/* Error Overlay */}
+        {playerError && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90 p-6 text-center backdrop-blur-sm">
+                <div className="max-w-xs">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                        <span className="text-xl">⚠️</span>
+                    </div>
+                    <p className="text-red-400 font-bold mb-2">영상 재생 오류</p>
+                    <p className="text-zinc-400 text-xs mb-4 leading-relaxed font-mono bg-black/50 p-2 rounded border border-zinc-800">
+                        {playerError.message || (typeof playerError === 'string' ? playerError : 'Unknown Error')}
+                        {playerError.name && ` (${playerError.name})`}
+                    </p>
+                    <p className="text-zinc-600 text-[10px]">ID: {vimeoId}</p>
+                </div>
+            </div>
+        )}
+
+        {/* 프리뷰 타이머 (재생 중 표시) */}
+        {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && (
+            <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30">
+                <span className="text-xs font-bold text-violet-300">
+                    프리뷰: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} 남음
+                </span>
+            </div>
+        )}
+
+        {/* Like Animation */}
+        {showLikeAnimation && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                <Heart
+                    className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                    style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
                 />
-            )}
+            </div>
+        )}
 
-            {/* Error Overlay */}
-            {playerError && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90 p-6 text-center backdrop-blur-sm">
-                    <div className="max-w-xs">
-                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                            <span className="text-xl">⚠️</span>
-                        </div>
-                        <p className="text-red-400 font-bold mb-2">영상 재생 오류</p>
-                        <p className="text-zinc-400 text-xs mb-4 leading-relaxed font-mono bg-black/50 p-2 rounded border border-zinc-800">
-                            {playerError.message || (typeof playerError === 'string' ? playerError : 'Unknown Error')}
-                            {playerError.name && ` (${playerError.name})`}
-                        </p>
-                        <p className="text-zinc-600 text-[10px]">ID: {vimeoId}</p>
+        {/* 업그레이드 오버레이 (프리뷰 종료 시 표시) */}
+        {showUpgradeOverlay && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/90 backdrop-blur-md">
+                <div className="max-w-md mx-4 text-center">
+                    <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-6 rounded-full bg-violet-600/20 flex items-center justify-center border border-violet-500/30">
+                        <Lock className="w-6 h-6 md:w-8 md:h-8 text-violet-400" />
+                    </div>
+
+                    <h3 className="text-lg md:text-2xl font-bold text-white mb-2 md:mb-3">
+                        프리뷰가 종료되었습니다
+                    </h3>
+
+                    <p className="text-zinc-400 mb-4 md:mb-8 text-xs md:text-sm px-2">
+                        마음에 드셨나요? 이 강의와 수백 개의 다른 강의를 모두 시청하세요.
+                    </p>
+
+                    <div className="space-y-3">
+                        <Link to="/pricing" className="block">
+                            <button className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 md:py-4 px-4 md:px-6 rounded-full shadow-lg shadow-violet-500/30 transition-colors text-sm md:text-base">
+                                구독하고 모두 시청하기
+                            </button>
+                        </Link>
                     </div>
                 </div>
-            )}
-
-            {/* 프리뷰 타이머 (재생 중 표시) */}
-            {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && (
-                <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30">
-                    <span className="text-xs font-bold text-violet-300">
-                        프리뷰: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} 남음
-                    </span>
-                </div>
-            )}
-
-            {/* Like Animation */}
-            {showLikeAnimation && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-                    <Heart
-                        className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
-                        style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
-                    />
-                </div>
-            )}
-
-            {/* 업그레이드 오버레이 (프리뷰 종료 시 표시) */}
-            {showUpgradeOverlay && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/90 backdrop-blur-md">
-                    <div className="max-w-md mx-4 text-center">
-                        <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-6 rounded-full bg-violet-600/20 flex items-center justify-center border border-violet-500/30">
-                            <Lock className="w-6 h-6 md:w-8 md:h-8 text-violet-400" />
-                        </div>
-
-                        <h3 className="text-lg md:text-2xl font-bold text-white mb-2 md:mb-3">
-                            프리뷰가 종료되었습니다
-                        </h3>
-
-                        <p className="text-zinc-400 mb-4 md:mb-8 text-xs md:text-sm px-2">
-                            마음에 드셨나요? 이 강의와 수백 개의 다른 강의를 모두 시청하세요.
-                        </p>
-
-                        <div className="space-y-3">
-                            <Link to="/pricing" className="block">
-                                <button className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 md:py-4 px-4 md:px-6 rounded-full shadow-lg shadow-violet-500/30 transition-colors text-sm md:text-base">
-                                    구독하고 모두 시청하기
-                                </button>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+            </div>
+        )}
+    </div>
+);
 };

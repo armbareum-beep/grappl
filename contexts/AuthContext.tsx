@@ -86,8 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('[AuthContext DEBUG] userData.is_subscriber:', userData?.is_subscriber);
             console.log('[AuthContext DEBUG] userData.is_admin:', userData?.is_admin);
 
-            // TEMPORARY DEBUG ALERT
-            alert(`checkUserStatus DEBUG:\nuserData: ${JSON.stringify(userData, null, 2)}\nis_subscriber: ${userData?.is_subscriber}\ntype: ${typeof userData?.is_subscriber}`);
+
 
             const newStatus = {
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),

@@ -274,6 +274,7 @@ export const LessonDetail: React.FC = () => {
                                 {(lesson.videoUrl || lesson.vimeoUrl) ? (
                                     (owns || lesson.lessonNumber === 1) ? (
                                         <VideoPlayer
+                                            key={lesson.id} // FORCE REMOUNT on lesson change
                                             vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                             title={lesson.title}
                                             isPreviewMode={!owns}
