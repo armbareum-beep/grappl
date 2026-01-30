@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),
                 isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
-                ownedVideoIds: Array.isArray(userData?.owned_video_ids) ? userData.owned_video_ids.map(id => String(id).trim().toLowerCase()) : [],
+                ownedVideoIds: [], // owned_video_ids does not exist in users table!
                 isCreator: !!(creatorData?.approved === true)
             };
 

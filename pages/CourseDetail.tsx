@@ -146,7 +146,7 @@ export const CourseDetail: React.FC = () => {
                         // DIRECT DB CHECK - Bypass AuthContext 400 error
                         const { data: directUserData } = await supabase
                             .from('users')
-                            .select('owned_video_ids, is_subscriber')
+                            .select('is_subscriber')
                             .eq('id', user.id)
                             .maybeSingle();
 
