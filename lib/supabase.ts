@@ -16,3 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         storageKey: 'supabase.auth.token',
     }
 });
+
+// Expose to window for debugging
+if (typeof window !== 'undefined') {
+    (window as any).supabase = supabase;
+}
