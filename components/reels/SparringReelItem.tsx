@@ -386,21 +386,24 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({ video, isAct
 
                 {/* Overlay Contents */}
                 <div className="absolute inset-0 pointer-events-none z-40 flex items-start justify-center">
-                    {/* Top Buttons - Moved to Screen Top */}
-                    <div className="absolute top-4 left-4 z-50 pointer-events-auto">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); navigate(-1); }}
-                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
-                        >
-                            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-                        </button>
+                    {/* Top-aligned Buttons (Aligned with category dropdown in Watch.tsx) */}
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 w-full max-w-[min(100vw,calc(100vh-140px))] flex justify-between px-4 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); navigate(-1); }}
+                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
+                            >
+                                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
+                        </div>
+
+                        <div className="pointer-events-auto">
+                            <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
+                                {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="absolute top-4 right-4 z-50 pointer-events-auto">
-                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
-                            {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                        </button>
-                    </div>
                     <div className="relative w-full aspect-square mt-16 max-w-[min(100vw,calc(100vh-140px))] flex pointer-events-none">
 
 

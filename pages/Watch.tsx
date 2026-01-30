@@ -103,9 +103,7 @@ export function Watch() {
         try {
             setLoading(true);
 
-            const { canAccessContentSync } = await import('../lib/api-accessible-content');
-            const { fetchCreatorsByIds, transformLesson, transformSparringVideo, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring, extractVimeoId } = await import('../lib/api');
-            const userId = user?.id || null;
+            const { fetchCreatorsByIds, transformLesson, transformSparringVideo, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
 
             // Filter Drills: Must belong to at least one routine (joined via routine_drills)
             let drillQuery = supabase.from('drills')
@@ -168,29 +166,6 @@ export function Watch() {
             setDailyFreeDrillId(dailyDrillRes.data?.id);
             setDailyFreeSparringId(dailySparringRes.data?.id);
 
-            const isAccessible = (contentType: 'drill' | 'sparring' | 'lesson', content: any) => {
-                // For other content types video/vimeo url check
-                if (true) {
-                    // lessons and drills use vimeoUrl, sparring uses videoUrl
-                    const url = contentType === 'sparring' ? content.videoUrl : content.vimeoUrl;
-                    const isValidVideoUrl = !!extractVimeoId(url);
-                    if (!isValidVideoUrl) return false;
-                }
-
-                let isDailyFree = false;
-                if (contentType === 'drill') isDailyFree = dailyFreeDrillIds.includes(content.id);
-                else if (contentType === 'lesson') isDailyFree = dailyFreeLessonIds.includes(content.id);
-                else if (contentType === 'sparring') isDailyFree = dailyFreeSparringIds.includes(content.id);
-
-                return canAccessContentSync({
-                    contentId: content.id,
-                    isDailyFreeContent: isDailyFree,
-                    isSubscriber: userPermissions.isSubscriber,
-                    purchasedItemIds: userPermissions.purchasedItemIds,
-                    isLoggedIn: !!userId
-                });
-            };
-
             let allItems: MixedItem[] = [];
             const allCreatorIds: string[] = [];
 
@@ -214,15 +189,9 @@ export function Watch() {
 
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
-            // Transform & Filter
+            // Transform
             if (drillsRes.data) {
-                // 드릴 접근 제어: 오늘의 무료 드릴 OR 구독자/구매자만
-                const accessibleDrills = drillsRes.data.filter((d: any) => {
-                    const isDailyFreeDrill = dailyFreeDrillIds.includes(d.id);
-                    // 오늘의 무료 드릴이거나 접근 가능한 드릴만 표시
-                    return isDailyFreeDrill || isAccessible('drill', d);
-                });
-                allItems = [...allItems, ...accessibleDrills.map((d: any) => ({
+                allItems = [...allItems, ...drillsRes.data.map((d: any) => ({
                     type: 'drill' as const,
                     data: {
                         ...d,
@@ -247,16 +216,7 @@ export function Watch() {
             }
 
             if (sparringRes.data) {
-                const availableSparring = sparringRes.data.filter((s: any) => {
-                    const isDailyFree = dailyFreeSparringIds.includes(s.id);
-                    const isFree = s.price === 0 || s.price === null;
-                    const isOwner = s.creator_id === userId;
-
-                    // Note: isAccessible checks for subscription and purchases
-                    return isDailyFree || isFree || isOwner || isAccessible('sparring', s);
-                });
-
-                allItems = [...allItems, ...availableSparring.map((s: any) => {
+                allItems = [...allItems, ...sparringRes.data.map((s: any) => {
                     const transformed = transformSparringVideo(s);
                     const creatorInfo = creatorsMap[s.creator_id];
 
@@ -279,21 +239,7 @@ export function Watch() {
             }
 
             if (lessonsRes.data) {
-                // 레슨 접근 제어: 오늘의 무료 레슨 OR 구독자/구매자 OR 무료 강좌의 레슨만
-                const availableLessons = lessonsRes.data.filter((l: any) => {
-                    if (!l.course || l.course.published !== true) return false;
-
-                    const isDailyFree = dailyFreeLessonIds.includes(l.id);
-                    const isFreeCourse = l.course.price === 0 || l.course.price === null;
-
-                    // Note: isAccessible checks for subscription and purchases
-                    // We also explicitly check for explicit course purchase just in case isAccessible misses the course-level check for a lesson
-                    const isCoursePurchased = userPermissions.purchasedItemIds.includes(l.course.id);
-
-                    return isDailyFree || isFreeCourse || isCoursePurchased || isAccessible('lesson', l);
-                });
-
-                allItems = [...allItems, ...availableLessons.map((l: any) => {
+                allItems = [...allItems, ...lessonsRes.data.map((l: any) => {
                     const transformed = transformLesson(l);
                     const creatorId = l.course?.creator_id || l.creator_id;
                     const creator = creatorsMap[creatorId];
@@ -501,31 +447,23 @@ export function Watch() {
                     {loading ? (
                         <LoadingScreen message={`${currentTab.label} 피드를 준비하고 있습니다...`} />
                     ) : items.length > 0 ? (
-                        {/* DEBUG OVERLAY */ }
-                        < div className="fixed top-20 right-4 bg-black/80 text-white p-4 rounded z-50 text-xs font-mono border border-red-500">
-                    <div>Subscribed (Context): {isSubscribed ? 'TRUE' : 'FALSE'}</div>
-                    <div>UserPerms.isSubscriber: {userPermissions.isSubscriber ? 'TRUE' : 'FALSE'}</div>
-                    <div>Items: {items.length}</div>
-                    <div>Tab: {activeTab}</div>
-                </div>
-
-                <MixedReelsFeed
-                    items={items}
-                    userPermissions={userPermissions}
-                    isLoggedIn={!!user}
-                    dailyFreeDrillId={dailyFreeDrillId}
-                    dailyFreeSparringId={dailyFreeSparringId}
-                />
-                ) : (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
-                    <div className="w-16 h-16 rounded-3xl bg-zinc-900 flex items-center justify-center">
-                        <Clapperboard className="w-8 h-8 text-zinc-700" />
-                    </div>
-                    <p className="font-bold text-sm">표시할 콘텐츠가 없습니다</p>
-                </div>
+                        <MixedReelsFeed
+                            items={items}
+                            userPermissions={userPermissions}
+                            isLoggedIn={!!user}
+                            dailyFreeDrillId={dailyFreeDrillId}
+                            dailyFreeSparringId={dailyFreeSparringId}
+                        />
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
+                            <div className="w-16 h-16 rounded-3xl bg-zinc-900 flex items-center justify-center">
+                                <Clapperboard className="w-8 h-8 text-zinc-700" />
+                            </div>
+                            <p className="font-bold text-sm">표시할 콘텐츠가 없습니다</p>
+                        </div>
                     )}
+                </div>
             </div>
-        </div>
         </div >
     );
 }
