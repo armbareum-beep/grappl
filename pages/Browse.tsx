@@ -106,12 +106,41 @@ export const Browse: React.FC<{
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;
 
     let matchesOwnership = true;
-    const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(course.id).trim().toLowerCase()) || course.creatorId === user?.id;
 
-    if (selectedOwnership === 'My Classes') {
-      matchesOwnership = !!isOwnedManually;
-    } else if (selectedOwnership === 'Not Purchased') {
-      matchesOwnership = !isOwnedManually;
+    if (user?.ownedVideoIds) {
+      const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
+
+      // Check course UUID
+      const hasUuidMatch = normalizedOwnedIds.includes(String(course.id).trim().toLowerCase());
+
+      // Check course Vimeo IDs
+      const courseVimeoIds = [
+        // @ts-ignore
+        course.vimeoUrl,
+        // @ts-ignore
+        course.vimeo_url,
+        // @ts-ignore
+        course.previewVimeoId,
+        // @ts-ignore
+        course.preview_vimeo_id
+      ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+      const hasVimeoMatch = courseVimeoIds.some(vimeoId => normalizedOwnedIds.includes(vimeoId));
+
+      const isOwnedManually = hasUuidMatch || hasVimeoMatch || course.creatorId === user?.id;
+
+      if (selectedOwnership === 'My Classes') {
+        matchesOwnership = !!isOwnedManually;
+      } else if (selectedOwnership === 'Not Purchased') {
+        matchesOwnership = !isOwnedManually;
+      }
+    } else {
+      const isOwnedManually = course.creatorId === user?.id;
+      if (selectedOwnership === 'My Classes') {
+        matchesOwnership = !!isOwnedManually;
+      } else if (selectedOwnership === 'Not Purchased') {
+        matchesOwnership = !isOwnedManually;
+      }
     }
 
     return matchesSearch && (matchesCategory || selectedCategory === 'All') && matchesDifficulty && matchesUniform && matchesOwnership;

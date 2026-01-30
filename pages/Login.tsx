@@ -182,6 +182,13 @@ export const Login: React.FC = () => {
                             {!isLogin && (
                                 <p className="mt-1 text-xs text-zinc-500 ml-1">최소 6자 이상 입력해주세요</p>
                             )}
+                            {isLogin && (
+                                <div className="flex justify-end mt-1">
+                                    <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-violet-400 transition-colors">
+                                        비밀번호를 잊으셨나요?
+                                    </Link>
+                                </div>
+                            )}
                         </div>
 
                         <button

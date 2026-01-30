@@ -18,6 +18,8 @@ import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
 // import { CommunityFeed } from './pages/CommunityFeed';
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Settings } from './pages/Settings';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminCourseList } from './pages/admin/AdminCourseList';
@@ -423,6 +425,8 @@ const App: React.FC = () => {
                 <Route path="/payment/complete" element={<PaymentComplete />} />
                 <Route path="/checkout/:type/:id" element={<Checkout />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

@@ -1021,9 +1021,10 @@ export const TechniqueSkillTree: React.FC = () => {
         const sharedTreeId = searchParams.get('id');
         // Route param takes precedence if present, then query param
         const targetTreeId = paramTreeId || sharedTreeId;
+        const isValidUuid = targetTreeId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetTreeId);
 
-        // 공유된 트리가 있으면 항상 로드
-        if (targetTreeId) {
+        // 공유된 트리가 있으면 항상 로드 (단, 유효한 UUID인 경우만)
+        if (isValidUuid) {
             loadData(targetTreeId);
             return;
         }

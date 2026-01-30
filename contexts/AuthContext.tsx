@@ -21,6 +21,8 @@ interface AuthContextType {
     signInWithKakao: () => Promise<{ error: any }>;
     signOut: () => Promise<void>;
     becomeCreator: (name: string, bio: string) => Promise<{ error: any }>;
+    resetPassword: (email: string) => Promise<{ error: any }>;
+    updatePassword: (newPassword: string) => Promise<{ error: any }>;
     isSubscribed: boolean;
 }
 
@@ -343,6 +345,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     };
 
+    const resetPassword = async (email: string) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        return { error };
+    };
+
+    const updatePassword = async (newPassword: string) => {
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword,
+        });
+        return { error };
+    };
+
     const value = React.useMemo(() => ({
         user,
         loading,
@@ -355,6 +371,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithKakao,
         signOut,
         becomeCreator,
+        resetPassword,
+        updatePassword,
         isSubscribed,
     }), [user, loading, isCreator, isAdmin, isSubscribed]);
 

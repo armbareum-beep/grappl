@@ -782,11 +782,35 @@ export const SparringFeed: React.FC<{
         let matchesCategory = selectedCategory === 'All' || video.category === selectedCategory;
 
         let matchesOwnership = true;
-        const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(video.id).trim().toLowerCase());
-        if (selectedOwnership === 'Purchased') {
-            matchesOwnership = !!isOwnedManually;
-        } else if (selectedOwnership === 'Not Purchased') {
-            matchesOwnership = !isOwnedManually;
+        if (user?.ownedVideoIds) {
+            const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
+
+            // Check video UUID
+            const hasUuidMatch = normalizedOwnedIds.includes(String(video.id).trim().toLowerCase());
+
+            // Check Vimeo IDs
+            const vimeoIds = [
+                video.videoUrl,
+                // @ts-ignore
+                video.video_url,
+                video.vimeoUrl,
+                // @ts-ignore
+                video.vimeo_url
+            ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+            const hasVimeoMatch = vimeoIds.some(vimeoId => normalizedOwnedIds.includes(vimeoId));
+
+            const isOwnedManually = hasUuidMatch || hasVimeoMatch;
+
+            if (selectedOwnership === 'Purchased') {
+                matchesOwnership = !!isOwnedManually;
+            } else if (selectedOwnership === 'Not Purchased') {
+                matchesOwnership = !isOwnedManually;
+            }
+        } else {
+            if (selectedOwnership === 'Purchased') {
+                matchesOwnership = false;
+            }
         }
 
         return matchesSearch && matchesUniform && matchesCategory && matchesOwnership;

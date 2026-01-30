@@ -134,7 +134,13 @@ export const CourseDetail: React.FC = () => {
 
                     if (user) {
                         console.log('[CourseDetail] Checking ownership...');
+                        console.log('[CourseDetail DEBUG] User ID:', user.id);
+                        console.log('[CourseDetail DEBUG] User email:', user.email);
+                        console.log('[CourseDetail DEBUG] Course ID:', id);
+                        console.log('[CourseDetail DEBUG] User ownedVideoIds from context:', user.ownedVideoIds);
+
                         let owns = await checkCourseOwnership(user.id, id);
+                        console.log('[CourseDetail DEBUG] checkCourseOwnership result:', owns);
 
                         // Double check manual ownership client-side to be absolutely sure
                         if (!owns) {
@@ -144,11 +150,60 @@ export const CourseDetail: React.FC = () => {
                                 .eq('id', user.id)
                                 .maybeSingle();
 
+                            console.log('[CourseDetail DEBUG] Direct DB owned_video_ids:', directUserData?.owned_video_ids);
+
                             if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
                                 const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                                console.log('[CourseDetail DEBUG] Normalized directIds:', directIds);
+                                console.log('[CourseDetail DEBUG] Looking for course ID:', String(id).trim().toLowerCase());
+
+                                // Check course UUID
                                 if (directIds.includes(String(id).trim().toLowerCase())) {
-                                    console.log('Manual ownership verified via direct check');
+                                    console.log('Manual ownership verified via direct check (Course UUID)');
                                     owns = true;
+                                }
+
+                                // Also check course Vimeo IDs
+                                if (!owns && courseData) {
+                                    const courseVimeoIds = [
+                                        courseData.vimeoUrl,
+                                        // @ts-ignore
+                                        courseData.vimeo_url,
+                                        courseData.previewVimeoId,
+                                        // @ts-ignore
+                                        courseData.preview_vimeo_id
+                                    ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                                    console.log('[CourseDetail DEBUG] Course Vimeo IDs:', courseVimeoIds);
+
+                                    for (const vimeoId of courseVimeoIds) {
+                                        if (directIds.includes(vimeoId)) {
+                                            console.log('Manual ownership verified via Vimeo ID:', vimeoId);
+                                            owns = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Also check lesson Vimeo IDs
+                                if (!owns && lessonsData && lessonsData.length > 0) {
+                                    for (const lesson of lessonsData) {
+                                        const lessonVimeoIds = [
+                                            lesson.vimeoUrl,
+                                            // @ts-ignore
+                                            lesson.vimeo_url,
+                                            lesson.videoUrl
+                                        ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                                        for (const vimeoId of lessonVimeoIds) {
+                                            if (directIds.includes(vimeoId)) {
+                                                console.log('Manual ownership verified via lesson Vimeo ID:', vimeoId);
+                                                owns = true;
+                                                break;
+                                            }
+                                        }
+                                        if (owns) break;
+                                    }
                                 }
                             }
                         }
@@ -251,7 +306,53 @@ export const CourseDetail: React.FC = () => {
         if (isAdmin) return true;
         if (ownsCourse) return true;
         if (isSubscribed && !course?.isSubscriptionExcluded) return true;
-        if (user && (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lesson.id).trim().toLowerCase()) || (course && user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(course.id).trim().toLowerCase())))) return true;
+
+        // Check owned_video_ids for lesson UUID, course UUID, and Vimeo IDs
+        if (user && user.ownedVideoIds) {
+            const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
+
+            // Check lesson UUID
+            if (normalizedOwnedIds.some(oid => oid === String(lesson.id).trim().toLowerCase())) {
+                return true;
+            }
+
+            // Check course UUID
+            if (course && normalizedOwnedIds.some(oid => oid === String(course.id).trim().toLowerCase())) {
+                return true;
+            }
+
+            // Check lesson Vimeo IDs
+            const lessonVimeoIds = [
+                lesson.vimeoUrl,
+                // @ts-ignore
+                lesson.vimeo_url,
+                lesson.videoUrl
+            ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+            for (const vimeoId of lessonVimeoIds) {
+                if (normalizedOwnedIds.includes(vimeoId)) {
+                    return true;
+                }
+            }
+
+            // Check course Vimeo IDs
+            if (course) {
+                const courseVimeoIds = [
+                    course.vimeoUrl,
+                    // @ts-ignore
+                    course.vimeo_url,
+                    course.previewVimeoId,
+                    // @ts-ignore
+                    course.preview_vimeo_id
+                ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                for (const vimeoId of courseVimeoIds) {
+                    if (normalizedOwnedIds.includes(vimeoId)) {
+                        return true;
+                    }
+                }
+            }
+        }
 
         if (course?.price === 0) return true;
 

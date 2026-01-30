@@ -129,15 +129,65 @@ export const LessonDetail: React.FC = () => {
                             const lessonIdTrimmed = String(lessonData.id).trim().toLowerCase();
                             const courseIdTrimmed = lessonData.courseId ? String(lessonData.courseId).trim().toLowerCase() : '';
 
+                            // Check lesson UUID and course UUID
                             if (directIds.includes(lessonIdTrimmed) || (courseIdTrimmed && directIds.includes(courseIdTrimmed))) {
-                                console.log('Manual ownership verified via direct check (LessonDetail)');
+                                console.log('Manual ownership verified via direct check (LessonDetail - UUID)');
                                 isOwner = true;
+                            }
+
+                            // Also check lesson Vimeo IDs
+                            if (!isOwner) {
+                                const lessonVimeoIds = [
+                                    lessonData.vimeoUrl,
+                                    // @ts-ignore
+                                    lessonData.vimeo_url,
+                                    lessonData.videoUrl
+                                ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                                for (const vimeoId of lessonVimeoIds) {
+                                    if (directIds.includes(vimeoId)) {
+                                        console.log('Manual ownership verified via direct check (LessonDetail - Vimeo ID)');
+                                        isOwner = true;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // Core Permission Check
-                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator || (user && (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lessonData.id).trim().toLowerCase()) || (lessonData.courseId && user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(lessonData.courseId).trim().toLowerCase()))));
+                    // Core Permission Check - also check Vimeo IDs
+                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
+
+                    if (!hasAccess && user && user.ownedVideoIds) {
+                        const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
+
+                        // Check lesson UUID
+                        if (normalizedOwnedIds.includes(String(lessonData.id).trim().toLowerCase())) {
+                            hasAccess = true;
+                        }
+
+                        // Check course UUID
+                        if (!hasAccess && lessonData.courseId && normalizedOwnedIds.includes(String(lessonData.courseId).trim().toLowerCase())) {
+                            hasAccess = true;
+                        }
+
+                        // Check lesson Vimeo IDs
+                        if (!hasAccess) {
+                            const lessonVimeoIds = [
+                                lessonData.vimeoUrl,
+                                // @ts-ignore
+                                lessonData.vimeo_url,
+                                lessonData.videoUrl
+                            ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                            for (const vimeoId of lessonVimeoIds) {
+                                if (normalizedOwnedIds.includes(vimeoId)) {
+                                    hasAccess = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
                     if (!hasAccess && (courseData && courseData.price === 0)) {

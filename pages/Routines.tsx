@@ -140,12 +140,45 @@ export const Routines: React.FC<{
         const matchesDifficulty = selectedDifficulty === 'All' || r.difficulty === selectedDifficulty;
         const matchesUniform = selectedUniform === 'All' || (r as any).uniformType === selectedUniform; // Soft check for uniform
 
-        const isOwnedManually = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(r.id).trim().toLowerCase());
         let matchesOwnership = true;
-        if (selectedOwnership === 'Purchased') {
-            matchesOwnership = !!isOwnedManually;
-        } else if (selectedOwnership === 'Not Purchased') {
-            matchesOwnership = !isOwnedManually;
+
+        if (user?.ownedVideoIds) {
+            const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());
+
+            // Check routine UUID
+            const hasUuidMatch = normalizedOwnedIds.includes(String(r.id).trim().toLowerCase());
+
+            // Check drill Vimeo IDs (if routine has drills)
+            let hasVimeoMatch = false;
+            if (r.drills && r.drills.length > 0) {
+                for (const drill of r.drills) {
+                    const drillVimeoIds = [
+                        drill.videoUrl,
+                        // @ts-ignore
+                        drill.video_url,
+                        drill.vimeoUrl,
+                        // @ts-ignore
+                        drill.vimeo_url
+                    ].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+                    if (drillVimeoIds.some(vimeoId => normalizedOwnedIds.includes(vimeoId))) {
+                        hasVimeoMatch = true;
+                        break;
+                    }
+                }
+            }
+
+            const isOwnedManually = hasUuidMatch || hasVimeoMatch;
+
+            if (selectedOwnership === 'Purchased') {
+                matchesOwnership = !!isOwnedManually;
+            } else if (selectedOwnership === 'Not Purchased') {
+                matchesOwnership = !isOwnedManually;
+            }
+        } else {
+            if (selectedOwnership === 'Purchased') {
+                matchesOwnership = false;
+            }
         }
 
         return matchesSearch && matchesCategory && matchesDifficulty && matchesUniform && matchesOwnership;
