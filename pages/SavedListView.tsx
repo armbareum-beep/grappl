@@ -99,7 +99,7 @@ export const SavedListView: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                         {items.map((item) => {
-                            if (type === 'classes') return <div key={item.id} className="aspect-video"><CourseCard course={item} /></div>;
+                            if (type === 'classes') return <CourseCard key={item.id} course={item} />;
                             if (type === 'routines') return <DrillRoutineCard key={item.id} routine={item} />;
                             if (type === 'sparring') return <SparringCard key={item.id} video={item} />;
                             if (type === 'roadmaps') return <ChainCard key={item.id} chain={item} />;

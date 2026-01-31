@@ -154,7 +154,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
         >
             {/* Video/Thumbnail Area (16:9) */}
             <div className={cn(
-                "relative bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
+                "relative aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
                 "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
             )}>
                 <Link to={`/courses/${course.id}`} className="absolute inset-0 block overflow-hidden">
