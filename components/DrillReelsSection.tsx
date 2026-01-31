@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Play, Clapperboard, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Clapperboard, ChevronUp, ChevronDown, Bookmark, Share2 } from 'lucide-react';
 import { Drill } from '../types';
-import { getDailyFreeDrill } from '../lib/api';
+import { getDailyFreeDrill, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoPlayer } from './VideoPlayer';
@@ -11,12 +11,23 @@ import { supabase } from '../lib/supabase';
 import { HighlightedText } from './common/HighlightedText';
 import { ReelLoginModal } from './auth/ReelLoginModal';
 
+const ShareModal = lazy(() => import('./social/ShareModal'));
+
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [previewEnded, setPreviewEnded] = useState(false);
     const { isSubscribed, isAdmin, user } = useAuth();
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const navigate = useNavigate();
     const canWatchFull = isSubscribed || isAdmin;
+
+    useEffect(() => {
+        if (user && drill.id) {
+            checkRoutineSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
+        }
+    }, [user, drill.id]);
 
     const getVimeoId = (url?: string) => {
         if (!url) return null;
@@ -39,6 +50,27 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
             setIsLoginModalOpen(false);
         }
     }, [isHovered]);
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        try {
+            await toggleRoutineSave(user.id, drill.id);
+            setIsSaved(!isSaved);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsShareModalOpen(true);
+    };
 
     return (
         <div
@@ -107,6 +139,30 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                 </h3>
             </div>
 
+            {/* Icons Area — Visible on hover */}
+            <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Save */}
+                <button
+                    className={cn(
+                        "p-2 rounded-full bg-black/60 backdrop-blur-sm text-white scale-90 hover:scale-100 transition-all duration-200 hover:bg-white",
+                        isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                    )}
+                    onClick={handleSave}
+                    aria-label="저장"
+                >
+                    <Bookmark className={cn("w-4 h-4", isSaved && "fill-current")} />
+                </button>
+
+                {/* Share */}
+                <button
+                    className="p-2 rounded-full bg-black/60 backdrop-blur-sm text-white scale-90 hover:scale-100 transition-all duration-200 hover:bg-white hover:text-zinc-900"
+                    onClick={handleShare}
+                    aria-label="공유"
+                >
+                    <Share2 className="w-4 h-4" />
+                </button>
+            </div>
+
             {/* Play Icon Indicator (Hidden on hover) */}
             <div className={cn(
                 "absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300",
@@ -114,6 +170,19 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
             )}>
                 <Play className="w-3.5 h-3.5 text-white fill-white" />
             </div>
+
+            <Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={drill.title}
+                        text={`${drill.creatorName || 'Grapplay'}님의 드릴을 확인해보세요!`}
+                        imageUrl={drill.thumbnailUrl}
+                        url={`${window.location.origin}/watch?id=${drill.id}`}
+                    />
+                )}
+            </Suspense>
 
             <ReelLoginModal
                 isOpen={isLoginModalOpen}

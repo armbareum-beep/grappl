@@ -434,16 +434,14 @@ export const Routines: React.FC<{
                     <h3 className="text-2xl font-bold text-zinc-200 mb-3">검색 결과가 없습니다</h3>
                 </div>
             ) : (
-                <div className={cn(
-                    "grid gap-6 md:gap-8",
-                    isEmbedded
-                        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                )}>
+                <div
+                    className="grid gap-6 md:gap-8"
+                    style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
+                >
                     {filteredRoutines.map(routine => (
                         <UnifiedContentCard
                             key={routine.id}
-                            className="aspect-[9/16]"
+                            className="aspect-[2/3]"
                             item={{
                                 id: routine.id,
                                 type: 'routine',

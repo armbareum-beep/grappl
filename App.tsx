@@ -16,6 +16,7 @@ import { CreateRoutine } from './pages/creator/CreateRoutine';
 import { CreatorCourses } from './pages/creator/CreatorCourses';
 import { CourseEditor } from './pages/creator/CourseEditor';
 import { MyLibrary } from './pages/MyLibrary';
+import { SavedListView } from './pages/SavedListView';
 // import { CommunityFeed } from './pages/CommunityFeed';
 import { Login } from './pages/Login';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -242,7 +243,11 @@ const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/v2" element={<LandingPageV2 />} />
-                <Route path="/home" element={<Home />} />
+                <Route path="/home" element={
+                  <ProtectedRoute guestRedirect="/">
+                    <Home />
+                  </ProtectedRoute>
+                } />
                 <Route path="/history" element={
                   <ProtectedRoute>
                     <History />
@@ -274,6 +279,7 @@ const App: React.FC = () => {
                 <Route path="/library" element={<Library />} />
                 <Route path="/agora" element={<Agora />} />
                 <Route path="/saved" element={<MyLibrary />} />
+                <Route path="/saved/:type" element={<SavedListView />} />
                 <Route path="/my-library" element={<Navigate to="/saved" replace />} />
                 <Route path="/watch-test" element={<div className="h-screen w-full bg-green-500 flex items-center justify-center text-white text-4xl">WATCH TEST ROUTE WORKS</div>} />
                 <Route path="/watch" element={<Watch />} />

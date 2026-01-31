@@ -148,12 +148,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
     return (
         <div
-            className={cn("group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1", className)}
+            className={cn("group flex flex-col gap-3 h-full", className)}
             onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Video/Thumbnail Area (16:9) */}
-            <div className="relative w-full aspect-[16/9] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-colors group-hover:border-zinc-700">
+            <div className={cn(
+                "relative bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
+                "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
+            )}>
                 <Link to={`/courses/${course.id}`} className="absolute inset-0 block overflow-hidden">
                     <img
                         src={course.thumbnailUrl}

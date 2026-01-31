@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Search, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
+import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -206,11 +206,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </span>
                 </Link>
 
-                {/* Mobile Search Icon */}
+                {/* Mobile Saved Icon */}
                 <div className="md:hidden">
-                  <button onClick={() => setSearchModalOpen(true)} className="p-2 -ml-2 text-muted-foreground hover:text-foreground flex items-center justify-center">
-                    <Search className="w-6 h-6" />
-                  </button>
+                  <Link to="/saved" className={cn(
+                    "p-2 -ml-2 transition-colors flex items-center justify-center",
+                    location.pathname === '/saved' ? "text-violet-400" : "text-muted-foreground hover:text-foreground"
+                  )}>
+                    <Bookmark className="w-6 h-6" fill={location.pathname === '/saved' ? "currentColor" : "none"} />
+                  </Link>
                 </div>
               </div>
 

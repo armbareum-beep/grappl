@@ -93,7 +93,7 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
             type: 'DRILL',
             data: drill,
             img: drill.thumbnailUrl,
-            activeRatio: '9/16', // Narrow & Tall
+            activeRatio: '2/3', // Narrow & Tall
             link: `/watch?tab=drill&id=${drill.id}`
         },
         {

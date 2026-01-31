@@ -15,7 +15,7 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 export type ContentType = 'class' | 'routine' | 'sparring';
 
-export type CardVariant = 'wide' | 'tall' | 'square';
+export type CardVariant = 'wide' | 'tall' | 'square' | 'large';
 
 export interface UnifiedContentItem {
     id: string;
@@ -41,15 +41,27 @@ interface UnifiedContentCardProps {
 }
 
 const getSpanClass = (type: ContentType, variant?: CardVariant): string => {
-    if (type === 'class') return 'col-span-2 row-span-4'; // Always wide
-
-    // For routines, always tall (9:16)
-    if (type === 'routine') {
-        return 'col-span-1 row-span-6';
+    // Class: ~16:9 Aspect Ratio Image + Text
+    // Small: 1 col x 3 row (Total ~190px -> Image ~110px which is 16:9 of 180px)
+    // Large: 2 col x 5 row (Total ~310px -> Image ~230px which is 16:9 of 360px)
+    if (type === 'class') {
+        if (variant === 'wide' || variant === 'large') {
+            return 'col-span-2 row-span-5';
+        }
+        return 'col-span-1 row-span-3';
     }
 
-    // For sparring, always square (1:1)
+    // Routine: 9:16 Ratio (Standard Vertical)
+    // 1 col x 5 row (Total ~350px -> Image ~300px which is good for 9:16 of 180px)
+    if (type === 'routine') {
+        return 'col-span-1 row-span-5';
+    }
+
+    // For sparring, always square (1:1) -> distinct sizes
     if (type === 'sparring') {
+        if (variant === 'large') {
+            return 'col-span-2 row-span-8';
+        }
         return 'col-span-1 row-span-4';
     }
 
@@ -148,7 +160,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
     return (
         <div
-            className={cn("group cursor-pointer flex flex-col", spanClass, className)}
+            className={cn("group cursor-pointer flex flex-col h-full", spanClass, className)}
         >
             {/* Image area — fills remaining space via flex-1 */}
             <div
@@ -246,7 +258,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                 {/* Text Info */}
                 <div className="flex-1 min-w-0 pr-1">
                     <Link to={link} onClick={handleClick}>
-                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors min-h-[2.5rem] md:min-h-[2.8rem]">
                             {item.title}
                         </h3>
                     </Link>

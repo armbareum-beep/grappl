@@ -97,7 +97,7 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
             className="snap-start flex-shrink-0 w-[140px] md:w-[180px] group cursor-pointer"
           >
             {/* Thumbnail Card */}
-            <div className="relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30 aspect-[9/16]">
+            <div className="relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30 aspect-[2/3]">
               {routine.routineThumbnail ? (
                 <img
                   src={routine.routineThumbnail}

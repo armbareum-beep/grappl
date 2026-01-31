@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { DrillRoutine } from '../types';
 import { PlayCircle, Bookmark, Share2 } from 'lucide-react';
@@ -8,15 +8,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
 
+const ShareModal = lazy(() => import('./social/ShareModal'));
+
 interface DrillRoutineCardProps {
     routine: DrillRoutine;
     rank?: number;
     hasAccess?: boolean;
+    className?: string;
 }
 
-export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false }) => {
+export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false, className }) => {
     const { user } = useAuth();
     const [isSaved, setIsSaved] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     useEffect(() => {
         if (user && routine.id) {
@@ -120,13 +124,16 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
 
     return (
         <div
-            className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1"
+            className={cn("group flex flex-col gap-3", className)}
             onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
             {/* Thumbnail */}
             <div
-                className="relative aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 group-hover:border-zinc-700 transition-all"
+                className={cn(
+                    "relative aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
+                    "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
+                )}
             >
                 <Link to={`/routines/${routine.id}`} className="absolute inset-0 block">
                     <img
@@ -175,7 +182,11 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                     {/* Share — bottom-right */}
                     <button
                         className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsShareModalOpen(true);
+                        }}
                         aria-label="공유"
                     >
                         <Share2 className="w-4 h-4" />
@@ -193,6 +204,19 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                         </div>
                     )}
                 </Link>
+
+                <Suspense fallback={null}>
+                    {isShareModalOpen && (
+                        <ShareModal
+                            isOpen={isShareModalOpen}
+                            onClose={() => setIsShareModalOpen(false)}
+                            title={routine.title}
+                            text={`${routine.creatorName || 'Grapplay'}님의 루틴을 확인해보세요!`}
+                            imageUrl={routine.thumbnailUrl}
+                            url={`${window.location.origin}/routines/${routine.id}`}
+                        />
+                    )}
+                </Suspense>
 
                 {/* Progress/Seek Bar */}
                 {showVideo && isHovering && hasAccess && (

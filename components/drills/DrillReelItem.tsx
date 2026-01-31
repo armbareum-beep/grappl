@@ -82,13 +82,36 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             };
 
             const [baseId, hash] = fullId.includes(':') ? fullId.split(':') : [fullId, null];
+            let player: Player;
+
             if (hash) {
-                options.url = `https://vimeo.com/${baseId}/${hash}`;
+                // Manual iframe for private videos (avoid oEmbed auth issues)
+                const iframe = document.createElement('iframe');
+                const params = new URLSearchParams({
+                    h: hash,
+                    background: '1',
+                    autoplay: '0',
+                    loop: '1',
+                    muted: isMuted ? '1' : '0',
+                    autopause: '0',
+                    controls: '0',
+                    playsinline: '1',
+                    dnt: '1'
+                });
+                iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.frameBorder = '0';
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+
+                containerRef.current!.innerHTML = '';
+                containerRef.current!.appendChild(iframe);
+
+                player = new Player(iframe);
             } else {
                 options.id = Number(baseId);
+                player = new Player(containerRef.current!, options);
             }
-
-            const player = new Player(containerRef.current, options);
             playerRef.current = player;
 
             player.ready().then(() => {

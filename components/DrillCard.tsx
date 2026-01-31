@@ -1,66 +1,145 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Drill } from '../types';
-import { PlayCircle, Clock } from 'lucide-react';
+import { PlayCircle, Clock, Bookmark, Share2 } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+
+const ShareModal = lazy(() => import('./social/ShareModal'));
 
 interface DrillCardProps {
     drill: Drill;
+    className?: string; // Add className for flexibility
 }
 
-export const DrillCard: React.FC<DrillCardProps> = ({ drill }) => {
+export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [isSaved, setIsSaved] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (user && drill.id) {
+            // NOTE: Currently drills are linked to routines via drill.id in this component's Link.
+            // Using checkRoutineSaved as a proxy if it's meant to be a routine card,
+            // or we might need checkDrillSaved if we introduce it.
+            checkRoutineSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
+        }
+    }, [user, drill.id]);
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        try {
+            await toggleRoutineSave(user.id, drill.id);
+            setIsSaved(!isSaved);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsShareModalOpen(true);
+    };
+
     return (
-        <Link
-            to={`/routines/${drill.id}`}
-            className="group block relative overflow-hidden rounded-lg bg-slate-900 hover:ring-2 hover:ring-violet-500 transition-all duration-200"
-            style={{ aspectRatio: '9/16' }}
-        >
-            {/* Thumbnail */}
-            <div className="absolute inset-0">
-                <img
-                    src={drill.thumbnailUrl}
-                    alt={drill.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            </div>
-
-            {/* Play Icon Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                    <PlayCircle className="w-10 h-10 text-white" />
+        <div className={cn("flex flex-col h-full", className)}>
+            <Link
+                to={`/routines/${drill.id}`}
+                className="group block relative overflow-hidden rounded-lg bg-slate-900 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30 grow"
+                style={{ aspectRatio: '2/3' }}
+            >
+                {/* Thumbnail */}
+                <div className="absolute inset-0">
+                    <img
+                        src={drill.thumbnailUrl}
+                        alt={drill.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 </div>
-            </div>
 
-            {/* Content */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                {/* Badge area — top-left placeholder if needed */}
+                <div className="absolute top-2.5 left-2.5 z-10">
+                </div>
+
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 z-[1]" />
+
+                {/* Icons Area — Visible on hover */}
+                {/* Save — top-right */}
+                <button
+                    className={cn(
+                        "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                        isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
+                    )}
+                    onClick={handleSave}
+                    aria-label="저장"
+                >
+                    <Bookmark className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
+                </button>
+
+                {/* Share — bottom-right */}
+                <button
+                    className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                    onClick={handleShare}
+                    aria-label="공유"
+                >
+                    <Share2 className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Play Icon Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <PlayCircle className="w-8 h-8 text-white" />
+                    </div>
+                </div>
+
+                {/* Views (Moved/Integrated or Hidden on hover) */}
+                <div className="absolute top-2.5 left-2.5 text-[10px] text-white bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5 opacity-100 group-hover:opacity-0 transition-opacity">
+                    {drill.views.toLocaleString()} views
+                </div>
+            </Link>
+
+            {/* Content Area (Below) */}
+            <div className="pt-3 px-1">
                 {/* Duration Badge */}
-                <div className="flex items-center gap-1 text-xs bg-black/50 backdrop-blur-sm rounded px-2 py-1 w-fit mb-2">
+                <div className="flex items-center gap-1 text-[10px] text-zinc-400 mb-1.5 font-bold uppercase tracking-tight">
                     <Clock className="w-3 h-3" />
                     <span>{drill.duration}</span>
                 </div>
 
                 {/* Title */}
-                <h3 className="font-bold text-sm line-clamp-2 mb-1">{drill.title}</h3>
+                <Link to={`/routines/${drill.id}`}>
+                    <h3 className="font-bold text-zinc-100 text-sm line-clamp-2 leading-tight group-hover:text-violet-400 transition-colors">{drill.title}</h3>
+                </Link>
 
                 {/* Creator & Price */}
-                <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300">{drill.creatorName}</span>
-                    <span className="font-semibold">₩{drill.price.toLocaleString()}</span>
-                </div>
-
-                {/* Category & Difficulty */}
-                <div className="flex items-center gap-2 mt-2 text-xs">
-                    <span className="bg-violet-600/80 px-2 py-0.5 rounded text-white font-bold">{drill.category}</span>
-                    <span className="bg-slate-700/80 px-2 py-0.5 rounded">
-                        {drill.difficulty === 'Beginner' ? '초급' : drill.difficulty === 'Intermediate' ? '중급' : '상급'}
-                    </span>
+                <div className="flex items-center justify-between mt-2">
+                    <span className="text-zinc-500 text-[11px] font-medium truncate max-w-[100px]">{drill.creatorName}</span>
+                    <span className="text-zinc-100 text-xs font-bold">₩{drill.price.toLocaleString()}</span>
                 </div>
             </div>
 
-            {/* Views */}
-            <div className="absolute top-2 right-2 text-xs text-white bg-black/50 backdrop-blur-sm rounded px-2 py-1">
-                {drill.views.toLocaleString()} views
-            </div>
-        </Link>
+            <Suspense fallback={null}>
+                {isShareModalOpen && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        title={drill.title}
+                        text={`${drill.creatorName || 'Grapplay'}님의 드릴을 확인해보세요!`}
+                        imageUrl={drill.thumbnailUrl}
+                        url={`${window.location.origin}/routines/${drill.id}`}
+                    />
+                )}
+            </Suspense>
+        </div>
     );
 };

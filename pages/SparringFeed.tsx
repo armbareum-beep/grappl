@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
@@ -9,21 +9,15 @@ import { ContentBadge } from '../components/common/ContentBadge';
 import { cn } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
 
-import Player from '@vimeo/player';
-import { useWakeLock } from '../hooks/useWakeLock';
 import { VideoPlayer } from '../components/VideoPlayer';
 
 const VideoItem: React.FC<{
     video: SparringVideo;
     isActive: boolean;
     dailyFreeId?: string | null;
-}> = ({ video, isActive, dailyFreeId }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const playerRef = useRef<Player | null>(null);
+    offset: number;
+}> = ({ video, isActive, dailyFreeId, offset }) => {
     const [muted, setMuted] = useState(true);
-    const [isPlayerReady, setIsPlayerReady] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    useWakeLock(isActive && isPlaying);
 
     // Interaction State
     const { user, isSubscribed, isAdmin } = useAuth();
@@ -132,119 +126,6 @@ const VideoItem: React.FC<{
     // If no access -> NULL (Do not play preview in feed, show lock screen/thumbnail only)
     const activeVimeoId = hasAccess ? vimeoFullId : null;
 
-    // Initialize Player
-    useEffect(() => {
-        if (!containerRef.current || !activeVimeoId || activeVimeoId === 'undefined' || activeVimeoId === 'null') return;
-
-        // Ensure ID is valid number or string with hash
-        if (isNaN(Number(activeVimeoId)) && !String(activeVimeoId).includes(':')) {
-            return;
-        }
-
-        if (playerRef.current) {
-            playerRef.current.destroy();
-        }
-
-        const sourceUrlOrId = activeVimeoId;
-
-        // Manual Iframe Strategy for Private Videos
-        const isPrivateWithHash = String(sourceUrlOrId).includes(':');
-
-        if (isPrivateWithHash) {
-            const [id, hash] = String(sourceUrlOrId).split(':');
-            const iframe = document.createElement('iframe');
-            iframe.src = `https://player.vimeo.com/video/${id}?h=${hash}&autoplay=1&loop=${hasAccess ? 1 : 0}&background=1&muted=1&dnt=1`;
-            iframe.setAttribute('frameborder', '0');
-            iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
-
-            // Force 1:1 aspect ratio
-            iframe.style.setProperty('width', '177.78%', 'important');
-            iframe.style.setProperty('height', '177.78%', 'important');
-            iframe.style.setProperty('position', 'absolute', 'important');
-            iframe.style.setProperty('top', '50%', 'important');
-            iframe.style.setProperty('left', '50%', 'important');
-            iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-            iframe.style.setProperty('object-fit', 'cover', 'important');
-
-            containerRef.current.appendChild(iframe);
-            const player = new Player(iframe);
-
-            player.ready().then(() => {
-                setIsPlayerReady(true);
-                playerRef.current = player;
-                if (isActive) player.play().catch(console.error);
-                if (!hasAccess && video.previewVimeoId) {
-                    player.on('ended', () => setPreviewEnded(true));
-                }
-            });
-        } else {
-            const options: any = {
-                id: Number(sourceUrlOrId),
-                width: window.innerWidth,
-                background: true,
-                loop: hasAccess,
-                autoplay: false,
-                muted: true,
-                controls: false,
-                dnt: true
-            };
-
-            const player = new Player(containerRef.current, options);
-            player.ready().then(() => {
-                setIsPlayerReady(true);
-                playerRef.current = player;
-
-                // Force 1:1 aspect ratio on SDK-created iframe
-                const applySquareCrop = () => {
-                    const iframe = containerRef.current?.querySelector('iframe');
-                    if (iframe) {
-                        iframe.style.setProperty('width', '177.78%', 'important');
-                        iframe.style.setProperty('height', '177.78%', 'important');
-                        iframe.style.setProperty('position', 'absolute', 'important');
-                        iframe.style.setProperty('top', '50%', 'important');
-                        iframe.style.left = '50%', 'important';
-                        iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-                        iframe.style.setProperty('object-fit', 'cover', 'important');
-                        console.log('[SparringFeed] Applied 1:1 crop');
-                    }
-                };
-
-                // Apply immediately and retry with delays
-                applySquareCrop();
-                setTimeout(applySquareCrop, 100);
-                setTimeout(applySquareCrop, 300);
-
-                if (isActive) player.play().catch(console.error);
-                if (!hasAccess && video.previewVimeoId) {
-                    player.on('ended', () => setPreviewEnded(true));
-                }
-            }).catch(err => console.error('Vimeo player init error:', err));
-        }
-
-        return () => {
-            if (playerRef.current) {
-                playerRef.current.destroy();
-            }
-            if (containerRef.current) containerRef.current.innerHTML = '';
-        };
-    }, [activeVimeoId, hasAccess]); // Re-run if access changes or ID changes
-
-    // Handle Active State Changes
-    useEffect(() => {
-        if (!playerRef.current || !isPlayerReady) return;
-
-        if (isActive) {
-            playerRef.current.play().catch(() => {
-                playerRef.current?.setVolume(0);
-                setMuted(true);
-                playerRef.current?.play().catch(console.error);
-            });
-        } else {
-            playerRef.current.pause().catch(console.error);
-            playerRef.current.setCurrentTime(0).catch(console.error);
-        }
-    }, [isActive, isPlayerReady]);
-
     // Record View History
     useEffect(() => {
         if (isActive && user && video.id) {
@@ -254,17 +135,8 @@ const VideoItem: React.FC<{
         }
     }, [isActive, user, video.id]);
 
-    const toggleMute = async () => {
-        const newMuteState = !muted;
-        setMuted(newMuteState);
-
-        if (playerRef.current) {
-            await playerRef.current.setVolume(newMuteState ? 0 : 1);
-            await playerRef.current.setMuted(newMuteState);
-        } else if (containerRef.current) {
-            const videoEl = containerRef.current.querySelector('video');
-            if (videoEl) videoEl.muted = newMuteState;
-        }
+    const toggleMute = () => {
+        setMuted(prev => !prev);
     };
 
     const renderVideoContent = () => {
@@ -346,6 +218,8 @@ const VideoItem: React.FC<{
                     vimeoId={activeVimeoId}
                     title={video.title}
                     playing={isActive}
+                    autoplay={isActive}
+                    muted={muted}
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
@@ -367,6 +241,8 @@ const VideoItem: React.FC<{
                 vimeoId={video.videoUrl}
                 title={video.title}
                 playing={isActive}
+                autoplay={isActive}
+                muted={muted}
                 showControls={false}
                 fillContainer={true}
                 forceSquareRatio={true}
@@ -376,8 +252,10 @@ const VideoItem: React.FC<{
     };
 
     return (
-        <>
-            <div className="w-full h-[calc(100vh-56px)] sm:h-screen relative snap-start shrink-0 bg-black flex items-start justify-center overflow-hidden pt-16">
+        <div
+            className="absolute inset-0 w-full h-full bg-black flex items-start justify-center overflow-hidden pt-16 transition-transform duration-300 ease-out will-change-transform"
+            style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
+        >
                 <div className="relative w-full max-w-[min(100vw,calc(100vh-140px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
                     {renderVideoContent()}
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
@@ -501,8 +379,7 @@ const VideoItem: React.FC<{
                         />
                     )}
                 </React.Suspense>
-            </div>
-        </>
+        </div>
     );
 };
 
@@ -685,7 +562,7 @@ export const SparringFeed: React.FC<{
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
     const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
     const [openDropdown, setOpenDropdown] = useState<'uniform' | 'ownership' | 'sort' | null>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [reelTouchStart, setReelTouchStart] = useState<{ y: number } | null>(null);
 
     const uniforms = ['All', 'Gi', 'No-Gi'];
     const ownershipOptions = ['All', 'Purchased', 'Not Purchased'];
@@ -738,34 +615,13 @@ export const SparringFeed: React.FC<{
         init();
     }, []);
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-        const handleScroll = () => {
-            const index = Math.round(container.scrollTop / container.clientHeight);
-            if (index !== activeIndex && videos[index]) {
-                setActiveIndex(index);
-            }
-        };
-        container.addEventListener('scroll', handleScroll, { passive: true });
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, [videos, activeIndex]);
-
     const initialId = searchParams.get('id');
 
     useEffect(() => {
-        if (videos.length > 0 && initialId && containerRef.current) {
+        if (videos.length > 0 && initialId) {
             const index = videos.findIndex(v => v.id === initialId);
             if (index !== -1) {
                 setActiveIndex(index);
-                setTimeout(() => {
-                    if (containerRef.current) {
-                        containerRef.current.scrollTo({
-                            top: index * containerRef.current.clientHeight,
-                            behavior: 'instant'
-                        });
-                    }
-                }, 100);
             }
         }
     }, [videos, initialId]);
@@ -824,33 +680,76 @@ export const SparringFeed: React.FC<{
         return 0; // Keep shuffled order if sortBy is 'shuffled'
     });
 
+    // Keyboard navigation (reels mode)
+    useEffect(() => {
+        if (viewMode !== 'reels') return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActiveIndex(prev => Math.max(0, prev - 1));
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [viewMode, filteredVideos.length]);
+
+    // Mouse wheel navigation (reels mode)
+    useEffect(() => {
+        if (viewMode !== 'reels') return;
+        let wheelTimeout: NodeJS.Timeout;
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(() => {
+                if (e.deltaY > 0) setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+                else if (e.deltaY < 0) setActiveIndex(prev => Math.max(0, prev - 1));
+            }, 100);
+        };
+        window.addEventListener('wheel', handleWheel, { passive: false });
+        return () => {
+            window.removeEventListener('wheel', handleWheel);
+            clearTimeout(wheelTimeout);
+        };
+    }, [viewMode, filteredVideos.length]);
+
     if (viewMode === 'reels') {
         return (
-            <div className="fixed inset-0 bg-black z-50 flex flex-col md:pl-28 overflow-hidden">
-                {/* Header Controls (Removed - Back button moved inside VideoItem) */}
-
-                {/* Main Content Area */}
-                <div className="flex-1 relative overflow-hidden">
-                    <div ref={containerRef} className="h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar">
-                        {/* If filtered videos are empty (e.g. from search), show all or handle nicely. 
-                            Usually Reels view ignores search unless navigated from search grid. 
-                            Here we use filteredVideos if we have them, else all. */}
-                        {filteredVideos.length > 0 ? (
-                            filteredVideos.map((video, idx) => (
-                                <VideoItem
-                                    key={video.id}
-                                    video={video}
-                                    isActive={idx === activeIndex}
-                                    dailyFreeId={dailyFreeIdState}
-                                />
-                            ))
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
-                                <p>영상이 없습니다.</p>
-                            </div>
-                        )}
+            <div
+                className="fixed inset-0 bg-black z-50 md:pl-28 overflow-hidden touch-none"
+                onTouchStart={(e) => setReelTouchStart({ y: e.targetTouches[0].clientY })}
+                onTouchEnd={(e) => {
+                    if (!reelTouchStart) return;
+                    const yDist = reelTouchStart.y - e.changedTouches[0].clientY;
+                    if (Math.abs(yDist) > 50) {
+                        if (yDist > 0) setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+                        else setActiveIndex(prev => Math.max(0, prev - 1));
+                    }
+                    setReelTouchStart(null);
+                }}
+            >
+                {filteredVideos.length > 0 ? (
+                    [-2, -1, 0, 1, 2].map(offset => {
+                        const index = activeIndex + offset;
+                        if (index < 0 || index >= filteredVideos.length) return null;
+                        const video = filteredVideos[index];
+                        return (
+                            <VideoItem
+                                key={video.id}
+                                video={video}
+                                isActive={offset === 0}
+                                dailyFreeId={dailyFreeIdState}
+                                offset={offset}
+                            />
+                        );
+                    })
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
+                        <p>영상이 없습니다.</p>
                     </div>
-                </div>
+                )}
             </div>
         );
     }

@@ -31,9 +31,9 @@ function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
     // Tall: Routine -> Takes 1 col (9:16)
     // Square: Sparring -> Takes 1 col (1:1)
 
-    const wideItems = items.filter(i => i.variant === 'wide' || i.type === 'class');
-    const tallItems = items.filter(i => i.variant === 'tall' || i.type === 'routine');
-    const squareItems = items.filter(i => i.variant === 'square' || i.type === 'sparring');
+    const wideItems = items.filter(i => i.variant === 'wide' || i.variant === 'large');
+    const tallItems = items.filter(i => i.variant === 'tall');
+    const squareItems = items.filter(i => i.variant === 'square');
 
     const result: UnifiedContentItem[] = [];
 
@@ -194,7 +194,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     isDailyFree: dailyFreeIds.routineIds.includes(routine.id),
                     drillCount: routine.drills?.length || 0,
                     originalData: routine,
-                    variant: 'tall', // Routines are now tall (9:16) in the ALL feed
+                    variant: 'tall', // Routines are always tall (9:16)
                 };
             });
 
@@ -220,7 +220,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
                     isDailyFree: video.id === dailyFreeIds.sparring,
                     originalData: video,
-                    variant: 'square', // Sparring is now square (1:1) in the ALL feed
+                    variant: Math.random() > 0.6 ? 'large' : 'square', // Randomly Large (40%) vs Small (60%)
                 };
             });
 
@@ -290,8 +290,12 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 {/* Masonry Grid */}
                 {filteredItems.length > 0 ? (
                     <div
-                        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3"
-                        style={{ gridAutoRows: '60px', gridAutoFlow: 'dense' }}
+                        className="grid gap-3"
+                        style={{
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+                            gridAutoRows: '60px',
+                            gridAutoFlow: 'dense'
+                        }}
                     >
                         <AnimatePresence mode="popLayout">
                             {filteredItems.map(item => (

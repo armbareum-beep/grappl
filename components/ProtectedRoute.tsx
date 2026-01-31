@@ -5,9 +5,10 @@ import { LoadingScreen } from './LoadingScreen';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
+    guestRedirect?: string;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, guestRedirect }) => {
     const { user, loading } = useAuth();
     const location = useLocation();
 
@@ -16,6 +17,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
 
     if (!user) {
+        if (guestRedirect) {
+            return <Navigate to={guestRedirect} replace />;
+        }
         // Redirect to login page but save the attempted location
         return <Navigate to="/login" state={{ from: location }} replace />;
     }

@@ -85,7 +85,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             const options: any = {
                 autoplay: autoplay,
                 loop: false,
-                autopause: true,
+                autopause: false,
                 title: false,
                 byline: false,
                 portrait: false,
