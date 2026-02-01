@@ -223,33 +223,39 @@ export const Home: React.FC = () => {
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}
 
-                                                    {/* Cinematic Gradient Overlay */}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                                                    {/* Cinematic Gradient Overlays */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
 
-                                                    {/* Centered Bottom Content */}
-                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-6 flex flex-col items-center text-center gap-6 z-10 transition-all duration-700 ${idx === currentSlide ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}>
-                                                        <div className="flex flex-col items-center gap-4">
-                                                            <span className="px-3 py-1 bg-white/10 text-white text-[10px] md:text-xs font-bold rounded-full border border-white/20 backdrop-blur-xl uppercase tracking-widest italic">데일리 드릴</span>
-                                                            <h2 className="text-white text-4xl md:text-7xl font-black tracking-tighter leading-none drop-shadow-2xl uppercase italic max-w-2xl">
-                                                                {typeof drill.title === 'string' ? drill.title : 'Drill'}
+                                                    {/* Cinematic Left-aligned Content */}
+                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
+                                                        <div className="flex flex-col items-start gap-6 max-w-3xl">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 드릴</span>
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                            </div>
+
+                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                {drill.title}
                                                             </h2>
-                                                            <div className="flex items-center gap-3 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider">
-                                                                <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded">{drill.category || 'Fundamentals'}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-5 h-5 md:w-6 md:h-6 rounded-full overflow-hidden bg-zinc-800 border border-white/10 flex-shrink-0">
+
+                                                            <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
+                                                                <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+                                                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {drill.creatorProfileImage ? (
                                                                             <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
                                                                         ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-500 font-bold">{drill.creatorName?.charAt(0) || 'U'}</div>
+                                                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{drill.creatorName?.charAt(0) || 'U'}</div>
                                                                         )}
                                                                     </div>
-                                                                    <span>{drill.creatorName || 'Grapplay Team'}</span>
+                                                                    <span className="text-white">{drill.creatorName || 'Grapplay Team'}</span>
                                                                 </div>
+                                                                <span className="text-zinc-400">{drill.category || 'Fundamentals'}</span>
                                                             </div>
                                                         </div>
 
-                                                        <button onClick={() => navigate(`/drills/${drill.id}`)} className="bg-white text-black font-black rounded-full px-12 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2.5 text-lg tracking-tight">
-                                                            <Play className="w-5 h-5 fill-current" /> 훈련 시작
+                                                        <button onClick={() => navigate(`/drills/${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                            <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -268,38 +274,39 @@ export const Home: React.FC = () => {
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}
 
-                                                    {/* Cinematic Gradient Overlay */}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                                                    {/* Cinematic Gradient Overlays */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
 
-                                                    {/* Centered Bottom Content */}
-                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-6 flex flex-col items-center text-center gap-6 z-10 transition-all duration-700 ${idx === currentSlide ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}>
-                                                        <div className="flex flex-col items-center gap-4">
-                                                            <span className="px-3 py-1 bg-white/10 text-white text-[10px] md:text-xs font-bold rounded-full border border-white/20 backdrop-blur-xl uppercase tracking-widest italic">데일리 레슨</span>
-                                                            <h2 className="text-white text-4xl md:text-7xl font-black tracking-tighter leading-none drop-shadow-2xl uppercase italic max-w-4xl">
-                                                                {typeof lesson.title === 'string' ? lesson.title : 'Lesson'}
+                                                    {/* Cinematic Left-aligned Content */}
+                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
+                                                        <div className="flex flex-col items-start gap-6 max-w-4xl">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 레슨</span>
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                            </div>
+
+                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                {lesson.title}
                                                             </h2>
-                                                            <div className="flex items-center gap-3 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider">
-                                                                <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded">{lesson.courseTitle || 'Exclusive Course'}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-5 h-5 md:w-6 md:h-6 rounded-full overflow-hidden bg-zinc-800 border border-white/10 flex-shrink-0">
+
+                                                            <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
+                                                                <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+                                                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {lesson.creatorProfileImage ? (
                                                                             <img src={lesson.creatorProfileImage} className="w-full h-full object-cover" alt="" />
                                                                         ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-500 font-bold">{lesson.creatorName?.charAt(0) || 'U'}</div>
+                                                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{lesson.creatorName?.charAt(0) || 'U'}</div>
                                                                         )}
                                                                     </div>
-                                                                    <span>{lesson.creatorName || 'Grapplay Team'}</span>
+                                                                    <span className="text-white">{lesson.creatorName || 'Grapplay Team'}</span>
                                                                 </div>
+                                                                <span className="text-zinc-400">{lesson.courseTitle || 'Exclusive Course'}</span>
                                                             </div>
                                                         </div>
 
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                navigate(`/lessons/${lesson.id}`);
-                                                            }}
-                                                            className="bg-white text-black font-black rounded-full px-12 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2.5 text-lg tracking-tight">
-                                                            <Play className="w-5 h-5 fill-current" /> 클래스 보기
+                                                        <button onClick={() => navigate(`/lessons/${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                            <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -318,28 +325,34 @@ export const Home: React.FC = () => {
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}
 
-                                                    {/* Cinematic Gradient Overlay */}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                                                    {/* Cinematic Gradient Overlays */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
 
-                                                    {/* Centered Bottom Content */}
-                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-6 flex flex-col items-center text-center gap-6 z-10 transition-all duration-700 ${idx === currentSlide ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}>
-                                                        <div className="flex flex-col items-center gap-4">
-                                                            <span className="px-3 py-1 bg-white/10 text-white text-[10px] md:text-xs font-bold rounded-full border border-white/20 backdrop-blur-xl uppercase tracking-widest italic">데일리 스파링</span>
-                                                            <h2 className="text-white text-4xl md:text-7xl font-black tracking-tighter leading-none drop-shadow-2xl uppercase italic max-w-4xl">
-                                                                {typeof sparring.title === 'string' ? sparring.title : 'Sparring Session'}
+                                                    {/* Cinematic Left-aligned Content */}
+                                                    <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
+                                                        <div className="flex flex-col items-start gap-6 max-w-4xl">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 스파링</span>
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                            </div>
+
+                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                {sparring.title}
                                                             </h2>
-                                                            <div className="flex items-center gap-3 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider">
-                                                                <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded">{sparring.category || 'Sparring'}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-5 h-5 md:w-6 md:h-6 rounded-full overflow-hidden bg-zinc-800 border border-white/10 flex-shrink-0">
+
+                                                            <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
+                                                                <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+                                                                    <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {(sparring.creator as any)?.avatar_url || (sparring.creator as any)?.profileImage ? (
                                                                             <img src={(sparring.creator as any)?.avatar_url || (sparring.creator as any)?.profileImage} className="w-full h-full object-cover" alt="" />
                                                                         ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-500 font-bold">{(sparring.creator?.name as string)?.charAt(0) || 'U'}</div>
+                                                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{(sparring.creator?.name as string)?.charAt(0) || 'U'}</div>
                                                                         )}
                                                                     </div>
-                                                                    <span>{typeof sparring.creator?.name === 'string' ? sparring.creator.name : 'Unknown Grappler'}</span>
+                                                                    <span className="text-white">{typeof sparring.creator?.name === 'string' ? sparring.creator.name : 'Unknown Grappler'}</span>
                                                                 </div>
+                                                                <span className="text-zinc-400">{sparring.category || 'Sparring Session'}</span>
                                                             </div>
                                                         </div>
 
@@ -350,8 +363,8 @@ export const Home: React.FC = () => {
                                                                     navigate(`/sparring/${sparring.id}`);
                                                                 }
                                                             }}
-                                                            className="bg-white text-black font-black rounded-full px-12 py-4 h-14 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2.5 text-lg tracking-tight">
-                                                            <Play className="w-5 h-5 fill-current" /> 스파링 보기
+                                                            className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                            <Play className="w-6 h-6 fill-current" /> 스파링 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>

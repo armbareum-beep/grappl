@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 // Types
 export interface UploadTask {
@@ -44,6 +45,10 @@ const BackgroundUploadContext = createContext<BackgroundUploadContextType | unde
 export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [tasks, setTasks] = useState<UploadTask[]>([]);
     const tusRefs = useRef<{ [key: string]: any }>({}); // Store tus upload instances
+
+    // Prevent screen from turning off during upload
+    const hasActiveTasks = tasks.some(t => t.status === 'uploading' || t.status === 'processing');
+    useWakeLock(hasActiveTasks);
 
     const queueUpload = async (
         file: File,
