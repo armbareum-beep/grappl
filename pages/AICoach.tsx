@@ -130,7 +130,7 @@ export const AICoach: React.FC = () => {
 
             const combinedLogs = logsData || [];
 
-            const recentVids = await getPublicSparringVideos(5);
+            const recentVids = await getPublicSparringVideos(5, user.id);
             setRecentVideos(recentVids);
 
             const cachedResult = localStorage.getItem(`ai_analysis_result_${user.id}`);

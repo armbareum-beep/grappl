@@ -45,7 +45,7 @@ export const Routines: React.FC<{
 
     useEffect(() => {
         loadRoutines();
-    }, []);
+    }, [user?.id]);
 
     const loadRoutines = async () => {
         try {
@@ -53,7 +53,7 @@ export const Routines: React.FC<{
             setError(null);
 
             const [routinesRes, dailyDrillRes] = await Promise.all([
-                fetchRoutines(100),
+                fetchRoutines(100, user?.id),
                 getDailyFreeDrill()
             ]);
 

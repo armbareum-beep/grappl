@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring, getDailyFreeDrill } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
@@ -53,6 +54,7 @@ function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
 
 
 export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTabChange }) => {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +68,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
 
     useEffect(() => {
         loadAllContent();
-    }, []);
+    }, [user?.id]);
 
     const loadAllContent = async () => {
         try {
@@ -81,9 +83,9 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 dailyFreeSparringRes,
                 dailyFreeDrillRes,
             ] = await Promise.all([
-                getCourses(100),
-                fetchRoutines(100),
-                getSparringVideos(100, undefined, true),
+                getCourses(100, 0, user?.id),
+                fetchRoutines(100, user?.id),
+                getSparringVideos(100, undefined, true, user?.id),
                 getDailyFreeLesson(),
                 getDailyFreeSparring(),
                 getDailyFreeDrill(),

@@ -375,40 +375,57 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 
 
 // Courses API
-// Courses API
-export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
+export async function getCourses(limit: number = 50, offset: number = 0, userId?: string): Promise<Course[]> {
     try {
         console.log('🔍 getCourses: Starting fetch...');
+
+        // Check if user is subscriber
+        let isSubscriber = false;
+        if (userId) {
+            isSubscriber = await checkUserSubscription(userId);
+        }
+
+        // Base query
+        let query = supabase
+            .from('courses')
+            .select(`
+                *,
+                creator:creators!creator_id(name, profile_image),
+                lessons:lessons(vimeo_url, lesson_number)
+            `)
+            .eq('published', true)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        // Filter by price for non-subscribers
+        if (!isSubscriber) {
+            query = query.eq('price', 0);
+        }
+
         // First, try to get courses with creator info (for authenticated users)
-        let { data, error } = await withTimeout(
-            supabase
-                .from('courses')
-                .select(`
-                    *,
-                    creator:creators!creator_id(name, profile_image),
-                    lessons:lessons(vimeo_url, lesson_number)
-                `)
-                .eq('published', true)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + limit - 1),
-            5000
-        );
+        let { data, error } = await withTimeout(query, 5000);
 
         // If error due to RLS on creators, fetch without creator join
         if (error) {
             console.warn('⚠️ getCourses with creator failed, retrying without creator:', error);
-            const fallback = await withTimeout(
-                supabase
-                    .from('courses')
-                    .select(`
-                        *,
-                        lessons:lessons(vimeo_url, lesson_number)
-                    `)
-                    .eq('published', true)
-                    .order('created_at', { ascending: false })
-                    .range(offset, offset + limit - 1),
-                5000
-            );
+
+            // Fallback query
+            let fallbackQuery = supabase
+                .from('courses')
+                .select(`
+                    *,
+                    lessons:lessons(vimeo_url, lesson_number)
+                `)
+                .eq('published', true)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+
+            // Apply same subscription filter
+            if (!isSubscriber) {
+                fallbackQuery = fallbackQuery.eq('price', 0);
+            }
+
+            const fallback = await withTimeout(fallbackQuery, 5000);
 
             data = fallback.data;
             error = fallback.error;
@@ -918,19 +935,51 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
     return (data || []).map(transformVideo);
 }
 
-export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[]> {
+/**
+ * Check if user is a subscriber
+ */
+export async function checkUserSubscription(userId: string): Promise<boolean> {
     try {
-        // 1. Fetch videos
-        const { data: videos, error } = await withTimeout(
-            supabase
-                .from('sparring_videos')
-                .select('*')
-                .eq('is_published', true)
-                .is('deleted_at', null)
-                .order('created_at', { ascending: false })
-                .limit(limit),
-            5000
-        );
+        const { data, error } = await supabase
+            .from('users')
+            .select('is_subscriber')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error checking user subscription:', error);
+            return false;
+        }
+
+        return data?.is_subscriber ?? false;
+    } catch (error) {
+        console.error('Exception in checkUserSubscription:', error);
+        return false;
+    }
+}
+
+export async function getPublicSparringVideos(limit = 3, userId?: string): Promise<SparringVideo[]> {
+    try {
+        // Check if user is subscriber
+        let isSubscriber = false;
+        if (userId) {
+            isSubscriber = await checkUserSubscription(userId);
+        }
+
+        // 1. Build query with subscription-based filtering
+        let query = supabase
+            .from('sparring_videos')
+            .select('*')
+            .eq('is_published', true)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false });
+
+        // Filter by price for non-subscribers
+        if (!isSubscriber) {
+            query = query.eq('price', 0);
+        }
+
+        const { data: videos, error } = await withTimeout(query.limit(limit), 5000);
 
         if (error) {
             console.error('Error fetching public sparring videos:', error);
@@ -1337,9 +1386,12 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
         .eq('course_id', courseId)
         .maybeSingle();
 
-    if (data) return true;
+    if (error) {
+        // console.error('Error checking course ownership:', error);
+        return false;
+    }
 
-
+    return !!data;
 }
 
 export async function getUserCourses(userId: string): Promise<Course[]> {
@@ -5230,8 +5282,14 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
     return { data: transformSparringVideo(data), error: null };
 }
 
-export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false) {
+export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false, userId?: string) {
     try {
+        // Check if user is subscriber
+        let isSubscriber = false;
+        if (userId) {
+            isSubscriber = await checkUserSubscription(userId);
+        }
+
         let query = supabase
             .from('sparring_videos')
             .select('*')
@@ -5244,6 +5302,12 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
 
         if (publicOnly) {
             query = query.eq('is_published', true);
+        }
+
+        // Filter by price for non-subscribers
+        // Note: Check if 'price' column exists in SparringVideo type/table. Assuming it does as per previous tasks.
+        if (!isSubscriber) {
+            query = query.eq('price', 0);
         }
 
         // Hide soft-deleted videos from general lists
@@ -5856,16 +5920,26 @@ export async function getDailyFreeSparring() {
     }
 }
 
-export async function fetchRoutines(limit: number = 20) {
+export async function fetchRoutines(limit: number = 20, userId?: string) {
     try {
-        const { data, error } = await withTimeout(
-            supabase
-                .from('routines')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(limit),
-            5000
-        );
+        // Check if user is subscriber
+        let isSubscriber = false;
+        if (userId) {
+            isSubscriber = await checkUserSubscription(userId);
+        }
+
+        // Build query with subscription-based filtering
+        let query = supabase
+            .from('routines')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        // Filter by price for non-subscribers
+        if (!isSubscriber) {
+            query = query.eq('price', 0);
+        }
+
+        const { data, error } = await withTimeout(query.limit(limit), 5000);
 
         if (error) throw error;
 
@@ -8374,28 +8448,42 @@ export async function getUserSubscription(userId: string) {
     return data;
 }
 
-export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
-    // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
-    let { data, error } = await withTimeout(
-        supabase
-            .from('routines')
-            .select('*, creator:creators(name, profile_image)')
-            .limit(50) // Candidate pool size
-            .order('created_at', { ascending: false }),
-        5000
-    );
+export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<DrillRoutine[]> {
+    // Check if user is subscriber
+    let isSubscriber = false;
+    if (userId) {
+        isSubscriber = await checkUserSubscription(userId);
+    }
+
+    // 1. Build query with subscription-based filtering
+    let query = supabase
+        .from('routines')
+        .select('*, creator:creators(name, profile_image)')
+        .limit(50) // Candidate pool size
+        .order('created_at', { ascending: false });
+
+    // Filter by price for non-subscribers
+    if (!isSubscriber) {
+        query = query.eq('price', 0);
+    }
+
+    let { data, error } = await withTimeout(query, 5000);
 
     // Filter out if data is null, but if error is present, try fallback
     if (error) {
         console.warn('⚠️ getFeaturedRoutines with creator failed, retrying without creator:', error);
-        const fallback = await withTimeout(
-            supabase
-                .from('routines')
-                .select('*')
-                .limit(50)
-                .order('created_at', { ascending: false }),
-            5000
-        );
+        let fallbackQuery = supabase
+            .from('routines')
+            .select('*')
+            .limit(50)
+            .order('created_at', { ascending: false });
+
+        // Apply same price filter for fallback
+        if (!isSubscriber) {
+            fallbackQuery = fallbackQuery.eq('price', 0);
+        }
+
+        const fallback = await withTimeout(fallbackQuery, 5000);
         data = fallback.data;
         error = fallback.error;
     }
@@ -8445,16 +8533,26 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     }));
 }
 
-export async function getNewCourses(limit = 6): Promise<Course[]> {
-    const { data, error } = await withTimeout(
-        supabase
-            .from('courses')
-            .select('*, creator:creators(name, profile_image), lessons(count)')
-            .eq('published', true)
-            .order('created_at', { ascending: false })
-            .limit(limit),
-        5000
-    );
+export async function getNewCourses(limit = 6, userId?: string): Promise<Course[]> {
+    // Check if user is subscriber
+    let isSubscriber = false;
+    if (userId) {
+        isSubscriber = await checkUserSubscription(userId);
+    }
+
+    // Build query with subscription-based filtering
+    let query = supabase
+        .from('courses')
+        .select('*, creator:creators(name, profile_image), lessons(count)')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+
+    // Filter by price for non-subscribers
+    if (!isSubscriber) {
+        query = query.eq('price', 0);
+    }
+
+    const { data, error } = await withTimeout(query.limit(limit), 5000);
 
     if (error) {
         console.error('Error fetching new courses:', error);
@@ -8467,17 +8565,27 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
     }));
 }
 
-export async function getTrendingCourses(limit = 6): Promise<Course[]> {
-    // 1. Fetch larger pool for ranking
-    const { data, error } = await withTimeout(
-        supabase
-            .from('courses')
-            .select('*, creator:creators(name, profile_image), lessons(count)')
-            .eq('published', true)
-            .limit(50)
-            .order('created_at', { ascending: false }),
-        5000
-    );
+export async function getTrendingCourses(limit = 6, userId?: string): Promise<Course[]> {
+    // Check if user is subscriber
+    let isSubscriber = false;
+    if (userId) {
+        isSubscriber = await checkUserSubscription(userId);
+    }
+
+    // 1. Build query with subscription-based filtering
+    let query = supabase
+        .from('courses')
+        .select('*, creator:creators(name, profile_image), lessons(count)')
+        .eq('published', true)
+        .limit(50)
+        .order('created_at', { ascending: false });
+
+    // Filter by price for non-subscribers
+    if (!isSubscriber) {
+        query = query.eq('price', 0);
+    }
+
+    const { data, error } = await withTimeout(query, 5000);
 
     if (error) {
         console.error('Error fetching trending courses:', error);

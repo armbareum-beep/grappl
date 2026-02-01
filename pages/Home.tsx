@@ -68,7 +68,7 @@ export const Home: React.FC = () => {
 
                     // B. Trending Sparring
                     try {
-                        const sparring = await getPublicSparringVideos(10);
+                        const sparring = await getPublicSparringVideos(10, user.id);
                         if (sparring && sparring.length > 0) {
                             setTrendingSparring(sparring);
                         }
@@ -78,7 +78,7 @@ export const Home: React.FC = () => {
 
                     // C. Featured Routines
                     try {
-                        const routines = await getFeaturedRoutines(20);
+                        const routines = await getFeaturedRoutines(20, user.id);
                         if (routines && routines.length > 0) {
                             setFeaturedRoutines(routines);
                         }
@@ -88,7 +88,7 @@ export const Home: React.FC = () => {
 
                     // D. Trending Courses
                     try {
-                        const courses = await getTrendingCourses(10);
+                        const courses = await getTrendingCourses(10, user.id);
                         if (courses && courses.length > 0) {
                             setTrendingCourses(courses);
                         }
@@ -101,7 +101,7 @@ export const Home: React.FC = () => {
 
                 // F. New Courses (For Tab)
                 try {
-                    const courses = await getNewCourses(10);
+                    const courses = await getNewCourses(10, user?.id);
                     if (courses && courses.length > 0) {
                         setNewCourses(courses);
                     }
@@ -111,7 +111,7 @@ export const Home: React.FC = () => {
 
                 // G. New Routines (For Tab)
                 try {
-                    const routinesRes = await fetchRoutines(20);
+                    const routinesRes = await fetchRoutines(20, user?.id);
                     if (routinesRes.data && routinesRes.data.length > 0) {
                         setNewRoutines(routinesRes.data);
                     }
@@ -121,7 +121,7 @@ export const Home: React.FC = () => {
 
                 // H. New Sparring (For Tab)
                 try {
-                    const sparringRes = await getPublicSparringVideos(20);
+                    const sparringRes = await getPublicSparringVideos(20, user?.id);
                     if (sparringRes && sparringRes.length > 0) {
                         setNewSparring(sparringRes);
                     }
