@@ -83,8 +83,23 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
         return origin;
     };
 
+    const profileImage = type === 'sparring'
+        ? ((item.creator as any)?.avatar_url || (item.creator as any)?.profileImage || (item.creator as any)?.image)
+        : item.creatorProfileImage;
+
+    const categoryText = (type === 'course' || type === 'lesson' || type === 'sparring')
+        ? item.category
+        : (type === 'routine' ? item.difficulty : null);
+
     const renderButtons = () => (
         <>
+            {/* Category Tag — bottom-right */}
+            {categoryText && (
+                <div className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white border border-white/10 uppercase tracking-wider">
+                    {categoryText}
+                </div>
+            )}
+
             {/* Save — top-right */}
             {type !== 'chain' && (
                 <button
@@ -101,7 +116,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
             {/* Share — bottom-right */}
             <button
-                className="absolute bottom-2 right-2 z-30 p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                className="absolute bottom-2.5 right-2 z-30 p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900 hidden group-hover:block"
                 onClick={handleShare}
                 aria-label="공유"
             >
@@ -157,9 +172,20 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             )}
 
-            <div className="pt-3 px-1" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '50px' : '80px' } : {}}>
-                <h3 className="text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">{getTitle(item)}</h3>
-                {variant !== 'ranking' && <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium">{getSubtitle(item)}</p>}
+            <div className="pt-3 px-1 flex gap-2.5 items-start" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '50px' : '80px' } : {}}>
+                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
+                    {profileImage ? (
+                        <img src={profileImage} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[8px] md:text-[10px] text-zinc-500 font-bold">
+                            {(item.creatorName || getSubtitle(item) || 'U').charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">{getTitle(item)}</h3>
+                    {variant !== 'ranking' && <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium">{getSubtitle(item)}</p>}
+                </div>
             </div>
 
             <Suspense fallback={null}>

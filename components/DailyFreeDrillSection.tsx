@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useEmblaCarousel from 'embla-carousel-react';
 import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../lib/api';
 import { Drill, Lesson, SparringVideo } from '../types';
 import { Clock } from 'lucide-react';
@@ -41,6 +42,26 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
     const [activeId, setActiveId] = useState('lesson');
     const [timeLeft, setTimeLeft] = useState('');
     const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        align: 'center',
+        containScroll: 'trimSnaps',
+        dragFree: false,
+        loop: false,
+        startIndex: 1 // default to lesson
+    });
+
+    // Update activeId when carousel slides
+    useEffect(() => {
+        if (!emblaApi) return;
+        const onSelect = () => {
+            const index = emblaApi.selectedScrollSnap();
+            const ids = ['drill', 'lesson', 'sparring'];
+            setActiveId(ids[index]);
+        };
+        emblaApi.on('select', onSelect);
+        return () => { emblaApi.off('select', onSelect); };
+    }, [emblaApi]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -140,97 +161,91 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
                     </p>
                 </div>
 
-                {/* Accordion Layout */}
-                <div className="flex flex-col md:flex-row gap-2 md:gap-4 w-full h-[500px] md:h-[500px]">
-                    {items.map((item) => {
-                        const isActive = activeId === item.id;
+                {/* Carousel Container */}
+                <div className="overflow-hidden cursor-grab active:cursor-grabbing" ref={emblaRef}>
+                    <div className="flex gap-4 min-h-[500px]">
+                        {items.map((item, idx) => {
+                            const isActive = activeId === item.id;
 
-                        return (
-                            <div
-                                key={item.id}
-                                onMouseEnter={() => setActiveId(item.id)}
-                                onClick={() => {
-                                    if (isActive) {
-                                        navigate(item.link);
-                                    } else {
-                                        setActiveId(item.id);
-                                    }
-                                }}
-                                style={{
-                                    // STRICT ASPECT RATIO LOGIC:
-                                    // If Active: flex-grow: 0, flex-shrink: 0, aspect-ratio defines size.
-                                    // If Inactive: flex-grow: 1, shrink allowed, no fixed aspect ratio.
-                                    flex: isActive ? '0 0 auto' : '1 1 0',
-                                    aspectRatio: isActive ? item.activeRatio : 'auto',
-                                } as React.CSSProperties}
-                                className={`relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer
-                                    ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-80'}
-                                    md:flex-row flex-col
-                                    min-h-[100px] md:min-w-[100px]
-                                    ${isActive ? 'contrast-100' : 'contrast-75'}
-                                `}
-                            >
-                                {/* Aspect Ratio Preservation Strategy: Object-Cover + Alignment */}
-                                <img
-                                    src={upgradeThumbnailQuality(item.img)}
-                                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${isActive ? 'scale-100' : 'scale-110'}
-                                        ${item.id === 'drill' ? 'object-top' : 'object-center'}
+                            return (
+                                <div
+                                    key={item.id}
+                                    onClick={() => {
+                                        if (isActive) {
+                                            navigate(item.link);
+                                        } else {
+                                            setActiveId(item.id);
+                                            emblaApi?.scrollTo(idx);
+                                        }
+                                    }}
+                                    className={`relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex-shrink-0
+                                        ${isActive ? 'opacity-100 flex-[0_0_85%] md:flex-[0_0_60%]' : 'opacity-60 flex-[0_0_40%] md:flex-[0_0_20%] hover:opacity-80'}
+                                        ${isActive ? 'contrast-100' : 'contrast-75'}
+                                        h-[400px] md:h-[500px]
                                     `}
-                                    style={{ imageRendering: 'auto' }}
-                                    alt={item.data.title}
-                                />
+                                >
+                                    {/* Aspect Ratio Preservation Strategy: Object-Cover + Alignment */}
+                                    <img
+                                        src={upgradeThumbnailQuality(item.img)}
+                                        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${isActive ? 'scale-100' : 'scale-110'}
+                                            ${item.id === 'drill' ? 'object-top' : 'object-center'}
+                                        `}
+                                        style={{ imageRendering: 'auto' }}
+                                        alt={item.data.title}
+                                    />
 
-                                <div className={`absolute inset-0 bg-black/20 transition-opacity ${isActive ? 'bg-black/30' : 'bg-black/60'}`} />
+                                    <div className={`absolute inset-0 bg-black/20 transition-opacity ${isActive ? 'bg-black/30' : 'bg-black/60'}`} />
 
-                                {/* Badges */}
-                                {isActive && (
-                                    <>
-                                        <div className="absolute top-6 left-6 pointer-events-none">
-                                            <ContentBadge type="daily_free" />
-                                        </div>
-                                        <div className="absolute top-6 right-6 pointer-events-none">
-                                            {(item.data.views && item.data.views >= 100) ? (
-                                                <ContentBadge type="popular" />
-                                            ) : (item.data.createdAt && new Date(item.data.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
-                                                <ContentBadge type="recent" />
-                                            ) : null}
-                                        </div>
-                                    </>
-                                )}
-
-                                <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
-                                    <div className={`transition-all duration-500 transform ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                                        <span className="text-violet-400 font-black tracking-widest text-sm mb-2 block">{item.type}</span>
-                                        <h3 className={`font-bold leading-tight ${isActive ? 'mb-4 text-2xl md:text-3xl' : 'text-xl'}`}>
-                                            {isActive ? item.data.title : ''}
-                                        </h3>
-                                        {isActive && (
-                                            <div className="flex items-center gap-3 mt-2">
-                                                <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 ring-1 ring-white/10">
-                                                    <CreatorAvatar
-                                                        src={(item.data as any).creatorProfileImage || (item.data as any).creator?.profileImage || '/default-avatar.png'}
-                                                        name={(item.data as any).creatorName || (item.data as any).creator?.name}
-                                                    />
-                                                </div>
-                                                <span className="text-zinc-300 text-sm font-medium">
-                                                    {(item.data as any).creatorName || (item.data as any).creator?.name}
-                                                </span>
+                                    {/* Badges */}
+                                    {isActive && (
+                                        <>
+                                            <div className="absolute top-6 left-6 pointer-events-none">
+                                                <ContentBadge type="daily_free" />
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
+                                            <div className="absolute top-6 right-6 pointer-events-none">
+                                                {(item.data.views && item.data.views >= 100) ? (
+                                                    <ContentBadge type="popular" />
+                                                ) : (item.data.createdAt && new Date(item.data.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
+                                                    <ContentBadge type="recent" />
+                                                ) : null}
+                                            </div>
+                                        </>
+                                    )}
 
-                                {/* Inactive Label (Rotated on Desktop, Horizontal on Mobile) */}
-                                {!isActive && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <h3 className="text-xl md:text-2xl font-black text-white/50 md:-rotate-90 whitespace-nowrap tracking-widest uppercase shadow-black drop-shadow-lg">
-                                            {item.type}
-                                        </h3>
+                                    <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
+                                        <div className={`transition-all duration-500 transform ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                                            <span className="text-violet-400 font-black tracking-widest text-sm mb-2 block">{item.type}</span>
+                                            <h3 className={`font-bold leading-tight ${isActive ? 'mb-4 text-2xl md:text-3xl' : 'text-xl'}`}>
+                                                {isActive ? item.data.title : ''}
+                                            </h3>
+                                            {isActive && (
+                                                <div className="flex items-center gap-3 mt-2">
+                                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 ring-1 ring-white/10">
+                                                        <CreatorAvatar
+                                                            src={(item.data as any).creatorProfileImage || (item.data as any).creator?.profileImage || '/default-avatar.png'}
+                                                            name={(item.data as any).creatorName || (item.data as any).creator?.name}
+                                                        />
+                                                    </div>
+                                                    <span className="text-zinc-300 text-sm font-medium">
+                                                        {(item.data as any).creatorName || (item.data as any).creator?.name}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
+
+                                    {/* Inactive Label */}
+                                    {!isActive && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <h3 className="text-xl md:text-2xl font-black text-white/50 md:-rotate-90 whitespace-nowrap tracking-widest uppercase shadow-black drop-shadow-lg">
+                                                {item.type}
+                                            </h3>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </section >

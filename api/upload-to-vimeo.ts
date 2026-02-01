@@ -38,27 +38,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { action, bucketName, filePath, title, description, contentType, contentId, videoType, vimeoId, thumbnailUrl, instructorName } = req.body;
+        const { action, bucketName, filePath, title, description, contentType, contentId, videoType, vimeoId, thumbnailUrl, instructorName, fileSize: providedFileSize } = req.body;
 
         console.log('[Vercel] Action:', action);
 
         // --- Action 1: Create Upload Link ---
         if (action === 'create_upload') {
-            // 1. Get File Size from Supabase via List (Metadata)
-            // filePath example: 'user_id/filename.mp4'
-            const folderPath = filePath.split('/').slice(0, -1).join('/');
-            const fileName = filePath.split('/').pop();
+            let fileSize = providedFileSize;
 
-            const { data: listData, error: listError } = await supabase.storage
-                .from(bucketName)
-                .list(folderPath, {
-                    limit: 1,
-                    search: fileName
-                });
+            // If fileSize not provided, try to fetch from Supabase
+            if (!fileSize) {
+                // 1. Get File Size from Supabase via List (Metadata)
+                // filePath example: 'user_id/filename.mp4'
+                const folderPath = filePath.split('/').slice(0, -1).join('/');
+                const fileName = filePath.split('/').pop();
 
-            // Default to a small size if metadata missing (TUS usually handles size in patch, but create needs estimate sometimes)
-            // Actually Vimeo create uses 'size' for quota check.
-            const fileSize = listData?.[0]?.metadata?.size || 0;
+                const { data: listData, error: listError } = await supabase.storage
+                    .from(bucketName)
+                    .list(folderPath, {
+                        limit: 1,
+                        search: fileName
+                    });
+
+                // Default to 0 if missing
+                fileSize = listData?.[0]?.metadata?.size || 0;
+            }
 
             console.log('[Vercel] Creating upload link for size:', fileSize);
 

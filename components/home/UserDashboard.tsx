@@ -86,35 +86,58 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ continueItems }) =
                 emptyText="시작한 수업이 없습니다."
                 onViewAll={() => navigate('/history')}
             >
-                {continueItems.map((item) => (
-                    <div
-                        key={item.id}
-                        onClick={() => handleContinue(item)}
-                        className="group flex flex-col gap-3 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
-                    >
-                        <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
-                            <div
-                                className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
-                                style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                        </div>
+                {continueItems.map((item) => {
+                    const categoryText = (item.type === 'course' || item.type === 'lesson' || item.type === 'sparring')
+                        ? (item as any).category
+                        : (item.type === 'routine' ? (item as any).difficulty : null);
 
-                        <div className="flex flex-col gap-1.5 px-0.5">
-                            <div className="flex flex-col">
-                                <h3 className="text-[14px] md:text-[15px] font-bold text-white truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">
-                                    {item.title}
-                                </h3>
-                                <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter">
-                                    {item.courseTitle}
-                                </p>
+                    return (
+                        <div
+                            key={item.id}
+                            onClick={() => handleContinue(item)}
+                            className="group flex flex-col gap-3 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
+                        >
+                            <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
+                                <div
+                                    className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
+                                    style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+                                {categoryText && (
+                                    <div className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white border border-white/10 uppercase tracking-wider">
+                                        {categoryText}
+                                    </div>
+                                )}
                             </div>
-                            <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
-                                <div className="h-full bg-violet-600 shadow-[0_0_8px_rgba(139,92,246,0.3)]" style={{ width: `${Math.max(item.progress, 5)}%` }} />
+
+                            <div className="flex flex-col gap-2 px-0.5">
+                                <div className="flex gap-2.5 items-start">
+                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5 shadow-inner">
+                                        {item.creatorProfileImage ? (
+                                            <img src={item.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold uppercase">
+                                                {item.creatorName?.charAt(0) || 'U'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-[14px] md:text-[15px] font-bold text-white truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">
+                                            {item.title}
+                                        </h3>
+                                        <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter">
+                                            {item.courseTitle || item.creatorName}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                                    <div className="h-full bg-violet-600 shadow-[0_0_8px_rgba(139,92,246,0.3)]" style={{ width: `${Math.max(item.progress, 5)}%` }} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </SectionRow>
         </section>
     );

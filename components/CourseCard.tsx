@@ -264,7 +264,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                 <div className="flex-1 min-w-0 pr-1">
                     <div className="flex justify-between items-start gap-2">
                         <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
-                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 truncate group-hover:text-violet-400 transition-colors">
+                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 truncate group-hover:text-violet-400 transition-colors">
                                 {course.title}
                             </h3>
                         </Link>
@@ -281,7 +281,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         </button>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 mt-1.5">
+                    <div className="flex items-center justify-between gap-4 mt-0">
                         <Link to={`/creator/${course.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium hover:text-zinc-200 transition-colors truncate">
                             {course.creatorName}
                         </Link>

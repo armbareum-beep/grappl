@@ -147,22 +147,24 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     }, [currentIndex, items.length]);
 
     // Mouse wheel navigation
+    const lastScrollTime = useRef(0);
     useEffect(() => {
-        let wheelTimeout: NodeJS.Timeout;
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            clearTimeout(wheelTimeout);
-            wheelTimeout = setTimeout(() => {
+            const now = Date.now();
+
+            // Cooldown 800ms
+            if (now - lastScrollTime.current < 800) return;
+
+            if (Math.abs(e.deltaY) > 20) {
                 if (e.deltaY > 0) goToNext();
-                else if (e.deltaY < 0) goToPrevious();
-            }, 100);
+                else goToPrevious();
+                lastScrollTime.current = now;
+            }
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
-        return () => {
-            window.removeEventListener('wheel', handleWheel);
-            clearTimeout(wheelTimeout);
-        };
-    }, [currentIndex]);
+        return () => window.removeEventListener('wheel', handleWheel);
+    }, [currentIndex, readyItems, items.length]);
 
     // Touch handling
     const [touchStart, setTouchStart] = useState<{ y: number } | null>(null);

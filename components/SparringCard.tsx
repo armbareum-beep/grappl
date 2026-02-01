@@ -225,7 +225,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
 
             <div className="px-1">
                 <Link to={`/sparring/${video.id}`}>
-                    <h3 className="text-white font-bold text-sm line-clamp-1 mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h3>
+                    <h3 className="text-white font-bold text-sm line-clamp-1 mb-0 group-hover:text-violet-400 transition-colors">{video.title}</h3>
                 </Link>
                 <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
                     {video.category && (

@@ -40,6 +40,7 @@ interface UnifiedContentCardProps {
     onSparringClick?: (item: UnifiedContentItem) => void;
     className?: string;
     minimal?: boolean;
+    isMasonry?: boolean;
 }
 
 // Spans are now calculated dynamically via Ref and ResizeObserver to avoid gaps
@@ -69,7 +70,7 @@ const isRecent = (createdAt?: string): boolean => {
     return new Date(createdAt).getTime() > thirtyDaysAgo;
 };
 
-export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className, minimal = false }) => {
+export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className, minimal = false, isMasonry = false }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const link = getItemLink(item);
@@ -106,7 +107,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
     const colSpanClass = getColSpanClass(item);
     // Use a reasonable default (300px-ish) to avoid zero-height clumping
-    const spanStyle = (span && minimal) ? { gridRowEnd: `span ${span}` } : {};
+    const spanStyle = (span && (minimal || isMasonry)) ? { gridRowEnd: `span ${span}` } : {};
 
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -322,7 +323,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                     <div className="flex-1 min-w-0 pr-1">
                         <div className="flex justify-between items-start gap-2">
                             <Link to={link} onClick={handleClick} className="flex-1 min-w-0">
-                                <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                                <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 group-hover:text-violet-400 transition-colors">
                                     {item.title}
                                 </h3>
                             </Link>
@@ -339,9 +340,9 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between gap-4 mt-1.5">
+                        <div className="flex items-center justify-between gap-4 mt-0">
                             {item.creatorName && (
-                                <div className="text-xs md:text-sm text-zinc-400 font-medium truncate">
+                                <div className="text-xs md:text-sm text-zinc-400 font-medium">
                                     {item.creatorName}
                                 </div>
                             )}

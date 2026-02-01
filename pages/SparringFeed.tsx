@@ -741,22 +741,26 @@ export const SparringFeed: React.FC<{
     }, [viewMode, filteredVideos.length]);
 
     // Mouse wheel navigation (reels mode)
+    const lastScrollTime = React.useRef(0);
     useEffect(() => {
         if (viewMode !== 'reels') return;
-        let wheelTimeout: NodeJS.Timeout;
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            clearTimeout(wheelTimeout);
-            wheelTimeout = setTimeout(() => {
-                if (e.deltaY > 0) setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
-                else if (e.deltaY < 0) setActiveIndex(prev => Math.max(0, prev - 1));
-            }, 100);
+            const now = Date.now();
+
+            if (now - lastScrollTime.current < 800) return;
+
+            if (Math.abs(e.deltaY) > 20) {
+                if (e.deltaY > 0) {
+                    setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+                } else {
+                    setActiveIndex(prev => Math.max(0, prev - 1));
+                }
+                lastScrollTime.current = now;
+            }
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
-        return () => {
-            window.removeEventListener('wheel', handleWheel);
-            clearTimeout(wheelTimeout);
-        };
+        return () => window.removeEventListener('wheel', handleWheel);
     }, [viewMode, filteredVideos.length]);
 
     if (viewMode === 'reels') {

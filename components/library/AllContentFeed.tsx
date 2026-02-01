@@ -276,7 +276,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                     key={item.id}
                                     item={item}
                                     onSparringClick={handleSparringClick}
-                                    minimal={true}
+                                    isMasonry={true}
                                 />
                             ))}
                         </AnimatePresence>

@@ -697,13 +697,13 @@ export const TrainingRoutinesTab: React.FC = () => {
 
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className={`font-bold text-sm truncate text-zinc-100`}>
+                                                <div className="flex items-center gap-2 mb-0">
+                                                    <h3 className={`font-bold text-sm text-zinc-100`}>
                                                         {routine.title}
                                                     </h3>
                                                     {/* Badge removed */}
                                                 </div>
-                                                <div className="flex items-center gap-3 text-xs text-zinc-400 mb-2">
+                                                <div className="flex items-center gap-3 text-xs text-zinc-400 mb-0">
                                                     <span className="flex items-center gap-1">
                                                         <Clock className="w-3.5 h-3.5 text-violet-500" />
                                                         {routine.totalDurationMinutes || 0}분

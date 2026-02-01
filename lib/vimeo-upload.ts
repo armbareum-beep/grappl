@@ -67,6 +67,7 @@ export async function processAndUploadVideo(params: {
                 action: 'create_upload',
                 bucketName,
                 filePath,
+                fileSize: file.size, // 파일 크기 명시적 전달
                 title,
                 description
             })

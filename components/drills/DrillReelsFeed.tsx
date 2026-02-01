@@ -169,23 +169,29 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [currentIndex]);
 
-    // Mouse wheel navigation with debounce
+    // Mouse wheel navigation
+    const lastScrollTime = useRef(0);
     useEffect(() => {
-        let wheelTimeout: NodeJS.Timeout;
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            clearTimeout(wheelTimeout);
-            wheelTimeout = setTimeout(() => {
-                if (e.deltaY > 0) goToNext();
-                else if (e.deltaY < 0) goToPrevious();
-            }, 100);
+            const now = Date.now();
+
+            // Cooldown 800ms to prevent double skipping
+            if (now - lastScrollTime.current < 800) return;
+
+            // Threshold significantly reduced for better sensitivity, but high enough to avoid jitter
+            if (Math.abs(e.deltaY) > 20) {
+                if (e.deltaY > 0) {
+                    goToNext();
+                } else {
+                    goToPrevious();
+                }
+                lastScrollTime.current = now;
+            }
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
-        return () => {
-            window.removeEventListener('wheel', handleWheel);
-            clearTimeout(wheelTimeout);
-        };
-    }, [currentIndex]);
+        return () => window.removeEventListener('wheel', handleWheel);
+    }, [currentIndex, readyItems, drills.length]); // Added readyItems dependency since goToNext uses it
 
     // Interaction Handlers
     const handleLike = async (drill: Drill) => {

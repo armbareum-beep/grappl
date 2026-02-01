@@ -108,7 +108,11 @@ export const GlobalUploadProgress: React.FC = () => {
 
                             {/* Cancel Link during Uploading */}
                             {task.status === 'uploading' && (
-                                <div className="mt-3 flex justify-end">
+                                <div className="mt-3 flex flex-col items-end gap-2">
+                                    <p className="text-[11px] text-amber-500/90 font-medium flex items-center gap-1.5 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
+                                        <AlertCircle className="w-3 h-3" />
+                                        화면을 끄거나 앱을 이탈하면 중단될 수 있습니다
+                                    </p>
                                     <button
                                         onClick={() => {
                                             if (confirm('업로드를 정말 취소하시겠습니까?')) {
