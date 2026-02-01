@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 // Smart environment detection:
 // - Development: Use backend server (localhost:3003)
 // - Production: Use Vercel serverless function (/api/upload-to-vimeo) or Backend if available
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3003' : 'https://grapplay-backend.onrender.com');
 
 export interface VimeoUploadResult {
     vimeoId: string;
@@ -82,26 +82,41 @@ export async function processAndUploadVideo(params: {
 
         console.log('[Process] Sending payload to backend:', payload);
 
-        const response = await fetch(`${BACKEND_URL}/process`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Backend Process Request Failed: ${response.status} ${errorText}`);
+        try {
+            const response = await fetch(`${BACKEND_URL}/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`백엔드 서버 응답 오류 (${response.status}): ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('[Process] Backend accepted job:', result);
+
+            // Since processing is async, return processing status.
+            return {
+                vimeoId: 'processing',
+                vimeoUrl: 'processing',
+                thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...'
+            };
+        } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                throw new Error('백엔드 서버 연결 시간 초과. 네트워크 상태를 확인해주세요.');
+            }
+            throw new Error(`백엔드 서버 연결 실패: ${fetchError.message}`);
         }
 
-        const result = await response.json();
-        console.log('[Process] Backend accepted job:', result);
-
-        // Since processing is async, return processing status.
-        return {
-            vimeoId: 'processing',
-            vimeoUrl: 'processing',
-            thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...'
-        };
 
     } catch (error: any) {
         console.error('[Process] Failed:', error);

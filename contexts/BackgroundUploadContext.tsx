@@ -112,9 +112,9 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     console.log('Upload Complete, starting processing...', task.id);
                     updateTaskStatus(task.id, 'processing');
 
-                    // Trigger Vimeo Upload via Backend
+                    // Trigger Vimeo Upload via Vercel API
                     if (task.processingParams) {
-                        import('../lib/vimeo-upload-backend').then(({ processAndUploadVideo }) => {
+                        import('../lib/vimeo-upload').then(({ processAndUploadVideo }) => {
                             const contentType = task.processingParams!.courseId ? 'course' :
                                 (task.processingParams!.sparringId || task.processingParams!.videoType === 'sparring' ? 'sparring' :
                                     (task.processingParams!.lessonId ? 'lesson' : 'drill'));
@@ -127,14 +127,11 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                             processAndUploadVideo({
                                 bucketName: 'raw_videos_v2',
                                 filePath: task.processingParams!.filename,
-                                file: task.file, // Pass file directly
                                 title: task.processingParams!.title,
                                 description: task.processingParams!.description,
-                                contentType: contentType as 'lesson' | 'drill' | 'sparring' | 'course',
+                                contentType: contentType as 'lesson' | 'drill' | 'sparring',
                                 contentId: contentId,
-                                videoType: task.processingParams!.videoType as 'action' | 'desc' | 'preview' | undefined,
-                                cuts: task.processingParams!.cuts,
-                                instructorName: task.processingParams!.instructorName,
+                                videoType: task.processingParams!.videoType as 'action' | 'desc' | undefined,
                                 onProgress: (stage, progress) => {
                                     console.log(`[${task.id}] ${stage}: ${progress}%`);
                                     // Update task progress
@@ -142,16 +139,13 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 }
                             })
                                 .then(() => {
-                                    console.log('✅ Backend accepted processing for:', task.id);
-                                    // Stay in processing status, don't say "completed" yet 
-                                    // because the backend is actually doing the work now.
-                                    updateTaskStatus(task.id, 'processing');
+                                    console.log('✅ Vimeo upload completed for:', task.id);
+                                    updateTaskStatus(task.id, 'completed');
 
                                     // Remove the task from the floating list after a while
-                                    // to keep the UI clean, as the user can see progress in the dashboard
                                     setTimeout(() => {
                                         setTasks(prev => prev.filter(t => t.id !== task.id));
-                                    }, 10000); // 10 seconds of "Processing" visible
+                                    }, 3000); // 3 seconds of "Completed" visible
                                 })
                                 .catch(err => {
                                     console.error('❌ Vimeo Processing Error:', err);
