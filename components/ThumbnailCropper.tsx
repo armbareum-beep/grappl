@@ -92,7 +92,7 @@ export const ThumbnailCropper: React.FC<ThumbnailCropperProps> = ({ imageSrc, on
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200">
-            <div className="bg-zinc-900 w-full max-w-lg rounded-2xl overflow-hidden flex flex-col h-[600px] border border-zinc-800 shadow-2xl">
+            <div className="bg-zinc-900 w-full max-w-lg rounded-2xl overflow-hidden flex flex-col h-[85vh] max-h-[800px] border border-zinc-800 shadow-2xl">
                 <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900">
                     <h3 className="text-white font-bold flex items-center gap-2">
                         <span className="w-1 h-4 bg-violet-500 rounded-full"></span>

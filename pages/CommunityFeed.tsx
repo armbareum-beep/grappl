@@ -69,7 +69,7 @@ export const CommunityFeed: React.FC = () => {
     useEffect(() => {
         loadPosts();
         loadUserAvatar();
-    }, [user]);
+    }, [user?.id]);
 
 
     const getFilterLabel = (f: string) => {

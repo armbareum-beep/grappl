@@ -103,25 +103,25 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     // Tab State for Drill (Action vs Description)
     const [activeTab, setActiveTab] = useState<'main' | 'desc'>('main');
 
-    // Fetch data in edit mode
+    // Fetch data in edit mode & admin creator list
     useEffect(() => {
-        if (!isEditMode || !id) return;
-
-        async function fetchData() {
-            // Load creators for admin
+        async function fetchInitialData() {
+            // Load creators for admin (always needed if admin, regardless of mode)
             if (isAdmin) {
                 try {
                     const creatorList = await getCreators();
                     setCreators(creatorList);
+
+                    // If new mode, set default selectedCreatorId to current user
+                    if (!isEditMode && user?.id) {
+                        setSelectedCreatorId(user.id);
+                    }
                 } catch (e) {
                     console.error('Failed to load creators:', e);
                 }
             }
-            if (!isEditMode) {
-                // If new and admin, set default selectedCreatorId to current user (if they are a creator) or empty
-                if (isAdmin) setSelectedCreatorId(user?.id || '');
-                return;
-            }
+
+            if (!isEditMode || !id) return;
 
             try {
                 let result: any;
@@ -173,8 +173,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 navigate('/creator');
             }
         }
-        fetchData();
-    }, [id, isEditMode, contentType, navigate]);
+        fetchInitialData();
+    }, [id, isEditMode, contentType, navigate, isAdmin, user?.id]);
 
     // Cleanup tasks when unmounting or switching content type
     useEffect(() => {

@@ -137,7 +137,7 @@ export const Home: React.FC = () => {
         };
 
         fetchData();
-    }, [user]);
+    }, [user?.id]);
 
     const getDisplayName = () => {
         if (!user) return '친구';

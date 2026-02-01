@@ -5,12 +5,11 @@ import { Search } from 'lucide-react';
 import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring, getDailyFreeDrill } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
-import { cn } from '../../lib/utils';
 import { LoadingScreen } from '../LoadingScreen';
-import { UnifiedContentCard, UnifiedContentItem, ContentType, CardVariant } from './UnifiedContentCard';
+import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
 
-type ContentFilter = 'all' | 'class' | 'routine' | 'sparring';
+
 
 interface AllContentFeedProps {
     activeTab: LibraryTabType;
@@ -27,62 +26,35 @@ interface AllContentFeedProps {
  * - Square: Sparring(Square) -> Takes 1 col (needs pair)
  */
 function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
-    // Wide: Class -> Takes 2 cols
-    // Tall: Routine -> Takes 1 col (9:16)
-    // Square: Sparring -> Takes 1 col (1:1)
+    // Wide items (Class, Large Sparring) take 2 columns.
+    // Tall (Routine) and Square (Small Sparring/Class) take 1 column.
 
     const wideItems = items.filter(i => i.variant === 'wide' || i.variant === 'large');
-    const tallItems = items.filter(i => i.variant === 'tall');
-    const squareItems = items.filter(i => i.variant === 'square');
+    const normalItems = items.filter(i => i.variant !== 'wide' && i.variant !== 'large');
 
     const result: UnifiedContentItem[] = [];
+    let wideIdx = 0;
+    let normalIdx = 0;
 
-    let loopCount = 0;
-    const maxLoops = items.length * 2 + 100;
-
-    while ((wideItems.length > 0 || tallItems.length > 0 || squareItems.length > 0) && loopCount < maxLoops) {
-        loopCount++;
-
-        // 1. One Wide Item (Occupies 2 cols)
-        if (wideItems.length > 0) {
-            result.push(wideItems.shift()!);
+    // Deterministic interleaving: 1 wide + 3 normal for balanced grid packing
+    while (wideIdx < wideItems.length || normalIdx < normalItems.length) {
+        if (wideIdx < wideItems.length) {
+            result.push(wideItems[wideIdx++]);
         }
 
-        // 2. Pair Tall Items (Occupies 1+1 cols)
-        let tCount = 0;
-        while (tCount < 2 && tallItems.length > 0) {
-            result.push(tallItems.shift()!);
-            tCount++;
-        }
-
-        // 3. Pair Square Items (Occupy 1+1 cols)
-        let sCount = 0;
-        while (sCount < 2 && squareItems.length > 0) {
-            result.push(squareItems.shift()!);
-            sCount++;
-        }
-
-        // Fallback: Flush queues if no wide items left
-        if (wideItems.length === 0) {
-            if (tallItems.length > 0) result.push(tallItems.shift()!);
-            if (squareItems.length > 0) result.push(squareItems.shift()!);
+        const normalCount = Math.min(3, normalItems.length - normalIdx);
+        for (let i = 0; i < normalCount; i++) {
+            result.push(normalItems[normalIdx++]);
         }
     }
 
-    return [...result, ...wideItems, ...tallItems, ...squareItems];
+    return result;
 }
 
-const filterLabels: { key: ContentFilter; label: string }[] = [
-    { key: 'all', label: '전체' },
-    { key: 'class', label: '클래스' },
-    { key: 'routine', label: '루틴' },
-    { key: 'sparring', label: '스파링' },
-];
 
 export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTabChange }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [contentFilter, setContentFilter] = useState<ContentFilter>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
 
@@ -168,7 +140,9 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
                     isDailyFree: course.id === dailyFreeIds.course,
                     originalData: course,
-                    variant: 'wide', // Classes are always wide
+                    // Classes can be 2-col (wide) or 1-col (square-ish)
+                    // Deterministic variant based on ID
+                    variant: (course.id.charCodeAt(0) + course.id.charCodeAt(course.id.length - 1)) % 2 === 0 ? 'wide' : 'square',
                 };
             });
 
@@ -220,13 +194,14 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
                     isDailyFree: video.id === dailyFreeIds.sparring,
                     originalData: video,
-                    variant: Math.random() > 0.6 ? 'large' : 'square', // Randomly Large (40%) vs Small (60%)
+                    // Deterministic variant based on ID
+                    variant: (video.id.charCodeAt(0) + video.id.charCodeAt(video.id.length - 1)) % 3 === 0 ? 'large' : 'square',
                 };
             });
 
-            // Smart Sort
-            // Shuffle first to ensure random distribution of types
-            const allContentInOrder = [...courseItems, ...routineItems, ...sparringItems].sort(() => Math.random() - 0.5);
+            // Sort by views descending for consistent ordering, then smart interleave by shape
+            const allContentInOrder = [...courseItems, ...routineItems, ...sparringItems]
+                .sort((a, b) => (b.views || 0) - (a.views || 0));
             const sorted = smartSort(allContentInOrder);
             setAllItems(sorted);
         } catch (error) {
@@ -290,19 +265,16 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 {/* Masonry Grid */}
                 {filteredItems.length > 0 ? (
                     <div
-                        className="grid gap-3"
-                        style={{
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-                            gridAutoRows: '60px',
-                            gridAutoFlow: 'dense'
-                        }}
+                        className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-x-3 grid-flow-dense"
+                        style={{ gridAutoRows: '1px' }}
                     >
-                        <AnimatePresence mode="popLayout">
+                        <AnimatePresence>
                             {filteredItems.map(item => (
                                 <UnifiedContentCard
                                     key={item.id}
                                     item={item}
                                     onSparringClick={handleSparringClick}
+                                    minimal={true}
                                 />
                             ))}
                         </AnimatePresence>

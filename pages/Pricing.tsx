@@ -22,7 +22,7 @@ export const Pricing: React.FC = () => {
     if (user) {
       fetchSubscriptionStatus();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchSubscriptionStatus = async () => {
     if (!user) return;

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
-import { Search, PlayCircle, ChevronDown, Bookmark, Share2 } from 'lucide-react';
-import { ContentBadge } from '../components/common/ContentBadge';
+import { Search, ChevronDown } from 'lucide-react';
 
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -20,7 +19,8 @@ export const Routines: React.FC<{
     activeTab?: LibraryTabType;
     onTabChange?: (tab: LibraryTabType) => void;
 }> = ({ isEmbedded, activeTab, onTabChange }) => {
-    const navigate = useNavigate();
+    // Removed unused navigate to satisfy lints
+    // const navigate = useNavigate();
     const { user } = useAuth();
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
     const [internalCategory, setInternalCategory] = useState<string>('All');
@@ -435,13 +435,11 @@ export const Routines: React.FC<{
                 </div>
             ) : (
                 <div
-                    className="grid gap-6 md:gap-8"
-                    style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
+                    className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
                 >
                     {filteredRoutines.map(routine => (
                         <UnifiedContentCard
                             key={routine.id}
-                            className="aspect-[2/3]"
                             item={{
                                 id: routine.id,
                                 type: 'routine',

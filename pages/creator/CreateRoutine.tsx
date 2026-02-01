@@ -45,13 +45,13 @@ export const CreateRoutine: React.FC = () => {
         if (user) {
             loadDrills();
         }
-    }, [user]);
+    }, [user?.id]);
 
     useEffect(() => {
         if (id && user) {
             loadRoutine();
         }
-    }, [id, user]);
+    }, [id, user?.id]);
 
     const loadRoutine = async () => {
         if (!id) return;

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Course } from '../types';
-import { PlayCircle, Bookmark, Share2 } from 'lucide-react';
+import { PlayCircle, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toggleCourseSave, checkCourseSaved } from '../lib/api';
 import Player from '@vimeo/player';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
+import { ActionMenuModal } from './library/ActionMenuModal';
 
 const ShareModal = React.lazy(() => import('./social/ShareModal'));
 
@@ -32,6 +33,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
     const navigate = useNavigate();
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -161,7 +163,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                     <img
                         src={course.thumbnailUrl}
                         alt={course.title}
-                        className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isHovering && hasAccess ? 'scale-110' : 'scale-100')}
+                        className={cn("absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700")}
                     />
 
                     {/* Badge — top-left, single: FREE > HOT > NEW */}
@@ -260,11 +262,24 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
                 {/* Metadata */}
                 <div className="flex-1 min-w-0 pr-1">
-                    <Link to={`/courses/${course.id}`}>
-                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
-                            {course.title}
-                        </h3>
-                    </Link>
+                    <div className="flex justify-between items-start gap-2">
+                        <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
+                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 truncate group-hover:text-violet-400 transition-colors">
+                                {course.title}
+                            </h3>
+                        </Link>
+                        <button
+                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsActionMenuOpen(true);
+                            }}
+                            aria-label="더보기"
+                        >
+                            <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                    </div>
 
                     <div className="flex items-center justify-between gap-4 mt-1.5">
                         <Link to={`/creator/${course.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium hover:text-zinc-200 transition-colors truncate">
@@ -278,6 +293,24 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                     </div>
                 </div>
             </div>
+
+            <ActionMenuModal
+                isOpen={isActionMenuOpen}
+                onClose={() => setIsActionMenuOpen(false)}
+                item={{
+                    id: course.id,
+                    type: 'class',
+                    title: course.title,
+                    thumbnailUrl: course.thumbnailUrl,
+                    creatorName: course.creatorName,
+                    creatorProfileImage: course.creatorProfileImage,
+                    creatorId: course.creatorId,
+                    originalData: course,
+                } as any}
+                isSaved={isSaved}
+                onSave={handleSave}
+                onShare={handleShare}
+            />
 
             <style>{`
                 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

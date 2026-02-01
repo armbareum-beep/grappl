@@ -22,6 +22,7 @@ interface VideoPlayerProps {
     autoplay?: boolean;
     onDoubleTap?: () => void;
     onPlayingChange?: (isPlaying: boolean) => void;
+    onReady?: () => void;
     muted?: boolean;
 }
 
@@ -42,6 +43,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     autoplay = true,
     onDoubleTap,
     onPlayingChange,
+    onReady,
     muted = false // Default to false
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -64,11 +66,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const isPreviewModeRef = useRef(isPreviewMode);
     const hasReachedRef = useRef(false); // To track limit inside event listener
 
+    const onReadyRef = useRef(onReady);
+
     useEffect(() => {
         onProgressRef.current = onProgress;
         maxPreviewDurationRef.current = maxPreviewDuration;
         isPreviewModeRef.current = isPreviewMode;
-    }, [onProgress, maxPreviewDuration, isPreviewMode]);
+        onReadyRef.current = onReady;
+    }, [onProgress, maxPreviewDuration, isPreviewMode, onReady]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -272,6 +277,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         }
                     }
                 });
+
+                currentPlayer.ready().then(() => {
+                    onReadyRef.current?.();
+                }).catch(() => {});
             }
 
         } catch (err: any) {

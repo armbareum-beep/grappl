@@ -68,14 +68,14 @@ export const AICoach: React.FC = () => {
         if (logs.length > 0 && user && !analysisCooldown && !deepAnalysis && !isAnalyzingDeeply) {
             handleRunAnalysis();
         }
-    }, [logs, user, analysisCooldown, deepAnalysis]);
+    }, [logs, user?.id, analysisCooldown, deepAnalysis]);
 
     useEffect(() => {
         if (user) {
             fetchData();
             checkAnalysisCooldown();
         }
-    }, [user]);
+    }, [user?.id]);
 
     // Check localStorage for last analysis time
     const checkAnalysisCooldown = () => {

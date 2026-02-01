@@ -260,45 +260,47 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                     <h3 className="text-sm font-bold text-zinc-400 flex items-center gap-2 uppercase tracking-wider">
                         <Camera className="w-4 h-4" /> 썸네일 설정
                     </h3>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                         <Button
                             variant="secondary"
                             onClick={handleCaptureThumbnail}
-                            className="flex-1 h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700 rounded-xl"
+                            className="flex-1 h-12 sm:h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700 rounded-xl"
                         >
-                            <span className="flex flex-col items-center gap-1">
-                                <span className="font-bold">현재 화면 캡처</span>
-                                <span className="text-[10px] text-zinc-500 font-normal">지금 보고 있는 장면을 썸네일로 사용합니다</span>
+                            <span className="flex flex-col items-center gap-0.5 sm:gap-1">
+                                <span className="font-bold text-sm sm:text-base">현재 화면 캡처</span>
+                                <span className="text-[9px] sm:text-[10px] text-zinc-500 font-normal">지금 장면을 썸네일로 사용</span>
                             </span>
                         </Button>
 
-                        {/* Upload Image Button */}
-                        <div className="relative">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleUploadThumbnail}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            />
-                            <Button
-                                variant="secondary"
-                                className="h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700 rounded-xl px-6"
-                            >
-                                <span className="flex flex-col items-center gap-1">
-                                    <ImagePlus className="w-4 h-4" />
-                                    <span className="text-[10px] text-zinc-500 font-normal">이미지 업로드</span>
-                                </span>
-                            </Button>
-                        </div>
-
-                        {thumbnailPreview && (
-                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-violet-500 shadow-lg shadow-violet-500/20 flex-shrink-0 group">
-                                <img src={thumbnailPreview} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Thumbnail preview" />
-                                <div className="absolute inset-0 bg-violet-500/30 flex items-center justify-center backdrop-blur-[1px]">
-                                    <Check className="w-8 h-8 text-white drop-shadow-lg" />
-                                </div>
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            {/* Upload Image Button */}
+                            <div className="relative flex-1 sm:flex-initial">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleUploadThumbnail}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                />
+                                <Button
+                                    variant="secondary"
+                                    className="w-full sm:w-auto h-12 sm:h-14 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700 rounded-xl px-4 sm:px-6"
+                                >
+                                    <span className="flex flex-col items-center gap-0.5 sm:gap-1">
+                                        <ImagePlus className="w-4 h-4" />
+                                        <span className="text-[9px] sm:text-[10px] text-zinc-500 font-normal">이미지 업로드</span>
+                                    </span>
+                                </Button>
                             </div>
-                        )}
+
+                            {thumbnailPreview && (
+                                <div className="relative w-12 h-12 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden border-2 border-violet-500 shadow-lg shadow-violet-500/20 flex-shrink-0 group">
+                                    <img src={thumbnailPreview} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Thumbnail preview" />
+                                    <div className="absolute inset-0 bg-violet-500/30 flex items-center justify-center backdrop-blur-[1px]">
+                                        <Check className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

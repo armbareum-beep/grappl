@@ -47,9 +47,10 @@ export const Login: React.FC = () => {
             );
 
             // Race between the actual auth call and the timeout
+            const normalizedEmail = email.trim().toLowerCase();
             const authPromise = isLogin
-                ? signIn(email, password)
-                : signUp(email, password);
+                ? signIn(normalizedEmail, password)
+                : signUp(normalizedEmail, password);
 
             const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
             const { error } = result;
@@ -154,6 +155,9 @@ export const Login: React.FC = () => {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck="false"
                                     className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
                                     placeholder="example@grapplay.com"
                                 />
@@ -174,6 +178,9 @@ export const Login: React.FC = () => {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck="false"
                                     className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
                                     placeholder="••••••••"
                                     minLength={6}

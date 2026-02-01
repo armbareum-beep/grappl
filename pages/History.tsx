@@ -44,7 +44,7 @@ export const History: React.FC = () => {
         };
 
         fetchData();
-    }, [user]);
+    }, [user?.id]);
 
     if (loading) return <LoadingScreen message="시청 기록을 불러오는 중..." />;
 

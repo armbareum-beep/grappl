@@ -40,7 +40,7 @@ export const Checkout: React.FC = () => {
             // Pre-fill name if available
             setFullName(user.user_metadata?.full_name || user.user_metadata?.name || '');
         }
-    }, [user]);
+    }, [user?.id]);
 
     useEffect(() => {
         if (!user) {
@@ -49,7 +49,7 @@ export const Checkout: React.FC = () => {
         }
 
         fetchProductInfo();
-    }, [user, type, id]);
+    }, [user?.id, type, id]);
 
     const fetchProductInfo = async () => {
         setLoading(true);

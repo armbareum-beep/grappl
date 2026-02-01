@@ -51,52 +51,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsAdmin(parsed.isAdmin);
                     setIsSubscribed(parsed.isSubscribed);
                     setIsCreator(parsed.isCreator);
+                    return {
+                        isAdmin: parsed.isAdmin,
+                        isCreator: parsed.isCreator,
+                        isSubscribed: parsed.isSubscribed,
+                        subscriptionTier: parsed.subscriptionTier,
+                        ownedVideoIds: parsed.ownedVideoIds || []
+                    };
                 } else {
                     // 캐시 만료 - stale 데이터 사용 안함
                     localStorage.removeItem(cacheKey);
                 }
-                // Don't return here, we still want to revalidate in background
             } catch (e) {
                 console.error('Error parsing user cache', e);
             }
         }
 
-        console.log('[AuthContext DEBUG] checkUserStatus STARTED for userId:', userId);
-
         try {
-            console.log('[AuthContext DEBUG] About to execute Supabase queries...');
-
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
                 supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
-            console.log('[AuthContext DEBUG] Queries completed!');
-            console.log('[AuthContext DEBUG] userResult FULL:', JSON.stringify(userResult, null, 2));
-            console.log('[AuthContext DEBUG] userResult.data:', userResult.data);
-            console.log('[AuthContext DEBUG] userResult.error:', userResult.error);
-
             const userData = userResult.data;
             const creatorData = creatorResult.data;
-
-            console.log('[AuthContext DEBUG] checkUserStatus called for userId:', userId);
-            console.log('[AuthContext DEBUG] userResult:', userResult);
-            console.log('[AuthContext DEBUG] userData:', userData);
-            console.log('[AuthContext DEBUG] userData.is_subscriber:', userData?.is_subscriber);
-            console.log('[AuthContext DEBUG] userData.is_admin:', userData?.is_admin);
-
-
 
             const newStatus = {
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),
                 isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
-                ownedVideoIds: [], // owned_video_ids does not exist in users table!
+                ownedVideoIds: [],
                 isCreator: !!(creatorData?.approved === true)
             };
-
-            console.log('[AuthContext DEBUG] newStatus.isSubscribed:', newStatus.isSubscribed);
 
             // Update state
             setIsAdmin(!!newStatus.isAdmin);
@@ -114,9 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ownedVideoIds: newStatus.ownedVideoIds
             };
         } catch (error) {
-            console.error('[AuthContext ERROR] Error checking user status:', error);
-            console.error('[AuthContext ERROR] Error details:', JSON.stringify(error, null, 2));
-            alert(`AuthContext ERROR:\n${error}\n\nCheck console for details`);
+            console.error('[AuthContext] Error checking user status:', error);
 
             // If network fails but we had cache, keep using cache
             if (cached) {
@@ -160,12 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    // TEMPORARILY DISABLED CACHE FOR DEBUGGING
-                    // Clear any existing cache
-                    const cacheKey = `user_status_${baseUser.id}`;
-                    localStorage.removeItem(cacheKey);
-                    console.log('[AuthContext] Cache disabled, fetching fresh data from DB');
-
                     const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
                     const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
 

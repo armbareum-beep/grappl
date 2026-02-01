@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
@@ -31,6 +31,28 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     });
 
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Track which items have their video ready (for blocking swipe to unloaded items)
+    const [readyItems, setReadyItems] = useState<Set<number>>(() => new Set());
+    const markReady = useCallback((index: number) => {
+        setReadyItems(prev => {
+            if (prev.has(index)) return prev;
+            const next = new Set(prev);
+            next.add(index);
+            return next;
+        });
+    }, []);
+
+    // Clear stale ready states when scrolling far (items beyond ±2 get unmounted)
+    useEffect(() => {
+        setReadyItems(prev => {
+            const next = new Set<number>();
+            for (const idx of prev) {
+                if (Math.abs(idx - currentIndex) <= 2) next.add(idx);
+            }
+            return next.size === prev.size ? prev : next;
+        });
+    }, [currentIndex]);
 
     // Fetch user interactions and permissions
     useEffect(() => {
@@ -117,16 +139,18 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         return () => clearInterval(pollInterval);
     }, [drills, onDrillsUpdate]);
 
-    // Navigation handlers
+    // Navigation handlers — block swipe if the target item hasn't loaded yet
     const goToNext = () => {
-        if (currentIndex < drills.length - 1) {
-            setCurrentIndex(prev => prev + 1);
+        const next = currentIndex + 1;
+        if (next < drills.length && readyItems.has(next)) {
+            setCurrentIndex(next);
         }
     };
 
     const goToPrevious = () => {
-        if (currentIndex > 0) {
-            setCurrentIndex(prev => prev - 1);
+        const prev = currentIndex - 1;
+        if (prev >= 0 && readyItems.has(prev)) {
+            setCurrentIndex(prev);
         }
     };
 
@@ -278,6 +302,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         isSubscriber={userPermissions.isSubscriber}
                         purchasedItemIds={userPermissions.purchasedItemIds}
                         isLoggedIn={!!user}
+                        onVideoReady={() => markReady(index)}
                     />
                 );
             })}

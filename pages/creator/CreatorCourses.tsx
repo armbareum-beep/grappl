@@ -31,7 +31,7 @@ export const CreatorCourses: React.FC = () => {
             }
         }
         fetchContent();
-    }, [user]);
+    }, [user?.id]);
 
     const toggleExpand = (id: string) => {
         const newExpanded = new Set(expandedItems);

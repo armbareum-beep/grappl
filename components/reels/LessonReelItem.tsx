@@ -21,6 +21,7 @@ interface LessonReelItemProps {
     isDailyFreeLesson?: boolean;
     isMuted?: boolean;
     onToggleMute?: () => void;
+    onVideoReady?: () => void;
 }
 
 export const LessonReelItem: React.FC<LessonReelItemProps> = ({
@@ -32,7 +33,8 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     isLoggedIn,
     isDailyFreeLesson = false,
     isMuted = false,
-    onToggleMute
+    onToggleMute,
+    onVideoReady
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -60,9 +62,15 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
 
     const vimeoFullId = extractVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
 
-    // VideoPlayer handles initialization
-
-    // VideoPlayer handles playback and mute
+    // Notify parent when this item is ready to display
+    const [videoPlayerReady, setVideoPlayerReady] = useState(false);
+    const onVideoReadyRef = useRef(onVideoReady);
+    onVideoReadyRef.current = onVideoReady;
+    useEffect(() => {
+        if (videoPlayerReady) {
+            onVideoReadyRef.current?.();
+        }
+    }, [videoPlayerReady]);
 
     useEffect(() => {
         if (user && isActive && lesson.creatorId) {
@@ -204,6 +212,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                         showControls={false}
                         fillContainer={true}
                         onProgress={(s) => setProgress(s)}
+                        onReady={() => setVideoPlayerReady(true)}
                         onDoubleTap={handleLike}
                         muted={isMuted}
                     />
@@ -248,7 +257,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
 
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="relative w-full h-full">
-                                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
+                                    <div className="absolute bottom-10 right-4 flex flex-col gap-5 z-[70] pointer-events-auto items-center">
                                         <div className="flex flex-col items-center gap-1">
                                             <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
                                                 <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
@@ -285,8 +294,8 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                                 </div>
                             </div>
 
-                            <div className="absolute bottom-4 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                <div className="w-full pointer-events-auto pr-16 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                            <div className="absolute bottom-10 left-0 right-0 w-full px-6 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
+                                <div className="w-full pointer-events-auto pr-20 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
                                     <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-violet-500/10 text-violet-400 border border-violet-500/20">LESSON</div>
                                     <div className="flex items-center gap-3 mb-3">
                                         <Link to={`/creator/${lesson.creatorId}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">

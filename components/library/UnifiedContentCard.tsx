@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlayCircle, PlaySquare, Bookmark, Share2 } from 'lucide-react';
+import { PlayCircle, PlaySquare, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
+import { ActionMenuModal } from './ActionMenuModal';
 import { cn } from '../../lib/utils';
 import { ContentBadge } from '../common/ContentBadge';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
@@ -38,34 +39,15 @@ interface UnifiedContentCardProps {
     item: UnifiedContentItem;
     onSparringClick?: (item: UnifiedContentItem) => void;
     className?: string;
+    minimal?: boolean;
 }
 
-const getSpanClass = (type: ContentType, variant?: CardVariant): string => {
-    // Class: ~16:9 Aspect Ratio Image + Text
-    // Small: 1 col x 3 row (Total ~190px -> Image ~110px which is 16:9 of 180px)
-    // Large: 2 col x 5 row (Total ~310px -> Image ~230px which is 16:9 of 360px)
-    if (type === 'class') {
-        if (variant === 'wide' || variant === 'large') {
-            return 'col-span-2 row-span-5';
-        }
-        return 'col-span-1 row-span-3';
+// Spans are now calculated dynamically via Ref and ResizeObserver to avoid gaps
+const getColSpanClass = (item: UnifiedContentItem): string => {
+    if (item.type === 'class' || (item.type === 'sparring' && item.variant === 'large')) {
+        return 'col-span-1 md:col-span-2';
     }
-
-    // Routine: 9:16 Ratio (Standard Vertical)
-    // 1 col x 5 row (Total ~350px -> Image ~300px which is good for 9:16 of 180px)
-    if (type === 'routine') {
-        return 'col-span-1 row-span-5';
-    }
-
-    // For sparring, always square (1:1) -> distinct sizes
-    if (type === 'sparring') {
-        if (variant === 'large') {
-            return 'col-span-2 row-span-8';
-        }
-        return 'col-span-1 row-span-4';
-    }
-
-    return 'row-span-4';
+    return 'col-span-1';
 };
 
 const getItemLink = (item: UnifiedContentItem): string => {
@@ -87,15 +69,48 @@ const isRecent = (createdAt?: string): boolean => {
     return new Date(createdAt).getTime() > thirtyDaysAgo;
 };
 
-export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className }) => {
+export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className, minimal = false }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const link = getItemLink(item);
     const PlayIcon = item.type === 'sparring' ? PlaySquare : PlayCircle;
-    const spanClass = getSpanClass(item.type, item.variant);
+
+    const cardRef = React.useRef<HTMLDivElement>(null);
+    const [span, setSpan] = useState(0);
+
+    const updateSpan = React.useCallback(() => {
+        if (cardRef.current) {
+            const height = cardRef.current.getBoundingClientRect().height;
+            if (height > 0) {
+                // Add 12px vertical gap between cards (row-gap is 0, spacing is included in span)
+                setSpan(Math.ceil(height + 12));
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        const observer = new ResizeObserver(updateSpan);
+        if (cardRef.current) observer.observe(cardRef.current);
+
+        // Initial call
+        updateSpan();
+
+        // Also check periodically for a few frames in case of layout shifts
+        const timers = [100, 300, 600].map(ms => setTimeout(updateSpan, ms));
+
+        return () => {
+            observer.disconnect();
+            timers.forEach(clearTimeout);
+        };
+    }, [item, updateSpan]);
+
+    const colSpanClass = getColSpanClass(item);
+    // Use a reasonable default (300px-ish) to avoid zero-height clumping
+    const spanStyle = (span && minimal) ? { gridRowEnd: `span ${span}` } : {};
 
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -160,25 +175,45 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
     return (
         <div
-            className={cn("group cursor-pointer flex flex-col h-full", spanClass, className)}
+            ref={cardRef}
+            className={cn("group cursor-pointer flex flex-col h-fit", colSpanClass, className)}
+            style={spanStyle}
         >
             {/* Image area — fills remaining space via flex-1 */}
             <div
                 className={cn(
-                    "relative bg-zinc-900 rounded-2xl overflow-hidden transition-all duration-500 flex-1 min-h-0",
-                    "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
-                )}
-            >
+                    "relative group z-10",
+                    item.type === 'class' ? (minimal ? "aspect-[4/3]" : "aspect-video") :
+                        item.type === 'routine' ? "aspect-[9/16]" :
+                            "aspect-square",
+                    "bg-zinc-900 rounded-2xl md:rounded-[2rem] overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
+                )}>
                 <Link
                     to={link}
                     onClick={handleClick}
                     className="absolute inset-0 block"
                 >
-                    <img
-                        src={item.thumbnailUrl}
-                        alt={item.title}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
+                    {item.thumbnailUrl && !item.thumbnailUrl.includes('removed') ? (
+                        <img
+                            src={item.thumbnailUrl}
+                            alt={item.title}
+                            onLoad={updateSpan}
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 opacity-90 group-hover:opacity-100 group-hover:scale-105"
+                        />
+                    ) : null}
+                    {/* Fallback pattern for missing/error images */}
+                    <div className={cn(
+                        "absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center",
+                        item.thumbnailUrl && !item.thumbnailUrl.includes('removed') && "hidden"
+                    )}>
+                        <div className="text-zinc-700 font-bold text-4xl opacity-20 select-none">
+                            {item.title.charAt(0).toUpperCase()}
+                        </div>
+                    </div>
 
                     {/* Badge — top-left, single: FREE > HOT > NEW priority */}
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
@@ -214,8 +249,35 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                     >
                         <Share2 className="w-4 h-4" />
                     </button>
+
                 </Link>
             </div>
+
+            {/* Pinterest Style: Three dots button below the image for minimal cards */}
+            {minimal && (
+                <div className="flex justify-end pt-1 px-1">
+                    <button
+                        className="p-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsActionMenuOpen(true);
+                        }}
+                        aria-label="더보기"
+                    >
+                        <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
+
+            <ActionMenuModal
+                isOpen={isActionMenuOpen}
+                onClose={() => setIsActionMenuOpen(false)}
+                item={item}
+                isSaved={isSaved}
+                onSave={handleSave}
+                onShare={handleShare}
+            />
 
             <React.Suspense fallback={null}>
                 {isShareModalOpen && (
@@ -231,54 +293,69 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
             </React.Suspense>
 
             {/* Info Area — shrink-0 keeps it at natural height */}
-            <div className="flex gap-3 px-1 mt-2 shrink-0">
-                {/* Creator Avatar */}
-                {item.creatorId && (
-                    <Link
-                        to={`/creator/${item.creatorId}`}
-                        className="shrink-0 pt-0.5"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden group-hover:border-violet-500/50 transition-colors">
-                            {item.creatorProfileImage ? (
-                                <img
-                                    src={item.creatorProfileImage}
-                                    alt={item.creatorName}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                    {item.creatorName?.charAt(0)}
+            {!minimal && (
+                <div className="flex gap-3 px-1 mt-2 shrink-0">
+                    {/* Creator Avatar */}
+                    {item.creatorId && (
+                        <Link
+                            to={`/creator/${item.creatorId}`}
+                            className="shrink-0 pt-0.5"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden group-hover:border-violet-500/50 transition-colors">
+                                {item.creatorProfileImage ? (
+                                    <img
+                                        src={item.creatorProfileImage}
+                                        alt={item.creatorName}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
+                                        {item.creatorName?.charAt(0)}
+                                    </div>
+                                )}
+                            </div>
+                        </Link>
+                    )}
+
+                    {/* Text Info */}
+                    <div className="flex-1 min-w-0 pr-1">
+                        <div className="flex justify-between items-start gap-2">
+                            <Link to={link} onClick={handleClick} className="flex-1 min-w-0">
+                                <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors">
+                                    {item.title}
+                                </h3>
+                            </Link>
+                            <button
+                                className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsActionMenuOpen(true);
+                                }}
+                                aria-label="더보기"
+                            >
+                                <MoreHorizontal className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4 mt-1.5">
+                            {item.creatorName && (
+                                <div className="text-xs md:text-sm text-zinc-400 font-medium truncate">
+                                    {item.creatorName}
                                 </div>
                             )}
-                        </div>
-                    </Link>
-                )}
 
-                {/* Text Info */}
-                <div className="flex-1 min-w-0 pr-1">
-                    <Link to={link} onClick={handleClick}>
-                        <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 group-hover:text-violet-400 transition-colors min-h-[2.5rem] md:min-h-[2.8rem]">
-                            {item.title}
-                        </h3>
-                    </Link>
-
-                    <div className="flex items-center justify-between gap-4 mt-1.5">
-                        {item.creatorName && (
-                            <div className="text-xs md:text-sm text-zinc-400 font-medium truncate">
-                                {item.creatorName}
+                            <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
+                                <PlayIcon className="w-3 h-3" />
+                                <span>
+                                    {(item.views || 0).toLocaleString()} 조회수
+                                </span>
                             </div>
-                        )}
-
-                        <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
-                            <PlayIcon className="w-3 h-3" />
-                            <span>
-                                {(item.views || 0).toLocaleString()} 조회수
-                            </span>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

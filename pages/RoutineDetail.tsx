@@ -286,7 +286,7 @@ export const RoutineDetail: React.FC = () => {
         if (id) {
             loadRoutineAndPermissions();
         }
-    }, [id, authLoading, user]);
+    }, [id, authLoading, user?.id]);
 
     useEffect(() => {
         const loadUserInteractions = async () => {
@@ -302,7 +302,7 @@ export const RoutineDetail: React.FC = () => {
             }
         };
         loadUserInteractions();
-    }, [user]);
+    }, [user?.id]);
 
     useEffect(() => {
         if (routine?.drills?.length) {

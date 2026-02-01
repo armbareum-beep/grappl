@@ -28,7 +28,7 @@ export const Journal: React.FC = () => {
     useEffect(() => {
         loadPosts();
         loadUserAvatar();
-    }, [user]);
+    }, [user?.id]);
 
 
 

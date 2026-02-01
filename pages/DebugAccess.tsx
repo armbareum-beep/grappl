@@ -38,7 +38,7 @@ export default function DebugAccess() {
         }
 
         fetchDebugInfo();
-    }, [user]);
+    }, [user?.id]);
 
     if (!user) return <div className="p-8">로그인이 필요합니다.</div>;
     if (!debugInfo) return <div className="p-8">로딩 중...</div>;

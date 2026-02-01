@@ -221,6 +221,7 @@ interface DrillReelItemProps {
     purchasedItemIds: string[];
     isLoggedIn: boolean;
     isDailyFreeDrill?: boolean;
+    onVideoReady?: () => void;
 }
 
 export const DrillReelItem: React.FC<DrillReelItemProps> = ({
@@ -237,10 +238,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     onFollow,
     onViewRoutine,
     offset,
-    isSubscriber,
-    purchasedItemIds,
     isLoggedIn,
-    isDailyFreeDrill = false
+    onVideoReady,
 }) => {
     // Logic: 
     // Main Video: Active(0) and Neighbors(+/-1) -> Load for fast feed scrolling.
@@ -398,6 +397,15 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
 
     const isProcessing = !drill.vimeoUrl && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
 
+    // Notify parent when this item is ready to display
+    const onVideoReadyRef = useRef(onVideoReady);
+    onVideoReadyRef.current = onVideoReady;
+    useEffect(() => {
+        if (isProcessing || loadError || mainVideoReady) {
+            onVideoReadyRef.current?.();
+        }
+    }, [isProcessing, loadError, mainVideoReady]);
+
     if (isProcessing) {
         return (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-950" style={{ transform: `translateY(${offset * 100}%)` }}>
@@ -513,38 +521,37 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                             </div>
                         </div>
 
-                        <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-between py-6 pointer-events-auto">
-                            <div className="flex flex-col gap-3 items-center pr-4">
-                                <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60">
-                                    {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                        <div className="absolute top-6 right-4 z-[70] pointer-events-auto">
+                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 shadow-2xl">
+                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+                            </button>
+                        </div>
+
+                        <div className="absolute bottom-10 right-4 flex flex-col gap-5 z-[70] pointer-events-auto items-center">
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
+                                    <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''}`} />
                                 </button>
+                                <span className="text-[11px] md:text-sm font-bold text-white shadow-black drop-shadow-md">{likeCount}</span>
                             </div>
-                            <div className="flex flex-col gap-3 items-center pr-4 pb-24">
-                                <div className="flex flex-col items-center gap-0.5">
-                                    <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
-                                        <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''}`} />
-                                    </button>
-                                    <span className="text-[10px] md:text-sm font-bold text-white shadow-black drop-shadow-md">{likeCount}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
-                                    <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
-                                    <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90">
-                                    <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
-                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
+                                <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
+                                <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
+                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Metadata Footer - Lowered on mobile */}
-            <div className="absolute left-0 right-0 w-full bottom-4 px-6 z-40 pointer-events-none">
+            <div className="absolute left-0 right-0 w-full bottom-10 px-6 z-40 pointer-events-none">
                 <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
-                    <div className="flex-1 pr-16">
+                    <div className="flex-1 pr-20">
                         <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">DRILL</div>
                         <div className="flex items-center gap-3 mb-3">
                             <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 hover:opacity-80 pointer-events-auto">
@@ -558,10 +565,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                                 {isFollowed ? 'Following' : 'Follow'}
                             </button>
                         </div>
-                        <h2 className="text-white font-bold text-lg md:text-xl mb-2 line-clamp-2 drop-shadow-sm">
+                        <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">
                             {drill.title}
                             {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
-                        </h2>
+                        </h3>
                         {drill.tags && drill.tags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-3">
                                 {(drill.tags || []).slice(0, 3).map((tag, idx) => (

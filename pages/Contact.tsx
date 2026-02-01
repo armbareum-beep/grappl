@@ -26,7 +26,7 @@ export const Contact: React.FC = () => {
                 email: user.email || prev.email
             }));
         }
-    }, [user]);
+    }, [user?.id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
