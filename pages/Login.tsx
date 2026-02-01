@@ -35,28 +35,32 @@ export const Login: React.FC = () => {
         return '/home';
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
+        const formData = new FormData(e.currentTarget);
+        const formEmail = formData.get('email') as string;
+        const formPassword = formData.get('password') as string;
+
         try {
-            // Create a timeout promise
+            // Create a timeout promise (Extended to 10s for mobile)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요.')), 5000)
+                setTimeout(() => reject(new Error('로그인 요청 시간이 초과되었습니다. 다시 시도해주세요.')), 10000)
             );
 
             // Race between the actual auth call and the timeout
-            const normalizedEmail = email.trim().toLowerCase();
+            const normalizedEmail = formEmail.trim().toLowerCase();
 
             // Debug logging
-            console.log('[Login Debug] Original email:', email);
-            console.log('[Login Debug] Normalized email:', normalizedEmail);
-            console.log('[Login Debug] Password length:', password.length);
+            console.log('[Login Debug] Form Email:', formEmail);
+            console.log('[Login Debug] Normalized Form Email:', normalizedEmail);
+            console.log('[Login Debug] Form Password length:', formPassword?.length);
 
             const authPromise = isLogin
-                ? signIn(normalizedEmail, password)
-                : signUp(normalizedEmail, password);
+                ? signIn(normalizedEmail, formPassword)
+                : signUp(normalizedEmail, formPassword);
 
             const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
             const { error } = result;

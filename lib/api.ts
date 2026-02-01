@@ -379,11 +379,7 @@ export async function getCourses(limit: number = 50, offset: number = 0, userId?
     try {
         console.log('🔍 getCourses: Starting fetch...');
 
-        // Check if user is subscriber
-        let isSubscriber = false;
-        if (userId) {
-            isSubscriber = await checkUserSubscription(userId);
-        }
+
 
         // Base query
         let query = supabase
@@ -397,10 +393,7 @@ export async function getCourses(limit: number = 50, offset: number = 0, userId?
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        // Filter by price for non-subscribers
-        if (!isSubscriber) {
-            query = query.eq('price', 0);
-        }
+
 
         // First, try to get courses with creator info (for authenticated users)
         let { data, error } = await withTimeout(query, 5000);
@@ -420,10 +413,7 @@ export async function getCourses(limit: number = 50, offset: number = 0, userId?
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1);
 
-            // Apply same subscription filter
-            if (!isSubscriber) {
-                fallbackQuery = fallbackQuery.eq('price', 0);
-            }
+
 
             const fallback = await withTimeout(fallbackQuery, 5000);
 
@@ -960,11 +950,7 @@ export async function checkUserSubscription(userId: string): Promise<boolean> {
 
 export async function getPublicSparringVideos(limit = 3, userId?: string): Promise<SparringVideo[]> {
     try {
-        // Check if user is subscriber
-        let isSubscriber = false;
-        if (userId) {
-            isSubscriber = await checkUserSubscription(userId);
-        }
+
 
         // 1. Build query with subscription-based filtering
         let query = supabase
@@ -974,10 +960,7 @@ export async function getPublicSparringVideos(limit = 3, userId?: string): Promi
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
-        // Filter by price for non-subscribers
-        if (!isSubscriber) {
-            query = query.eq('price', 0);
-        }
+
 
         const { data: videos, error } = await withTimeout(query.limit(limit), 5000);
 
@@ -5284,11 +5267,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
 
 export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false, userId?: string) {
     try {
-        // Check if user is subscriber
-        let isSubscriber = false;
-        if (userId) {
-            isSubscriber = await checkUserSubscription(userId);
-        }
+
 
         let query = supabase
             .from('sparring_videos')
@@ -5304,11 +5283,7 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
             query = query.eq('is_published', true);
         }
 
-        // Filter by price for non-subscribers
-        // Note: Check if 'price' column exists in SparringVideo type/table. Assuming it does as per previous tasks.
-        if (!isSubscriber) {
-            query = query.eq('price', 0);
-        }
+
 
         // Hide soft-deleted videos from general lists
         query = query.is('deleted_at', null);
@@ -5922,11 +5897,7 @@ export async function getDailyFreeSparring() {
 
 export async function fetchRoutines(limit: number = 20, userId?: string) {
     try {
-        // Check if user is subscriber
-        let isSubscriber = false;
-        if (userId) {
-            isSubscriber = await checkUserSubscription(userId);
-        }
+
 
         // Build query with subscription-based filtering
         let query = supabase
@@ -5934,10 +5905,7 @@ export async function fetchRoutines(limit: number = 20, userId?: string) {
             .select('*')
             .order('created_at', { ascending: false });
 
-        // Filter by price for non-subscribers
-        if (!isSubscriber) {
-            query = query.eq('price', 0);
-        }
+
 
         const { data, error } = await withTimeout(query.limit(limit), 5000);
 
@@ -8449,11 +8417,7 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<DrillRoutine[]> {
-    // Check if user is subscriber
-    let isSubscriber = false;
-    if (userId) {
-        isSubscriber = await checkUserSubscription(userId);
-    }
+
 
     // 1. Build query with subscription-based filtering
     let query = supabase
@@ -8462,10 +8426,7 @@ export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<D
         .limit(50) // Candidate pool size
         .order('created_at', { ascending: false });
 
-    // Filter by price for non-subscribers
-    if (!isSubscriber) {
-        query = query.eq('price', 0);
-    }
+
 
     let { data, error } = await withTimeout(query, 5000);
 
@@ -8478,10 +8439,7 @@ export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<D
             .limit(50)
             .order('created_at', { ascending: false });
 
-        // Apply same price filter for fallback
-        if (!isSubscriber) {
-            fallbackQuery = fallbackQuery.eq('price', 0);
-        }
+
 
         const fallback = await withTimeout(fallbackQuery, 5000);
         data = fallback.data;
@@ -8534,11 +8492,7 @@ export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<D
 }
 
 export async function getNewCourses(limit = 6, userId?: string): Promise<Course[]> {
-    // Check if user is subscriber
-    let isSubscriber = false;
-    if (userId) {
-        isSubscriber = await checkUserSubscription(userId);
-    }
+
 
     // Build query with subscription-based filtering
     let query = supabase
@@ -8547,10 +8501,7 @@ export async function getNewCourses(limit = 6, userId?: string): Promise<Course[
         .eq('published', true)
         .order('created_at', { ascending: false });
 
-    // Filter by price for non-subscribers
-    if (!isSubscriber) {
-        query = query.eq('price', 0);
-    }
+
 
     const { data, error } = await withTimeout(query.limit(limit), 5000);
 
@@ -8566,11 +8517,7 @@ export async function getNewCourses(limit = 6, userId?: string): Promise<Course[
 }
 
 export async function getTrendingCourses(limit = 6, userId?: string): Promise<Course[]> {
-    // Check if user is subscriber
-    let isSubscriber = false;
-    if (userId) {
-        isSubscriber = await checkUserSubscription(userId);
-    }
+
 
     // 1. Build query with subscription-based filtering
     let query = supabase
@@ -8580,10 +8527,7 @@ export async function getTrendingCourses(limit = 6, userId?: string): Promise<Co
         .limit(50)
         .order('created_at', { ascending: false });
 
-    // Filter by price for non-subscribers
-    if (!isSubscriber) {
-        query = query.eq('price', 0);
-    }
+
 
     const { data, error } = await withTimeout(query, 5000);
 
