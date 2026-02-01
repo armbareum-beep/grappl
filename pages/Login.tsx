@@ -159,12 +159,22 @@ export const Login: React.FC = () => {
                                 </div>
                                 <input
                                     id="email"
+                                    name="email"
                                     type="email"
                                     required
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => {
+                                        // Remove any leading/trailing whitespace immediately
+                                        const cleaned = e.target.value.replace(/^\s+|\s+$/g, '');
+                                        setEmail(cleaned);
+                                    }}
+                                    onBlur={(e) => {
+                                        // Extra cleanup on blur
+                                        setEmail(e.target.value.trim());
+                                    }}
                                     autoCapitalize="none"
                                     autoCorrect="off"
+                                    autoComplete="email"
                                     spellCheck="false"
                                     className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
                                     placeholder="example@grapplay.com"
@@ -182,12 +192,22 @@ export const Login: React.FC = () => {
                                 </div>
                                 <input
                                     id="password"
+                                    name="password"
                                     type="password"
                                     required
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        // Remove any leading/trailing whitespace immediately
+                                        const cleaned = e.target.value.replace(/^\s+|\s+$/g, '');
+                                        setPassword(cleaned);
+                                    }}
+                                    onBlur={(e) => {
+                                        // Extra cleanup on blur
+                                        setPassword(e.target.value.trim());
+                                    }}
                                     autoCapitalize="none"
                                     autoCorrect="off"
+                                    autoComplete="current-password"
                                     spellCheck="false"
                                     className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
                                     placeholder="••••••••"
