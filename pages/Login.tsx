@@ -35,15 +35,12 @@ export const Login: React.FC = () => {
         return '/home';
     };
 
-    // State for password visibility
     const [showPassword, setShowPassword] = useState(false);
-    const [debugInfo, setDebugInfo] = useState<string>('');
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        setDebugInfo('');
 
         const formData = new FormData(e.currentTarget);
         const formEmail = formData.get('email') as string;
@@ -59,9 +56,6 @@ export const Login: React.FC = () => {
             const normalizedEmail = formEmail.trim().toLowerCase();
             const normalizedPassword = formPassword.trim(); // 비밀번호도 공백 제거 시도 (모바일 입력 오류 방지)
 
-            // Debug info for UI
-            setDebugInfo(`Email: ${normalizedEmail} (len: ${normalizedEmail.length}) \nPassLen: ${normalizedPassword.length} \nRawPassLast: ${normalizedPassword.slice(-1)}`);
-
             const authPromise = isLogin
                 ? signIn(normalizedEmail, normalizedPassword)
                 : signUp(normalizedEmail, normalizedPassword);
@@ -71,7 +65,6 @@ export const Login: React.FC = () => {
 
             if (error) {
                 console.error('[Login Debug] Auth error:', error);
-                setDebugInfo(prev => `${prev}\nError: ${error.message}`);
                 if (error.message === 'Invalid login credentials') {
                     setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
                 } else {
@@ -84,7 +77,6 @@ export const Login: React.FC = () => {
             }
         } catch (err: any) {
             console.error('Login error:', err);
-            setDebugInfo(prev => `${prev}\nCatch Error: ${err.message}`);
             if (err.message === 'Invalid login credentials') {
                 setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
             } else {
@@ -306,13 +298,6 @@ export const Login: React.FC = () => {
                             ← 홈으로 돌아가기
                         </Link>
                     </div>
-
-                    {/* Debug Info Overlay */}
-                    {debugInfo && (
-                        <div className="mt-4 p-4 bg-black/50 rounded text-xs text-green-400 whitespace-pre-wrap font-mono break-all border border-green-900/50">
-                            {debugInfo}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
