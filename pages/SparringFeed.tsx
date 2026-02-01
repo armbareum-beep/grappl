@@ -347,11 +347,8 @@ const VideoItem: React.FC<{
                                     )}
 
                                     {video.creator && (
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                                <img src={video.creatorProfileImage || (video.creator as any).profileImage || (video.creator as any).image || (video.creator as any).avatar_url || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
-                                                <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
-                                            </Link>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
                                             <span className="text-white/60 text-xs mt-0.5">•</span>
                                             <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
                                                 {isFollowed ? 'Following' : 'Follow'}
@@ -380,7 +377,7 @@ const VideoItem: React.FC<{
                     />
                 )}
             </React.Suspense>
-        </div>
+        </div >
     );
 };
 
@@ -495,17 +492,6 @@ const SparringGridItem: React.FC<{
             {/* Info Area */}
             <div className="flex gap-3 px-1">
                 {/* Creator Avatar */}
-                <Link to={`/creator/${video.creatorId}`} className="shrink-0 pt-0.5" onClick={e => e.stopPropagation()}>
-                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-colors">
-                        {(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage ? (
-                            <img src={(video.creator as any)?.avatar_url || (video.creator as any)?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                {video.creator?.name?.charAt(0)}
-                            </div>
-                        )}
-                    </div>
-                </Link>
 
                 {/* Text Info */}
                 <div className="flex-1 min-w-0 pr-1">
@@ -518,12 +504,12 @@ const SparringGridItem: React.FC<{
                             }}
                             className="flex-1 min-w-0 cursor-pointer"
                         >
-                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-2 min-h-[2.5rem] group-hover:text-violet-400 transition-colors">
+                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 line-clamp-2 min-h-[2.5rem] group-hover:text-violet-400 transition-colors">
                                 {video.title}
                             </h3>
                         </div>
                         <button
-                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-100"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -535,7 +521,7 @@ const SparringGridItem: React.FC<{
                         </button>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 mt-1.5">
+                    <div className="flex items-center justify-between gap-4 mt-0">
                         <Link to={`/creator/${video.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium truncate hover:text-zinc-200 transition-colors" onClick={e => e.stopPropagation()}>
                             {video.creator?.name || 'Unknown'}
                         </Link>
