@@ -52,15 +52,17 @@ export const Login: React.FC = () => {
 
             // Race between the actual auth call and the timeout
             const normalizedEmail = formEmail.trim().toLowerCase();
+            const normalizedPassword = formPassword.trim(); // 비밀번호도 공백 제거 시도 (모바일 입력 오류 방지)
 
             // Debug logging
             console.log('[Login Debug] Form Email:', formEmail);
             console.log('[Login Debug] Normalized Form Email:', normalizedEmail);
-            console.log('[Login Debug] Form Password length:', formPassword?.length);
+            console.log('[Login Debug] Password length (original):', formPassword?.length);
+            console.log('[Login Debug] Password length (trimmed):', normalizedPassword.length);
 
             const authPromise = isLogin
-                ? signIn(normalizedEmail, formPassword)
-                : signUp(normalizedEmail, formPassword);
+                ? signIn(normalizedEmail, normalizedPassword)
+                : signUp(normalizedEmail, normalizedPassword);
 
             const result = await Promise.race([authPromise, timeoutPromise]) as { error: any };
             const { error } = result;
