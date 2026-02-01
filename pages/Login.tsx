@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 
 
 export const Login: React.FC = () => {
@@ -35,10 +35,15 @@ export const Login: React.FC = () => {
         return '/home';
     };
 
+    // State for password visibility
+    const [showPassword, setShowPassword] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<string>('');
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setLoading(true);
+        setDebugInfo('');
 
         const formData = new FormData(e.currentTarget);
         const formEmail = formData.get('email') as string;
@@ -54,11 +59,8 @@ export const Login: React.FC = () => {
             const normalizedEmail = formEmail.trim().toLowerCase();
             const normalizedPassword = formPassword.trim(); // 비밀번호도 공백 제거 시도 (모바일 입력 오류 방지)
 
-            // Debug logging
-            console.log('[Login Debug] Form Email:', formEmail);
-            console.log('[Login Debug] Normalized Form Email:', normalizedEmail);
-            console.log('[Login Debug] Password length (original):', formPassword?.length);
-            console.log('[Login Debug] Password length (trimmed):', normalizedPassword.length);
+            // Debug info for UI
+            setDebugInfo(`Email: ${normalizedEmail} (len: ${normalizedEmail.length}) \nPassLen: ${normalizedPassword.length} \nRawPassLast: ${normalizedPassword.slice(-1)}`);
 
             const authPromise = isLogin
                 ? signIn(normalizedEmail, normalizedPassword)
@@ -69,6 +71,7 @@ export const Login: React.FC = () => {
 
             if (error) {
                 console.error('[Login Debug] Auth error:', error);
+                setDebugInfo(prev => `${prev}\nError: ${error.message}`);
                 if (error.message === 'Invalid login credentials') {
                     setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
                 } else {
@@ -81,6 +84,7 @@ export const Login: React.FC = () => {
             }
         } catch (err: any) {
             console.error('Login error:', err);
+            setDebugInfo(prev => `${prev}\nCatch Error: ${err.message}`);
             if (err.message === 'Invalid login credentials') {
                 setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
             } else {
@@ -199,7 +203,7 @@ export const Login: React.FC = () => {
                                 <input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     value={password}
                                     onChange={(e) => {
@@ -215,10 +219,21 @@ export const Login: React.FC = () => {
                                     autoCorrect="off"
                                     autoComplete="current-password"
                                     spellCheck="false"
-                                    className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
+                                    className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-12 py-4 text-sm focus:ring-0 focus:outline-none"
                                     placeholder="••••••••"
                                     minLength={6}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-zinc-500 hover:text-zinc-300 focus:outline-none z-20"
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="w-5 h-5" />
+                                    ) : (
+                                        <Eye className="w-5 h-5" />
+                                    )}
+                                </button>
                             </div>
                             {!isLogin && (
                                 <p className="mt-1 text-xs text-zinc-500 ml-1">최소 6자 이상 입력해주세요</p>
@@ -291,6 +306,13 @@ export const Login: React.FC = () => {
                             ← 홈으로 돌아가기
                         </Link>
                     </div>
+
+                    {/* Debug Info Overlay */}
+                    {debugInfo && (
+                        <div className="mt-4 p-4 bg-black/50 rounded text-xs text-green-400 whitespace-pre-wrap font-mono break-all border border-green-900/50">
+                            {debugInfo}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
