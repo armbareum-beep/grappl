@@ -21,8 +21,6 @@ interface AuthContextType {
     signInWithKakao: () => Promise<{ error: any }>;
     signOut: () => Promise<void>;
     becomeCreator: (name: string, bio: string) => Promise<{ error: any }>;
-    resetPassword: (email: string) => Promise<{ error: any }>;
-    updatePassword: (newPassword: string) => Promise<{ error: any }>;
     isSubscribed: boolean;
 }
 
@@ -35,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
 
+    // Check user status from database
     // Check user status from database
     const checkUserStatus = async (userId: string) => {
         const cacheKey = `user_status_${userId}`;
@@ -51,17 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsAdmin(parsed.isAdmin);
                     setIsSubscribed(parsed.isSubscribed);
                     setIsCreator(parsed.isCreator);
-                    return {
-                        isAdmin: parsed.isAdmin,
-                        isCreator: parsed.isCreator,
-                        isSubscribed: parsed.isSubscribed,
-                        subscriptionTier: parsed.subscriptionTier,
-                        ownedVideoIds: parsed.ownedVideoIds || []
-                    };
                 } else {
                     // 캐시 만료 - stale 데이터 사용 안함
                     localStorage.removeItem(cacheKey);
                 }
+                // Don't return here, we still want to revalidate in background
             } catch (e) {
                 console.error('Error parsing user cache', e);
             }
@@ -70,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // Run queries in parallel for performance
             const [userResult, creatorResult] = await Promise.all([
-                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -78,17 +71,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const creatorData = creatorResult.data;
 
             const newStatus = {
-                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || (user?.email && user.email === 'armbareum@gmail.com')),
+                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com'),
                 isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
-                ownedVideoIds: [],
+                ownedVideoIds: userData?.owned_video_ids || [],
                 isCreator: !!(creatorData?.approved === true)
             };
 
             // Update state
-            setIsAdmin(!!newStatus.isAdmin);
-            setIsSubscribed(!!newStatus.isSubscribed);
-            setIsCreator(!!newStatus.isCreator);
+            setIsAdmin(newStatus.isAdmin);
+            setIsSubscribed(newStatus.isSubscribed);
+            setIsCreator(newStatus.isCreator);
 
             // Update cache with timestamp
             localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
@@ -101,8 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ownedVideoIds: newStatus.ownedVideoIds
             };
         } catch (error) {
-            console.error('[AuthContext] Error checking user status:', error);
-
+            console.error('Error checking user status:', error);
             // If network fails but we had cache, keep using cache
             if (cached) {
                 const parsed = JSON.parse(cached);
@@ -145,9 +137,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
-                    const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
+                    // Check cache first to unblock UI immediately
+                    const cacheKey = `user_status_${baseUser.id}`;
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            const cacheAge = Date.now() - (parsed._cachedAt || 0);
+                            const CACHE_TTL = 5 * 60 * 1000; // 5분
 
+                            if (cacheAge < CACHE_TTL) {
+                                setUser({
+                                    ...baseUser,
+                                    isSubscriber: parsed.isSubscribed,
+                                    subscription_tier: parsed.subscriptionTier,
+                                    ownedVideoIds: parsed.ownedVideoIds
+                                });
+                                // Set admin/creator statuses from cache too
+                                setIsAdmin(parsed.isAdmin || false);
+                                setIsCreator(parsed.isCreator || false);
+                                setIsSubscribed(parsed.isSubscribed || false);
+
+                                // Set loading false immediately if we have valid cache
+                                setLoading(false);
+                            } else {
+                                localStorage.removeItem(cacheKey);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing user cache', e);
+                        }
+                    }
+
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
@@ -155,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             subscription_tier: subscriptionTier,
                             ownedVideoIds: ownedIds
                         });
-                        setIsAdmin(finalIsAdmin);
+                        setIsAdmin(admin);
                         setIsCreator(creator);
                         setIsSubscribed(subscribed);
                     }
@@ -187,19 +208,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
-                    const finalIsAdmin = admin || baseUser.email === 'armbareum@gmail.com';
-
+                    const status = await checkUserStatus(baseUser.id);
+                    const finalIsAdmin = status.isAdmin || baseUser.email === 'armbareum@gmail.com';
                     if (mounted) {
-                        setUser({
-                            ...baseUser,
-                            isSubscriber: subscribed,
-                            subscription_tier: subscriptionTier,
-                            ownedVideoIds: ownedIds
-                        });
+                        setUser({ ...baseUser, isSubscriber: status.isSubscribed });
                         setIsAdmin(finalIsAdmin);
-                        setIsCreator(creator);
-                        setIsSubscribed(subscribed);
+                        setIsCreator(status.isCreator);
+                        setIsSubscribed(status.isSubscribed); // Ensure isSubscribed is also updated
                         setLoading(false);
                     }
                 }
@@ -221,19 +236,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signIn = async (email: string, password: string) => {
         const normalizedEmail = email.trim().toLowerCase();
-
         const { error } = await supabase.auth.signInWithPassword({
             email: normalizedEmail,
-            password,
+            password: password.trim(),
         });
-
         return { error };
     };
 
     const signUp = async (email: string, password: string) => {
+        const normalizedEmail = email.trim().toLowerCase();
         const { error } = await supabase.auth.signUp({
-            email: email.trim().toLowerCase(),
-            password,
+            email: normalizedEmail,
+            password: password.trim(),
         });
         return { error };
     };
@@ -324,20 +338,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
     };
 
-    const resetPassword = async (email: string) => {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-            redirectTo: `${window.location.origin}/reset-password`,
-        });
-        return { error };
-    };
-
-    const updatePassword = async (newPassword: string) => {
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword,
-        });
-        return { error };
-    };
-
     const value = React.useMemo(() => ({
         user,
         loading,
@@ -350,8 +350,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithKakao,
         signOut,
         becomeCreator,
-        resetPassword,
-        updatePassword,
         isSubscribed,
     }), [user, loading, isCreator, isAdmin, isSubscribed]);
 

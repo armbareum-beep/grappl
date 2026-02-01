@@ -293,7 +293,7 @@ export async function getCreators(): Promise<Creator[]> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
+                .select('*, user:users(avatar_url)')
                 .eq('approved', true)
                 .order('subscriber_count', { ascending: false }),
             5000 // 5s timeout
@@ -316,7 +316,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
+                .select('*, user:users(avatar_url)')
                 .eq('id', id)
                 .maybeSingle(),
             5000
@@ -330,43 +330,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
             throw error;
         }
 
-        if (data) {
-            // If no profile_image in creators, try to get avatar from users table
-            if (!data.profile_image) {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('avatar_url')
-                    .eq('id', id)
-                    .maybeSingle();
-                if (userData?.avatar_url) {
-                    data.profile_image = userData.avatar_url;
-                }
-            }
-            return transformCreator(data);
-        }
-
-        // Fallback: If not found in creators table, check users table
-        const { data: userData, error: userError } = await withTimeout(
-            supabase
-                .from('users')
-                .select('id, name, avatar_url')
-                .eq('id', id)
-                .maybeSingle(),
-            5000
-        );
-
-        if (userError || !userData) {
-            return null;
-        }
-
-        // Return user data as a Creator object
-        return {
-            id: userData.id,
-            name: userData.name || 'Unknown',
-            bio: '',
-            profileImage: userData.avatar_url || '',
-            subscriberCount: 0,
-        };
+        return data ? transformCreator(data) : null;
     } catch (e) {
         console.error('getCreatorById timeout/fail:', e);
         return null;
@@ -375,47 +339,40 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
 
 
 // Courses API
-export async function getCourses(limit: number = 50, offset: number = 0, userId?: string): Promise<Course[]> {
+// Courses API
+export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
     try {
         console.log('🔍 getCourses: Starting fetch...');
-
-
-
-        // Base query
-        let query = supabase
-            .from('courses')
-            .select(`
-                *,
-                creator:creators!creator_id(name, profile_image),
-                lessons:lessons(vimeo_url, lesson_number)
-            `)
-            .eq('published', true)
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
-
-
-
         // First, try to get courses with creator info (for authenticated users)
-        let { data, error } = await withTimeout(query, 5000);
-
-        // If error due to RLS on creators, fetch without creator join
-        if (error) {
-            console.warn('⚠️ getCourses with creator failed, retrying without creator:', error);
-
-            // Fallback query
-            let fallbackQuery = supabase
+        let { data, error } = await withTimeout(
+            supabase
                 .from('courses')
                 .select(`
                     *,
+                    creator:creators!creator_id(name, profile_image),
                     lessons:lessons(vimeo_url, lesson_number)
                 `)
                 .eq('published', true)
                 .order('created_at', { ascending: false })
-                .range(offset, offset + limit - 1);
+                .range(offset, offset + limit - 1),
+            5000
+        );
 
-
-
-            const fallback = await withTimeout(fallbackQuery, 5000);
+        // If error due to RLS on creators, fetch without creator join
+        if (error) {
+            console.warn('⚠️ getCourses with creator failed, retrying without creator:', error);
+            const fallback = await withTimeout(
+                supabase
+                    .from('courses')
+                    .select(`
+                        *,
+                        lessons:lessons(vimeo_url, lesson_number)
+                    `)
+                    .eq('published', true)
+                    .order('created_at', { ascending: false })
+                    .range(offset, offset + limit - 1),
+                5000
+            );
 
             data = fallback.data;
             error = fallback.error;
@@ -925,44 +882,19 @@ export async function getVideosByCreator(creatorId: string): Promise<Video[]> {
     return (data || []).map(transformVideo);
 }
 
-/**
- * Check if user is a subscriber
- */
-export async function checkUserSubscription(userId: string): Promise<boolean> {
+export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[]> {
     try {
-        const { data, error } = await supabase
-            .from('users')
-            .select('is_subscriber')
-            .eq('id', userId)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Error checking user subscription:', error);
-            return false;
-        }
-
-        return data?.is_subscriber ?? false;
-    } catch (error) {
-        console.error('Exception in checkUserSubscription:', error);
-        return false;
-    }
-}
-
-export async function getPublicSparringVideos(limit = 3, userId?: string): Promise<SparringVideo[]> {
-    try {
-
-
-        // 1. Build query with subscription-based filtering
-        let query = supabase
-            .from('sparring_videos')
-            .select('*')
-            .eq('is_published', true)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false });
-
-
-
-        const { data: videos, error } = await withTimeout(query.limit(limit), 5000);
+        // 1. Fetch videos
+        const { data: videos, error } = await withTimeout(
+            supabase
+                .from('sparring_videos')
+                .select('*')
+                .eq('is_published', true)
+                .gt('price', 0)
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            5000
+        );
 
         if (error) {
             console.error('Error fetching public sparring videos:', error);
@@ -1318,16 +1250,12 @@ export async function checkSparringOwnership(userId: string, videoId: string): P
             .eq('status', 'completed')
             .maybeSingle();
 
-        if (data) return true;
-
-
-
         if (error) {
             console.error('Error checking sparring ownership:', error);
             return false;
         }
 
-        return false;
+        return !!data;
     } catch (e) {
         console.error('Exception checking sparring ownership:', e);
         return false;
@@ -1370,7 +1298,6 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
         .maybeSingle();
 
     if (error) {
-        // console.error('Error checking course ownership:', error);
         return false;
     }
 
@@ -1612,7 +1539,7 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
 
 // Enhanced Recent Activity (Lessons + Routines + Sparring)
 export async function getRecentActivity(userId: string) {
-    const [lessonRes] = await Promise.all([
+    const [lessonRes, routineLogRes, sparringRes, drillRes] = await Promise.all([
         // 1. Lessons Progress
         withTimeout(supabase
             .from('lesson_progress')
@@ -1620,15 +1547,48 @@ export async function getRecentActivity(userId: string) {
                 *,
                 lesson:lessons (
                     id, title, lesson_number,
-                    course:courses (
-                        id, title, thumbnail_url, category,
-                        creator:creators ( id, name, profile_image )
-                    )
+                    course:courses ( id, title, thumbnail_url, category )
                 )
             `)
             .eq('user_id', userId)
             .order('last_watched_at', { ascending: false })
-            .limit(10), 5000)
+            .limit(5), 5000),
+
+        // 2. Completed Routines (Using training_logs as history)
+        withTimeout(supabase
+            .from('training_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .not('metadata->>routineId', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(5), 2000),
+
+        // 3. Sparring View History
+        withTimeout(supabase
+            .from('user_sparring_views')
+            .select(`
+                last_watched_at,
+                sparring_videos (
+                    id, title, thumbnail_url, video_url,
+                    creator:creators ( name )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5), 2000),
+
+        // 4. Drill View History
+        withTimeout(supabase
+            .from('user_drill_views')
+            .select(`
+                 last_watched_at,
+                 drills (
+                     id, title, thumbnail_url
+                 )
+             `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(5), 2000)
     ]);
 
     const lessons = (lessonRes.data || []).map((item: any) => {
@@ -1638,10 +1598,7 @@ export async function getRecentActivity(userId: string) {
             courseId: l?.course?.id,
             type: 'lesson',
             title: l?.title,
-            courseTitle: l?.course?.title || '레슨',
-            creatorName: l?.course?.creator?.name,
-            creatorId: l?.course?.creator?.id,
-            creatorProfileImage: l?.course?.creator?.profile_image,
+            courseTitle: l?.course?.title || l?.title,
             progress: item.completed ? 100 : 50,
             watchedSeconds: item.watched_seconds || 0,
             thumbnail: l?.course?.thumbnail_url || l?.thumbnail_url,
@@ -1650,70 +1607,50 @@ export async function getRecentActivity(userId: string) {
         };
     }).filter(item => item.id && item.id !== 'undefined' && item.courseId && item.courseId !== 'undefined');
 
-    return lessons;
-}
-
-export async function getLessonHistory(userId: string, limit: number = 100) {
-    const { data, error } = await supabase
-        .from('lesson_progress')
-        .select(`
-            *,
-            lesson:lessons (
-                id, title, lesson_number,
-                course:courses (
-                    id, title, thumbnail_url, category,
-                    creator:creators ( name, profile_image )
-                )
-            )
-        `)
-        .eq('user_id', userId)
-        .order('last_watched_at', { ascending: false })
-        .limit(limit);
-
-    if (error) {
-        console.error('Error fetching lesson history:', error);
-        return [];
-    }
-
-    return (data || []).map((item: any) => {
-        const l = item.lesson;
-        // Use fake progress if duration is unknown, or 100 if completed
-        const watchedSec = item.watched_seconds || 0;
-        let progress = 0;
-
-        if (item.completed) {
-            progress = 100;
-        } else if (watchedSec > 0) {
-            // If we have watched seconds but no duration, assume 30% or show partial
-            // Or better: check if we can get duration from somewhere else? 
-            // For now, use a visual indicator or fallback.
-            // Let's just create a progress based on a rough estimate (e.g. 10 mins) if needed
-            // OR just stick to what getRecentActivity does.
-            // But History usually needs accurate progress.
-            // Since we can't get duration, we'll try to use a default or 50% for "in progress".
-            progress = item.progress_percent || 50;
-            // NOTE: item.progress_percent might not exist in this table logic, 
-            // so we fallback to a visual "started" (e.g. 30% or whatever looks okay).
-            // Actually, let's keep it simple:
-            progress = item.percentage || 30; // Just show *some* progress if watched.
-        }
-
+    const routines = (routineLogRes.data || []).map((log: any) => {
+        const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : (log.metadata || {});
         return {
-            id: l?.id,
-            courseId: l?.course?.id,
-            type: 'lesson',
-            title: l?.title,
-            courseTitle: l?.course?.title || '레슨',
-            creatorName: l?.course?.creator?.name,
-            creatorProfileImage: l?.course?.creator?.profile_image,
-            progress: item.completed ? 100 : (item.watched_seconds ? 50 : 0), // Fallback simplified
-            watchedSeconds: watchedSec,
-            thumbnail: l?.course?.thumbnail_url,
-            lastWatched: item.last_watched_at || item.created_at,
-            lessonNumber: l?.lesson_number,
-            durationMinutes: 0 // Duration unavailable via this query
+            id: metadata.routineId,
+            type: 'routine',
+            title: metadata.routineTitle || 'Drill Routine',
+            courseTitle: '훈련 기록',
+            progress: 100,
+            thumbnail: metadata.sharedRoutine?.thumbnailUrl || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
+            lastWatched: new Date(log.created_at).toISOString(),
         };
-    }).filter((item: any) => item.id && item.courseId);
+    }).filter(item => item.id && item.id !== 'undefined');
+
+    const sparring = (sparringRes.data || []).map((item: any) => ({
+        id: item.sparring_videos?.id,
+        type: 'sparring',
+        title: item.sparring_videos?.title,
+        courseTitle: item.sparring_videos?.creator?.name || '스파링',
+        progress: 0,
+        thumbnail: item.sparring_videos?.thumbnail_url,
+        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
+    })).filter(item => item.id && item.id !== 'undefined');
+
+    const drills = (drillRes.data || []).map((item: any) => ({
+        id: item.drills?.id,
+        type: 'drill',
+        title: item.drills?.title,
+        courseTitle: '드릴 연습',
+        progress: 0,
+        thumbnail: item.drills?.thumbnail_url,
+        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
+    })).filter(item => item.id && item.id !== 'undefined');
+
+    // Merge and Sort
+    const allActivity = [...lessons, ...routines, ...sparring, ...drills]
+        .filter(item => item.id) // Ensure we have unique ID
+        .sort((a, b) => {
+            const dateA = new Date(a.lastWatched).getTime();
+            const dateB = new Date(b.lastWatched).getTime();
+            return dateB - dateA;
+        })
+        .slice(0, 10);
+
+    return allActivity;
 }
 
 // Creator Dashboard API
@@ -2521,7 +2458,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
     const { data: ownedRoutines } = await supabase
         .from('user_routine_purchases')
         .select(`
-            user_id,
+            user_id, 
             routine_id,
             routine:routines (
                 routine_drills ( drill_id )
@@ -2662,7 +2599,7 @@ export async function getCreatorRevenueStats(creatorId: string) {
         }));
 
         (data || []).forEach((_row: any) => {
-            // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part,
+            // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
             // BUT the final select DOES `GROUP BY ... settlement_month`.
             // Ah, looking at the view definition:
             /*
@@ -2982,28 +2919,14 @@ export async function getRecentCompletedRoutines(
 
                 // creator 프로필 정보 가져오기
                 if (routine.creator_id) {
-                    // 1. Try fetching from creators table
                     const { data: creator } = await supabase
                         .from('creators')
                         .select('name, profile_image')
                         .eq('id', routine.creator_id)
                         .maybeSingle();
-
                     if (creator) {
                         creatorName = creator.name;
                         creatorProfileImage = creator.profile_image;
-                    } else {
-                        // 2. Fallback: Try fetching from users table (for self-made routines by normal users)
-                        const { data: userCreator } = await supabase
-                            .from('users')
-                            .select('name, avatar_url')
-                            .eq('id', routine.creator_id)
-                            .maybeSingle();
-
-                        if (userCreator) {
-                            creatorName = userCreator.name;
-                            creatorProfileImage = userCreator.avatar_url;
-                        }
                     }
                 }
             }
@@ -4523,9 +4446,9 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
     } else if (drillId) {
         matchQuery.drill_id = drillId;
         conflictTarget = 'user_id,drill_id,date'; // Assuming user added constraint: UNIQUE(user_id, drill_id, date)
-        // If constraint relies on index name, you might need to check DB.
-        // For now, let's assume standard unique index naming or it will fall back to PK if id is used?
-        // No, video_watch_logs usually has a composite key.
+        // If constraint relies on index name, you might need to check DB. 
+        // For now, let's assume standard unique index naming or it will fall back to PK if id is used? 
+        // No, video_watch_logs usually has a composite key. 
         // We might need to ensure the constraint exists for drill_id.
     }
 
@@ -4538,7 +4461,7 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
 
     if (fetchError) {
         console.error('Error fetching watch log:', fetchError);
-        // Continue to try upsert anyway?
+        // Continue to try upsert anyway? 
     }
 
     // 2. Upsert
@@ -5265,10 +5188,8 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
     return { data: transformSparringVideo(data), error: null };
 }
 
-export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false, userId?: string) {
+export async function getSparringVideos(limit = 10, creatorId?: string, publicOnly = false) {
     try {
-
-
         let query = supabase
             .from('sparring_videos')
             .select('*')
@@ -5282,8 +5203,6 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
         if (publicOnly) {
             query = query.eq('is_published', true);
         }
-
-
 
         // Hide soft-deleted videos from general lists
         query = query.is('deleted_at', null);
@@ -5842,6 +5761,7 @@ export async function getDailyFreeSparring() {
                     .select('*')
                     .eq('is_published', true)
                     .is('deleted_at', null)
+                    .gt('price', 0)
                     .neq('video_url', '')
                     .not('video_url', 'like', 'ERROR%')
                     .order('id')
@@ -5895,19 +5815,16 @@ export async function getDailyFreeSparring() {
     }
 }
 
-export async function fetchRoutines(limit: number = 20, userId?: string) {
+export async function fetchRoutines(limit: number = 20) {
     try {
-
-
-        // Build query with subscription-based filtering
-        let query = supabase
-            .from('routines')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-
-
-        const { data, error } = await withTimeout(query.limit(limit), 5000);
+        const { data, error } = await withTimeout(
+            supabase
+                .from('routines')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            5000
+        );
 
         if (error) throw error;
 
@@ -6690,9 +6607,6 @@ export async function checkDrillRoutineOwnership(userId: string, routineId: stri
         .maybeSingle();
 
     if (data) return true;
-
-
-
 
     // Check if creator
     const { data: routine } = await supabase
@@ -8416,35 +8330,16 @@ export async function getUserSubscription(userId: string) {
     return data;
 }
 
-export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<DrillRoutine[]> {
-
-
-    // 1. Build query with subscription-based filtering
-    let query = supabase
-        .from('routines')
-        .select('*, creator:creators(name, profile_image)')
-        .limit(50) // Candidate pool size
-        .order('created_at', { ascending: false });
-
-
-
-    let { data, error } = await withTimeout(query, 5000);
-
-    // Filter out if data is null, but if error is present, try fallback
-    if (error) {
-        console.warn('⚠️ getFeaturedRoutines with creator failed, retrying without creator:', error);
-        let fallbackQuery = supabase
+export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
+    // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
+    const { data, error } = await withTimeout(
+        supabase
             .from('routines')
-            .select('*')
-            .limit(50)
-            .order('created_at', { ascending: false });
-
-
-
-        const fallback = await withTimeout(fallbackQuery, 5000);
-        data = fallback.data;
-        error = fallback.error;
-    }
+            .select('*, creator:creators(name, profile_image)')
+            .limit(50) // Candidate pool size
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
     if (error) return [];
 
@@ -8491,19 +8386,16 @@ export async function getFeaturedRoutines(limit = 3, userId?: string): Promise<D
     }));
 }
 
-export async function getNewCourses(limit = 6, userId?: string): Promise<Course[]> {
-
-
-    // Build query with subscription-based filtering
-    let query = supabase
-        .from('courses')
-        .select('*, creator:creators(name, profile_image), lessons(count)')
-        .eq('published', true)
-        .order('created_at', { ascending: false });
-
-
-
-    const { data, error } = await withTimeout(query.limit(limit), 5000);
+export async function getNewCourses(limit = 6): Promise<Course[]> {
+    const { data, error } = await withTimeout(
+        supabase
+            .from('courses')
+            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .eq('published', true)
+            .order('created_at', { ascending: false })
+            .limit(limit),
+        5000
+    );
 
     if (error) {
         console.error('Error fetching new courses:', error);
@@ -8516,20 +8408,17 @@ export async function getNewCourses(limit = 6, userId?: string): Promise<Course[
     }));
 }
 
-export async function getTrendingCourses(limit = 6, userId?: string): Promise<Course[]> {
-
-
-    // 1. Build query with subscription-based filtering
-    let query = supabase
-        .from('courses')
-        .select('*, creator:creators(name, profile_image), lessons(count)')
-        .eq('published', true)
-        .limit(50)
-        .order('created_at', { ascending: false });
-
-
-
-    const { data, error } = await withTimeout(query, 5000);
+export async function getTrendingCourses(limit = 6): Promise<Course[]> {
+    // 1. Fetch larger pool for ranking
+    const { data, error } = await withTimeout(
+        supabase
+            .from('courses')
+            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .eq('published', true)
+            .limit(50)
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
     if (error) {
         console.error('Error fetching trending courses:', error);
@@ -8670,4 +8559,3 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
         updatedAt: data.updated_at
     };
 }
-

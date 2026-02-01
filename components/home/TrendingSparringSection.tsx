@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Target, PlayCircle, ArrowRight } from 'lucide-react';
 import { SparringVideo } from '../../types';
-import { cn } from '../../lib/utils';
 import { ContentBadge } from '../common/ContentBadge';
 
 interface TrendingSporringSectionProps {
@@ -47,12 +46,12 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {videos.map((video, idx) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+                {videos.map((video) => (
                     <div
                         key={video.id}
                         onClick={() => navigate('/sparring', { state: { highlightVideoId: video.id } })}
-                        className={cn("group cursor-pointer", idx >= 2 && "hidden md:block")}
+                        className="group cursor-pointer"
                     >
                         {/* Thumbnail Card */}
                         <div className="relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 aspect-square transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30">
@@ -93,7 +92,6 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
 
                         {/* Text Info */}
                         <div className="flex gap-2.5 px-1">
-                            {/* Creator Avatar */}
                             <Link
                                 to={`/creator/${video.creatorId}`}
                                 onClick={(e) => e.stopPropagation()}

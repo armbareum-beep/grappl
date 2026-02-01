@@ -46,17 +46,17 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {courses.map((course, idx) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                {courses.map((course) => (
                     <div
                         key={course.id}
                         onClick={() => navigate(`/courses/${course.id}`)}
-                        className={cn("group cursor-pointer", idx >= 3 && "hidden md:block")}
+                        className="group cursor-pointer"
                     >
                         {/* Thumbnail Card */}
                         <div className={cn(
                             "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
-                            "aspect-[16/9]"
+                            "aspect-[5/4]"
                         )}>
                             {course.thumbnailUrl ? (
                                 <img
@@ -95,7 +95,6 @@ export const NewCoursesSection: React.FC<NewCoursesSectionProps> = ({
 
                         {/* Text Info */}
                         <div className="flex gap-2.5 px-1">
-                            {/* Creator Avatar */}
                             <Link
                                 to={`/creator/${course.creatorId}`}
                                 onClick={(e) => e.stopPropagation()}

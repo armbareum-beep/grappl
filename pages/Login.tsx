@@ -54,7 +54,7 @@ export const Login: React.FC = () => {
 
             // Race between the actual auth call and the timeout
             const normalizedEmail = formEmail.trim().toLowerCase();
-            const normalizedPassword = formPassword.trim(); // 비밀번호도 공백 제거 시도 (모바일 입력 오류 방지)
+            const normalizedPassword = formPassword.trim();
 
             const authPromise = isLogin
                 ? signIn(normalizedEmail, normalizedPassword)
@@ -64,14 +64,12 @@ export const Login: React.FC = () => {
             const { error } = result;
 
             if (error) {
-                console.error('[Login Debug] Auth error:', error);
                 if (error.message === 'Invalid login credentials') {
                     setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
                 } else {
                     setError(error.message);
                 }
             } else {
-                console.log('[Login Debug] Login successful');
                 const redirectPath = getRedirectPath();
                 navigate(redirectPath, { replace: true });
             }
@@ -166,14 +164,10 @@ export const Login: React.FC = () => {
                                     required
                                     value={email}
                                     onChange={(e) => {
-                                        // Remove any leading/trailing whitespace immediately
                                         const cleaned = e.target.value.replace(/^\s+|\s+$/g, '');
                                         setEmail(cleaned);
                                     }}
-                                    onBlur={(e) => {
-                                        // Extra cleanup on blur
-                                        setEmail(e.target.value.trim());
-                                    }}
+                                    onBlur={(e) => setEmail(e.target.value.trim())}
                                     autoCapitalize="none"
                                     autoCorrect="off"
                                     autoComplete="email"
@@ -199,14 +193,10 @@ export const Login: React.FC = () => {
                                     required
                                     value={password}
                                     onChange={(e) => {
-                                        // Remove any leading/trailing whitespace immediately
                                         const cleaned = e.target.value.replace(/^\s+|\s+$/g, '');
                                         setPassword(cleaned);
                                     }}
-                                    onBlur={(e) => {
-                                        // Extra cleanup on blur
-                                        setPassword(e.target.value.trim());
-                                    }}
+                                    onBlur={(e) => setPassword(e.target.value.trim())}
                                     autoCapitalize="none"
                                     autoCorrect="off"
                                     autoComplete="current-password"
@@ -229,13 +219,6 @@ export const Login: React.FC = () => {
                             </div>
                             {!isLogin && (
                                 <p className="mt-1 text-xs text-zinc-500 ml-1">최소 6자 이상 입력해주세요</p>
-                            )}
-                            {isLogin && (
-                                <div className="flex justify-end mt-1">
-                                    <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-violet-400 transition-colors">
-                                        비밀번호를 잊으셨나요?
-                                    </Link>
-                                </div>
                             )}
                         </div>
 

@@ -47,16 +47,16 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {routines.map((routine, idx) => (
+                {routines.map((routine) => (
                     <div
                         key={routine.id}
                         onClick={() => navigate(`/routines/${routine.id}`)}
-                        className={cn("group cursor-pointer", idx >= 4 && "hidden md:block")}
+                        className="group cursor-pointer"
                     >
                         {/* Thumbnail Card */}
                         <div className={cn(
                             "relative bg-zinc-900 rounded-2xl overflow-hidden mb-3 transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] group-hover:ring-1 group-hover:ring-violet-500/30",
-                            "aspect-[2/3]"
+                            "aspect-[4/5]"
                         )}>
                             {routine.thumbnailUrl ? (
                                 <img
@@ -100,7 +100,6 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
 
                         {/* Text Info */}
                         <div className="flex gap-2.5 px-1">
-                            {/* Creator Avatar */}
                             <Link
                                 to={`/creator/${routine.creatorId}`}
                                 onClick={(e) => e.stopPropagation()}

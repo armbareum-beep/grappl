@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { action, bucketName, filePath, title, description, contentType, contentId, videoType, vimeoId, thumbnailUrl, instructorName, fileSize: providedFileSize } = req.body;
+        const { action, bucketName, filePath, title, description, contentType, contentId, videoType, vimeoId, thumbnailUrl, fileSize: providedFileSize } = req.body;
 
         console.log('[Vercel] Action:', action);
 
@@ -66,42 +66,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             console.log('[Vercel] Creating upload link for size:', fileSize);
 
-            // 1.5 Get or Create Folder if instructorName is provided
-            let folderUri = null;
-            if (instructorName) {
-                try {
-                    console.log('[Vimeo] Searching for folder:', instructorName);
-                    const foldersRes = await fetch(`https://api.vimeo.com/me/projects?query=${encodeURIComponent(instructorName)}`, {
-                        headers: { 'Authorization': `Bearer ${VIMEO_TOKEN}` }
-                    });
-                    if (foldersRes.ok) {
-                        const foldersData = await foldersRes.json();
-                        const existingFolder = foldersData.data.find((f: any) => f.name === instructorName);
-                        if (existingFolder) {
-                            folderUri = existingFolder.uri;
-                            console.log('[Vimeo] Found folder:', folderUri);
-                        } else {
-                            console.log('[Vimeo] Folder not found, creating:', instructorName);
-                            const createFolderRes = await fetch('https://api.vimeo.com/me/projects', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ name: instructorName })
-                            });
-                            if (createFolderRes.ok) {
-                                const newFolderData = await createFolderRes.json();
-                                folderUri = newFolderData.uri;
-                                console.log('[Vimeo] Created folder:', folderUri);
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.warn('[Vimeo] Folder management failed, continuing without folder:', err);
-                }
-            }
-
             // 2. Request Upload Link from Vimeo
             const createResponse = await fetch('https://api.vimeo.com/me/videos', {
                 method: 'POST',
@@ -120,8 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     privacy: {
                         view: 'anybody',
                         embed: 'public'
-                    },
-                    folder_uri: folderUri || undefined
+                    }
                 })
             });
 
