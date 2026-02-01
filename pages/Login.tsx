@@ -48,6 +48,12 @@ export const Login: React.FC = () => {
 
             // Race between the actual auth call and the timeout
             const normalizedEmail = email.trim().toLowerCase();
+
+            // Debug logging
+            console.log('[Login Debug] Original email:', email);
+            console.log('[Login Debug] Normalized email:', normalizedEmail);
+            console.log('[Login Debug] Password length:', password.length);
+
             const authPromise = isLogin
                 ? signIn(normalizedEmail, password)
                 : signUp(normalizedEmail, password);
@@ -56,12 +62,14 @@ export const Login: React.FC = () => {
             const { error } = result;
 
             if (error) {
+                console.error('[Login Debug] Auth error:', error);
                 if (error.message === 'Invalid login credentials') {
                     setError('이메일 또는 비밀번호가 잘못되었습니다. 구글로 가입하셨다면 아래 "Google 계정으로 계속하기"를 이용해주세요.');
                 } else {
                     setError(error.message);
                 }
             } else {
+                console.log('[Login Debug] Login successful');
                 const redirectPath = getRedirectPath();
                 navigate(redirectPath, { replace: true });
             }
