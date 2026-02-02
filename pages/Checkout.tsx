@@ -390,6 +390,7 @@ export const Checkout: React.FC = () => {
                                                             channelKey: channelKey,
                                                             billingKeyMethod: "CARD",
                                                             issueName: productTitle,
+                                                            issueId: `issue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                                                             customer: {
                                                                 customerId: user?.id, // Updated for V2
                                                                 email: user?.email,
