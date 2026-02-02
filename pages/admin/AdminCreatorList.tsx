@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { getCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
 import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate } from '../../lib/api-admin';
 import { Creator } from '../../types';
-import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, Upload, CheckCircle, XCircle } from 'lucide-react';
+import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
+import { ImageUploader } from '../../components/ImageUploader';
 
 export const AdminCreatorList: React.FC = () => {
     const navigate = useNavigate();
@@ -342,24 +343,12 @@ export const AdminCreatorList: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-400 mb-2">프로필 이미지 URL</label>
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 relative">
-                                            <input
-                                                type="text"
-                                                value={editForm.profileImage || ''}
-                                                onChange={(e) => setEditForm(prev => ({ ...prev, profileImage: e.target.value }))}
-                                                className="w-full pl-10 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:border-violet-500 outline-none transition-colors"
-                                                placeholder="https://..."
-                                            />
-                                            <Upload className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                        </div>
-                                    </div>
-                                    {editForm.profileImage && (
-                                        <div className="mt-2 w-16 h-16 rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
-                                            <img src={editForm.profileImage} alt="Preview" className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
+                                    <label className="block text-sm font-medium text-zinc-400 mb-2">프로필 이미지</label>
+                                    <ImageUploader
+                                        currentImageUrl={editForm.profileImage}
+                                        onUploadComplete={(url) => setEditForm(prev => ({ ...prev, profileImage: url }))}
+                                        bucketName="course-thumbnails"
+                                    />
                                 </div>
                             </div>
                         </div>
