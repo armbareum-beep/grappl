@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -156,8 +156,8 @@ export const Home: React.FC = () => {
     }, [user?.id]);
 
     const getDisplayName = () => {
-        if (!user) return '移쒓뎄';
-        return user.user_metadata?.full_name || user.email?.split('@')[0] || '移쒓뎄';
+        if (!user) return '친구';
+        return user.user_metadata?.full_name || user.email?.split('@')[0] || '친구';
     };
 
     const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
@@ -185,12 +185,12 @@ export const Home: React.FC = () => {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex flex-col">
                         <h1 className="text-3xl md:text-5xl font-black tracking-tighter italic uppercase flex items-center gap-1">
-                            <span>?덈뀞?섏꽭??</span>
+                            <span>안녕하세요,</span>
                             <span className="text-violet-500">{displayName}</span>
-                            <span>??</span>
+                            <span>님.</span>
                         </h1>
                         <p className="text-zinc-500 text-[10px] md:text-sm font-bold uppercase tracking-widest mt-1">
-                            ?ㅻ뒛??洹몃옒?뚮젅?댁? ?④퍡 ?깆옣?섏꽭???쪑
+                            오늘도 그래플레이와 함께 성장하세요 🥋
                         </p>
                     </div>
                     <div onClick={() => navigate('/settings')} className="w-11 h-11 rounded-full border-2 border-zinc-800 bg-zinc-900 overflow-hidden cursor-pointer hover:border-violet-500 transition-all shadow-lg group">
@@ -231,7 +231,7 @@ export const Home: React.FC = () => {
                                                     <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
                                                         <div className="flex flex-col items-start gap-6 max-w-3xl">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">?곗씪由??쒕┫</span>
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 드릴</span>
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
@@ -246,7 +246,7 @@ export const Home: React.FC = () => {
                                                         </div>
 
                                                         <button onClick={() => navigate(`/drills/${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                            <Play className="w-6 h-6 fill-current" /> ?덈젴 ?쒖옉 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">?쪑</span>
+                                                            <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -273,7 +273,7 @@ export const Home: React.FC = () => {
                                                     <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
                                                         <div className="flex flex-col items-start gap-6 max-w-4xl">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">?곗씪由??덉뒯</span>
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 레슨</span>
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
@@ -288,7 +288,7 @@ export const Home: React.FC = () => {
                                                         </div>
 
                                                         <button onClick={() => navigate(`/lessons/${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                            <Play className="w-6 h-6 fill-current" /> ?덉뒯 蹂닿린 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">?쪑</span>
+                                                            <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -315,7 +315,7 @@ export const Home: React.FC = () => {
                                                     <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
                                                         <div className="flex flex-col items-start gap-6 max-w-4xl">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">?곗씪由??ㅽ뙆留?/span>
+                                                                <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 스파링</span>
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
@@ -337,7 +337,7 @@ export const Home: React.FC = () => {
                                                                 }
                                                             }}
                                                             className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                            <Play className="w-6 h-6 fill-current" /> ?ㅽ뙆留?蹂닿린 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">?쪑</span>
+                                                            <Play className="w-6 h-6 fill-current" /> 스파링 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -367,7 +367,7 @@ export const Home: React.FC = () => {
                     </>
                 ) : (
                     <div className="bg-zinc-900/40 border border-zinc-800 p-12 rounded-[32px] text-center">
-                        <p className="text-zinc-500 font-medium">?ㅻ뒛??異붿쿇 肄섑뀗痢좊? 遺덈윭?ㅻ뒗 以묒엯?덈떎...</p>
+                        <p className="text-zinc-500 font-medium">오늘의 추천 콘텐츠를 불러오는 중입니다...</p>
                     </div>
                 )}
             </section>
@@ -383,7 +383,7 @@ export const Home: React.FC = () => {
                 {/* 1. Popular Courses (Standard - No Numbers) */}
                 {trendingCourses.length > 0 && (
                     <ContentRow
-                        title="?ㅻ뒛??TOP 10 ?대옒??
+                        title="오늘의 TOP 10 클래스"
                         items={trendingCourses}
                         type="course"
                         variant="standard"
@@ -394,7 +394,7 @@ export const Home: React.FC = () => {
                 {/* 2. New Courses (Standard) */}
                 {newCourses.length > 0 && (
                     <ContentRow
-                        title="?덈줈 ?щ씪???대옒??
+                        title="새로 올라온 클래스"
                         items={newCourses}
                         type="course"
                         variant="standard"
@@ -405,7 +405,7 @@ export const Home: React.FC = () => {
                 {/* 3. Popular Routines (Ranking - Keep Numbers, 9:16) */}
                 {featuredRoutines.length > 0 && (
                     <ContentRow
-                        title="?멸린 湲됱긽??猷⑦떞"
+                        title="인기 급상승 루틴"
                         items={featuredRoutines}
                         type="routine"
                         variant="ranking"
@@ -416,7 +416,7 @@ export const Home: React.FC = () => {
                 {/* 4. New Routines (Standard - 9:16) */}
                 {newRoutines.length > 0 && (
                     <ContentRow
-                        title="?곕걟?곕걟???좉퇋 猷⑦떞"
+                        title="따끈따끈한 신규 루틴"
                         items={newRoutines}
                         type="routine"
                         variant="standard"
@@ -427,7 +427,7 @@ export const Home: React.FC = () => {
                 {/* 5. Popular Sparring (Standard - No Numbers, 1:1) */}
                 {trendingSparring.length > 0 && (
                     <ContentRow
-                        title="留롮씠 蹂대뒗 ?ㅽ뙆留?
+                        title="많이 보는 스파링"
                         items={trendingSparring}
                         type="sparring"
                         variant="standard"
@@ -438,7 +438,7 @@ export const Home: React.FC = () => {
                 {/* 6. New Sparring (Standard) */}
                 {newSparring.length > 0 && (
                     <ContentRow
-                        title="理쒖떊 ?ㅽ뙆留??곸긽"
+                        title="최신 스파링 영상"
                         items={newSparring}
                         type="sparring"
                         variant="standard"
