@@ -91,6 +91,7 @@ export const CreatorDashboard: React.FC = () => {
                         thumbnailUrl: data.thumbnailUrl,
                         published: data.published,
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
+                        creatorId: data.creatorId,
                     });
                     success('클래스가 수정되었습니다.');
                 } else {
@@ -145,6 +146,7 @@ export const CreatorDashboard: React.FC = () => {
                         thumbnailUrl: data.thumbnailUrl,
                         totalDurationMinutes: data.totalDurationMinutes,
                         relatedItems: data.relatedItems,
+                        creatorId: data.creatorId,
                     }, data.selectedDrillIds);
                     success('루틴이 수정되었습니다.');
                 } else {
@@ -177,6 +179,7 @@ export const CreatorDashboard: React.FC = () => {
                         price: data.price,
                         relatedItems: data.relatedItems,
                         isPublished: data.published,
+                        creatorId: data.creatorId,
                     });
 
 

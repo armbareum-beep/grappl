@@ -5346,6 +5346,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
     if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
     if (updates.length) dbData.length = updates.length;
+    if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -6052,6 +6053,7 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
+    if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
     const { data: routine, error: routineError } = await supabase
         .from('routines')
