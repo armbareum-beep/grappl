@@ -35,6 +35,64 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
     const [selectionStart, setSelectionStart] = useState<number | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
 
+    // Scrubbing state
+    const [isDragging, setIsDragging] = useState(false);
+    const progressBarRef = useRef<HTMLDivElement>(null);
+
+    // Handle scrubbing
+    const seekToPosition = (clientX: number) => {
+        if (!progressBarRef.current || !videoRef.current || duration === 0) return;
+
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+        videoRef.current.currentTime = percent * duration;
+        setCurrentTime(percent * duration); // Immediate UI update
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        seekToPosition(e.clientX);
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setIsDragging(true);
+        seekToPosition(e.touches[0].clientX);
+    };
+
+    useEffect(() => {
+        const handleMove = (e: MouseEvent) => {
+            if (isDragging) {
+                e.preventDefault(); // Prevent text selection
+                seekToPosition(e.clientX);
+            }
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (isDragging) {
+                e.preventDefault();
+                seekToPosition(e.touches[0].clientX);
+            }
+        };
+
+        const handleUp = () => {
+            if (isDragging) setIsDragging(false);
+        };
+
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleUp);
+            window.addEventListener('touchmove', handleTouchMove, { passive: false });
+            window.addEventListener('touchend', handleUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchend', handleUp);
+        };
+    }, [isDragging, duration]);
+
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;

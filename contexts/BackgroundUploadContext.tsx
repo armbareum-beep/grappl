@@ -25,6 +25,7 @@ export interface UploadTask {
         courseId?: string; // For course uploads
         videoType: 'action' | 'desc' | 'sparring' | 'preview';
         instructorName?: string;
+        thumbnailUrl?: string;
     };
 }
 
@@ -137,6 +138,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 contentType: contentType as 'lesson' | 'drill' | 'sparring',
                                 contentId: contentId,
                                 videoType: task.processingParams!.videoType as 'action' | 'desc' | undefined,
+                                thumbnailUrl: task.processingParams!.thumbnailUrl,
                                 onProgress: (stage, progress) => {
                                     console.log(`[${task.id}] ${stage}: ${progress}%`);
                                     // Update task progress

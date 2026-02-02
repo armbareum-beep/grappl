@@ -237,12 +237,12 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
             {/* Information Area */}
             <div className="px-1">
                 <Link to={`/routines/${routine.id}`}>
-                    <h3 className="font-bold text-zinc-100 text-sm md:text-base leading-tight mb-0 group-hover:text-violet-400 transition-colors">
+                    <h3 className="font-bold text-zinc-100 text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                         {routine.title}
                     </h3>
                 </Link>
                 <div className="flex items-center justify-between gap-4 mt-0">
-                    <p className="text-zinc-500 text-[11px] md:text-xs font-medium">
+                    <p className="text-zinc-500 text-[11px] md:text-xs font-medium uppercase tracking-tighter">
                         {routine.creatorName}
                     </p>
                     <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">

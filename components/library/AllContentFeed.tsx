@@ -196,14 +196,15 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
                     isDailyFree: video.id === dailyFreeIds.sparring,
                     originalData: video,
-                    // Deterministic variant based on ID
-                    variant: (video.id.charCodeAt(0) + video.id.charCodeAt(video.id.length - 1)) % 3 === 0 ? 'large' : 'square',
+                    // Always use square variant for sparring (1:1 aspect ratio)
+                    variant: 'square',
                 };
             });
 
-            // Sort by views descending for consistent ordering, then smart interleave by shape
+            // Sort by views descending, then shuffle for random placement on each refresh
             const allContentInOrder = [...courseItems, ...routineItems, ...sparringItems]
-                .sort((a, b) => (b.views || 0) - (a.views || 0));
+                .sort((a, b) => (b.views || 0) - (a.views || 0))
+                .sort(() => Math.random() - 0.5); // Random shuffle
             const sorted = smartSort(allContentInOrder);
             setAllItems(sorted);
         } catch (error) {

@@ -133,7 +133,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
 
     return (
         <div
-            className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1"
+            className="group flex flex-col gap-0 transition-transform duration-300 hover:-translate-y-1"
             onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
@@ -223,11 +223,11 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                 )}
             </div>
 
-            <div className="px-1">
-                <Link to={`/sparring/${video.id}`}>
-                    <h3 className="text-white font-bold text-sm line-clamp-1 mb-0 group-hover:text-violet-400 transition-colors">{video.title}</h3>
+            <div>
+                <Link to={`/sparring/${video.id}`} className="block leading-none">
+                    <h3 className="text-white font-bold text-[13px] line-clamp-1 mb-0 leading-none group-hover:text-violet-400 transition-colors uppercase tracking-tight">{video.title}</h3>
                 </Link>
-                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium overflow-hidden">
+                <div className="flex items-center gap-0 text-[9px] text-zinc-600 font-black uppercase tracking-widest overflow-hidden mt-0">
                     {video.category && (
                         <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider flex-shrink-0 ${video.category === 'Competition'
                             ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'

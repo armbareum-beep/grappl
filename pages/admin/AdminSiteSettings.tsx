@@ -94,7 +94,7 @@ export const AdminSiteSettings: React.FC = () => {
                 representative: '이바름',
                 registrationNumber: '111-39-34149',
                 mailOrderNumber: '진행 중',
-                address: '서울 동작대로29길 119, 102-1207',
+                address: '서울 동작구 동작대로29길 119, 102-1207',
                 email: 'coach0179@naver.com',
                 phone: '02-599-6315'
             };

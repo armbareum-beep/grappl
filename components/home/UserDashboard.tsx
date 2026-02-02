@@ -1,6 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ActionMenuModal } from '../library/ActionMenuModal';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+    toggleCourseSave, checkCourseSaved,
+    toggleRoutineSave, checkRoutineSaved,
+    toggleSparringSave, checkSparringSaved
+} from '../../lib/api';
 
 // --- Types ---
 
@@ -44,8 +51,8 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
         </div>
     );
     return (
-        <div className="w-full mb-10">
-            <div className="px-4 md:px-12 mb-4 flex items-end justify-between group/header cursor-pointer" onClick={() => onViewAll && onViewAll()}>
+        <div className="w-full mb-6">
+            <div className="px-4 md:px-12 mb-2 flex items-end justify-between group/header cursor-pointer" onClick={() => onViewAll && onViewAll()}>
                 <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 group-hover/header:text-violet-200 transition-colors">
                     {title}
                     <span className="text-zinc-600 text-sm font-bold opacity-0 -translate-x-2 group-hover/header:opacity-100 group-hover/header:translate-x-0 transition-all duration-300 flex items-center">
@@ -54,7 +61,7 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
                 </h2>
             </div>
             <div className="relative w-full">
-                <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-4 pb-10 scroll-smooth">
+                <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-0 pb-6 scroll-smooth">
                     {children}
                     <div className="w-12 flex-shrink-0" /> {/* End padding */}
                 </div>
@@ -65,6 +72,7 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ continueItems }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const handleContinue = (item: ActivityItem) => {
         if (!item.id || item.id === 'undefined') return;
@@ -86,59 +94,118 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ continueItems }) =
                 emptyText="시작한 수업이 없습니다."
                 onViewAll={() => navigate('/history')}
             >
-                {continueItems.map((item) => {
-                    const categoryText = (item.type === 'course' || item.type === 'lesson' || item.type === 'sparring')
-                        ? (item as any).category
-                        : (item.type === 'routine' ? (item as any).difficulty : null);
-
-                    return (
-                        <div
-                            key={item.id}
-                            onClick={() => handleContinue(item)}
-                            className="group flex flex-col gap-3 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
-                        >
-                            <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
-                                <div
-                                    className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
-                                    style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-                                {categoryText && (
-                                    <div className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white border border-white/10 uppercase tracking-wider">
-                                        {categoryText}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-2 px-0.5">
-                                <div className="flex gap-2.5 items-start">
-                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5 shadow-inner">
-                                        {item.creatorProfileImage ? (
-                                            <img src={item.creatorProfileImage} className="w-full h-full object-cover" alt="" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold uppercase">
-                                                {item.creatorName?.charAt(0) || 'U'}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-[14px] md:text-[15px] font-bold text-white truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">
-                                            {item.title}
-                                        </h3>
-                                        <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter">
-                                            {item.courseTitle || item.creatorName}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
-                                    <div className="h-full bg-violet-600 shadow-[0_0_8px_rgba(139,92,246,0.3)]" style={{ width: `${Math.max(item.progress, 5)}%` }} />
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                {continueItems.map((item) => <DashboardItem key={item.id} item={item} onContinue={handleContinue} user={user} />)}
             </SectionRow>
         </section>
+    );
+};
+
+const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onContinue: (item: ActivityItem) => void, user: any }) => {
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+
+    useEffect(() => {
+        if (!user || !item.id) return;
+        const checkSaved = async () => {
+            try {
+                let saved = false;
+                const targetId = (item.type === 'lesson' ? item.courseId : item.id) || item.id;
+                if (item.type === 'course' || item.type === 'lesson') saved = await checkCourseSaved(user.id, targetId);
+                else if (item.type === 'routine') saved = await checkRoutineSaved(user.id, targetId);
+                else if (item.type === 'sparring') saved = await checkSparringSaved(user.id, targetId);
+                setIsSaved(saved);
+            } catch (err) { console.error(err); }
+        };
+        checkSaved();
+    }, [user, item.id]);
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault(); e.stopPropagation();
+        if (!user) return;
+        try {
+            const targetId = (item.type === 'lesson' ? item.courseId : item.id) || item.id;
+            if (item.type === 'course' || item.type === 'lesson') await toggleCourseSave(user.id, targetId);
+            else if (item.type === 'routine') await toggleRoutineSave(user.id, targetId);
+            else if (item.type === 'sparring') await toggleSparringSave(user.id, targetId);
+            setIsSaved(!isSaved);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.preventDefault(); e.stopPropagation();
+        if (navigator.share) {
+            navigator.share({
+                title: item.title,
+                url: window.location.origin + (item.type === 'course' ? `/courses/${item.id}` : `/routines/${item.id}`)
+            }).catch(console.error);
+        }
+    };
+
+    const categoryText = (item.type === 'course' || item.type === 'lesson' || item.type === 'sparring')
+        ? (item as any).category
+        : (item.type === 'routine' ? (item as any).difficulty : null);
+
+    return (
+        <div
+            onClick={() => onContinue(item)}
+            className="group flex flex-col gap-1.5 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
+        >
+            <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
+                <div
+                    className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
+                    style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            </div>
+
+            <div className="flex flex-col gap-0 px-0.5">
+                <div className="flex gap-0 items-start relative">
+                    <div className="flex-1 min-w-0 relative pb-1 pr-1">
+                        <div className="flex justify-between items-start gap-2">
+                            <h3 className="flex-1 text-[13px] md:text-[14px] font-bold text-white truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">
+                                {item.title}
+                            </h3>
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault(); e.stopPropagation();
+                                    setIsActionMenuOpen(true);
+                                }}
+                                className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
+                            >
+                                <MoreHorizontal className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter leading-none -mt-1">
+                            {item.creatorName || 'Grapplay'}
+                        </p>
+                        <div className="absolute bottom-0 right-0 flex items-center gap-1.5 text-[9px] font-black text-zinc-600 uppercase tracking-widest pb-0.5">
+                            {categoryText && <span>{categoryText}</span>}
+                            {categoryText && item.courseTitle && <span className="w-0.5 h-0.5 rounded-full bg-zinc-700" />}
+                            {item.courseTitle && <span className="truncate max-w-[80px]">{item.courseTitle}</span>}
+                        </div>
+                    </div>
+                </div>
+                <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                    <div className="h-full bg-violet-600 shadow-[0_0_8px_rgba(139,92,246,0.3)]" style={{ width: `${Math.max(item.progress, 5)}%` }} />
+                </div>
+            </div>
+
+            <ActionMenuModal
+                isOpen={isActionMenuOpen}
+                onClose={() => setIsActionMenuOpen(false)}
+                item={{
+                    id: item.id,
+                    type: item.type === 'course' || item.type === 'lesson' ? 'class' : (item.type === 'sparring' ? 'sparring' : 'routine'),
+                    title: item.title,
+                    thumbnailUrl: item.thumbnail || '',
+                    creatorName: item.creatorName || 'Grapplay Creator',
+                    creatorProfileImage: item.creatorProfileImage,
+                    originalData: item
+                } as any}
+                isSaved={isSaved}
+                onSave={handleSave}
+                onShare={handleShare}
+            />
+        </div>
     );
 };

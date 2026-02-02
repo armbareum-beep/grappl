@@ -6,17 +6,21 @@ const corsHeaders = {
 }
 
 async function getPortoneAccessToken() {
-    const apiKey = Deno.env.get('PORTONE_API_KEY')
     const apiSecret = Deno.env.get('PORTONE_API_SECRET')
 
-    const auth = btoa(`${apiKey}:${apiSecret}`)
     const response = await fetch('https://api.portone.io/login/api-secret', {
         method: 'POST',
         headers: {
-            'Authorization': `Basic ${auth}`,
             'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+            apiSecret: apiSecret
+        })
     })
+
+    if (!response.ok) {
+        throw new Error(`Failed to get access token: ${response.statusText}`);
+    }
 
     const data = await response.json()
     return data.accessToken
@@ -31,6 +35,10 @@ async function verifyPortonePayment(paymentId: string) {
             'Content-Type': 'application/json',
         },
     })
+
+    if (!response.ok) {
+        throw new Error(`Failed to verify payment: ${response.statusText}`);
+    }
 
     return await response.json()
 }

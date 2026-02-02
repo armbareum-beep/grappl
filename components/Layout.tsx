@@ -556,7 +556,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="mb-8 text-[11px] text-zinc-600 space-y-1.5 leading-relaxed">
                   <p><strong>상호명:</strong> {siteSettings?.footer?.companyName || '그래플레이'} | <strong>대표자:</strong> {siteSettings?.footer?.representative || '이바름'}</p>
                   <p><strong>사업자등록번호:</strong> {siteSettings?.footer?.registrationNumber || '111-39-34149'} | <strong>통신판매업 신고번호:</strong> {siteSettings?.footer?.mailOrderNumber || '진행 중'}</p>
-                  <p><strong>주소:</strong> {siteSettings?.footer?.address || '서울 동작대로29길 119, 102-1207'}</p>
+                  <p><strong>주소:</strong> {siteSettings?.footer?.address || '서울 동작구 동작대로29길 119, 102-1207'}</p>
                   <p><strong>이메일:</strong> {siteSettings?.footer?.email || 'coach0179@naver.com'} | <strong>전화번호:</strong> {siteSettings?.footer?.phone || '02-599-6315'}</p>
                 </div>
 

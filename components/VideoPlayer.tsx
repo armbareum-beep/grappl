@@ -167,15 +167,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 iframe.frameBorder = '0';
                 iframe.allow = 'autoplay; fullscreen; picture-in-picture';
 
-                // Force 1:1 aspect ratio by scaling iframe to crop 16:9 to square
-                iframe.style.width = '177.78%';
-                iframe.style.height = '177.78%';
-                iframe.style.position = 'absolute';
-                iframe.style.top = '50%';
-                iframe.style.left = '50%';
-                iframe.style.transform = 'translate(-50%, -50%)';
-                iframe.style.objectFit = 'cover';
-
                 // Clear container and mount iframe
                 containerRef.current.innerHTML = '';
                 containerRef.current.appendChild(iframe);
@@ -228,10 +219,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 currentPlayer.on('bufferstart', () => setIsPlaying(false));
                 currentPlayer.on('bufferend', () => setIsPlaying(true));
 
-                if (startTime && startTime > 0) {
-                    currentPlayer.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
-                }
-
                 currentPlayer.on('ended', () => {
                     if (onEnded) onEnded();
                 });
@@ -279,8 +266,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 });
 
                 currentPlayer.ready().then(() => {
+                    if (startTime && startTime > 0) {
+                        currentPlayer.setCurrentTime(startTime).catch(err =>
+                            console.warn('Failed to set initial time:', err)
+                        );
+                    }
                     onReadyRef.current?.();
-                }).catch(() => {});
+                }).catch(() => { });
             }
 
         } catch (err: any) {

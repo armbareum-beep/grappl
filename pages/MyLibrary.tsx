@@ -150,21 +150,9 @@ export const MyLibrary: React.FC = () => {
 
   return (
     <div className="bg-zinc-950 min-h-screen pb-20">
-      <div className="relative bg-gradient-to-b from-zinc-900 to-zinc-950 text-white py-12 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              <Bookmark className="w-6 h-6 text-violet-400" />
-            </div>
-            <h1 className="text-3xl font-bold text-white">저장됨</h1>
-          </div>
-          <p className="text-zinc-400 text-sm">
-            저장한 콘텐츠와 구매 목록을 확인하세요
-          </p>
-        </div>
-      </div>
+      <div className="max-w-full py-8 space-y-12 px-4 md:px-12">
+        <h1 className="text-3xl font-bold text-white mb-2">저장됨</h1>
 
-      <div className="max-w-full py-8 space-y-12">
         {/* Row 1: Classes & Lessons */}
         {(myCourses.length > 0 || savedLessons.length > 0) && (
           <ContentRow

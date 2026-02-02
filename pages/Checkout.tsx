@@ -376,15 +376,21 @@ export const Checkout: React.FC = () => {
                                                 try {
                                                     const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
 
+                                                    // Determine Channel Key (V2 Specific)
+                                                    const channelKey = type === 'subscription'
+                                                        ? import.meta.env.VITE_PORTONE_CHANNEL_KEY_SUBSCRIPTION
+                                                        : import.meta.env.VITE_PORTONE_CHANNEL_KEY_GENERAL;
+
                                                     let response;
                                                     // Monthly Subscription -> Issue Billing Key
                                                     if (isMonthlySubscription) {
                                                         response = await PortOne.requestIssueBillingKey({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                            channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                            channelKey: channelKey,
                                                             billingKeyMethod: "CARD",
                                                             issueName: productTitle,
                                                             customer: {
+                                                                id: user?.id, // Added Customer ID for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber || undefined,
                                                                 fullName: fullName || undefined,
@@ -395,13 +401,14 @@ export const Checkout: React.FC = () => {
                                                     else {
                                                         response = await PortOne.requestPayment({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                            channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+                                                            channelKey: channelKey,
                                                             paymentId: `payment-${Date.now()}`,
                                                             orderName: productTitle,
                                                             totalAmount: discountedAmount,
                                                             currency: "KRW",
                                                             payMethod: "CARD",
                                                             customer: {
+                                                                id: user?.id, // Added Customer ID for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber || undefined,
                                                                 fullName: fullName || undefined,
