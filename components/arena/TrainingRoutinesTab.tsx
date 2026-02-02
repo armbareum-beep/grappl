@@ -762,7 +762,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                         </div>
 
                         {/* Desktop Card View */}
-                        <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
                             {displayedRoutines.map((routine) => {
 
                                 const isSelected = selectedRoutineForPlacement?.id === routine.id;

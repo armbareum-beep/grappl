@@ -248,28 +248,17 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
             {/* Information Area (Below Video) */}
             <div className="flex gap-3 px-1">
                 {/* Creator Avatar */}
-                <Link to={`/creator/${course.creatorId}`} className="shrink-0 pt-0.5">
-                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden hover:border-violet-500/50 transition-colors">
-                        {course.creatorProfileImage ? (
-                            <img src={course.creatorProfileImage} alt={course.creatorName} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                {course.creatorName?.charAt(0)}
-                            </div>
-                        )}
-                    </div>
-                </Link>
 
                 {/* Metadata */}
                 <div className="flex-1 min-w-0 pr-1">
                     <div className="flex justify-between items-start gap-2">
                         <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
-                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 truncate group-hover:text-violet-400 transition-colors">
+                            <h3 className="font-bold text-zinc-100 text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                                 {course.title}
                             </h3>
                         </Link>
                         <button
-                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-100"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -282,7 +271,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                     </div>
 
                     <div className="flex items-center justify-between gap-4 mt-0">
-                        <Link to={`/creator/${course.creatorId}`} className="text-xs md:text-sm text-zinc-400 font-medium hover:text-zinc-200 transition-colors truncate">
+                        <Link to={`/creator/${course.creatorId}`} className="text-[11px] md:text-xs text-zinc-500 font-medium hover:text-zinc-200 transition-colors truncate uppercase tracking-tighter">
                             {course.creatorName}
                         </Link>
 

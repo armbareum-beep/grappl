@@ -504,7 +504,7 @@ const SparringGridItem: React.FC<{
                             }}
                             className="flex-1 min-w-0 cursor-pointer"
                         >
-                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 line-clamp-2 min-h-[2.5rem] group-hover:text-violet-400 transition-colors">
+                            <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-none mb-0 line-clamp-2 group-hover:text-violet-400 transition-colors">
                                 {video.title}
                             </h3>
                         </div>
@@ -638,7 +638,14 @@ export const SparringFeed: React.FC<{
                     };
                 });
 
-                setVideos(processed);
+                // Shuffle the array using Fisher-Yates algorithm
+                const shuffled = [...processed];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+
+                setVideos(shuffled);
             }
         };
         init();

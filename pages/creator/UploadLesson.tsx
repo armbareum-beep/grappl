@@ -3,12 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, UniformType } from '../../types';
 import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
-import { uploadThumbnail } from '../../lib/api';
+import { uploadThumbnail, getCreators } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
-import { ArrowLeft, Upload, FileVideo, Scissors, Loader, Type, AlignLeft } from 'lucide-react';
+import { ArrowLeft, Upload, FileVideo, Scissors, Loader, Type, AlignLeft, Users } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
+import { Creator } from '../../types';
 
 type ProcessingState = {
     file: File | null;
@@ -41,6 +42,11 @@ export const UploadLesson: React.FC = () => {
     const isEditMode = !!id;
     const { queueUpload } = useBackgroundUpload();
     const { success, error: toastError } = useToast();
+    const { isAdmin } = useAuth();
+
+    // Admin Proxy Upload State
+    const [creators, setCreators] = useState<Creator[]>([]);
+    const [selectedCreatorId, setSelectedCreatorId] = useState<string>('');
 
     // Global Form State
     const [formData, setFormData] = useState({
@@ -54,6 +60,13 @@ export const UploadLesson: React.FC = () => {
 
     // Video State (Lessons typically have one main video)
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
+
+    // Fetch creators for admin
+    useEffect(() => {
+        if (isAdmin) {
+            getCreators().then(setCreators).catch(console.error);
+        }
+    }, [isAdmin]);
 
     // Data Fetching for Edit Mode
     useEffect(() => {
@@ -72,6 +85,9 @@ export const UploadLesson: React.FC = () => {
                         category: data.category || VideoCategory.Standing,
                         uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                     });
+                    if (data.creatorId) {
+                        setSelectedCreatorId(data.creatorId);
+                    }
                     // We don't preload videoState as we only show it if user wants to replace video
                 }
             } catch (err) {
@@ -142,6 +158,7 @@ export const UploadLesson: React.FC = () => {
         try {
             let lessonId = id;
             let finalVideoId = videoState.videoId;
+            let currentThumbnailUrl = '';
 
             // Calculate duration from cuts
             let durationMinutes = 0;
@@ -176,6 +193,7 @@ export const UploadLesson: React.FC = () => {
                     }
                     if (url) {
                         updatePayload.thumbnailUrl = url;
+                        currentThumbnailUrl = url;
                     }
                 }
 
@@ -191,7 +209,9 @@ export const UploadLesson: React.FC = () => {
                 if (!videoState.file) throw new Error('No video file');
                 finalVideoId = crypto.randomUUID();
 
-                let thumbnailUrl = '';
+                // Determine Creator ID
+                const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id;
+
                 if (videoState.thumbnailBlob) {
                     const { url, error: thumbError } = await uploadThumbnail(videoState.thumbnailBlob);
                     if (thumbError) {
@@ -199,13 +219,13 @@ export const UploadLesson: React.FC = () => {
                         throw new Error('썸네일 업로드에 실패했습니다. (권한 또는 네트워크 오류)');
                     }
                     if (url) {
-                        thumbnailUrl = url;
+                        currentThumbnailUrl = url;
                     }
                 }
 
                 const { data: newLesson, error } = await createLesson({
                     courseId: null,
-                    creatorId: user.id,
+                    creatorId: effectiveCreatorId,
                     title: formData.title,
                     description: formData.description,
                     category: formData.category,
@@ -215,7 +235,7 @@ export const UploadLesson: React.FC = () => {
                     difficulty: formData.difficulty,
                     uniformType: formData.uniformType,
                     durationMinutes: durationMinutes,
-                    thumbnailUrl: thumbnailUrl,
+                    thumbnailUrl: currentThumbnailUrl,
                 });
 
                 if (error || !newLesson) throw error || new Error('Failed to create lesson');
@@ -237,7 +257,10 @@ export const UploadLesson: React.FC = () => {
                     description: formData.description,
                     lessonId: lessonId, // Attach to this lesson
                     videoType: 'action',
-                    instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown'
+                    instructorName: (isAdmin && selectedCreatorId)
+                        ? (creators.find(c => c.id === selectedCreatorId)?.name || 'Unknown')
+                        : (user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown'),
+                    thumbnailUrl: currentThumbnailUrl
                 });
             }
 
@@ -311,6 +334,33 @@ export const UploadLesson: React.FC = () => {
                 </div>
 
                 <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Admin: Creator Selection */}
+                    {isAdmin && (
+                        <div className="p-8 border-b border-zinc-800 bg-violet-500/5">
+                            <div className="max-w-md">
+                                <label className="flex items-center gap-2 text-sm font-bold text-violet-400 mb-3 ml-1">
+                                    <Users className="w-4 h-4" />
+                                    인스트럭터 선택 (관리자 대리 업로드)
+                                </label>
+                                <select
+                                    value={selectedCreatorId}
+                                    onChange={(e) => setSelectedCreatorId(e.target.value)}
+                                    className="w-full px-4 py-3 bg-zinc-950 border border-violet-500/30 rounded-xl text-white outline-none focus:border-violet-500 transition-all font-medium"
+                                >
+                                    <option value="">본인 (관리자 계정)</option>
+                                    {creators.map(creator => (
+                                        <option key={creator.id} value={creator.id}>
+                                            {creator.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-[11px] text-zinc-500 mt-2 ml-1">
+                                    * 선택한 인스트럭터 명의로 레슨이 생성됩니다.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Form Content */}
                     <div className="p-8 space-y-8">
                         {/* Metadata Form */}
@@ -461,7 +511,7 @@ export const UploadLesson: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSubmit}
-                                disabled={isSubmitting || !formData.title || (!isEditMode && !videoState.cuts) || (!!videoState.file && !videoState.cuts)}
+                                disabled={isSubmitting || !formData.title || (!isEditMode && !videoState.cuts) || (!isEditMode && !!videoState.file && !videoState.cuts)}
                                 className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-500 shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-95 flex items-center gap-2"
                             >
                                 {isSubmitting && <Loader className="w-4 h-4 animate-spin" />}

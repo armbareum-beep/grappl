@@ -297,38 +297,17 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
             {!minimal && (
                 <div className="flex gap-3 px-1 mt-2 shrink-0">
                     {/* Creator Avatar */}
-                    {item.creatorId && (
-                        <Link
-                            to={`/creator/${item.creatorId}`}
-                            className="shrink-0 pt-0.5"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden group-hover:border-violet-500/50 transition-colors">
-                                {item.creatorProfileImage ? (
-                                    <img
-                                        src={item.creatorProfileImage}
-                                        alt={item.creatorName}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
-                                        {item.creatorName?.charAt(0)}
-                                    </div>
-                                )}
-                            </div>
-                        </Link>
-                    )}
 
                     {/* Text Info */}
                     <div className="flex-1 min-w-0 pr-1">
                         <div className="flex justify-between items-start gap-2">
                             <Link to={link} onClick={handleClick} className="flex-1 min-w-0">
-                                <h3 className="text-zinc-100 font-bold text-sm md:text-base leading-tight mb-0 group-hover:text-violet-400 transition-colors">
+                                <h3 className="text-zinc-100 font-bold text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                                     {item.title}
                                 </h3>
                             </Link>
                             <button
-                                className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                                className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors opacity-100"
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -341,11 +320,9 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                         </div>
 
                         <div className="flex items-center justify-between gap-4 mt-0">
-                            {item.creatorName && (
-                                <div className="text-xs md:text-sm text-zinc-400 font-medium">
-                                    {item.creatorName}
-                                </div>
-                            )}
+                            <div className="text-[11px] md:text-[12px] text-zinc-500 font-medium uppercase tracking-tighter">
+                                {item.creatorName}
+                            </div>
 
                             <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
                                 <PlayIcon className="w-3 h-3" />

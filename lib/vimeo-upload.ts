@@ -42,9 +42,10 @@ export async function processAndUploadVideo(params: {
     contentType: 'lesson' | 'drill' | 'sparring';
     contentId: string;
     videoType?: 'action' | 'desc';
+    thumbnailUrl?: string;
     onProgress?: (stage: string, progress: number) => void;
 }): Promise<VimeoUploadResult> {
-    const { bucketName, filePath, title, description, contentType, contentId, videoType, onProgress } = params;
+    const { bucketName, filePath, title, description, contentType, contentId, videoType, thumbnailUrl, onProgress } = params;
 
     try {
         // 1. Supabase에서 파일 다운로드 (브라우저 메모리)
@@ -119,7 +120,8 @@ export async function processAndUploadVideo(params: {
                 vimeoId,
                 contentId,
                 contentType,
-                videoType
+                videoType,
+                thumbnailUrl
             })
         });
 
@@ -153,13 +155,13 @@ export async function processAndUploadVideo(params: {
 
         if (onProgress) onProgress('upload', 100);
 
-        const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg`;
+        const finalThumbnailUrl = thumbnailUrl || `https://vumbnail.com/${vimeoId}.jpg`;
         console.log('[Process] 모든 처리 완료!', { vimeoId });
 
         return {
             vimeoId,
             vimeoUrl: `https://vimeo.com/${vimeoId}`,
-            thumbnailUrl
+            thumbnailUrl: finalThumbnailUrl
         };
 
     } catch (error: any) {

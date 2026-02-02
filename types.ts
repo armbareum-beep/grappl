@@ -257,6 +257,8 @@ export interface SparringVideo {
   price: number; // Price in cents (0 = free)
   isPublished?: boolean; // Visibility on Reels/Feed
   previewVimeoId?: string; // Dedicated preview vimeo ID
+  length?: string; // Formatted duration e.g. "2:30"
+  durationMinutes?: number; // Duration in minutes
   rank?: number;
   isDailyFree?: boolean;
 }

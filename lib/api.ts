@@ -1772,7 +1772,9 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
-    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType; // Added
+    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType;
+    if (lessonData.durationMinutes !== undefined) dbData.duration_minutes = lessonData.durationMinutes;
+    if (lessonData.length) dbData.length = lessonData.length;
 
     const { data, error } = await supabase
         .from('lessons')
@@ -5144,6 +5146,8 @@ export function transformSparringVideo(data: any): SparringVideo {
         description: data.description || '',
         videoUrl: data.video_url || '',
         thumbnailUrl: thumb,
+        length: data.length || '',
+        durationMinutes: data.duration_minutes || 0,
         relatedItems: data.related_items || [],
         views: data.views || 0,
         likes: data.likes || 0,
@@ -5345,6 +5349,8 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
+    if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
+    if (updates.length) dbData.length = updates.length;
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -8559,3 +8565,88 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
         updatedAt: data.updated_at
     };
 }
+
+// --- Vimeo Actions ---
+
+export async function getVimeoThumbnails(vimeoId: string): Promise<{ thumbnails?: { id: string; url: string; active: boolean }[], error?: string }> {
+    try {
+        const response = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get_vimeo_thumbnails',
+                vimeoId
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            return { error: data.error || 'Failed to fetch Vimeo thumbnails' };
+        }
+
+        const data = await response.json();
+        return { thumbnails: data.thumbnails };
+    } catch (error: any) {
+        console.error('Error fetching Vimeo thumbnails:', error);
+        return { error: error.message };
+    }
+}
+
+// ==================== LESSON HISTORY ====================
+
+/**
+ * Get lesson watch history for a user
+ */
+export async function getLessonHistory(userId: string) {
+    try {
+        const { data, error } = await supabase
+            .from('lesson_progress')
+            .select(`
+                *,
+                lesson:lessons(
+                    id,
+                    title,
+                    thumbnail_url,
+                    duration_minutes,
+                    lesson_number,
+                    course_id,
+                    course:courses(
+                        id,
+                        title,
+                        creator:creators(
+                            name,
+                            profile_image
+                        )
+                    )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error('Error fetching lesson history:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.lesson?.id || '',
+            courseId: item.lesson?.course_id || '',
+            type: 'lesson',
+            title: item.lesson?.title || 'Unknown Lesson',
+            courseTitle: item.lesson?.course?.title || 'Unknown Course',
+            creatorName: item.lesson?.course?.creator?.name || 'Unknown',
+            creatorProfileImage: item.lesson?.course?.creator?.profile_image || '',
+            progress: item.progress || 0,
+            watchedSeconds: item.watched_seconds || 0,
+            thumbnail: item.lesson?.thumbnail_url || '',
+            lastWatched: item.last_watched_at || new Date().toISOString(),
+            lessonNumber: item.lesson?.lesson_number || 0,
+            durationMinutes: item.lesson?.duration_minutes || 0
+        }));
+    } catch (error) {
+        console.error('Error in getLessonHistory:', error);
+        return [];
+    }
+}
+

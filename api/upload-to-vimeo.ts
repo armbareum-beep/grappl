@@ -133,18 +133,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 console.warn('[Vercel] Could not fetch video hash, using ID only:', err);
             }
 
-            const finalThumbnailUrl = thumbnailUrl || `https://vumbnail.com/${vimeoId}.jpg`;
+            // Fetch current record to avoid overwriting custom thumbnail
+            const tableName = contentType === 'lesson' ? 'lessons' :
+                contentType === 'sparring' ? 'sparring_videos' : 'drills';
 
-            if (contentType === 'lesson') {
-                await supabase.from('lessons').update({ vimeo_url: vimeoUrlWithHash, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
-            } else if (contentType === 'sparring') {
-                await supabase.from('sparring_videos').update({ video_url: vimeoUrlWithHash, thumbnail_url: finalThumbnailUrl }).eq('id', contentId);
+            const { data: currentRecord } = await supabase
+                .from(tableName)
+                .select('thumbnail_url')
+                .eq('id', contentId)
+                .maybeSingle();
+
+            const currentThumbnail = currentRecord?.thumbnail_url;
+
+            // Only use vumbnail if current one is missing or is already a vumbnail/placeholder
+            const isDefaultThumbnail = !currentThumbnail ||
+                currentThumbnail.includes('vumbnail.com') ||
+                currentThumbnail.includes('placehold.co');
+
+            const finalThumbnailUrl = (thumbnailUrl || !isDefaultThumbnail)
+                ? (thumbnailUrl || currentThumbnail)
+                : `https://vumbnail.com/${vimeoId}.jpg`;
+
+            const updateData: any = {};
+            if (contentType === 'sparring') {
+                updateData.video_url = vimeoUrlWithHash;
+                updateData.thumbnail_url = finalThumbnailUrl;
             } else if (contentType === 'drill') {
                 const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
-                const updateData: any = { [columnToUpdate]: vimeoUrlWithHash };
+                updateData[columnToUpdate] = vimeoUrlWithHash;
                 if (videoType === 'action') updateData.thumbnail_url = finalThumbnailUrl;
-                await supabase.from('drills').update(updateData).eq('id', contentId);
+            } else {
+                updateData.vimeo_url = vimeoUrlWithHash;
+                updateData.thumbnail_url = finalThumbnailUrl;
             }
+
+            await supabase.from(tableName).update(updateData).eq('id', contentId);
 
             console.log('[Vercel] DB Updated:', { vimeoUrlWithHash, contentId });
             return res.status(200).json({ success: true });

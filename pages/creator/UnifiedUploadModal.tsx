@@ -9,11 +9,13 @@ import {
 } from '../../types';
 import {
     createDrill, getDrillById, updateDrill,
-    createLesson, updateLesson,
-    createSparringVideo, updateSparringVideo,
+    createLesson, getLessonById, updateLesson,
+    createSparringVideo, getSparringVideoById, updateSparringVideo,
     uploadThumbnail,
     getCoursesByCreator, createCourse, getCreators
 } from '../../lib/api';
+import { ImageUploader } from '../../components/ImageUploader';
+import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Scissors, Trash2, Loader } from 'lucide-react';
@@ -26,6 +28,7 @@ type ContentType = 'drill' | 'lesson' | 'sparring';
 type ProcessingState = {
     file: File | null;
     videoId: string | null;
+    vimeoUrl: string | null;
     filename: string | null;
     previewUrl: string | null;
     cuts: { start: number; end: number }[] | null;
@@ -39,6 +42,7 @@ type ProcessingState = {
 const initialProcessingState: ProcessingState = {
     file: null,
     videoId: null,
+    vimeoUrl: null,
     filename: null,
     previewUrl: null,
     cuts: null,
@@ -84,7 +88,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         uniformType: UniformType.Gi,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
         price: 0,
+        durationMinutes: 0,
+        length: '0:00',
     });
+    const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
 
     // Video States
     // Main video (used for Lesson, Sparring, and Drill-Action)
@@ -127,11 +134,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 let result: any;
                 if (contentType === 'drill') {
                     result = await getDrillById(id as string);
-                } else {
-                    // TODO: Implement getLessonById and getSparringVideoById if not available or use generic fetch
-                    // For now assuming specific functions exist or similar pattern
-                    // Actually getLessonById might not exist in api.ts view... lets check availability later.
-                    // Assuming similar structure for now.
+                } else if (contentType === 'lesson') {
+                    result = await getLessonById(id as string);
+                } else if (contentType === 'sparring') {
+                    const sparringRes = await getSparringVideoById(id as string);
+                    result = sparringRes.data;
                 }
 
                 if (result && !result.error) {
@@ -144,20 +151,28 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                         sparringType: contentType === 'sparring' ? (data.category as any) || 'Sparring' : 'Sparring',
                         price: data.price || 0,
+                        durationMinutes: data.durationMinutes || data.duration_minutes || 0,
+                        length: data.length || '0:00',
                     });
 
+                    if (data.thumbnailUrl || data.thumbnail_url) {
+                        setThumbnailUrl(data.thumbnailUrl || data.thumbnail_url);
+                    }
+
                     // Populate videos
-                    if (data.vimeoUrl || data.videoUrl) {
+                    if (data.vimeoUrl || data.vimeo_url || data.videoUrl) {
                         setMainVideo(prev => ({
                             ...prev,
                             status: 'complete',
+                            vimeoUrl: data.vimeoUrl || data.vimeo_url || null,
                             previewUrl: data.videoUrl || (data.vimeoUrl ? `https://player.vimeo.com/video/${data.vimeoUrl.split('/').pop()}` : null)
                         }));
                     }
-                    if (contentType === 'drill' && data.descriptionVideoUrl) {
+                    if (contentType === 'drill' && (data.descriptionVideoUrl || data.description_vimeo_url)) {
                         setDescVideo(prev => ({
                             ...prev,
                             status: 'complete',
+                            vimeoUrl: data.description_vimeo_url || null,
                             previewUrl: data.descriptionVideoUrl || null
                         }));
                     }
@@ -181,6 +196,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         setMainVideo(initialProcessingState);
         setDescVideo(initialProcessingState);
         setCreatedContentId(null);
+        setThumbnailUrl(''); // Reset thumbnail URL on content type change
     }, [contentType]);
 
     // Sync Background Tasks
@@ -259,14 +275,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         if (contentType === 'drill') {
             result = await createDrill({ ...commonData, vimeoUrl: '', descriptionVideoUrl: '', thumbnailUrl: 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...' });
         } else if (contentType === 'lesson') {
-            const courses = await getCoursesByCreator(user!.id);
+            const courses = await getCoursesByCreator(effectiveCreatorId || user!.id);
             let targetCourseId = courses[0]?.id;
 
             if (!targetCourseId) {
                 const newCourse = await createCourse({
                     title: '나의 첫 번째 코스',
                     description: '자동 생성된 테스트 코스입니다.',
-                    creatorId: user!.id,
+                    creatorId: effectiveCreatorId || user!.id,
                     category: formData.category,
                     difficulty: formData.level,
                     published: false,
@@ -332,14 +348,24 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             }
             if (!contentId) throw new Error("Failed to create or retrieve content record ID.");
 
-            const totalSeconds = mainVideo.cuts?.reduce((acc, cut) => acc + (cut.end - cut.start), 0) || 0;
-            const durationMinutes = Math.floor(totalSeconds / 60);
+            // Calculate duration: if new file exists use cuts, else use existing formData
+            let totalSeconds = 0;
+            let durationMinutes = formData.durationMinutes;
+            let finalLength = formData.length;
+
+            if (mainVideo.cuts && mainVideo.cuts.length > 0) {
+                totalSeconds = mainVideo.cuts.reduce((acc, cut) => acc + (cut.end - cut.start), 0);
+                durationMinutes = Math.floor(totalSeconds / 60);
+                finalLength = formatDuration(totalSeconds);
+            }
 
             // Thumbnail
-            let thumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
+            let finalThumbnailUrl = thumbnailUrl;
             if (mainVideo.thumbnailBlob) {
                 const { url } = await uploadThumbnail(mainVideo.thumbnailBlob);
-                if (url) thumbnailUrl = url;
+                if (url) finalThumbnailUrl = url;
+            } else if (!finalThumbnailUrl) {
+                finalThumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
             }
 
             // Determine instructor name for Vimeo folder organization
@@ -361,8 +387,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
                 uniformType: formData.uniformType,
                 durationMinutes,
-                thumbnailUrl: !isEditMode ? thumbnailUrl : undefined, // Only update if new
-                length: formatDuration(totalSeconds),
+                thumbnailUrl: finalThumbnailUrl, // Update if new URL exists
+                length: finalLength,
             };
 
             // Update Metadata
@@ -396,7 +422,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     lessonId: contentType === 'lesson' ? contentId : undefined,
                     sparringId: contentType === 'sparring' ? contentId : undefined,
                     videoType: contentType === 'sparring' ? 'sparring' : 'action',
-                    instructorName
+                    instructorName,
+                    thumbnailUrl: finalThumbnailUrl
                 });
             }
 
@@ -416,7 +443,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     description: formData.description,
                     drillId: contentId,
                     videoType: 'desc',
-                    instructorName
+                    instructorName,
+                    thumbnailUrl: finalThumbnailUrl
                 });
             }
 
@@ -569,7 +597,6 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 transition-all"
                             />
                         </div>
-
                         {/* Admin: Creator Selection */}
                         {isAdmin && (
                             <div className="p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl mb-4">
@@ -674,6 +701,47 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 placeholder="상세 설명을 입력하세요"
                             />
                         </div>
+
+                        {/* Thumbnail Upload Section */}
+                        <div className="pt-4 border-t border-zinc-800/50">
+                            <label className="block text-sm font-semibold text-zinc-400 mb-3">썸네일 (Thumbnail)</label>
+
+                            {/* NEW: Vimeo Thumbnail Selector (Only if Vimeo URL exists) */}
+                            {mainVideo.vimeoUrl && (
+                                <div className="mb-8 p-6 bg-violet-500/5 rounded-2xl border border-violet-500/20">
+                                    <VimeoThumbnailSelector
+                                        vimeoId={mainVideo.vimeoUrl}
+                                        onSelect={(url) => setThumbnailUrl(url)}
+                                        currentThumbnailUrl={thumbnailUrl}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                                <div className="space-y-4">
+                                    <ImageUploader
+                                        onUploadComplete={(url) => setThumbnailUrl(url)}
+                                        currentImageUrl={thumbnailUrl}
+                                        bucketName="lesson-thumbnails"
+                                    />
+                                    <p className="text-xs text-zinc-500 italic">
+                                        * 비디오에서 자동 추출된 썸네일 대신 커스텀 이미지를 업로드하여 사용할 수 있습니다.
+                                    </p>
+                                </div>
+                                {thumbnailUrl && (
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-zinc-500 font-medium">현재 썸네일 미리보기</p>
+                                        <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800">
+                                            <img
+                                                src={thumbnailUrl}
+                                                alt="Current Thumbnail"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
 
@@ -736,8 +804,11 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             (descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId || (!!descVideo.file && !!descVideo.cuts))
                             : true;
 
-                        // For lessons and sparring, only main video is required
-                        const isMainVideoValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts);
+                        // For lessons and sparring, only main video is required for CREATE mode.
+                        // For EDIT mode, we allow submitting even if NO NEW video is uploaded.
+                        const isMainVideoValid = isEditMode
+                            ? true // In edit mode, we can always submit metadata updates
+                            : (mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts));
 
                         const canSubmit = !isSubmitting && !!formData.title &&
                             (contentType === 'drill' ? isDrillRequirementsmet : isMainVideoValid);
@@ -754,7 +825,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         );
                     })()}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };

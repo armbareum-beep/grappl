@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Bookmark, Share2 } from 'lucide-react';
+import { ChevronRight, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
+import { ActionMenuModal } from '../library/ActionMenuModal';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -31,6 +32,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
     const navigate = useNavigate();
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
     useEffect(() => {
         if (!user || !item.id) return;
@@ -93,12 +95,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
     const renderButtons = () => (
         <>
-            {/* Category Tag — bottom-right */}
-            {categoryText && (
-                <div className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white border border-white/10 uppercase tracking-wider">
-                    {categoryText}
-                </div>
-            )}
+
 
             {/* Save — top-right */}
             {type !== 'chain' && (
@@ -132,11 +129,11 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 "group relative flex-shrink-0 cursor-pointer transition-transform duration-300 ease-out origin-center hover:scale-105 hover:z-20",
                 variant !== 'ranking' ? cardClass : ""
             )}
-            style={variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '200px' : '320px' } : {}}
+            style={variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '230px' : '380px' } : {}}
         >
             {variant === 'ranking' ? (
-                <div className="relative h-full flex items-end">
-                    <div className="absolute left-[-15px] md:left-[-25px] bottom-[-2%] z-10 text-[140px] md:text-[220px] font-[900] leading-none tracking-tighter text-white/5 select-none italic"
+                <div className="relative w-full overflow-visible">
+                    <div className="absolute left-[-10px] md:left-[-20px] bottom-0 z-10 text-[140px] md:text-[200px] font-[900] leading-none tracking-tighter text-white/5 select-none italic"
                         style={{
                             WebkitTextStroke: '6px rgba(255,255,255,0.95)',
                             fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -146,10 +143,10 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     </div>
 
                     <div
-                        className="relative z-20 rounded-md overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.02]"
+                        className="relative z-20 rounded-lg overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]"
                         style={{
-                            marginLeft: (type === 'routine' || type === 'sparring') ? '70px' : '110px',
-                            width: (type === 'routine' || type === 'sparring') ? '160px' : '280px',
+                            marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px',
+                            width: (type === 'routine' || type === 'sparring') ? '170px' : '300px',
                             aspectRatio: type === 'routine' ? '2/3' : type === 'sparring' ? '1/1' : '16/9'
                         }}
                     >
@@ -172,21 +169,46 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             )}
 
-            <div className="pt-3 px-1 flex gap-2.5 items-start" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '50px' : '80px' } : {}}>
-                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
-                    {profileImage ? (
-                        <img src={profileImage} className="w-full h-full object-cover" alt="" />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[8px] md:text-[10px] text-zinc-500 font-bold">
-                            {(item.creatorName || getSubtitle(item) || 'U').charAt(0).toUpperCase()}
+            <div className="pt-3 px-1 flex gap-2.5 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px' } : {}}>
+                <div className="flex-1 min-w-0 relative pb-1 pr-1">
+                    <div className="flex justify-between items-start gap-2">
+                        <h3 className="flex-1 text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">{getTitle(item)}</h3>
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsActionMenuOpen(true);
+                            }}
+                            className="shrink-0 p-1 -mr-1 rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
+                        >
+                            <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium leading-none mt-1">{getSubtitle(item)}</p>
+                    {categoryText && (
+                        <div className="absolute bottom-0 right-0 text-[9px] font-black text-zinc-600 uppercase tracking-widest pb-0.5">
+                            {categoryText}
                         </div>
                     )}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight">{getTitle(item)}</h3>
-                    {variant !== 'ranking' && <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium">{getSubtitle(item)}</p>}
-                </div>
             </div>
+
+            <ActionMenuModal
+                isOpen={isActionMenuOpen}
+                onClose={() => setIsActionMenuOpen(false)}
+                item={{
+                    id: item.id,
+                    type: type === 'course' ? 'class' : (type === 'sparring' ? 'sparring' : 'routine'),
+                    title: getTitle(item),
+                    thumbnailUrl: getThumbnail(item),
+                    creatorName: item.creatorName || (item.creator as any)?.name || 'Grapplay Creator',
+                    creatorProfileImage: profileImage,
+                    originalData: item
+                } as any}
+                isSaved={isSaved}
+                onSave={handleSave}
+                onShare={handleShare}
+            />
 
             <Suspense fallback={null}>
                 {isShareModalOpen && (
@@ -245,8 +267,8 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
     const getSubtitle = (item: any) => {
         if (type === 'course') return item.creatorName;
-        if (type === 'routine') return `${item.totalDurationMinutes} min`;
-        if (type === 'sparring') return item.player1 && item.player2 ? `${item.player1} vs ${item.player2}` : 'Sparring';
+        if (type === 'routine') return item.creatorName || (item.creator ? (item.creator as any).name : 'Grapplay Team');
+        if (type === 'sparring') return (item.creator as any)?.name || item.creatorName || 'Sparring Video';
         return '';
     };
 
@@ -260,8 +282,8 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const cardClass = getCardStyle();
 
     return (
-        <section className="w-full mb-10">
-            <div className="px-4 md:px-12 mb-4 flex items-end justify-between group/header cursor-pointer" onClick={() => basePath && navigate(basePath)}>
+        <section className="w-full mb-6">
+            <div className="px-4 md:px-12 mb-2 flex items-end justify-between group/header cursor-pointer" onClick={() => basePath && navigate(basePath)}>
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 group-hover/header:text-violet-200 transition-colors">
                         {title}
@@ -275,7 +297,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
             <div className="relative w-full group/row">
                 <div
-                    className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-4 pb-12 scroll-smooth"
+                    className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-0 pb-6 scroll-smooth"
                     style={{ scrollSnapType: 'x mandatory' }}
                 >
                     {displayItems.map((item, idx) => (
