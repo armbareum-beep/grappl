@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators, extractVimeoId } from '../../lib/api';
+import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X, Link2, Upload, Loader2 } from 'lucide-react';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, removeLessonFromCourse, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators, extractVimeoId } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType, Creator } from '../../types';
-import { getVimeoVideoInfo } from '../../lib/vimeo';
+import { getVimeoVideoInfo, formatDuration } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
 import { useToast } from '../../contexts/ToastContext';
@@ -132,6 +132,9 @@ export const CourseEditor: React.FC = () => {
     // Lessons State
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [editingLesson, setEditingLesson] = useState<Partial<Lesson> | null>(null);
+    const [lessonUploadMode, setLessonUploadMode] = useState<'file' | 'url'>('file');
+    const [vimeoUrlInput, setVimeoUrlInput] = useState('');
+    const [vimeoUrlLoading, setVimeoUrlLoading] = useState(false);
 
     // Drills State
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
@@ -511,12 +514,15 @@ export const CourseEditor: React.FC = () => {
     };
 
     const handleDeleteLesson = async (lessonId: string) => {
-        if (!window.confirm('정말 삭제하시겠습니까?')) return;
+        if (!window.confirm('이 레슨을 커리큘럼에서 제거하시겠습니까? (레슨 자체는 삭제되지 않습니다)')) return;
         try {
-            await deleteLesson(lessonId);
+            if (!isNew) {
+                const { error } = await removeLessonFromCourse(lessonId);
+                if (error) throw error;
+            }
             setLessons(lessons.filter(l => l.id !== lessonId));
         } catch (error) {
-            console.error('Error deleting lesson:', error);
+            console.error('Error removing lesson from course:', error);
         }
     };
 
@@ -894,7 +900,7 @@ export const CourseEditor: React.FC = () => {
                                             기존 레슨 가져오기
                                         </button>
                                         <button
-                                            onClick={() => setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty })}
+                                            onClick={() => { setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty }); setLessonUploadMode('file'); setVimeoUrlInput(''); }}
                                             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 px-5 py-2.5 rounded-xl transition-all font-semibold border border-violet-500/20 shadow-lg"
                                         >
                                             <Video className="w-4.5 h-4.5" />
@@ -936,7 +942,7 @@ export const CourseEditor: React.FC = () => {
                                             <p className="text-zinc-500 font-medium text-lg">아직 등록된 레슨이 없습니다</p>
                                             <p className="text-zinc-600 text-sm mt-1">새 레슨을 추가하거나 기존 레슨을 가져오세요</p>
                                             <button
-                                                onClick={() => setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty })}
+                                                onClick={() => { setEditingLesson({ title: '', description: '', vimeoUrl: '', length: '0:00', difficulty: courseData.difficulty }); setLessonUploadMode('file'); setVimeoUrlInput(''); }}
                                                 className="mt-6 text-violet-400 hover:text-violet-300 font-semibold inline-flex items-center gap-2"
                                             >
                                                 첫 번째 레슨 만들기 <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -1262,25 +1268,98 @@ export const CourseEditor: React.FC = () => {
                             </div>
 
                             <div className="space-y-8">
-                                <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800/50">
-                                    <VideoUploader
-                                        compact
-                                        initialMetadata={{
-                                            title: editingLesson.title,
-                                            description: editingLesson.description,
-                                            category: courseData.category,
-                                            difficulty: courseData.difficulty,
-                                        }}
-                                        onUploadComplete={(vimeoId, duration) => {
-                                            setEditingLesson({
-                                                ...editingLesson,
-                                                vimeoUrl: vimeoId,
-                                                length: duration
-                                            });
-                                            success('영상이 준비되었습니다! 정보를 입력하고 하단 버튼을 눌러주세요.');
-                                        }}
-                                    />
-                                </div>
+                                {isAdmin && (
+                                    <div className="flex bg-zinc-950 rounded-xl p-1 border border-zinc-800/50">
+                                        <button
+                                            type="button"
+                                            onClick={() => setLessonUploadMode('file')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${lessonUploadMode === 'file' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                            파일 업로드
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setLessonUploadMode('url')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${lessonUploadMode === 'url' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                                        >
+                                            <Link2 className="w-4 h-4" />
+                                            Vimeo URL
+                                        </button>
+                                    </div>
+                                )}
+
+                                {(!isAdmin || lessonUploadMode === 'file') ? (
+                                    <div className="p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800/50">
+                                        <VideoUploader
+                                            compact
+                                            initialMetadata={{
+                                                title: editingLesson.title,
+                                                description: editingLesson.description,
+                                                category: courseData.category,
+                                                difficulty: courseData.difficulty,
+                                            }}
+                                            onUploadComplete={(vimeoId, duration) => {
+                                                setEditingLesson({
+                                                    ...editingLesson,
+                                                    vimeoUrl: vimeoId,
+                                                    length: duration
+                                                });
+                                                success('영상이 준비되었습니다! 정보를 입력하고 하단 버튼을 눌러주세요.');
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800/50 space-y-3">
+                                        <label className="block text-sm font-semibold text-zinc-400 ml-1">Vimeo 영상 URL</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={vimeoUrlInput}
+                                                onChange={e => setVimeoUrlInput(e.target.value)}
+                                                placeholder="https://vimeo.com/123456789"
+                                                className="flex-1 px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-600 text-sm"
+                                            />
+                                            <button
+                                                type="button"
+                                                disabled={!vimeoUrlInput.trim() || vimeoUrlLoading}
+                                                onClick={async () => {
+                                                    const id = extractVimeoId(vimeoUrlInput);
+                                                    if (!id) {
+                                                        toastError('올바른 Vimeo URL을 입력해주세요.');
+                                                        return;
+                                                    }
+                                                    setVimeoUrlLoading(true);
+                                                    try {
+                                                        const info = await getVimeoVideoInfo(id);
+                                                        if (!info) {
+                                                            toastError('영상 정보를 가져올 수 없습니다. URL을 확인해주세요.');
+                                                            return;
+                                                        }
+                                                        setEditingLesson({
+                                                            ...editingLesson,
+                                                            vimeoUrl: id,
+                                                            length: formatDuration(info.duration),
+                                                            thumbnailUrl: info.thumbnail,
+                                                        });
+                                                        success('영상 정보를 불러왔습니다!');
+                                                    } catch {
+                                                        toastError('영상 정보를 가져오는 중 오류가 발생했습니다.');
+                                                    } finally {
+                                                        setVimeoUrlLoading(false);
+                                                    }
+                                                }}
+                                                className="px-5 py-3 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-500 disabled:opacity-50 disabled:pointer-events-none transition-all text-sm flex items-center gap-2"
+                                            >
+                                                {vimeoUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                                확인
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-zinc-600 ml-1">
+                                            예: https://vimeo.com/123456789 또는 Vimeo ID 직접 입력
+                                        </p>
+                                    </div>
+                                )}
 
                                 {editingLesson.vimeoUrl && (
                                     <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-4">
