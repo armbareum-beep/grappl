@@ -347,7 +347,7 @@ export const AdminCreatorList: React.FC = () => {
                                     <ImageUploader
                                         currentImageUrl={editForm.profileImage}
                                         onUploadComplete={(url) => setEditForm(prev => ({ ...prev, profileImage: url }))}
-                                        bucketName="course-thumbnails"
+                                        bucketName="profile-images"
                                     />
                                 </div>
                             </div>
