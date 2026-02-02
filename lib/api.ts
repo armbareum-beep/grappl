@@ -1711,6 +1711,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     const dbData: any = {};
     if (courseData.title) dbData.title = courseData.title;
     if (courseData.description) dbData.description = courseData.description;
+    if (courseData.creatorId) dbData.creator_id = courseData.creatorId;
     if (courseData.category) dbData.category = courseData.category;
     if (courseData.difficulty) dbData.difficulty = courseData.difficulty;
     if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;

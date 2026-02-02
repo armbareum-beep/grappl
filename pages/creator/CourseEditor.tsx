@@ -470,7 +470,8 @@ export const CourseEditor: React.FC = () => {
 
                 }
             } else if (id) {
-                const { error } = await updateCourse(id, courseToSave);
+                const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id;
+                const { error } = await updateCourse(id, { ...courseToSave, creatorId: effectiveCreatorId });
                 if (error) throw error;
                 success('저장되었습니다. 클래스 페이지로 이동합니다.');
 
