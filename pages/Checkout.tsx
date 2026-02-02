@@ -391,8 +391,7 @@ export const Checkout: React.FC = () => {
                                                             billingKeyMethod: "CARD",
                                                             issueName: productTitle,
                                                             customer: {
-                                                                // @ts-ignore
-                                                                id: user?.id, // Added Customer ID for V2
+                                                                customerId: user?.id, // Updated for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
@@ -410,8 +409,7 @@ export const Checkout: React.FC = () => {
                                                             currency: "KRW",
                                                             payMethod: "CARD",
                                                             customer: {
-                                                                // @ts-ignore
-                                                                id: user?.id, // Added Customer ID for V2
+                                                                customerId: user?.id, // Updated for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
