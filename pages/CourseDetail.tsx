@@ -53,6 +53,32 @@ export const CourseDetail: React.FC = () => {
     const lastTickRef = React.useRef<number>(0);
     const accumulatedTimeRef = React.useRef<number>(0);
     const lastSavedTimeRef = React.useRef<number>(0);
+    const currentTimeRef = React.useRef<number>(0);
+    const userRef = React.useRef(user);
+    const selectedLessonRef = React.useRef(selectedLesson);
+
+    React.useEffect(() => {
+        userRef.current = user;
+        selectedLessonRef.current = selectedLesson;
+    }, [user, selectedLesson]);
+
+    // Save progress on page leave (unmount / beforeunload)
+    React.useEffect(() => {
+        const saveOnLeave = () => {
+            const u = userRef.current;
+            const lesson = selectedLessonRef.current;
+            const t = currentTimeRef.current;
+            if (u && lesson && t > 0) {
+                updateLastWatched(u.id, lesson.id, Math.floor(t));
+            }
+        };
+
+        window.addEventListener('beforeunload', saveOnLeave);
+        return () => {
+            window.removeEventListener('beforeunload', saveOnLeave);
+            saveOnLeave();
+        };
+    }, []);
 
     useEffect(() => {
         async function fetchData() {
@@ -398,12 +424,12 @@ export const CourseDetail: React.FC = () => {
 
     const handleProgress = React.useCallback(async (seconds: number) => {
         if (!user || !selectedLesson) {
-            // Even if no user, track time for UI
             setCurrentTime(seconds);
             return;
         }
 
         setCurrentTime(seconds);
+        currentTimeRef.current = seconds;
 
         const now = Date.now();
         if (lastTickRef.current === 0) {
@@ -428,8 +454,11 @@ export const CourseDetail: React.FC = () => {
             }
         }
 
-        // 2. Save playback position (every 5 seconds of video time)
-        if (Math.abs(seconds - lastSavedTimeRef.current) >= 5) {
+        // 2. Save playback position
+        // First save after 2 seconds (to create lesson_progress entry quickly),
+        // then every 5 seconds thereafter
+        const saveThreshold = lastSavedTimeRef.current === 0 ? 2 : 5;
+        if (Math.abs(seconds - lastSavedTimeRef.current) >= saveThreshold) {
             lastSavedTimeRef.current = seconds;
             updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));
         }
@@ -438,26 +467,29 @@ export const CourseDetail: React.FC = () => {
     const handleLessonSelect = async (lesson: Lesson) => {
         if (selectedLesson?.id === lesson.id) return;
 
-        setSelectedLesson(lesson);
-
         // Preview mode: always start from beginning
-        // Full access: resume from last position if available
         if (isPreviewMode(lesson)) {
             setInitialStartTime(0);
-        } else {
-            setInitialStartTime(0);
+            setSelectedLesson(lesson);
+            return;
         }
 
-        // Update last watched time and get progress
+        // Full access: load saved progress BEFORE setting the lesson
+        // so VideoPlayer initializes with the correct startTime
+        let resumeTime = 0;
         if (user && canWatchLesson(lesson)) {
-            await updateLastWatched(user.id, lesson.id);
-
-            // Try to get existing progress for this lesson
-            const prog = await getLessonProgress(user.id, lesson.id);
-            if (prog?.watched_seconds && !isPreviewMode(lesson)) {
-                setInitialStartTime(prog.watched_seconds);
+            try {
+                const prog = await getLessonProgress(user.id, lesson.id);
+                if (prog?.watched_seconds) {
+                    resumeTime = prog.watched_seconds;
+                }
+            } catch (e) {
+                console.warn('Failed to load lesson progress:', e);
             }
         }
+
+        setInitialStartTime(resumeTime);
+        setSelectedLesson(lesson);
     };
 
     const handleVideoEnded = async () => {

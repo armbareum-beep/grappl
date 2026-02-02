@@ -150,7 +150,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
     return (
         <div
-            className={cn("group flex flex-col gap-3 h-full", className)}
+            className={cn("group flex flex-col gap-2 h-full", className)}
             onMouseEnter={() => setIsHovering(true && hasAccess)}
             onMouseLeave={() => setIsHovering(false)}
         >
@@ -246,12 +246,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
             </React.Suspense>
 
             {/* Information Area (Below Video) */}
-            <div className="flex gap-3 px-1">
+            <div className="flex gap-0 px-1">
                 {/* Creator Avatar */}
 
                 {/* Metadata */}
                 <div className="flex-1 min-w-0 pr-1">
-                    <div className="flex justify-between items-start gap-2">
+                    <div className="flex justify-between items-start gap-1">
                         <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
                             <h3 className="font-bold text-zinc-100 text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                                 {course.title}
@@ -270,7 +270,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                         </button>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 mt-0">
+                    <div className="flex items-center justify-between gap-4 -mt-1">
                         <Link to={`/creator/${course.creatorId}`} className="text-[11px] md:text-xs text-zinc-500 font-medium hover:text-zinc-200 transition-colors truncate uppercase tracking-tighter">
                             {course.creatorName}
                         </Link>

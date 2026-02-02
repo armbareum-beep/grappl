@@ -111,22 +111,24 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [activeTab, setActiveTab] = useState<'main' | 'desc'>('main');
 
     // Fetch data in edit mode & admin creator list
+    // Validating admin status and pre-fetching creators separately to ensure availability
+    useEffect(() => {
+        if (isAdmin) {
+            getCreators().then(list => {
+                setCreators(list);
+                // If new mode and no creator selected yet, set to current user if possible
+                if (!isEditMode && user?.id && !selectedCreatorId) {
+                    setSelectedCreatorId(user.id);
+                }
+            }).catch(e => console.error('Failed to load creators:', e));
+        }
+    }, [isAdmin, isEditMode, user?.id]); // Depend on isAdmin
+
+    // Fetch Content Data
     useEffect(() => {
         async function fetchInitialData() {
-            // Load creators for admin (always needed if admin, regardless of mode)
-            if (isAdmin) {
-                try {
-                    const creatorList = await getCreators();
-                    setCreators(creatorList);
+            if (!isEditMode || !id) return;
 
-                    // If new mode, set default selectedCreatorId to current user
-                    if (!isEditMode && user?.id) {
-                        setSelectedCreatorId(user.id);
-                    }
-                } catch (e) {
-                    console.error('Failed to load creators:', e);
-                }
-            }
 
             if (!isEditMode || !id) return;
 
@@ -506,12 +508,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name || 'Uploaded Video'}</p>
                             </div>
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => setActiveEditor(type)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10"
-                                >
-                                    <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
-                                </button>
+                                {state.file && (
+                                    <button
+                                        onClick={() => setActiveEditor(type)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10"
+                                    >
+                                        <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setter(initialProcessingState)}
                                     className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10"

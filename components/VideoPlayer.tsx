@@ -219,10 +219,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 currentPlayer.on('bufferstart', () => setIsPlaying(false));
                 currentPlayer.on('bufferend', () => setIsPlaying(true));
 
-                if (startTime && startTime > 0) {
-                    currentPlayer.setCurrentTime(startTime).catch(err => console.warn('Failed to set initial time:', err));
-                }
-
                 currentPlayer.on('ended', () => {
                     if (onEnded) onEnded();
                 });
@@ -270,6 +266,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 });
 
                 currentPlayer.ready().then(() => {
+                    if (startTime && startTime > 0) {
+                        currentPlayer.setCurrentTime(startTime).catch(err =>
+                            console.warn('Failed to set initial time:', err)
+                        );
+                    }
                     onReadyRef.current?.();
                 }).catch(() => { });
             }

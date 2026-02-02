@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
@@ -8,7 +8,6 @@ import {
     toggleRoutineSave, checkRoutineSaved,
     toggleSparringSave, checkSparringSaved
 } from '../../lib/api';
-import { useState, useEffect } from 'react';
 
 // --- Types ---
 
@@ -149,7 +148,7 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
     return (
         <div
             onClick={() => onContinue(item)}
-            className="group flex flex-col gap-3 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
+            className="group flex flex-col gap-1.5 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
         >
             <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
                 <div
@@ -159,17 +158,8 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>
 
-            <div className="flex flex-col gap-2 px-0.5">
-                <div className="flex gap-2.5 items-start relative">
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5 shadow-inner">
-                        {item.creatorProfileImage ? (
-                            <img src={item.creatorProfileImage} className="w-full h-full object-cover" alt="" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold uppercase">
-                                {item.creatorName?.charAt(0) || 'U'}
-                            </div>
-                        )}
-                    </div>
+            <div className="flex flex-col gap-0 px-0.5">
+                <div className="flex gap-0 items-start relative">
                     <div className="flex-1 min-w-0 relative pb-1 pr-1">
                         <div className="flex justify-between items-start gap-2">
                             <h3 className="flex-1 text-[13px] md:text-[14px] font-bold text-white truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">
@@ -185,8 +175,8 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
                                 <MoreHorizontal className="w-4 h-4" />
                             </button>
                         </div>
-                        <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter leading-none mt-1">
-                            {item.creatorName || 'Grapplay Creator'}
+                        <p className="text-zinc-500 text-[11px] font-medium truncate opacity-80 uppercase tracking-tighter leading-none -mt-1">
+                            {item.creatorName || 'Grapplay'}
                         </p>
                         <div className="absolute bottom-0 right-0 flex items-center gap-1.5 text-[9px] font-black text-zinc-600 uppercase tracking-widest pb-0.5">
                             {categoryText && <span>{categoryText}</span>}

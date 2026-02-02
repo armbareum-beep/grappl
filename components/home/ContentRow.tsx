@@ -169,9 +169,9 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             )}
 
-            <div className="pt-3 px-1 flex gap-2.5 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px' } : {}}>
-                <div className="flex-1 min-w-0 relative pb-1 pr-1">
-                    <div className="flex justify-between items-start gap-2">
+            <div className="pt-3 px-1 flex flex-col gap-0 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px' } : {}}>
+                <div className="flex-1 min-w-0 relative pb-1 pr-1 w-full">
+                    <div className="flex justify-between items-start gap-1">
                         <h3 className="flex-1 text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">{getTitle(item)}</h3>
                         <button
                             onClick={(e) => {
@@ -184,7 +184,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                             <MoreHorizontal className="w-4 h-4" />
                         </button>
                     </div>
-                    <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium leading-none mt-1">{getSubtitle(item)}</p>
+                    <p className="text-zinc-500 text-[11px] truncate uppercase tracking-tighter font-medium leading-none -mt-1">{getSubtitle(item)}</p>
                     {categoryText && (
                         <div className="absolute bottom-0 right-0 text-[9px] font-black text-zinc-600 uppercase tracking-widest pb-0.5">
                             {categoryText}

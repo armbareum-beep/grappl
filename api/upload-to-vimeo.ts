@@ -173,6 +173,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true });
         }
 
+        // --- Action 3: Get Thumbnails ---
+        if (action === 'get_vimeo_thumbnails') {
+            if (!vimeoId) throw new Error('vimeoId is required');
+
+            // Clean ID (remove hash if present, e.g. 12345:abcdef -> 12345)
+            const cleanId = vimeoId.toString().split(':')[0];
+
+            const response = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+                headers: {
+                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Vimeo thumbnail fetch failed: ${errorText}`);
+            }
+
+            const data = await response.json();
+
+            const thumbnails = (data.data || []).map((pic: any) => ({
+                id: pic.resource_key,
+                url: pic.sizes.find((s: any) => s.width >= 640)?.link || pic.sizes[0]?.link,
+                active: pic.active
+            }));
+
+            return res.status(200).json({ thumbnails });
+        }
+
         return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error: any) {

@@ -295,12 +295,12 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
             {/* Info Area — shrink-0 keeps it at natural height */}
             {!minimal && (
-                <div className="flex gap-3 px-1 mt-2 shrink-0">
-                    {/* Creator Avatar */}
+                <div className="flex flex-col gap-0 px-1 mt-2 shrink-0">
+                    {/* Creator Avatar - REMOVED */}
 
                     {/* Text Info */}
                     <div className="flex-1 min-w-0 pr-1">
-                        <div className="flex justify-between items-start gap-2">
+                        <div className="flex justify-between items-start gap-1">
                             <Link to={link} onClick={handleClick} className="flex-1 min-w-0">
                                 <h3 className="text-zinc-100 font-bold text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                                     {item.title}
@@ -319,7 +319,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between gap-4 mt-0">
+                        <div className="flex items-center justify-between gap-4 -mt-1">
                             <div className="text-[11px] md:text-[12px] text-zinc-500 font-medium uppercase tracking-tighter">
                                 {item.creatorName}
                             </div>

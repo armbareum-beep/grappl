@@ -75,8 +75,11 @@ export const Home: React.FC = () => {
                     // A. Continue Items
                     try {
                         const activity = await getRecentActivity(user.id);
-                        if (activity && activity.length > 0) {
+                        console.log('Fetched recent activity:', activity);
+                        if (activity && Array.isArray(activity) && activity.length > 0) {
                             setContinueItems(activity);
+                        } else {
+                            console.log('No recent activity found or empty array');
                         }
                     } catch (e) {
                         console.error("Error fetching activity", e);

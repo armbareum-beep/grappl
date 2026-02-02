@@ -393,6 +393,7 @@ export async function updateSiteSettings(settings: Omit<SiteSettings, 'id' | 'up
             footer: settings.footer,
             hero: settings.hero,
             sections: settings.sections,
+            section_content: settings.sectionContent,
             updated_at: new Date().toISOString()
         });
 
@@ -411,7 +412,17 @@ export async function getSiteSettings() {
         return { data: null, error };
     }
 
-    return { data: data as SiteSettings, error: null };
+    const settings: SiteSettings = {
+        id: data.id,
+        logos: data.logos,
+        footer: data.footer,
+        hero: data.hero,
+        sections: data.sections,
+        sectionContent: data.section_content,
+        updatedAt: data.updated_at
+    };
+
+    return { data: settings, error: null };
 }
 
 // ==================== Admin Dashboard Advanced Features ====================
