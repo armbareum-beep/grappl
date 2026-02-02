@@ -1,0 +1,16 @@
+UPDATE lessons SET length = '2:55', duration_minutes = 2 WHERE id = 'e7c0e93c-8847-4e0e-aca1-cf6c3ac1c3c2';
+UPDATE lessons SET length = '1:33', duration_minutes = 1 WHERE id = 'a627229b-61f3-498d-81c1-13a76d205488';
+UPDATE lessons SET length = '2:03', duration_minutes = 2 WHERE id = '5bd1f68a-7ce6-4f8c-915f-cfabf93e189f';
+UPDATE lessons SET length = '3:13', duration_minutes = 3 WHERE id = '58914d41-ea69-468c-9ab2-375eae0a8ed4';
+UPDATE lessons SET length = '2:00', duration_minutes = 2 WHERE id = '1b6c63f3-fe32-4b6a-ae13-86ad506cd1a9';
+UPDATE lessons SET length = '3:01', duration_minutes = 3 WHERE id = 'b9caa37e-ac77-4b7a-a155-81f6e01fbe15';
+UPDATE lessons SET length = '3:37', duration_minutes = 3 WHERE id = '67e5e090-9214-46eb-8b87-acf75d4be095';
+UPDATE lessons SET length = '3:54', duration_minutes = 3 WHERE id = 'a346d54e-8736-4b90-9816-806334f1a9b9';
+UPDATE lessons SET length = '2:55', duration_minutes = 2 WHERE id = '8f24049b-6a85-433c-9f29-5513fbc5155e';
+UPDATE lessons SET length = '3:47', duration_minutes = 3 WHERE id = '16548908-4eb1-4d22-995c-5ca15cf6c726';
+UPDATE lessons SET length = '2:56', duration_minutes = 2 WHERE id = '767889a8-413c-4caa-995a-48887b2801b4';
+UPDATE lessons SET length = '4:38', duration_minutes = 4 WHERE id = '87410ffc-79a1-4982-9643-fd3bd6ecaa35';
+UPDATE lessons SET length = '3:03', duration_minutes = 3 WHERE id = 'a81a1894-c33e-48c3-bdba-74b39456b99d';
+UPDATE lessons SET length = '1:48', duration_minutes = 1 WHERE id = '09c21cec-12b4-4e69-98f0-801631c8100d';
+UPDATE lessons SET length = '3:55', duration_minutes = 3 WHERE id = '9d518e33-ac0b-4685-be6b-537ac844dbc4';
+UPDATE lessons SET length = '3:30', duration_minutes = 3 WHERE id = '410aa10e-9512-441d-a156-8a01b5ad74f3';

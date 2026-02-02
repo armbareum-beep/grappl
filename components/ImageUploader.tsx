@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon } from 'lucide-react';
 
 interface ImageUploaderProps {
     onUploadComplete: (url: string) => void;
@@ -51,7 +51,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
             const filePath = `${fileName}`;
 
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from(bucketName)
                 .upload(filePath, file, {
                     cacheControl: '3600',
@@ -68,7 +68,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             onUploadComplete(publicUrl);
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert('이미지 업로드 중 오류가 발생했습니다.');
+            alert(`이미지 업로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
             setPreviewUrl(currentImageUrl || null);
         } finally {
             setUploading(false);

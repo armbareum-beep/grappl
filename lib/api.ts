@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
+import { getVimeoVideoInfo } from './vimeo';
 
 
 // Revenue split constants
@@ -1746,20 +1747,35 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
 }
 
 export async function createLesson(lessonData: Partial<Lesson>) {
+    let finalThumbnailUrl = lessonData.thumbnailUrl;
+
+    // Auto-fetch thumbnail if missing
+    if (!finalThumbnailUrl && lessonData.vimeoUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo?.thumbnail) {
+                finalThumbnailUrl = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch lesson thumbnail:', err);
+        }
+    }
+
     const dbData = {
         course_id: lessonData.courseId,
+        creator_id: lessonData.creatorId, // Make sure creator_id is passed
         title: lessonData.title,
         description: lessonData.description,
         lesson_number: lessonData.lessonNumber,
         vimeo_url: lessonData.vimeoUrl,
+        thumbnail_url: finalThumbnailUrl,
         difficulty: lessonData.difficulty,
-        uniform_type: lessonData.uniformType, // Added
+        uniform_type: lessonData.uniformType,
     };
 
     const { data, error } = await supabase
         .from('lessons')
         .insert(dbData)
-
         .select()
         .single();
 
@@ -1783,6 +1799,18 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.length) dbData.length = lessonData.length;
     if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
     if (lessonData.category) dbData.category = lessonData.category;
+
+    // If vimeoUrl changed but no thumbnailUrl, try to update it
+    if (lessonData.vimeoUrl && !lessonData.thumbnailUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo?.thumbnail) {
+                dbData.thumbnail_url = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch updated lesson thumbnail:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('lessons')

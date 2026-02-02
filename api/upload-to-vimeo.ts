@@ -108,8 +108,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'complete_upload') {
             if (!vimeoId) throw new Error('vimeoId is required for completion');
 
-            // Fetch video info from Vimeo to get the embed hash
+            // Fetch video info from Vimeo to get the embed hash and duration
             let vimeoUrlWithHash = vimeoId;
+            let durationSeconds = 0;
             try {
                 const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
                     headers: {
@@ -119,7 +120,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 if (videoInfoRes.ok) {
                     const videoInfo = await videoInfoRes.json();
-                    // Extract hash from player_embed_url (e.g., "https://player.vimeo.com/video/123456?h=abc123")
+
+                    // 1. Extract duration
+                    durationSeconds = videoInfo.duration || 0;
+                    console.log('[Vercel] Found duration:', durationSeconds);
+
+                    // 2. Extract hash from player_embed_url (e.g., "https://player.vimeo.com/video/123456?h=abc123")
                     const embedUrl = videoInfo.player_embed_url;
                     if (embedUrl) {
                         const hashMatch = embedUrl.match(/[?&]h=([a-z0-9]+)/i);
@@ -130,8 +136,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 }
             } catch (err) {
-                console.warn('[Vercel] Could not fetch video hash, using ID only:', err);
+                console.warn('[Vercel] Could not fetch video metadata:', err);
             }
+
+            // Helper to format duration
+            const formatDuration = (seconds: number): string => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            const finalLength = durationSeconds > 0 ? formatDuration(durationSeconds) : '0:00';
 
             // Fetch current record to avoid overwriting custom thumbnail
             const tableName = contentType === 'lesson' ? 'lessons' :
@@ -155,9 +169,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : `https://vumbnail.com/${vimeoId}.jpg`;
 
             const updateData: any = {};
+
+            // 1. Durations (only if columns exist)
+            if (contentType === 'lesson') {
+                updateData.length = finalLength;
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+            } else if (contentType === 'drill') {
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                // drills currently doesn't have a 'length' column in schema
+            }
+
+            // 2. Content specific URLs and thumbnails
             if (contentType === 'sparring') {
                 updateData.video_url = vimeoUrlWithHash;
                 updateData.thumbnail_url = finalThumbnailUrl;
+                // sparring_videos currently doesn't have length/duration columns
             } else if (contentType === 'drill') {
                 const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                 updateData[columnToUpdate] = vimeoUrlWithHash;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X } from 'lucide-react';
-import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators } from '../../lib/api';
+import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators, extractVimeoId } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType, Creator } from '../../types';
 import { getVimeoVideoInfo } from '../../lib/vimeo';
@@ -1183,14 +1183,17 @@ export const CourseEditor: React.FC = () => {
                                             <div
                                                 key={lesson.id}
                                                 onClick={async () => {
-                                                    if (lesson.vimeoUrl) {
+                                                    if (lesson.thumbnailUrl) {
+                                                        setCourseData({ ...courseData, thumbnailUrl: lesson.thumbnailUrl });
+                                                        setShowThumbnailModal(false);
+                                                        success('클래스 대표 썸네일이 변경되었습니다 ✨');
+                                                    } else if (lesson.vimeoUrl) {
                                                         try {
                                                             const videoInfo = await getVimeoVideoInfo(lesson.vimeoUrl);
                                                             if (videoInfo?.thumbnail) {
                                                                 setCourseData({ ...courseData, thumbnailUrl: videoInfo.thumbnail });
                                                                 setShowThumbnailModal(false);
                                                                 success('클래스 대표 썸네일이 변경되었습니다 ✨');
-
                                                             }
                                                         } catch (err) {
                                                             toastError('썸네일을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -1202,7 +1205,7 @@ export const CourseEditor: React.FC = () => {
                                                 <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
                                                 {lesson.vimeoUrl && (
                                                     <img
-                                                        src={`https://vumbnail.com/${lesson.vimeoUrl.split('/').pop()}.jpg`}
+                                                        src={lesson.thumbnailUrl || `https://vumbnail.com/${extractVimeoId(lesson.vimeoUrl)}.jpg?${Date.now()}`}
                                                         alt={lesson.title}
                                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
                                                         onLoad={(e) => (e.currentTarget.style.filter = 'none')}
@@ -1212,7 +1215,7 @@ export const CourseEditor: React.FC = () => {
                                                     <p className="text-xs font-black text-white truncate drop-shadow-lg">{lesson.title}</p>
                                                     <p className="text-[10px] font-bold text-violet-400 mt-0.5">{lesson.length} • 클릭하여 선택</p>
                                                 </div>
-                                                {courseData.thumbnailUrl?.includes(lesson.vimeoUrl!) && (
+                                                {courseData.thumbnailUrl === lesson.thumbnailUrl && lesson.thumbnailUrl && (
                                                     <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
                                                         <CheckCircle className="w-5 h-5 text-white" />
                                                     </div>
