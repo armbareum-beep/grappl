@@ -50,7 +50,8 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         return (
             <div className="flex flex-col items-center justify-center py-8 text-zinc-500 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
-                <p className="text-sm font-medium">Vimeo에서 썸네일을 불러오고 있습니다...</p>
+                <p className="text-sm font-medium">Vimeo에서 썸네일을 생성하고 있습니다...</p>
+                <p className="text-xs text-zinc-600">여러 시간대의 썸네일을 자동 생성합니다</p>
             </div>
         );
     }

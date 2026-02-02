@@ -173,18 +173,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true });
         }
 
-        // --- Action 3: Get Thumbnails ---
+        // --- Action 3: Get Thumbnails (auto-generates if only 1 exists) ---
         if (action === 'get_vimeo_thumbnails') {
             if (!vimeoId) throw new Error('vimeoId is required');
 
-            // Clean ID (remove hash if present, e.g. 12345:abcdef -> 12345)
             const cleanId = vimeoId.toString().split(':')[0];
+            const vimeoHeaders = {
+                'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+            };
 
+            // Fetch existing pictures
             const response = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
-                headers: {
-                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                }
+                headers: vimeoHeaders
             });
 
             if (!response.ok) {
@@ -192,7 +193,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 throw new Error(`Vimeo thumbnail fetch failed: ${errorText}`);
             }
 
-            const data = await response.json();
+            let data = await response.json();
+            const existingCount = (data.data || []).length;
+
+            // Auto-generate thumbnails at different time points if few exist
+            if (existingCount <= 1) {
+                try {
+                    // Get video duration
+                    const videoRes = await fetch(`https://api.vimeo.com/videos/${cleanId}`, {
+                        headers: vimeoHeaders
+                    });
+
+                    if (videoRes.ok) {
+                        const videoInfo = await videoRes.json();
+                        const duration = videoInfo.duration || 0;
+
+                        if (duration > 2) {
+                            // Generate thumbnails at 10%, 30%, 50%, 70%, 90% of video
+                            const timePoints = [0.1, 0.3, 0.5, 0.7, 0.9]
+                                .map(pct => Math.round(pct * duration * 100) / 100)
+                                .filter(t => t > 0 && t < duration);
+
+                            await Promise.allSettled(
+                                timePoints.map(time =>
+                                    fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+                                        method: 'POST',
+                                        headers: { ...vimeoHeaders, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ time, active: false })
+                                    })
+                                )
+                            );
+
+                            // Re-fetch all pictures including newly generated
+                            const refreshRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
+                                headers: vimeoHeaders
+                            });
+                            if (refreshRes.ok) {
+                                data = await refreshRes.json();
+                            }
+                        }
+                    }
+                } catch (genErr) {
+                    console.warn('[Vercel] Thumbnail generation failed, returning existing:', genErr);
+                }
+            }
 
             const thumbnails = (data.data || []).map((pic: any) => ({
                 id: pic.resource_key,
