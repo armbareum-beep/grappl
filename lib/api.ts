@@ -2126,12 +2126,12 @@ export async function uploadHeroImage(file: File): Promise<{ url: string | null;
 /**
  * 썸네일 이미지를 Supabase Storage에 업로드
  */
-export async function uploadThumbnail(blob: Blob): Promise<{ url: string | null; error: any }> {
+export async function uploadThumbnail(blob: Blob, bucketName: string = 'lesson-thumbnails'): Promise<{ url: string | null; error: any }> {
     const fileName = `thumb-${crypto.randomUUID()}.jpg`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-        .from('course-thumbnails')
+        .from(bucketName)
         .upload(filePath, blob, {
             contentType: 'image/jpeg',
             upsert: true,
@@ -2142,7 +2142,7 @@ export async function uploadThumbnail(blob: Blob): Promise<{ url: string | null;
     }
 
     const { data } = supabase.storage
-        .from('course-thumbnails')
+        .from(bucketName)
         .getPublicUrl(filePath);
 
     return { url: data.publicUrl, error: null };
@@ -2348,6 +2348,18 @@ export async function deleteLesson(lessonId: string) {
     const { error } = await supabase
         .from('lessons')
         .delete()
+        .eq('id', lessonId);
+
+    return { error };
+}
+
+/**
+ * Remove a lesson from a course (unlink only, does not delete the lesson)
+ */
+export async function removeLessonFromCourse(lessonId: string) {
+    const { error } = await supabase
+        .from('lessons')
+        .update({ course_id: null, lesson_number: null })
         .eq('id', lessonId);
 
     return { error };
