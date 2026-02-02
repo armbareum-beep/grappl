@@ -200,10 +200,8 @@ export const CourseEditor: React.FC = () => {
         if (user) {
             // Load creators for admin
             if (isAdmin) {
-                getCreators().then(({ data }) => {
-                    if (data) {
-                        setCreators(data);
-                    }
+                getCreators().then(list => {
+                    setCreators(list);
                 }).catch(console.error);
                 if (isNew) {
                     setSelectedCreatorId(user.id);
