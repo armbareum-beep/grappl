@@ -5536,12 +5536,12 @@ export async function getDailyRoutine() {
 export async function getDailyFreeDrill() {
     try {
         // 1. Try to get featured drill for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'drill')
                 .maybeSingle(),
             3000
@@ -5586,8 +5586,12 @@ export async function getDailyFreeDrill() {
 
             if (!data || data.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 456) * 10000;
             const index = Math.floor((x - Math.floor(x)) * data.length);
             selectedDrill = data[index];
@@ -5646,12 +5650,12 @@ export async function getDailyFreeDrill() {
 export async function getDailyFreeLesson() {
     try {
         // 1. Try to get featured lesson for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'lesson')
                 .maybeSingle(),
             3000
@@ -5685,8 +5689,12 @@ export async function getDailyFreeLesson() {
             if (error) throw error;
             if (!lessons || lessons.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 789) * 10000;
             const index = Math.floor((x - Math.floor(x)) * lessons.length);
             selectedLesson = lessons[index];
@@ -5745,12 +5753,12 @@ export async function getDailyFreeLesson() {
 export async function getDailyFreeSparring() {
     try {
         // 1. Try to get featured sparring for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'sparring')
                 .maybeSingle(),
             3000
@@ -5787,8 +5795,12 @@ export async function getDailyFreeSparring() {
             if (error) throw error;
             if (!data || data.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 123) * 10000;
             const index = Math.floor((x - Math.floor(x)) * data.length);
             selectedSparring = data[index];
