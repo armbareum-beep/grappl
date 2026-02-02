@@ -76,16 +76,96 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
     const startTusUpload = async (task: UploadTask) => {
         try {
-            // Dynamic import tus-js-client to avoid SSR issues if any
             const tus = await import('tus-js-client');
-
-            // Get session for Auth
             const { data } = await supabase.auth.getSession();
             const accessToken = data.session?.access_token;
-            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL; // Using correct VITE_ prefix now
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
             const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-            const BUCKET_NAME = 'raw_videos_v2';
 
+            // Direct Vimeo Upload for Videos
+            const isVideoType = ['action', 'desc', 'sparring'].includes(task.type);
+
+            if (isVideoType && task.processingParams) {
+                console.log('[DirectVimeo] Requesting upload link for:', task.id);
+
+                const initResponse = await fetch('/api/upload-to-vimeo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'create_upload',
+                        fileSize: task.file.size,
+                        title: task.processingParams.title,
+                        description: task.processingParams.description
+                    })
+                });
+
+                if (!initResponse.ok) {
+                    const error = await initResponse.json();
+                    throw new Error(error.error || 'Vimeo 업로드 링크 생성 실패');
+                }
+
+                const { uploadLink, vimeoId } = await initResponse.json();
+                console.log('[DirectVimeo] Upload link received:', vimeoId);
+
+                const upload = new tus.Upload(task.file, {
+                    uploadUrl: uploadLink,
+                    onError: (error) => {
+                        console.error('Vimeo Upload Error:', error);
+                        updateTaskStatus(task.id, 'error', error.message);
+                    },
+                    onProgress: (bytesUploaded, bytesTotal) => {
+                        const percentage = (bytesUploaded / bytesTotal * 100);
+                        updateTaskProgress(task.id, percentage);
+                    },
+                    onSuccess: async () => {
+                        console.log('Vimeo Upload Complete, updating DB...', task.id);
+                        updateTaskStatus(task.id, 'processing');
+
+                        try {
+                            const params = task.processingParams!;
+                            const contentType = params.courseId ? 'course' :
+                                (params.sparringId || params.videoType === 'sparring' ? 'sparring' :
+                                    (params.lessonId ? 'lesson' : 'drill'));
+
+                            const contentId = params.courseId || params.sparringId || params.lessonId || params.drillId || '';
+
+                            const completeRes = await fetch('/api/upload-to-vimeo', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'complete_upload',
+                                    vimeoId,
+                                    contentId,
+                                    contentType,
+                                    videoType: params.videoType,
+                                    thumbnailUrl: params.thumbnailUrl
+                                })
+                            });
+
+                            if (!completeRes.ok) {
+                                const error = await completeRes.json();
+                                throw new Error(error.error || 'DB 업데이트 실패');
+                            }
+
+                            console.log('✅ Vimeo upload & DB update completed for:', task.id);
+                            updateTaskStatus(task.id, 'completed');
+                            setTimeout(() => {
+                                setTasks(prev => prev.filter(t => t.id !== task.id));
+                            }, 3000);
+                        } catch (err: any) {
+                            console.error('❌ Finalization Error:', err);
+                            updateTaskStatus(task.id, 'error', '완료 처리 실패: ' + err.message);
+                        }
+                    },
+                });
+
+                tusRefs.current[task.id] = upload;
+                upload.start();
+                return;
+            }
+
+            // Legacy Supabase Storage Upload for non-video or fallback
+            const BUCKET_NAME = 'raw_videos_v2';
             const upload = new tus.Upload(task.file, {
                 endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
                 retryDelays: [0, 1000, 3000, 5000],
@@ -118,59 +198,45 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     console.log('Upload Complete, starting processing...', task.id);
                     updateTaskStatus(task.id, 'processing');
 
-                    // Trigger Vimeo Upload via Vercel API
                     if (task.processingParams) {
                         import('../lib/vimeo-upload').then(({ processAndUploadVideo }) => {
-                            const contentType = task.processingParams!.courseId ? 'course' :
-                                (task.processingParams!.sparringId || task.processingParams!.videoType === 'sparring' ? 'sparring' :
-                                    (task.processingParams!.lessonId ? 'lesson' : 'drill'));
+                            const params = task.processingParams!;
+                            const contentType = params.courseId ? 'course' :
+                                (params.sparringId || params.videoType === 'sparring' ? 'sparring' :
+                                    (params.lessonId ? 'lesson' : 'drill'));
 
-                            const contentId = task.processingParams!.courseId ||
-                                task.processingParams!.sparringId ||
-                                task.processingParams!.lessonId ||
-                                task.processingParams!.drillId || '';
+                            const contentId = params.courseId || params.sparringId || params.lessonId || params.drillId || '';
 
                             processAndUploadVideo({
                                 bucketName: 'raw_videos_v2',
-                                filePath: task.processingParams!.filename,
-                                title: task.processingParams!.title,
-                                description: task.processingParams!.description,
+                                filePath: params.filename,
+                                title: params.title,
+                                description: params.description,
                                 contentType: contentType as 'lesson' | 'drill' | 'sparring',
                                 contentId: contentId,
-                                videoType: task.processingParams!.videoType as 'action' | 'desc' | undefined,
-                                thumbnailUrl: task.processingParams!.thumbnailUrl,
+                                videoType: params.videoType as 'action' | 'desc' | undefined,
+                                thumbnailUrl: params.thumbnailUrl,
                                 onProgress: (stage, progress) => {
-                                    console.log(`[${task.id}] ${stage}: ${progress}%`);
-                                    // Update task progress
                                     updateTaskProgress(task.id, progress);
                                 }
                             })
                                 .then(() => {
-                                    console.log('✅ Vimeo upload completed for:', task.id);
                                     updateTaskStatus(task.id, 'completed');
-
-                                    // Remove the task from the floating list after a while
                                     setTimeout(() => {
                                         setTasks(prev => prev.filter(t => t.id !== task.id));
-                                    }, 3000); // 3 seconds of "Completed" visible
+                                    }, 3000);
                                 })
                                 .catch(err => {
-                                    console.error('❌ Vimeo Processing Error:', err);
                                     updateTaskStatus(task.id, 'error', 'Vimeo 업로드 실패: ' + (err.message || '알 수 없는 오류'));
                                 });
                         });
                     } else {
-                        console.warn('⚠️ No processing params, marking as completed without Vimeo processing');
                         updateTaskStatus(task.id, 'completed');
                     }
                 },
             });
 
             tusRefs.current[task.id] = upload;
-
-            // Force fresh upload to prevent "instant complete" issues with missing files
-            // (TUS resume might think it's done if previous state exists, but server file might be gone)
-            console.log('Starting fresh upload for:', task.id);
             upload.start();
 
         } catch (error: any) {

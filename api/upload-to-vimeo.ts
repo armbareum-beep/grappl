@@ -46,22 +46,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'create_upload') {
             let fileSize = providedFileSize;
 
-            // If fileSize not provided, try to fetch from Supabase
-            if (!fileSize) {
-                // 1. Get File Size from Supabase via List (Metadata)
-                // filePath example: 'user_id/filename.mp4'
-                const folderPath = filePath.split('/').slice(0, -1).join('/');
-                const fileName = filePath.split('/').pop();
+            // If fileSize not provided and we have path, try to fetch from Supabase (fallback)
+            if (!fileSize && filePath && bucketName) {
+                try {
+                    const folderPath = filePath.split('/').slice(0, -1).join('/');
+                    const fileName = filePath.split('/').pop();
 
-                const { data: listData, error: listError } = await supabase.storage
-                    .from(bucketName)
-                    .list(folderPath, {
-                        limit: 1,
-                        search: fileName
-                    });
+                    const { data: listData } = await supabase.storage
+                        .from(bucketName)
+                        .list(folderPath, {
+                            limit: 1,
+                            search: fileName
+                        });
 
-                // Default to 0 if missing
-                fileSize = listData?.[0]?.metadata?.size || 0;
+                    fileSize = listData?.[0]?.metadata?.size || 0;
+                } catch (e) {
+                    console.warn('[Vercel] Could not fetch file size from Supabase:', e);
+                }
             }
 
             console.log('[Vercel] Creating upload link for size:', fileSize);
