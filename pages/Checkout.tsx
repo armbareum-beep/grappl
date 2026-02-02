@@ -377,7 +377,8 @@ export const Checkout: React.FC = () => {
                                                     const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
 
                                                     // Determine Channel Key (V2 Specific)
-                                                    const channelKey = type === 'subscription'
+                                                    // User Request: Yearly Subscription should use GENERAL Channel (One-time payment)
+                                                    const channelKey = (type === 'subscription' && isMonthlySubscription)
                                                         ? import.meta.env.VITE_PORTONE_CHANNEL_KEY_SUBSCRIPTION
                                                         : import.meta.env.VITE_PORTONE_CHANNEL_KEY_GENERAL;
 
@@ -408,9 +409,10 @@ export const Checkout: React.FC = () => {
                                                             currency: "KRW",
                                                             payMethod: "CARD",
                                                             customer: {
+                                                                // @ts-ignore
                                                                 id: user?.id, // Added Customer ID for V2
                                                                 email: user?.email,
-                                                                phoneNumber: phoneNumber || undefined,
+                                                                phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
                                                             },
                                                         });
