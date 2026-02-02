@@ -2129,23 +2129,36 @@ export async function uploadHeroImage(file: File): Promise<{ url: string | null;
 export async function uploadThumbnail(blob: Blob, bucketName: string = 'lesson-thumbnails'): Promise<{ url: string | null; error: any }> {
     const fileName = `thumb-${crypto.randomUUID()}.jpg`;
     const filePath = `${fileName}`;
+    const bucketsToTry = [bucketName, 'course-thumbnails', 'images']; // Priority list
 
-    const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, blob, {
-            contentType: 'image/jpeg',
-            upsert: true,
-        });
+    let lastError: any = null;
 
-    if (uploadError) {
-        return { url: null, error: uploadError };
+    for (const bucket of bucketsToTry) {
+        try {
+            console.log(`Trying to upload thumbnail to bucket: ${bucket}`);
+            const { error: uploadError } = await supabase.storage
+                .from(bucket)
+                .upload(filePath, blob, {
+                    contentType: 'image/jpeg',
+                    upsert: true,
+                });
+
+            if (!uploadError) {
+                const { data } = supabase.storage
+                    .from(bucket)
+                    .getPublicUrl(filePath);
+                return { url: data.publicUrl, error: null };
+            }
+
+            console.warn(`Failed to upload to ${bucket}:`, uploadError);
+            lastError = uploadError;
+        } catch (e) {
+            console.warn(`Exception uploading to ${bucket}:`, e);
+            lastError = e;
+        }
     }
 
-    const { data } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
-    return { url: data.publicUrl, error: null };
+    return { url: null, error: lastError || new Error('All thumbnail upload attempts failed') };
 }
 
 /**
