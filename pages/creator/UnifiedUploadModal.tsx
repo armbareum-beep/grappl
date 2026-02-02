@@ -370,6 +370,9 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 finalThumbnailUrl = 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...';
             }
 
+            // Determine effective creator ID for admin proxy upload
+            const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user?.id;
+
             // Determine instructor name for Vimeo folder organization
             let instructorName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown';
             if (isAdmin && selectedCreatorId) {
@@ -385,11 +388,12 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             const commonData = {
                 title: formData.title,
                 description: formData.description,
+                creatorId: effectiveCreatorId,
                 category: (contentType === 'sparring' ? formData.sparringType : formData.category) as any,
                 difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
                 uniformType: formData.uniformType,
                 durationMinutes,
-                thumbnailUrl: finalThumbnailUrl, // Update if new URL exists
+                thumbnailUrl: finalThumbnailUrl,
                 length: finalLength,
             };
 

@@ -1760,12 +1760,15 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     const dbData: any = {};
     if (lessonData.title) dbData.title = lessonData.title;
     if (lessonData.description) dbData.description = lessonData.description;
+    if (lessonData.creatorId) dbData.creator_id = lessonData.creatorId;
     if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
     if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType;
     if (lessonData.durationMinutes !== undefined) dbData.duration_minutes = lessonData.durationMinutes;
     if (lessonData.length) dbData.length = lessonData.length;
+    if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
+    if (lessonData.category) dbData.category = lessonData.category;
 
     const { data, error } = await supabase
         .from('lessons')
