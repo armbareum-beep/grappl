@@ -22,7 +22,7 @@ const formatDuration = (seconds) => {
 async function syncTable(tableName, vimeoCol = 'vimeo_url') {
     console.log(`\n--- Syncing ${tableName} ---`);
 
-    // Find records with 0:00 length or null length
+    // Find records with missing or zero length
     const { data: records, error } = await supabase
         .from(tableName)
         .select(`id, title, ${vimeoCol}, length`);
@@ -32,43 +32,69 @@ async function syncTable(tableName, vimeoCol = 'vimeo_url') {
         return;
     }
 
-    const toUpdate = records.filter(r => !r.length || r.length === '0:00' || r.length === '00:00');
+    const toUpdate = records.filter(r =>
+        !r.length ||
+        r.length === '0' ||
+        r.length === '0:00' ||
+        r.length === '00:00'
+    );
     console.log(`Found ${toUpdate.length} records needing update out of ${records.length} total.`);
 
     for (const record of toUpdate) {
-        const vimeoVal = record[vimeoCol];
+        let vimeoVal = record[vimeoCol];
         if (!vimeoVal) continue;
 
-        // Handle both "ID" and "ID:HASH" formats
-        const vimeoId = vimeoVal.split(':')[0].split('/').pop();
+        // Extract ID and Hash
+        let vimeoId, vimeoHash;
+        if (vimeoVal.includes(':')) {
+            [vimeoId, vimeoHash] = vimeoVal.split(':');
+        } else if (vimeoVal.includes('/')) {
+            vimeoId = vimeoVal.split('/').pop();
+        } else {
+            vimeoId = vimeoVal;
+        }
+
         if (!/^\d+$/.test(vimeoId)) {
-            console.log(`Skipping record ${record.id}: Invalid Vimeo ID "${vimeoId}"`);
+            console.log(`Skipping record "${record.title}": Invalid Vimeo ID "${vimeoId}"`);
             continue;
         }
 
         try {
-            console.log(`Fetching Vimeo info for ${record.title} (${vimeoId})...`);
-            const res = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
-                headers: {
-                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                }
-            });
+            console.log(`Processing "${record.title}" (${vimeoId})...`);
 
-            if (!res.ok) {
-                console.warn(`Failed to fetch Vimeo info for ${vimeoId}: ${res.status} ${res.statusText}`);
+            let seconds = 0;
+
+            // Method 1: Authenticated API
+            try {
+                const res = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    seconds = data.duration;
+                }
+            } catch (e) { }
+
+            // Method 2: oEmbed Fallback (useful if token scope is limited or video is from another account)
+            if (!seconds) {
+                const oembedUrl = `https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}${vimeoHash ? `/${vimeoHash}` : ''}`;
+                const res = await fetch(oembedUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    seconds = data.duration;
+                }
+            }
+
+            if (!seconds) {
+                console.warn(`  Could not find duration for ${vimeoId}`);
                 continue;
             }
 
-            const videoInfo = await res.json();
-            const seconds = videoInfo.duration || 0;
             const length = formatDuration(seconds);
             const duration_minutes = Math.floor(seconds / 60);
-
-            if (seconds === 0) {
-                console.warn(`Vimeo reported 0 duration for ${vimeoId}. Skipping DB update.`);
-                continue;
-            }
 
             const { error: updateError } = await supabase
                 .from(tableName)
@@ -79,12 +105,12 @@ async function syncTable(tableName, vimeoCol = 'vimeo_url') {
                 .eq('id', record.id);
 
             if (updateError) {
-                console.error(`Error updating ${tableName} record ${record.id}:`, updateError);
+                console.error(`  Error updating record:`, updateError);
             } else {
-                console.log(`✅ Updated ${record.title}: ${length}`);
+                console.log(`  ✅ Updated: ${length}`);
             }
         } catch (err) {
-            console.error(`❌ Exception syncing record ${record.id}:`, err.message);
+            console.error(`  ❌ Exception:`, err.message);
         }
     }
 }

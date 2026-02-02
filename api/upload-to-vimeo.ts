@@ -168,14 +168,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ? (thumbnailUrl || currentThumbnail)
                 : `https://vumbnail.com/${vimeoId}.jpg`;
 
-            const updateData: any = {
-                length: finalLength,
-                duration_minutes: Math.floor(durationSeconds / 60)
-            };
+            const updateData: any = {};
 
+            // 1. Durations (only if columns exist)
+            if (contentType === 'lesson') {
+                updateData.length = finalLength;
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+            } else if (contentType === 'drill') {
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                // drills currently doesn't have a 'length' column in schema
+            }
+
+            // 2. Content specific URLs and thumbnails
             if (contentType === 'sparring') {
                 updateData.video_url = vimeoUrlWithHash;
                 updateData.thumbnail_url = finalThumbnailUrl;
+                // sparring_videos currently doesn't have length/duration columns
             } else if (contentType === 'drill') {
                 const columnToUpdate = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
                 updateData[columnToUpdate] = vimeoUrlWithHash;

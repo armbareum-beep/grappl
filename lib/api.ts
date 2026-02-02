@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
+import { getVimeoVideoInfo } from './vimeo';
 
 
 // Revenue split constants
@@ -1746,20 +1747,35 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
 }
 
 export async function createLesson(lessonData: Partial<Lesson>) {
+    let finalThumbnailUrl = lessonData.thumbnailUrl;
+
+    // Auto-fetch thumbnail if missing
+    if (!finalThumbnailUrl && lessonData.vimeoUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo?.thumbnail) {
+                finalThumbnailUrl = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch lesson thumbnail:', err);
+        }
+    }
+
     const dbData = {
         course_id: lessonData.courseId,
+        creator_id: lessonData.creatorId, // Make sure creator_id is passed
         title: lessonData.title,
         description: lessonData.description,
         lesson_number: lessonData.lessonNumber,
         vimeo_url: lessonData.vimeoUrl,
+        thumbnail_url: finalThumbnailUrl,
         difficulty: lessonData.difficulty,
-        uniform_type: lessonData.uniformType, // Added
+        uniform_type: lessonData.uniformType,
     };
 
     const { data, error } = await supabase
         .from('lessons')
         .insert(dbData)
-
         .select()
         .single();
 
@@ -1783,6 +1799,18 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.length) dbData.length = lessonData.length;
     if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
     if (lessonData.category) dbData.category = lessonData.category;
+
+    // If vimeoUrl changed but no thumbnailUrl, try to update it
+    if (lessonData.vimeoUrl && !lessonData.thumbnailUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo?.thumbnail) {
+                dbData.thumbnail_url = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch updated lesson thumbnail:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('lessons')
@@ -5536,12 +5564,12 @@ export async function getDailyRoutine() {
 export async function getDailyFreeDrill() {
     try {
         // 1. Try to get featured drill for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'drill')
                 .maybeSingle(),
             3000
@@ -5586,8 +5614,12 @@ export async function getDailyFreeDrill() {
 
             if (!data || data.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 456) * 10000;
             const index = Math.floor((x - Math.floor(x)) * data.length);
             selectedDrill = data[index];
@@ -5646,12 +5678,12 @@ export async function getDailyFreeDrill() {
 export async function getDailyFreeLesson() {
     try {
         // 1. Try to get featured lesson for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'lesson')
                 .maybeSingle(),
             3000
@@ -5685,8 +5717,12 @@ export async function getDailyFreeLesson() {
             if (error) throw error;
             if (!lessons || lessons.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 789) * 10000;
             const index = Math.floor((x - Math.floor(x)) * lessons.length);
             selectedLesson = lessons[index];
@@ -5745,12 +5781,12 @@ export async function getDailyFreeLesson() {
 export async function getDailyFreeSparring() {
     try {
         // 1. Try to get featured sparring for today
-        const today = new Date().toISOString().split('T')[0];
+        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
         const { data: featured } = await withTimeout(
             supabase
                 .from('daily_featured_content')
                 .select('featured_id')
-                .eq('date', today)
+                .eq('date', kstDate)
                 .eq('featured_type', 'sparring')
                 .maybeSingle(),
             3000
@@ -5787,8 +5823,12 @@ export async function getDailyFreeSparring() {
             if (error) throw error;
             if (!data || data.length === 0) return { data: null, error: null };
 
-            const todayObj = new Date();
-            const seed = todayObj.getFullYear() * 10000 + (todayObj.getMonth() + 1) * 100 + todayObj.getDate();
+            const today = new Date();
+            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
+            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
+            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
+            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
+            const seed = year * 10000 + month * 100 + day;
             const x = Math.sin(seed + 123) * 10000;
             const index = Math.floor((x - Math.floor(x)) * data.length);
             selectedSparring = data[index];
