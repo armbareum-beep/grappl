@@ -28,6 +28,7 @@ export default defineConfig({
                 clientsClaim: true,
                 cleanupOutdatedCaches: true, // 로컬 캐시와 서버 버전 충돌 방지
                 maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+                navigateFallbackDenylist: [/^\/api/], // API 요청은 Service Worker가 가로채지 않음
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {

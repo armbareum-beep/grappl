@@ -61,18 +61,24 @@ export async function processAndUploadVideo(params: {
         if (onProgress) onProgress('upload', 35);
         console.log('[Process] Requesting upload link...');
 
-        const initResponse = await fetch('/api/upload-to-vimeo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'create_upload',
-                bucketName,
-                filePath,
-                fileSize: file.size, // 파일 크기 명시적 전달
-                title,
-                description
-            })
-        });
+        let initResponse: Response;
+        try {
+            initResponse = await fetch('/api/upload-to-vimeo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'create_upload',
+                    bucketName,
+                    filePath,
+                    fileSize: file.size, // 파일 크기 명시적 전달
+                    title,
+                    description
+                })
+            });
+        } catch (fetchError: any) {
+            console.error('[Process] create_upload fetch 실패:', fetchError);
+            throw new Error(`Vimeo 업로드 링크 요청 실패 (네트워크 오류). Service Worker 캐시를 초기화하거나 시크릿 모드에서 시도해주세요. 원인: ${fetchError.message}`);
+        }
 
         const initText = await initResponse.text();
         let initResult;
@@ -112,18 +118,24 @@ export async function processAndUploadVideo(params: {
         // 4. 서버에 완료 알림 및 DB 업데이트 요청 (complete_upload)
         console.log('[Process] Finalizing upload...');
 
-        const completeResponse = await fetch('/api/upload-to-vimeo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'complete_upload',
-                vimeoId,
-                contentId,
-                contentType,
-                videoType,
-                thumbnailUrl
-            })
-        });
+        let completeResponse: Response;
+        try {
+            completeResponse = await fetch('/api/upload-to-vimeo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'complete_upload',
+                    vimeoId,
+                    contentId,
+                    contentType,
+                    videoType,
+                    thumbnailUrl
+                })
+            });
+        } catch (fetchError: any) {
+            console.error('[Process] complete_upload fetch 실패:', fetchError);
+            throw new Error(`DB 업데이트 요청 실패 (네트워크 오류). 원인: ${fetchError.message}`);
+        }
 
         const completeText = await completeResponse.text();
         let completeResult;
