@@ -1729,6 +1729,19 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
         .single();
 
     if (error) return { error };
+
+    // Sync creator_id to all lessons for this course if changed
+    if (courseData.creatorId) {
+        const { error: lessonsError } = await supabase
+            .from('lessons')
+            .update({ creator_id: courseData.creatorId })
+            .eq('course_id', courseId);
+
+        if (lessonsError) {
+            console.error('Error syncing lesson creator IDs:', lessonsError);
+        }
+    }
+
     return { data: transformCourse(data), error: null };
 }
 
