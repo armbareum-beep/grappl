@@ -4,11 +4,11 @@ import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, Play
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import {
-    getCourseDrillBundles, getCourseSparringVideos
+    getCourseDrillBundles, getCourseSparringVideos, getCreators
 } from '../../lib/api';
 import {
     Course, Lesson, Drill, SparringVideo, DrillRoutine,
-    VideoCategory, Difficulty, UniformType
+    VideoCategory, Difficulty, UniformType, Creator
 } from '../../types';
 import { ImageUploader } from '../ImageUploader';
 import { VideoEditor } from '../VideoEditor';
@@ -90,7 +90,18 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         published: true,
         isSubscriptionExcluded: false,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
+        creatorId: '',
     });
+
+    const [creators, setCreators] = useState<Creator[]>([]);
+
+    useEffect(() => {
+        const loadCreators = async () => {
+            const creatorsList = await getCreators();
+            setCreators(creatorsList);
+        };
+        loadCreators();
+    }, []);
 
     // Selection State
     const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
@@ -138,6 +149,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 published: (editingItem as any).published ?? true,
                 isSubscriptionExcluded: (editingItem as any).isSubscriptionExcluded || false,
                 sparringType: (editingItem as any).category === 'Competition' ? 'Competition' : 'Sparring',
+                creatorId: (editingItem as any).creatorId || '',
             });
 
             // Load selected items based on content type
@@ -196,6 +208,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 published: true,
                 isSubscriptionExcluded: false,
                 sparringType: 'Sparring',
+                creatorId: '',
             });
             setSelectedLessonIds([]);
             setSelectedDrillIds([]);
@@ -429,6 +442,24 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                     </div>
                                 </div>
                             )}
+
+                            {/* Instructor Selection - Shown for all content types as requested */}
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2">인스트럭터 (Instructor)</label>
+                                <select
+                                    name="creatorId"
+                                    value={formData.creatorId}
+                                    onChange={handleChange}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                >
+                                    <option value="">인스트럭터 선택...</option>
+                                    {creators.map(creator => (
+                                        <option key={creator.id} value={creator.id}>
+                                            {creator.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
                             {/* Title */}
                             <div>

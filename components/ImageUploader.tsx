@@ -21,6 +21,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Sync preview with prop changes
+    React.useEffect(() => {
+        if (currentImageUrl) {
+            setPreviewUrl(currentImageUrl);
+            setIsValid(true);
+        }
+    }, [currentImageUrl]);
+
     const handleFileSelect = async (file: File) => {
         if (!file.type.startsWith('image/')) {
             alert('이미지 파일만 업로드 가능합니다.');
