@@ -293,7 +293,7 @@ export async function getCreators(): Promise<Creator[]> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*, user:users(avatar_url)')
+                .select('*')
                 .eq('approved', true)
                 .order('subscriber_count', { ascending: false }),
             5000 // 5s timeout
@@ -316,7 +316,7 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         const { data, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*, user:users(avatar_url)')
+                .select('*')
                 .eq('id', id)
                 .maybeSingle(),
             5000

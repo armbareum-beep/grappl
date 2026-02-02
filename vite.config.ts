@@ -26,6 +26,7 @@ export default defineConfig({
             workbox: {
                 skipWaiting: true,
                 clientsClaim: true,
+                cleanupOutdatedCaches: true, // 로컬 캐시와 서버 버전 충돌 방지
                 maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
