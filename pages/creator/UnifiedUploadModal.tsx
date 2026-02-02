@@ -16,7 +16,7 @@ import {
 } from '../../lib/api';
 import { ImageUploader } from '../../components/ImageUploader';
 import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
-import { formatDuration } from '../../lib/vimeo';
+import { formatDuration, extractVimeoId } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Scissors, Trash2, Loader } from 'lucide-react';
 import { VideoEditor } from '../../components/VideoEditor';
@@ -323,16 +323,16 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
         // Strict validation for drills - both videos required
         if (contentType === 'drill') {
-            const isMainVideoValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts);
-            const isDescVideoValid = descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId || (!!descVideo.file && !!descVideo.cuts);
+            const isMainVideoValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.vimeoUrl || !!mainVideo.videoId || (!!mainVideo.file && !!mainVideo.cuts);
+            const isDescVideoValid = descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.vimeoUrl || !!descVideo.videoId || (!!descVideo.file && !!descVideo.cuts);
 
             if (!isMainVideoValid) {
-                toastError('동작 영상을 업로드하고 편집 구간을 선택해주세요.');
+                toastError('동작 영상을 업로드하거나 URL을 입력해주세요.');
                 setActiveTab('main');
                 return;
             }
             if (!isDescVideoValid) {
-                toastError('설명 영상을 업로드하고 편집 구간을 선택해주세요.');
+                toastError('설명 영상을 업로드하거나 URL을 입력해주세요.');
                 setActiveTab('desc');
                 return;
             }
@@ -395,6 +395,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 durationMinutes,
                 thumbnailUrl: finalThumbnailUrl,
                 length: finalLength,
+                vimeoUrl: mainVideo.vimeoUrl || undefined,
+                descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
             };
 
             // Update Metadata
@@ -474,14 +476,32 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     // Render Video Box Helper
     const renderVideoBox = (type: 'main' | 'desc', state: ProcessingState, label: string) => {
         const isMain = type === 'main';
-        // const isDesc = type === 'desc';
-        // const setter = isMain ? setMainVideo : (isDesc ? setDescVideo : setPreviewVideo);
         const setter = isMain ? setMainVideo : setDescVideo;
 
-        if (state.status === 'idle' || state.status === 'error') {
-            return (
-                <div className="h-full flex flex-col">
-                    <div className="border-2 border-dashed border-zinc-800 rounded-xl p-6 text-center hover:border-violet-500 hover:bg-zinc-800/50 transition-all cursor-pointer relative flex-1 flex flex-col items-center justify-center group min-h-[250px]">
+        return (
+            <div className="flex flex-col gap-4 h-full">
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-zinc-400">Vimeo URL/ID (선택)</label>
+                    <input
+                        type="text"
+                        value={state.vimeoUrl || ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            const id = extractVimeoId(val) || val;
+                            setter(prev => ({
+                                ...prev,
+                                vimeoUrl: val ? id : null, // ID가 있으면 ID 저장, 없으면 null (빈 문자열 처리)
+                                status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                previewUrl: val ? `https://player.vimeo.com/video/${id}` : (prev.file ? prev.previewUrl : null)
+                            }));
+                        }}
+                        placeholder="Vimeo URL 또는 ID를 입력하세요 (파일 업로드 대신 사용 가능)"
+                        className="w-full px-4 py-2 bg-zinc-950 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50"
+                    />
+                </div>
+
+                {(state.status === 'idle' || state.status === 'error') && !state.vimeoUrl ? (
+                    <div className="flex-1 min-h-[250px] border-2 border-dashed border-zinc-800 rounded-xl p-6 text-center hover:border-violet-500 hover:bg-zinc-800/50 transition-all cursor-pointer relative flex flex-col items-center justify-center group">
                         <input
                             type="file"
                             accept="video/*"
@@ -494,42 +514,61 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         <p className="font-bold text-white text-lg mb-2">{label} 업로드</p>
                         <p className="text-sm text-zinc-500">탭하여 동영상 선택</p>
                     </div>
-                </div>
-            );
-        }
+                ) : (
+                    <div className="flex-1 min-h-[250px] border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden relative group flex flex-col">
+                        {state.previewUrl ? (
+                            state.previewUrl.includes('vimeo') ? (
+                                <iframe
+                                    src={state.previewUrl}
+                                    className="w-full h-full flex-grow"
+                                    frameBorder="0"
+                                    allow="autoplay; fullscreen; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <div className="absolute inset-0 bg-black">
+                                    <video src={state.previewUrl} className="w-full h-full object-cover opacity-60" autoPlay muted loop playsInline />
+                                </div>
+                            )
+                        ) : null}
 
-        return (
-            <div className="h-full flex flex-col">
-                <div className="border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[250px] relative group">
-                    {state.previewUrl && (
-                        <div className="absolute inset-0 bg-black">
-                            <video src={state.previewUrl} className="w-full h-full object-cover opacity-60" autoPlay muted loop playsInline />
-                        </div>
-                    )}
-                    <div className="relative z-10 p-4 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start">
-                            <div className="bg-black/60 backdrop-blur rounded px-2 py-1">
-                                <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name || 'Uploaded Video'}</p>
+                        {!state.vimeoUrl && (
+                            <div className="relative z-10 p-4 flex flex-col h-full justify-between pointer-events-none">
+                                <div className="flex justify-between items-start pointer-events-auto">
+                                    <div className="bg-black/60 backdrop-blur rounded px-2 py-1">
+                                        <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name || 'Uploaded Video'}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {state.file && (
+                                            <button
+                                                onClick={() => setActiveEditor(type)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10"
+                                            >
+                                                <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => setter(initialProcessingState)}
+                                            className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                {state.file && (
-                                    <button
-                                        onClick={() => setActiveEditor(type)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10"
-                                    >
-                                        <Scissors className="w-3.5 h-3.5 text-violet-400" /> 편집하기
-                                    </button>
-                                )}
+                        )}
+                        {state.vimeoUrl && (
+                            <div className="absolute top-4 right-4 z-10 pointer-events-auto">
                                 <button
-                                    onClick={() => setter(initialProcessingState)}
+                                    onClick={() => setter(prev => ({ ...prev, vimeoUrl: null, previewUrl: null, status: 'idle' }))}
                                     className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
-                        </div>
+                        )}
                     </div>
-                </div>
+                )}
             </div>
         );
     };
