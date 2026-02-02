@@ -1537,120 +1537,111 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
     return { error };
 }
 
-// Enhanced Recent Activity (Lessons + Routines + Sparring)
+// Enhanced Recent Activity (Lessons Only)
 export async function getRecentActivity(userId: string) {
-    const [lessonRes, routineLogRes, sparringRes, drillRes] = await Promise.all([
-        // 1. Lessons Progress
-        withTimeout(supabase
-            .from('lesson_progress')
-            .select(`
-                *,
-                lesson:lessons (
-                    id, title, lesson_number,
-                    course:courses ( id, title, thumbnail_url, category )
+    // 1. Lessons Progress Only
+    const { data: lessonData, error: lessonError } = await supabase
+        .from('lesson_progress')
+        .select(`
+            *,
+            lesson:lessons (
+                id, title, lesson_number, duration_minutes, thumbnail_url,
+                course:courses (
+                    id, title, thumbnail_url, category,
+                    creator:creators ( id, name, profile_image )
                 )
-            `)
-            .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 5000),
+            )
+        `)
+        .eq('user_id', userId)
+        .order('last_watched_at', { ascending: false })
+        .limit(10);
 
-        // 2. Completed Routines (Using training_logs as history)
-        withTimeout(supabase
-            .from('training_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .not('metadata->>routineId', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(5), 2000),
+    if (lessonError) {
+        console.error("Error fetching recent activity:", lessonError);
+    }
 
-        // 3. Sparring View History
-        withTimeout(supabase
-            .from('user_sparring_views')
-            .select(`
-                last_watched_at,
-                sparring_videos (
-                    id, title, thumbnail_url, video_url,
-                    creator:creators ( name )
-                )
-            `)
-            .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 2000),
+    const lessonItems = (lessonData || []).map((item: any) => {
+        const l = item.lesson;
+        // Skip if lesson data is missing
+        if (!l) return null;
 
-        // 4. Drill View History
-        withTimeout(supabase
-            .from('user_drill_views')
-            .select(`
-                 last_watched_at,
-                 drills (
-                     id, title, thumbnail_url
-                 )
-             `)
-            .eq('user_id', userId)
-            .order('last_watched_at', { ascending: false })
-            .limit(5), 2000)
-    ]);
+        const watchedSec = item.watched_seconds || 0;
+        const durationMin = l.duration_minutes || 0;
+        const totalSec = durationMin * 60;
 
-    const lessons = (lessonRes.data || []).map((item: any) => {
-        const l = item.lesson || item.lessons;
+        let progress = 0;
+        if (item.completed) {
+            progress = 100;
+        } else if (totalSec > 0 && watchedSec > 0) {
+            progress = Math.min(Math.round((watchedSec / totalSec) * 100), 99);
+        }
+
         return {
-            id: l?.id,
-            courseId: l?.course?.id,
+            id: l.id,
+            courseId: l.course?.id,
+            creatorId: l.course?.creator?.id,
             type: 'lesson',
-            title: l?.title,
-            courseTitle: l?.course?.title || l?.title,
-            progress: item.completed ? 100 : 50,
-            watchedSeconds: item.watched_seconds || 0,
-            thumbnail: l?.course?.thumbnail_url || l?.thumbnail_url,
+            title: l.title,
+            courseTitle: l.course?.title || l.title,
+            progress,
+            watchedSeconds: watchedSec,
+            thumbnail: l.thumbnail_url || l.course?.thumbnail_url,
             lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-            lessonNumber: l?.lesson_number
+            lessonNumber: l.lesson_number,
+            durationMinutes: durationMin,
+            creatorName: l.course?.creator?.name,
+            creatorProfileImage: l.course?.creator?.profile_image
         };
-    }).filter(item => item.id && item.id !== 'undefined' && item.courseId && item.courseId !== 'undefined');
+    }).filter((item: any) => item && item.id && item.courseId);
 
-    const routines = (routineLogRes.data || []).map((log: any) => {
-        const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : (log.metadata || {});
-        return {
-            id: metadata.routineId,
-            type: 'routine',
-            title: metadata.routineTitle || 'Drill Routine',
-            courseTitle: '훈련 기록',
-            progress: 100,
-            thumbnail: metadata.sharedRoutine?.thumbnailUrl || 'https://images.unsplash.com/photo-1599058917233-57c0e620c40e?auto=format&fit=crop&q=80',
-            lastWatched: new Date(log.created_at).toISOString(),
-        };
-    }).filter(item => item.id && item.id !== 'undefined');
+    // 2. Sparring (via video_watch_logs)
+    let sparringItems: any[] = [];
+    try {
+        const { data: videoLogs } = await supabase
+            .from('video_watch_logs')
+            .select('video_id, watch_seconds, last_watched_at')
+            .eq('user_id', userId)
+            .not('video_id', 'is', null)
+            .order('last_watched_at', { ascending: false })
+            .limit(10);
 
-    const sparring = (sparringRes.data || []).map((item: any) => ({
-        id: item.sparring_videos?.id,
-        type: 'sparring',
-        title: item.sparring_videos?.title,
-        courseTitle: item.sparring_videos?.creator?.name || '스파링',
-        progress: 0,
-        thumbnail: item.sparring_videos?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    })).filter(item => item.id && item.id !== 'undefined');
+        if (videoLogs && videoLogs.length > 0) {
+            const videoIds = videoLogs.map((l: any) => l.video_id);
+            // Try to find if these videos are spars
+            const { data: sparrings } = await supabase
+                .from('sparring_videos')
+                .select(`
+                    id, title, thumbnail_url,
+                    creator:creators ( name )
+                `)
+                .in('id', videoIds);
 
-    const drills = (drillRes.data || []).map((item: any) => ({
-        id: item.drills?.id,
-        type: 'drill',
-        title: item.drills?.title,
-        courseTitle: '드릴 연습',
-        progress: 0,
-        thumbnail: item.drills?.thumbnail_url,
-        lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
-    })).filter(item => item.id && item.id !== 'undefined');
+            if (sparrings && sparrings.length > 0) {
+                sparringItems = sparrings.map(s => {
+                    const log = videoLogs.find((l: any) => l.video_id === s.id);
+                    return {
+                        id: s.id,
+                        type: 'sparring',
+                        title: s.title,
+                        thumbnail: s.thumbnail_url,
+                        progress: 0,
+                        watchedSeconds: log?.watch_seconds || 0,
+                        lastWatched: new Date(log?.last_watched_at || new Date()).toISOString(),
+                        creatorName: s.creator?.name
+                    };
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error fetching sparring activity:", err);
+    }
 
     // Merge and Sort
-    const allActivity = [...lessons, ...routines, ...sparring, ...drills]
-        .filter(item => item.id) // Ensure we have unique ID
-        .sort((a, b) => {
-            const dateA = new Date(a.lastWatched).getTime();
-            const dateB = new Date(b.lastWatched).getTime();
-            return dateB - dateA;
-        })
-        .slice(0, 10);
+    const allItems = [...lessonItems, ...sparringItems].sort((a: any, b: any) =>
+        new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime()
+    ).slice(0, 10);
 
-    return allActivity;
+    return allItems;
 }
 
 // Creator Dashboard API
@@ -1769,10 +1760,15 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     const dbData: any = {};
     if (lessonData.title) dbData.title = lessonData.title;
     if (lessonData.description) dbData.description = lessonData.description;
+    if (lessonData.creatorId) dbData.creator_id = lessonData.creatorId;
     if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
     if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
-    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType; // Added
+    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType;
+    if (lessonData.durationMinutes !== undefined) dbData.duration_minutes = lessonData.durationMinutes;
+    if (lessonData.length) dbData.length = lessonData.length;
+    if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
+    if (lessonData.category) dbData.category = lessonData.category;
 
     const { data, error } = await supabase
         .from('lessons')
@@ -5144,6 +5140,8 @@ export function transformSparringVideo(data: any): SparringVideo {
         description: data.description || '',
         videoUrl: data.video_url || '',
         thumbnailUrl: thumb,
+        length: data.length || '',
+        durationMinutes: data.duration_minutes || 0,
         relatedItems: data.related_items || [],
         views: data.views || 0,
         likes: data.likes || 0,
@@ -5345,6 +5343,8 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
+    if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
+    if (updates.length) dbData.length = updates.length;
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -8559,3 +8559,88 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
         updatedAt: data.updated_at
     };
 }
+
+// --- Vimeo Actions ---
+
+export async function getVimeoThumbnails(vimeoId: string): Promise<{ thumbnails?: { id: string; url: string; active: boolean }[], error?: string }> {
+    try {
+        const response = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get_vimeo_thumbnails',
+                vimeoId
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            return { error: data.error || 'Failed to fetch Vimeo thumbnails' };
+        }
+
+        const data = await response.json();
+        return { thumbnails: data.thumbnails };
+    } catch (error: any) {
+        console.error('Error fetching Vimeo thumbnails:', error);
+        return { error: error.message };
+    }
+}
+
+// ==================== LESSON HISTORY ====================
+
+/**
+ * Get lesson watch history for a user
+ */
+export async function getLessonHistory(userId: string) {
+    try {
+        const { data, error } = await supabase
+            .from('lesson_progress')
+            .select(`
+                *,
+                lesson:lessons(
+                    id,
+                    title,
+                    thumbnail_url,
+                    duration_minutes,
+                    lesson_number,
+                    course_id,
+                    course:courses(
+                        id,
+                        title,
+                        creator:creators(
+                            name,
+                            profile_image
+                        )
+                    )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error('Error fetching lesson history:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.lesson?.id || '',
+            courseId: item.lesson?.course_id || '',
+            type: 'lesson',
+            title: item.lesson?.title || 'Unknown Lesson',
+            courseTitle: item.lesson?.course?.title || 'Unknown Course',
+            creatorName: item.lesson?.course?.creator?.name || 'Unknown',
+            creatorProfileImage: item.lesson?.course?.creator?.profile_image || '',
+            progress: item.progress || 0,
+            watchedSeconds: item.watched_seconds || 0,
+            thumbnail: item.lesson?.thumbnail_url || '',
+            lastWatched: item.last_watched_at || new Date().toISOString(),
+            lessonNumber: item.lesson?.lesson_number || 0,
+            durationMinutes: item.lesson?.duration_minutes || 0
+        }));
+    } catch (error) {
+        console.error('Error in getLessonHistory:', error);
+        return [];
+    }
+}
+
