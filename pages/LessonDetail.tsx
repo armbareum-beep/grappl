@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime, updateLastWatched } from '../lib/api';
+import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime, updateLastWatched, incrementLessonViews } from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
@@ -181,6 +181,18 @@ export const LessonDetail: React.FC = () => {
         }
         fetchData();
     }, [id, user, isSubscribed, isAdmin]);
+
+    // Increment view count after 5 seconds of watching (only for authorized users)
+    useEffect(() => {
+        if (!lesson || !owns || !id) return;
+
+        const timer = setTimeout(() => {
+            incrementLessonViews(id).catch(console.error);
+        }, 5000); // 5 seconds
+
+        return () => clearTimeout(timer);
+    }, [lesson?.id, owns, id]);
+
 
     // Record initial view for history (Recent Activity)
     useEffect(() => {

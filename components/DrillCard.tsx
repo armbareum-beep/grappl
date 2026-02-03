@@ -53,8 +53,9 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
         <div className={cn("flex flex-col h-full", className)}>
             <Link
                 to={`/routines/${drill.id}`}
-                className="group block relative overflow-hidden rounded-lg bg-slate-900 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30 grow"
-                style={{ aspectRatio: '2/3' }}
+                className={cn(
+                    "group block relative overflow-hidden rounded-lg bg-slate-900 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30 grow aspect-[9/16]"
+                )}
             >
                 {/* Thumbnail */}
                 <div className="absolute inset-0">

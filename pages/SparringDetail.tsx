@@ -63,6 +63,19 @@ export const SparringDetail: React.FC = () => {
         }
     }, [id, authLoading]);
 
+    // Increment view count after 5 seconds of watching (only for authorized users)
+    useEffect(() => {
+        if (!video || !owns || !id) return;
+
+        const timer = setTimeout(async () => {
+            const { incrementSparringView } = await import('../lib/api');
+            incrementSparringView(id).catch(console.error);
+        }, 5000); // 5 seconds
+
+        return () => clearTimeout(timer);
+    }, [video?.id, owns, id]);
+
+
     const fetchVideo = async () => {
         if (!id) return;
         try {
@@ -125,7 +138,7 @@ export const SparringDetail: React.FC = () => {
                 });
             }
 
-            // Record history and increment view count
+            // Record history for logged-in users
             if (contextUser) {
                 recordSparringView(contextUser.id, id).catch(console.error);
             }

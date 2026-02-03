@@ -66,9 +66,9 @@ export const ThumbnailCropper: React.FC<ThumbnailCropperProps> = ({ imageSrc, on
                     resolve(null);
                     return;
                 }
-                const base64 = canvas.toDataURL('image/jpeg', 0.9);
+                const base64 = canvas.toDataURL('image/jpeg', 1.0);
                 resolve({ blob, base64 });
-            }, 'image/jpeg', 0.9);
+            }, 'image/jpeg', 1.0);
         });
     };
 

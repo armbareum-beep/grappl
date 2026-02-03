@@ -1016,6 +1016,18 @@ export async function recordSparringView(userId: string, videoId: string) {
     }
 }
 
+// Increment Lesson Views
+export async function incrementLessonViews(lessonId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_lesson_views', {
+        lesson_id: lessonId,
+    });
+
+    if (error) {
+        console.error('Error incrementing lesson views:', error);
+    }
+}
+
+
 // Record Routine View History
 export async function recordRoutineView(userId: string, routineId: string) {
     // 1. Increment global view count

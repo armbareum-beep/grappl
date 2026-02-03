@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
-import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView, incrementDrillViews } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -110,6 +110,18 @@ export const DrillDetail: React.FC = () => {
         }
     }, [id, authLoading]);
 
+    // Increment view count after 5 seconds of watching (only for authorized users)
+    useEffect(() => {
+        if (!drill || !owns || !id) return;
+
+        const timer = setTimeout(() => {
+            incrementDrillViews(id).catch(console.error);
+        }, 5000); // 5 seconds
+
+        return () => clearTimeout(timer);
+    }, [drill?.id, owns, id]);
+
+
     // Auto-poll if processing (every 5 seconds)
     // Recursive polling to prevent request pile-up
     useEffect(() => {
@@ -205,10 +217,7 @@ export const DrillDetail: React.FC = () => {
                 if (isFromLocalStorage) {
                     setOwns(true);
                 } else {
-                    // Only increment views if from database
-                    // await incrementDrillViews(id); // Temporarily disabled to prevent DB locks during high load
-
-                    // Check ownership for database drills
+                    // Check ownership for database drills (view count will be incremented after 5s of watching)
 
 
                     if (contextUser && drillData.creatorId === contextUser.id) {

@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const finalThumbnailUrl = (thumbnailUrl || !isDefaultThumbnail)
                 ? (thumbnailUrl || currentThumbnail)
-                : `https://vumbnail.com/${vimeoId}.jpg`;
+                : `https://vumbnail.com/${vimeoId}.jpg`; // vumbnail is already high-res by default
 
             const updateData: any = {};
 
@@ -287,11 +287,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
 
-            const thumbnails = (data.data || []).map((pic: any) => ({
-                id: pic.resource_key,
-                url: pic.sizes.find((s: any) => s.width >= 640)?.link || pic.sizes[0]?.link,
-                active: pic.active
-            }));
+            const thumbnails = (data.data || []).map((pic: any) => {
+                // Select the largest available size
+                const sizes = [...(pic.sizes || [])].sort((a, b) => b.width - a.width);
+                return {
+                    id: pic.resource_key,
+                    url: sizes[0]?.link || pic.link,
+                    active: pic.active
+                };
+            });
 
             return res.status(200).json({ thumbnails });
         }

@@ -12,7 +12,7 @@ DECLARE
   v_random_index integer;
   v_fallback_lesson_id uuid;
 BEGIN
-  v_today_date := CURRENT_DATE;
+  v_today_date := (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date;
 
   -- 1. Check daily_featured_content (Manual Override)
   SELECT l.id INTO v_featured_lesson_id

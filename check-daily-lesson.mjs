@@ -9,14 +9,19 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function checkDailyFreeLesson() {
     console.log('🔍 Checking daily free lesson...\n');
 
-    const today = new Date().toISOString().split('T')[0];
-    console.log(`Today: ${today}\n`);
+    // Use KST date
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    console.log(`Today (KST): ${dateString}\n`);
 
     // Check featured content
     const { data: featured } = await supabase
         .from('daily_featured_content')
         .select('*')
-        .eq('date', today)
+        .eq('date', dateString)
         .eq('featured_type', 'course');
 
     console.log('Featured content for today:', featured);

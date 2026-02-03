@@ -200,7 +200,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Left Section: Desktop Logo OR Mobile Search */}
               <div className="flex items-center">
                 {/* Desktop Logo */}
-                <Link to="/" className="hidden md:flex items-center group transition-transform hover:scale-105">
+                <Link to={user ? "/home" : "/"} className="hidden md:flex items-center group transition-transform hover:scale-105">
                   <span className="text-2xl font-black text-white tracking-tighter transition-colors group-hover:text-violet-400">
                     Grapplay
                   </span>
@@ -219,7 +219,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
               {/* Center Section: Mobile Logo */}
               <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Link to="/" className="flex items-center pointer-events-auto">
+                <Link to={user ? "/home" : "/"} className="flex items-center pointer-events-auto">
                   <span className="text-xl font-black text-white tracking-tighter">
                     Grapplay
                   </span>
