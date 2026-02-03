@@ -168,7 +168,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
                     {/* Badge — top-left, single: FREE > HOT > NEW */}
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
-                        {(isDailyFree || (course as any).isDailyFree) ? (
+                        {(isDailyFree || (course as any).isDailyFree || course.price === 0) ? (
                             <ContentBadge type="daily_free" />
                         ) : (rank || (course as any).rank) ? (
                             <ContentBadge type="popular" rank={rank || (course as any).rank} />

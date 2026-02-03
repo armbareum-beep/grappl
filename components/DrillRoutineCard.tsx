@@ -147,7 +147,9 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
 
                     {/* Badge — top-left, single: FREE > HOT > NEW */}
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
-                        {rank ? (
+                        {(routine.isDailyFree || routine.price === 0) ? (
+                            <ContentBadge type="daily_free" />
+                        ) : rank ? (
                             <ContentBadge type="popular" rank={rank} />
                         ) : (routine.createdAt && new Date(routine.createdAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000)) ? (
                             <ContentBadge type="recent" />

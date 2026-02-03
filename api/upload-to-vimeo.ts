@@ -112,32 +112,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Fetch video info from Vimeo to get the embed hash and duration
             let vimeoUrlWithHash = vimeoId;
             let durationSeconds = 0;
-            try {
-                const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                    }
-                });
-                if (videoInfoRes.ok) {
-                    const videoInfo = await videoInfoRes.json();
 
-                    // 1. Extract duration
-                    durationSeconds = videoInfo.duration || 0;
-                    console.log('[Vercel] Found duration:', durationSeconds);
+            // Retry logic: Vimeo processing might take a few seconds to report duration
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                            'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                        }
+                    });
 
-                    // 2. Extract hash from player_embed_url (e.g., "https://player.vimeo.com/video/123456?h=abc123")
-                    const embedUrl = videoInfo.player_embed_url;
-                    if (embedUrl) {
-                        const hashMatch = embedUrl.match(/[?&]h=([a-z0-9]+)/i);
-                        if (hashMatch) {
-                            vimeoUrlWithHash = `${vimeoId}:${hashMatch[1]}`;
-                            console.log('[Vercel] Found hash, storing:', vimeoUrlWithHash);
+                    if (videoInfoRes.ok) {
+                        const videoInfo = await videoInfoRes.json();
+                        durationSeconds = videoInfo.duration || 0;
+
+                        // Extract hash from player_embed_url
+                        const embedUrl = videoInfo.player_embed_url;
+                        if (embedUrl) {
+                            const hashMatch = embedUrl.match(/[?&]h=([a-z0-9]+)/i);
+                            if (hashMatch) {
+                                vimeoUrlWithHash = `${vimeoId}:${hashMatch[1]}`;
+                            }
+                        }
+
+                        // If we got a valid duration (or it's the last attempt), break
+                        if (durationSeconds > 0 || attempt === 3) {
+                            console.log(`[Vercel] Attempt ${attempt}: Found duration: ${durationSeconds}`);
+                            break;
                         }
                     }
+                } catch (err) {
+                    console.warn(`[Vercel] Attempt ${attempt} failed to fetch video metadata:`, err);
                 }
-            } catch (err) {
-                console.warn('[Vercel] Could not fetch video metadata:', err);
+
+                if (attempt < 3) {
+                    console.log(`[Vercel] Duration is 0, retrying in 3s (Attempt ${attempt}/3)...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                }
             }
 
             // Helper to format duration
