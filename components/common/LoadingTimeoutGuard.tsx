@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ConfirmModal } from './ConfirmModal';
+import { hardReload } from '../../lib/utils';
 
 interface LoadingTimeoutGuardProps {
     loading: boolean;
@@ -8,7 +9,7 @@ interface LoadingTimeoutGuardProps {
 
 export const LoadingTimeoutGuard: React.FC<LoadingTimeoutGuardProps> = ({
     loading,
-    timeoutMs = 3000
+    timeoutMs = 5000
 }) => {
     const [showModal, setShowModal] = useState(false);
 
@@ -28,13 +29,8 @@ export const LoadingTimeoutGuard: React.FC<LoadingTimeoutGuardProps> = ({
         };
     }, [loading, timeoutMs]);
 
-    const handleClearCache = () => {
-        // Clear all local storage except Supabase auth tokens (optional, but safe to clear all for hard reset)
-        localStorage.clear();
-        sessionStorage.clear();
-
-        // Hard reload
-        window.location.reload();
+    const handleClearCache = async () => {
+        await hardReload();
     };
 
     return (

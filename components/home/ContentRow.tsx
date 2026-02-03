@@ -275,7 +275,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const getCardStyle = () => {
         if (type === 'course' || type === 'lesson') return 'w-[280px] md:w-[320px] aspect-video mr-0';
         if (type === 'routine') return 'w-[160px] md:w-[170px] aspect-[2/3] mr-0';
-        if (type === 'sparring' || type === 'chain') return 'w-[160px] md:w-[170px] aspect-square mr-0';
+        if (type === 'sparring' || type === 'chain') return 'w-[158px] md:w-[180px] aspect-square mr-0';
         return 'w-[260px] md:w-[320px] aspect-video';
     };
 

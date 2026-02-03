@@ -51,12 +51,21 @@ export function extractVimeoId(input: string): string | null {
  */
 export async function getVimeoVideoInfo(videoIdOrUrl: string): Promise<VimeoVideoInfo | null> {
     try {
-        const videoId = extractVimeoId(videoIdOrUrl);
-        if (!videoId) {
-            throw new Error('Invalid Vimeo URL or ID');
+        let vimeoUrl = '';
+
+        // If it's a full URL, use it directly (important for unlisted videos with hashes)
+        if (videoIdOrUrl.includes('vimeo.com')) {
+            // Ensure it has protocol
+            vimeoUrl = videoIdOrUrl.startsWith('http') ? videoIdOrUrl : `https://${videoIdOrUrl}`;
+        } else {
+            // If it's just an ID, construct the standard public URL
+            const videoId = extractVimeoId(videoIdOrUrl);
+            if (!videoId) {
+                throw new Error('Invalid Vimeo URL or ID');
+            }
+            vimeoUrl = `https://vimeo.com/${videoId}`;
         }
 
-        const vimeoUrl = `https://vimeo.com/${videoId}`;
         const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(vimeoUrl)}`;
 
         const response = await fetch(oembedUrl);

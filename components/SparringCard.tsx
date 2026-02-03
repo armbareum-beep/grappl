@@ -189,7 +189,11 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                     </button>
                 )}
 
-                {rank ? (
+                {(video.isDailyFree || video.price === 0) ? (
+                    <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
+                        <ContentBadge type="daily_free" />
+                    </div>
+                ) : rank ? (
                     <ContentBadge type="popular" rank={rank} className="absolute bottom-2 right-2 pointer-events-none" />
                 ) : isRecent(video.createdAt) ? (
                     <ContentBadge type="recent" className="absolute bottom-2 right-2 pointer-events-none" />

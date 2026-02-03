@@ -131,9 +131,17 @@ export const CreatorDashboard: React.FC = () => {
 
 
 
-                // Refresh courses
-                const coursesData = await getCreatorCourses(user.id);
-                setCourses(coursesData || []);
+                // Refresh courses with timeout to prevent hanging the UI
+                try {
+                    console.log('Refreshing courses after save...');
+                    const coursesData = await Promise.race([
+                        getCreatorCourses(user.id),
+                        new Promise<Course[]>((_, reject) => setTimeout(() => reject(new Error('Course refresh timed out')), 5000))
+                    ]);
+                    setCourses(coursesData || []);
+                } catch (refreshErr) {
+                    console.warn('Post-save course refresh failed or timed out:', refreshErr);
+                }
             } else if (contentModalType === 'routine') {
                 if (editingContent) {
                     await updateRoutine(editingContent.id, {
@@ -165,9 +173,17 @@ export const CreatorDashboard: React.FC = () => {
                     }, data.selectedDrillIds);
                     success('루틴이 생성되었습니다.');
                 }
-                // Refresh routines
-                const routinesData = await getUserCreatedRoutines(user.id);
-                setRoutines(routinesData?.data || []);
+                // Refresh routines with timeout
+                try {
+                    console.log('Refreshing routines after save...');
+                    const routinesData = await Promise.race([
+                        getUserCreatedRoutines(user.id),
+                        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Routine refresh timed out')), 5000))
+                    ]);
+                    setRoutines(routinesData?.data || []);
+                } catch (refreshErr) {
+                    console.warn('Post-save routine refresh failed or timed out:', refreshErr);
+                }
             } else if (contentModalType === 'sparring') {
                 if (editingContent) {
                     await updateSparringVideo(editingContent.id, {
@@ -224,9 +240,17 @@ export const CreatorDashboard: React.FC = () => {
                     }
                 }
 
-                // Refresh sparring
-                const sparringData = await getSparringVideos(100, user.id);
-                setSparringVideos(sparringData?.data || []);
+                // Refresh sparring with timeout
+                try {
+                    console.log('Refreshing sparring after save...');
+                    const sparringData = await Promise.race([
+                        getSparringVideos(100, user.id),
+                        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Sparring refresh timed out')), 5000))
+                    ]);
+                    setSparringVideos(sparringData?.data || []);
+                } catch (refreshErr) {
+                    console.warn('Post-save sparring refresh failed or timed out:', refreshErr);
+                }
             }
         } catch (err: any) {
             console.error('Save error:', err);

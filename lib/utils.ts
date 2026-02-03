@@ -29,3 +29,42 @@ export function upgradeThumbnailQuality(url?: string | null): string {
 export function hasHighlight(text: string | null | undefined): boolean {
     return !!text && text.includes('{') && text.includes('}');
 }
+
+/**
+ * Performs a "Hard Reload" by:
+ * 1. Unregistering all Service Workers
+ * 2. Clearing Cache Storage
+ * 3. Clearing LocalStorage and SessionStorage
+ * 4. Reloading the page from server
+ */
+export async function hardReload() {
+    try {
+        console.log('[HardReload] Starting full cleanup...');
+
+        // 1. Unregister Service Workers
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                await registration.unregister();
+            }
+        }
+
+        // 2. Clear Cache Storage
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(
+                keys.map((key) => caches.delete(key))
+            );
+        }
+
+        // 3. Clear storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+    } catch (error) {
+        console.error('[HardReload] Error during cleanup:', error);
+    }
+
+    // 4. Force Reload
+    window.location.reload();
+}

@@ -82,8 +82,8 @@ export interface Course {
 
 export interface Lesson {
   id: string;
-  courseId: string;
-  creatorId?: string; // Optional for compatibility with legacy data
+  courseId?: string; // Made optional to support independent lessons
+  creatorId?: string; // Now backed by DB column
   title: string;
   description: string;
   category?: VideoCategory | QuantentPosition; // Added for categorization

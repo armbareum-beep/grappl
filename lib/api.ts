@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
-import { getVimeoVideoInfo } from './vimeo';
+import { getVimeoVideoInfo, formatDuration } from './vimeo';
 
 
 // Revenue split constants
@@ -1769,9 +1769,25 @@ export async function createLesson(lessonData: Partial<Lesson>) {
         lesson_number: lessonData.lessonNumber,
         vimeo_url: lessonData.vimeoUrl,
         thumbnail_url: finalThumbnailUrl,
+        length: lessonData.length,
+        duration_minutes: lessonData.durationMinutes,
         difficulty: lessonData.difficulty,
         uniform_type: lessonData.uniformType,
     };
+
+    // Auto-fetch length/duration if missing but vimeoUrl exists
+    if (lessonData.vimeoUrl && (!dbData.length || !dbData.duration_minutes)) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo) {
+                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
+                if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch Vimeo info for lesson:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('lessons')
@@ -1790,6 +1806,7 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     const dbData: any = {};
     if (lessonData.title) dbData.title = lessonData.title;
     if (lessonData.description) dbData.description = lessonData.description;
+    if (lessonData.courseId !== undefined) dbData.course_id = lessonData.courseId;
     if (lessonData.creatorId) dbData.creator_id = lessonData.creatorId;
     if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
     if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
@@ -1800,15 +1817,17 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
     if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
     if (lessonData.category) dbData.category = lessonData.category;
 
-    // If vimeoUrl changed but no thumbnailUrl, try to update it
-    if (lessonData.vimeoUrl && !lessonData.thumbnailUrl) {
+    // If vimeoUrl changed, always try to update metadata (thumbnail, duration)
+    if (lessonData.vimeoUrl) {
         try {
             const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
-            if (videoInfo?.thumbnail) {
-                dbData.thumbnail_url = videoInfo.thumbnail;
+            if (videoInfo) {
+                if (!lessonData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
+                if (!lessonData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!lessonData.length) dbData.length = formatDuration(videoInfo.duration);
             }
         } catch (err) {
-            console.warn('Failed to auto-fetch updated lesson thumbnail:', err);
+            console.warn('Failed to auto-fetch updated lesson Vimeo info:', err);
         }
     }
 
@@ -1844,12 +1863,13 @@ export async function updateCourseLessons(courseId: string, lessonIds: string[])
 
         // 3. Ensure lesson numbers are sequential (optional but recommended)
         // We can just set them based on the order in lessonIds
-        for (let i = 0; i < lessonIds.length; i++) {
-            await supabase
+        const updatePromises = lessonIds.map((id, index) =>
+            supabase
                 .from('lessons')
-                .update({ lesson_number: i + 1 })
-                .eq('id', lessonIds[i]);
-        }
+                .update({ lesson_number: index + 1 })
+                .eq('id', id)
+        );
+        await Promise.all(updatePromises);
     }
 
     return { error: null };
@@ -5097,7 +5117,7 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
 
 
 export async function createDrill(drillData: Partial<Drill>) {
-    const dbData = {
+    const dbData: any = {
         title: drillData.title,
         description: drillData.description,
         creator_id: drillData.creatorId,
@@ -5108,7 +5128,22 @@ export async function createDrill(drillData: Partial<Drill>) {
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
         uniform_type: drillData.uniformType,
+        length: drillData.length,
     };
+
+    // Auto-fetch Vimeo info if vimeo_url exists
+    if (dbData.vimeo_url) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(dbData.vimeo_url);
+            if (videoInfo) {
+                if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
+                if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch Vimeo info for drill:', err);
+        }
+    }
 
     let attempts = 0;
     while (attempts < 3) {
@@ -5153,6 +5188,21 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
+    if (drillData.length) dbData.length = drillData.length;
+
+    // If vimeoUrl changed, fetch info
+    if (drillData.vimeoUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(drillData.vimeoUrl);
+            if (videoInfo) {
+                if (!drillData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
+                if (!drillData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!drillData.length) dbData.length = formatDuration(videoInfo.duration);
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch updated drill Vimeo info:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('drills')
@@ -5225,7 +5275,7 @@ export function transformSparringVideo(data: any): SparringVideo {
 }
 
 export async function createSparringVideo(videoData: Partial<SparringVideo>) {
-    const dbData = {
+    const dbData: any = {
         creator_id: videoData.creatorId,
         title: videoData.title,
         description: videoData.description,
@@ -5237,7 +5287,23 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         difficulty: videoData.difficulty,
         uniform_type: videoData.uniformType,
         is_published: false,
+        duration_minutes: videoData.durationMinutes,
+        length: videoData.length,
     };
+
+    // Auto-fetch Vimeo info
+    if (dbData.video_url) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(dbData.video_url);
+            if (videoInfo) {
+                if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
+                if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch Vimeo info for sparring video:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -5413,6 +5479,20 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
     if (updates.length) dbData.length = updates.length;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
+
+    // If videoUrl changed, fetch info
+    if (updates.videoUrl) {
+        try {
+            const videoInfo = await getVimeoVideoInfo(updates.videoUrl);
+            if (videoInfo) {
+                if (!updates.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
+                if (!updates.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                if (!updates.length) dbData.length = formatDuration(videoInfo.duration);
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch updated sparring Vimeo info:', err);
+        }
+    }
 
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -8024,17 +8104,19 @@ export async function updateCourseBundles(
 
         // Remove course from videos that are no longer linked
         const removedIds = currentSparringIds.filter(id => !newSparringIds.includes(id));
-        for (const id of removedIds) {
-            const { error: remError } = await removeCourseSparringVideo(courseId, id);
-            if (remError) console.error(`Failed to remove course from sparring video ${id}:`, remError);
-        }
+        const removePromises = removedIds.map(id => removeCourseSparringVideo(courseId, id).catch(err => {
+            console.error(`Failed to remove course from sparring video ${id}:`, err);
+            return { error: err };
+        }));
 
         // Add course to newly linked videos
         const addedIds = newSparringIds.filter(id => !currentSparringIds.includes(id));
-        for (const id of addedIds) {
-            const { error: addError } = await addCourseSparringVideo(courseId, id, courseTitle);
-            if (addError) console.error(`Failed to add course to sparring video ${id}:`, addError);
-        }
+        const addPromises = addedIds.map(id => addCourseSparringVideo(courseId, id, courseTitle).catch(err => {
+            console.error(`Failed to add course to sparring video ${id}:`, err);
+            return { error: err };
+        }));
+
+        await Promise.all([...removePromises, ...addPromises]);
 
         return { error: null };
     } catch (error) {

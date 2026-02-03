@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
+import { hardReload } from '../lib/utils';
 
 const UPDATE_COOLDOWN = 10000; // 10 seconds safety cooldown
 const LAST_UPDATE_KEY = 'grapplay_last_update_attempt';
@@ -35,30 +36,11 @@ export const VersionChecker: React.FC = () => {
         console.log(`[VersionCheck] Updating to version: ${newVersion}...`);
 
         try {
-            // 1. Unregister Service Workers
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const registration of registrations) {
-                    await registration.unregister();
-                }
-            }
-
-            // 2. Clear Cache Storage
-            if ('caches' in window) {
-                const keys = await caches.keys();
-                await Promise.all(
-                    keys.map((key) => caches.delete(key))
-                );
-            }
-
-            // 3. Clear session/local identifiers if needed (optional)
-            // But we keep the LAST_UPDATE_KEY in localStorage to persist across the reload
+            await hardReload();
         } catch (error) {
-            console.error('[VersionCheck] Error clearing cache:', error);
+            console.error('[VersionCheck] Error during hard reload:', error);
+            window.location.reload();
         }
-
-        // 4. Force Reload from server
-        window.location.reload();
     };
 
     const checkVersion = async (isAutoUpdate = false) => {
