@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
@@ -42,6 +43,13 @@ interface SectionRowProps {
 }
 
 const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onViewAll, children }) => {
+    const [emblaRef] = useEmblaCarousel({
+        align: 'start',
+        containScroll: 'trimSnaps',
+        dragFree: true,
+        watchDrag: true
+    });
+
     if (isEmpty) return (
         <div className="w-full mb-10 px-4 md:px-12">
             <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{title}</h2>
@@ -51,7 +59,7 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
         </div>
     );
     return (
-        <div className="w-full mb-6">
+        <div className="w-full mb-6 relative z-10">
             <div className="px-4 md:px-12 mb-2 flex items-end justify-between group/header cursor-pointer" onClick={() => onViewAll && onViewAll()}>
                 <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 group-hover/header:text-violet-200 transition-colors">
                     {title}
@@ -60,10 +68,14 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
                     </span>
                 </h2>
             </div>
-            <div className="relative w-full">
-                <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-0 pb-6 scroll-smooth">
-                    {children}
-                    <div className="w-12 flex-shrink-0" /> {/* End padding */}
+            <div className="relative w-full overflow-hidden" ref={emblaRef}>
+                <div className="flex gap-4 px-4 md:px-12 pt-0 pb-6">
+                    {React.Children.map(children, (child) => (
+                        <div className="flex-[0_0_auto]">
+                            {child}
+                        </div>
+                    ))}
+                    <div className="w-12 flex-shrink-0" />
                 </div>
             </div>
         </div>
@@ -148,9 +160,10 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
     return (
         <div
             onClick={() => onContinue(item)}
-            className="group flex flex-col gap-1.5 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer"
+            className="group flex flex-col gap-1.5 w-[280px] md:w-[320px] flex-shrink-0 cursor-pointer isolation-auto transform-gpu"
+            style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
         >
-            <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03]">
+            <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03] transform-gpu">
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
                     style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
@@ -181,7 +194,7 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
                         <div className="absolute bottom-0 right-0 flex items-center gap-1.5 text-[9px] font-black text-zinc-600 uppercase tracking-widest pb-0.5">
                             {categoryText && <span>{categoryText}</span>}
                             {categoryText && item.courseTitle && <span className="w-0.5 h-0.5 rounded-full bg-zinc-700" />}
-                            {item.courseTitle && <span className="truncate max-w-[80px]">{item.courseTitle}</span>}
+                            {item.courseTitle && <span className="">{item.courseTitle}</span>}
                         </div>
                     </div>
                 </div>

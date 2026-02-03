@@ -38,7 +38,7 @@ export const CreatorDashboard: React.FC = () => {
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const initialTab = (searchParams.get('tab') as any) || 'content';
+    const initialTab = (searchParams.get('tab') as any) || 'materials';
     const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>(initialTab);
     const initialContentTab = (searchParams.get('contentTab') as any) || 'courses';
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
@@ -552,8 +552,8 @@ export const CreatorDashboard: React.FC = () => {
         : `${totalWatchTimeMinutes}분`;
 
     const TABS = [
-        { id: 'content', label: '내 콘텐츠 (판매 상품)', icon: LayoutDashboard },
-        { id: 'materials', label: '내 자료 (레슨/드릴)', icon: Package },
+        { id: 'materials', label: '자료', icon: Package },
+        { id: 'content', label: '내 콘텐츠', icon: LayoutDashboard },
         { id: 'marketing', label: '마케팅', icon: TrendingUp },
         { id: 'feedback', label: '피드백', icon: MessageSquare },
         { id: 'analytics', label: '분석', icon: Eye },

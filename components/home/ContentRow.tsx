@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
@@ -127,9 +128,14 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
             onClick={() => handleClick(item)}
             className={cn(
                 "group relative flex-shrink-0 cursor-pointer transition-transform duration-300 ease-out origin-center hover:scale-105 hover:z-20",
+                "isolation-auto transform-gpu", // Fix for corner rounding clipping
                 variant !== 'ranking' ? cardClass : ""
             )}
-            style={variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '230px' : '380px' } : {}}
+            style={{
+                perspective: '1000px',
+                transformStyle: 'preserve-3d',
+                ...(variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '230px' : '380px' } : {})
+            }}
         >
             {variant === 'ranking' ? (
                 <div className="relative w-full overflow-visible">
@@ -143,7 +149,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     </div>
 
                     <div
-                        className="relative z-20 rounded-lg overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]"
+                        className="relative z-20 rounded-lg overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03] transform-gpu"
                         style={{
                             marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px',
                             width: (type === 'routine' || type === 'sparring') ? '170px' : '300px',
@@ -159,7 +165,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     </div>
                 </div>
             ) : (
-                <div className="w-full h-full rounded-lg overflow-hidden relative bg-zinc-900 group-hover:scale-[1.03] transition-transform duration-300">
+                <div className="w-full h-full rounded-lg overflow-hidden relative bg-zinc-900 group-hover:scale-[1.03] transition-transform duration-300 transform-gpu">
                     <div
                         className="absolute inset-0 bg-cover bg-center"
                         style={{ backgroundImage: `url(${getThumbnail(item)})` }}
@@ -281,8 +287,15 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
     const cardClass = getCardStyle();
 
+    const [emblaRef] = useEmblaCarousel({
+        align: 'start',
+        containScroll: 'trimSnaps',
+        dragFree: true,
+        watchDrag: true
+    });
+
     return (
-        <section className="w-full mb-6">
+        <section className="w-full mb-6 relative z-10">
             <div className="px-4 md:px-12 mb-2 flex items-end justify-between group/header cursor-pointer" onClick={() => basePath && navigate(basePath)}>
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 group-hover/header:text-violet-200 transition-colors">
@@ -295,24 +308,22 @@ export const ContentRow: React.FC<ContentRowProps> = ({
                 </div>
             </div>
 
-            <div className="relative w-full group/row">
-                <div
-                    className="flex items-stretch gap-4 overflow-x-auto no-scrollbar px-4 md:px-12 pt-0 pb-6 scroll-smooth"
-                    style={{ scrollSnapType: 'x mandatory' }}
-                >
+            <div className="relative w-full group/row overflow-hidden" ref={emblaRef}>
+                <div className="flex gap-4 px-4 md:px-12 pt-0 pb-6">
                     {displayItems.map((item, idx) => (
-                        <ContentRowItem
-                            key={item.id}
-                            item={item}
-                            type={type}
-                            variant={variant}
-                            idx={idx}
-                            cardClass={cardClass}
-                            getThumbnail={getThumbnail}
-                            getTitle={getTitle}
-                            getSubtitle={getSubtitle}
-                            handleClick={handleClick}
-                        />
+                        <div key={item.id} className="flex-[0_0_auto]">
+                            <ContentRowItem
+                                item={item}
+                                type={type}
+                                variant={variant}
+                                idx={idx}
+                                cardClass={cardClass}
+                                getThumbnail={getThumbnail}
+                                getTitle={getTitle}
+                                getSubtitle={getSubtitle}
+                                handleClick={handleClick}
+                            />
+                        </div>
                     ))}
                     <div className="w-12 flex-shrink-0" />
                 </div>

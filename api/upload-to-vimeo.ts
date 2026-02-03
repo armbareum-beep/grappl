@@ -120,7 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let durationSeconds = 0;
 
             // Retry logic: Vimeo processing might take a few seconds to report duration
-            for (let attempt = 1; attempt <= 3; attempt++) {
+            // Transcoding can take time, so we retry up to 10 times (approx 30-40s)
+            for (let attempt = 1; attempt <= 10; attempt++) {
                 try {
                     const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
                         headers: {
@@ -142,9 +143,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             }
                         }
 
-                        // If we got a valid duration (or it's the last attempt), break
-                        if (durationSeconds > 0 || attempt === 3) {
-                            console.log(`[Vercel] Attempt ${attempt}: Found duration: ${durationSeconds}`);
+                        // If we got a valid duration, break immediately
+                        if (durationSeconds > 0) {
+                            console.log(`[Vercel] Attempt ${attempt}: Found duration: ${durationSeconds}s`);
                             break;
                         }
                     }
@@ -152,8 +153,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     console.warn(`[Vercel] Attempt ${attempt} failed to fetch video metadata:`, err);
                 }
 
-                if (attempt < 3) {
-                    console.log(`[Vercel] Duration is 0, retrying in 3s (Attempt ${attempt}/3)...`);
+                if (attempt < 10) {
+                    // Log progress if waiting
+                    if (attempt % 2 === 0 || attempt === 1) {
+                        console.log(`[Vercel] Duration is 0, waiting for transcoding... (Attempt ${attempt}/10)`);
+                    }
                     await new Promise(resolve => setTimeout(resolve, 3000));
                 }
             }

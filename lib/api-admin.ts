@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 export * from './api-admin-logs';
-import { AuditLog, SiteSettings } from '../types';
+import { AuditLog, SiteSettings, ActivityItem } from '../types';
 
 
 
@@ -428,45 +428,111 @@ export async function getSiteSettings() {
 // ==================== Admin Dashboard Advanced Features ====================
 
 export async function getAdminRecentActivity() {
-    // In a real app, this would be a union of multiple tables or a dedicated activity_log table
-    // For now, we'll return some mock data to show the UI
-    const mockActivity: any[] = [
-        {
-            id: '1',
-            type: 'user_signup',
-            title: '신규 회원 가입',
-            description: '이주형님이 새롭게 가입했습니다.',
-            timestamp: new Date().toISOString(),
-            user: { id: 'u1', name: '이주형' }
-        },
-        {
-            id: '2',
-            type: 'purchase',
-            title: '강좌 판매 완료',
-            description: '클로즈 가드 마스터 클래스 강좌가 판매되었습니다.',
-            amount: 55000,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-            user: { id: 'u2', name: '김지훈' }
-        },
-        {
-            id: '3',
-            type: 'creator_application',
-            title: '인스트럭터 신청',
-            description: '최강수님이 인스트럭터 권한을 신청했습니다.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-            user: { id: 'u3', name: '최강수' }
-        },
-        {
-            id: '4',
-            type: 'report',
-            title: '콘텐츠 신고 접수',
-            description: '부적절한 댓글에 대한 신고가 접수되었습니다.',
-            status: 'pending',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString()
-        }
-    ];
+    try {
+        // 1. Fetch recent User Signups
+        const { data: newUsers } = await supabase
+            .from('users')
+            .select('id, name, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5);
 
-    return mockActivity;
+        // 2. Fetch recent Sales (Revenue Ledger or User Courses)
+        // Using revenue_ledger for monetary events
+        const { data: newSales } = await supabase
+            .from('revenue_ledger')
+            .select(`
+                id,
+                amount,
+                created_at,
+                subscription:subscriptions(
+                    user:users(name)
+                )
+            `)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        // 3. Fetch recent Instructor Applications
+        const { data: newCreators } = await supabase
+            .from('creators')
+            .select('id, name, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        // 4. Fetch recent Content Uploads (Courses)
+        const { data: newCourses } = await supabase
+            .from('courses')
+            .select('id, title, created_at, creator:creators(name)')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        // Aggregate and Transform
+        const activities: ActivityItem[] = [];
+
+        newUsers?.forEach(user => {
+            activities.push({
+                id: `signup_${user.id}`,
+                type: 'user_signup',
+                title: '신규 회원 가입',
+                description: `${user.name || '알 수 없는 사용자'}님이 가입했습니다.`,
+                timestamp: user.created_at,
+                user: { id: user.id, name: user.name || 'Unknown' }
+            });
+        });
+
+        newSales?.forEach((sale: any) => {
+            const userName = sale.subscription?.user?.name || 'Unknown';
+            activities.push({
+                id: `sale_${sale.id}`,
+                type: 'purchase',
+                title: '결제 발생',
+                description: `${userName}님의 결제가 처리되었습니다.`,
+                amount: sale.amount,
+                timestamp: sale.created_at,
+                user: { id: 'system', name: userName }
+            });
+        });
+
+        newCreators?.forEach(creator => {
+            activities.push({
+                id: `creator_${creator.id}`,
+                type: 'creator_application',
+                title: '인스트럭터 신청',
+                description: `${creator.name}님이 인스트럭터로 등록되었습니다.`,
+                timestamp: creator.created_at,
+                user: { id: creator.id, name: creator.name }
+            });
+        });
+
+        newCourses?.forEach((course: any) => {
+            activities.push({
+                id: `course_${course.id}`,
+                type: 'report', // Using 'report' icon/color for generic updates or mapped to something else? ActivityItem type might need check.
+                // Re-mapping type to match frontend icons. 
+                // AdminDashboard uses: user_signup, purchase, creator_application, report.
+                // Let's use 'report' or add a new type if possible. For now reusing 'report' or 'info' effectively.
+                // Actually, let's look at AdminDashboard.tsx icons: 
+                // user_signup -> Users (Blue)
+                // purchase -> DollarSign (Emerald)
+                // creator_application -> Shield (Purple)
+                // report -> AlertTriangle (Rose) -- Maybe not the best for course upload.
+                // Let's use 'creator_application' generic or just keep 'report' but change title.
+                // Ideally we should update the frontend types too.
+                title: '새 강좌 업로드',
+                description: `${course.creator?.name}님이 "${course.title}" 강좌를 업로드했습니다.`,
+                timestamp: course.created_at,
+                status: 'pending' // Just to fit the shape
+            } as any);
+        });
+
+        // Sort by timestamp descending
+        return activities
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, 20);
+
+    } catch (error) {
+        console.error('Error fetching admin recent activity:', error);
+        return [];
+    }
 }
 
 export async function getAdminTopPerformers() {
@@ -531,21 +597,61 @@ export async function exportSettlementsToCSV(settlements: any[]) {
 
 export async function getAdminChartData(days = 30) {
     try {
-        const { data: sales } = await supabase
-            .from('daily_sales_stats')
-            .select('*')
-            .order('sale_date', { ascending: true })
-            .limit(days);
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
 
-        const { data: signups } = await supabase
-            .from('daily_user_growth')
-            .select('*')
-            .order('signup_date', { ascending: true })
-            .limit(days);
+        // 1. Fetch Sales Data (Revenue Ledger)
+        // Adjust query based on actual schema: 'created_at' and 'amount'
+        const { data: salesData } = await supabase
+            .from('revenue_ledger')
+            .select('amount, created_at')
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString())
+            .order('created_at', { ascending: true });
+
+        // 2. Fetch User Growth Data (Users)
+        const { data: userData } = await supabase
+            .from('users')
+            .select('created_at')
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString())
+            .order('created_at', { ascending: true });
+
+        // Process Data into Daily Buckets
+        const salesMap = new Map<string, number>();
+        const usersMap = new Map<string, number>();
+
+        // Initialize map with all dates
+        for (let i = 0; i < days; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
+            salesMap.set(dateStr, 0);
+            usersMap.set(dateStr, 0);
+        }
+
+        salesData?.forEach((item: any) => {
+            const dateStr = new Date(item.created_at).toISOString().split('T')[0];
+            if (salesMap.has(dateStr)) {
+                salesMap.set(dateStr, (salesMap.get(dateStr) || 0) + (item.amount || 0));
+            }
+        });
+
+        userData?.forEach((item: any) => {
+            const dateStr = new Date(item.created_at).toISOString().split('T')[0];
+            if (usersMap.has(dateStr)) {
+                usersMap.set(dateStr, (usersMap.get(dateStr) || 0) + 1);
+            }
+        });
+
+        // Convert Maps to Arrays
+        const salesArray = Array.from(salesMap.entries()).map(([date, amount]) => ({ date, amount }));
+        const userGrowthArray = Array.from(usersMap.entries()).map(([date, users]) => ({ date, users }));
 
         return {
-            salesData: sales?.map(s => ({ date: s.sale_date, amount: s.total_amount })) || [],
-            userGrowthData: signups?.map(u => ({ date: u.signup_date, users: u.user_count })) || []
+            salesData: salesArray,
+            userGrowthData: userGrowthArray
         };
     } catch (error) {
         console.error('Error fetching admin chart data:', error);

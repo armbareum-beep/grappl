@@ -185,7 +185,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                 className={cn(
                     "relative group z-10",
                     item.type === 'class' ? (minimal ? "aspect-[4/3]" : "aspect-video") :
-                        item.type === 'routine' ? "aspect-[9/16]" :
+                        item.type === 'routine' ? "aspect-[2/3]" :
                             "aspect-square",
                     "bg-zinc-900 rounded-2xl md:rounded-[2rem] overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
                 )}>
@@ -203,7 +203,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                                 e.currentTarget.style.display = 'none';
                                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 opacity-90 group-hover:opacity-100 group-hover:scale-105"
+                            className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 opacity-90 group-hover:opacity-100 group-hover:scale-105"
                         />
                     ) : null}
                     {/* Fallback pattern for missing/error images */}
