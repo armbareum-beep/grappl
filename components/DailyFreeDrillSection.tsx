@@ -182,7 +182,7 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
                                         "relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex-shrink-0",
                                         isActive ? 'opacity-100 flex-[0_0_85%] md:flex-[0_0_60%]' : 'opacity-60 flex-[0_0_40%] md:flex-[0_0_20%] hover:opacity-80',
                                         isActive ? 'contrast-100' : 'contrast-75',
-                                        item.id === 'drill' ? "aspect-[2/3]" :
+                                        item.id === 'drill' ? "aspect-[9/16]" :
                                             item.id === 'lesson' ? "aspect-[4/3]" : "aspect-square"
                                     )}
                                 >

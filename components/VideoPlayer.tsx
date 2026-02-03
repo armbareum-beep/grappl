@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Player from '@vimeo/player';
 import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { cn } from '../lib/utils';
 import { useWakeLock } from '../hooks/useWakeLock';
 
 interface VideoPlayerProps {
@@ -505,7 +506,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Vimeo Player Container - Isolated to prevent overwriting overlays */}
             <div
                 ref={containerRef}
-                className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
+                className={cn(
+                    "absolute inset-0 w-full h-full",
+                    fillContainer && "[&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
+                )}
                 style={{
                     display: 'flex',
                     alignItems: 'center',

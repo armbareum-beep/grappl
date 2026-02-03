@@ -74,7 +74,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
 
     return (
         <div
-            className="relative w-full h-full bg-zinc-900 overflow-hidden group cursor-pointer transition-all duration-300"
+            className="relative w-full h-full bg-black overflow-hidden group cursor-pointer transition-all duration-300"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
