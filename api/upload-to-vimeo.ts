@@ -92,6 +92,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!createResponse.ok) {
                 const errorText = await createResponse.text();
                 console.error('[Vimeo] Create Link Error:', errorText);
+
+                // If it's HTML (usually from Cloudflare or Vimeo's load balancer), don't show the full HTML
+                if (errorText.includes('<!DOCTYPE html>') || errorText.includes('<html')) {
+                    throw new Error('Vimeo API 서버가 일시적으로 응답하지 않습니다. (Cloudflare/Internal Error)');
+                }
+
                 throw new Error(`Vimeo create failed: ${errorText}`);
             }
 

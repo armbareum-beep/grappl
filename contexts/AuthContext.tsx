@@ -210,11 +210,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (baseUser) {
                     const status = await checkUserStatus(baseUser.id);
                     const finalIsAdmin = status.isAdmin || baseUser.email === 'armbareum@gmail.com';
+
                     if (mounted) {
-                        setUser({ ...baseUser, isSubscriber: status.isSubscribed });
+                        // FIX: Only update state if data actually changed to prevent unnecessary re-renders
+                        // This prevents downstream effects (like CreatorDashboard reloading) on simple token refreshes
+                        setUser(prev => {
+                            if (!prev) return {
+                                ...baseUser,
+                                isSubscriber: status.isSubscribed,
+                                subscription_tier: status.subscriptionTier,
+                                ownedVideoIds: status.ownedVideoIds
+                            };
+
+                            // Deep check if anything meaningful changed
+                            const hasChanged =
+                                prev.id !== baseUser.id ||
+                                prev.email !== baseUser.email ||
+                                prev.isSubscriber !== status.isSubscribed ||
+                                prev.subscription_tier !== status.subscriptionTier ||
+                                prev.updated_at !== baseUser.updated_at; // Check timestamp too
+
+                            if (!hasChanged) return prev; // Return SAME reference
+
+                            return {
+                                ...baseUser,
+                                isSubscriber: status.isSubscribed,
+                                subscription_tier: status.subscriptionTier,
+                                ownedVideoIds: status.ownedVideoIds
+                            };
+                        });
+
                         setIsAdmin(finalIsAdmin);
                         setIsCreator(status.isCreator);
-                        setIsSubscribed(status.isSubscribed); // Ensure isSubscribed is also updated
+                        setIsSubscribed(status.isSubscribed);
                         setLoading(false);
                     }
                 }
@@ -223,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsCreator(false);
                 setIsAdmin(false);
                 setIsSubscribed(false);
-                localStorage.removeItem(`user_status_${session?.user?.id}`); // Clear cache if possible, though session might be null
+                localStorage.removeItem(`user_status_${session?.user?.id}`);
                 setLoading(false);
             }
         });

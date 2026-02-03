@@ -346,7 +346,12 @@ export const CreatorDashboard: React.FC = () => {
     useEffect(() => {
         async function fetchData() {
             if (!user) return;
-            setLoading(true);
+
+            // Only show full screen loading if we don't have courses yet (initial load)
+            // This prevents the screen from flashing/locking when AuthContext refreshes silently
+            if (courses.length === 0) {
+                setLoading(true);
+            }
 
             // Helper: Add timeout to any promise
             const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
