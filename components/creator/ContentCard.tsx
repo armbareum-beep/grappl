@@ -79,7 +79,10 @@ export const ContentCard: React.FC<ContentCardProps> = ({
             )}
         >
             {/* Thumbnail Header */}
-            <div className="aspect-video w-full bg-zinc-800 relative overflow-hidden">
+            <div className={cn(
+                "w-full bg-zinc-800 relative overflow-hidden",
+                (type === 'drill' || type === 'routine') ? "aspect-[9/16]" : "aspect-video"
+            )}>
                 {thumbnailUrl && !isProcessing && !isError ? (
                     <img
                         src={thumbnailUrl}
