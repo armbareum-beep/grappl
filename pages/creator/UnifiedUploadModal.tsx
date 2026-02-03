@@ -404,7 +404,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 <iframe src={state.previewUrl} className="w-full h-full flex-grow" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
                             ) : (
                                 <div className="absolute inset-0 bg-black">
-                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover opacity-60" autoPlay muted loop playsInline />
+                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover" controls autoPlay muted loop playsInline />
                                 </div>
                             )
                         ) : null}

@@ -86,25 +86,48 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
             const isVideoType = ['action', 'desc', 'sparring'].includes(task.type);
 
             if (isVideoType && task.processingParams) {
-                console.log('[DirectVimeo] Requesting upload link for:', task.id);
+                // Retry logic for obtaining upload link (Vimeo API or network can be flaky)
+                let initResponse;
+                let lastError;
+                let vimeoUploadData;
 
-                const initResponse = await fetch('/api/upload-to-vimeo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'create_upload',
-                        fileSize: task.file.size,
-                        title: task.processingParams.title,
-                        description: task.processingParams.description
-                    })
-                });
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        initResponse = await fetch('/api/upload-to-vimeo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'create_upload',
+                                fileSize: task.file.size,
+                                title: task.processingParams.title,
+                                description: task.processingParams.description
+                            })
+                        });
 
-                if (!initResponse.ok) {
-                    const error = await initResponse.json();
-                    throw new Error(error.error || 'Vimeo 업로드 링크 생성 실패');
+                        if (initResponse.ok) {
+                            vimeoUploadData = await initResponse.json();
+                            break;
+                        } else {
+                            const error = await initResponse.json();
+                            lastError = error.error || `HTTP ${initResponse.status}`;
+                            console.warn(`[DirectVimeo] Attempt ${attempt} failed:`, lastError);
+                        }
+                    } catch (err: any) {
+                        lastError = err.message || '네트워크 오류';
+                        console.warn(`[DirectVimeo] Attempt ${attempt} networking error:`, lastError);
+                    }
+
+                    if (attempt < 3) {
+                        console.log(`[DirectVimeo] Retrying link creation in ${attempt * 2}s...`);
+                        await new Promise(r => setTimeout(r, attempt * 2000));
+                    }
                 }
 
-                const { uploadLink, vimeoId } = await initResponse.json();
+                if (!vimeoUploadData) {
+                    throw new Error(`업로드 준비 실패 (재시도 3회): ${lastError}`);
+                }
+
+                const { uploadLink, vimeoId } = vimeoUploadData;
                 console.log('[DirectVimeo] Upload link received:', vimeoId);
 
                 const upload = new tus.Upload(task.file, {
