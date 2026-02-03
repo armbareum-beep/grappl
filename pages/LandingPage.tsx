@@ -290,7 +290,7 @@ export const LandingPage: React.FC = () => {
                 {/* Background Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-violet-900/25 rounded-full blur-[120px] pointer-events-none"></div>
 
-                <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center">
+                <div className="max-w-7xl mx-auto px-0 md:px-4 relative z-10 flex flex-col items-center">
                     <div className="text-center mb-16">
                         <div className="inline-block mb-4">
                             <div className="bg-zinc-900/50 px-6 py-2 rounded-full inline-flex items-center gap-3 backdrop-blur-sm border border-zinc-800">
@@ -311,7 +311,7 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     {(() => {
-                        const getCarouselAspect = () => 'aspect-[3/4] md:aspect-square lg:aspect-[4/3] w-full max-w-6xl';
+                        const getCarouselAspect = () => 'aspect-[4/5] md:aspect-square lg:aspect-[16/9] w-full max-w-6xl';
                         const slides = [
                             dailyLesson && { type: 'lesson', data: dailyLesson },
                             dailyDrill && { type: 'drill', data: dailyDrill },
@@ -326,7 +326,7 @@ export const LandingPage: React.FC = () => {
 
                         return (
                             <div className="w-full relative">
-                                <div className={`relative group overflow-hidden rounded-[32px] shadow-2xl shadow-black/50 border border-white/5 transition-all duration-700 ease-in-out md:max-h-[600px] mx-auto w-full cursor-grab active:cursor-grabbing ${getCarouselAspect()}`} ref={emblaRef}>
+                                <div className={`relative group overflow-hidden rounded-[24px] md:rounded-[32px] shadow-2xl shadow-black/50 border border-white/5 transition-all duration-700 ease-in-out md:max-h-[600px] mx-auto w-full cursor-grab active:cursor-grabbing ${getCarouselAspect()}`} ref={emblaRef}>
                                     <div className="flex h-full">
                                         {slides.map((slide, idx) => {
                                             if (!slide || !slide.data) return null;
@@ -335,9 +335,9 @@ export const LandingPage: React.FC = () => {
                                                 const drill = slide.data;
                                                 return (
                                                     <div key={`slide-drill-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full">
+                                                        <div className="relative w-full h-full overflow-hidden">
                                                             {drill.thumbnailUrl ? (
-                                                                <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={drill.title} />
+                                                                <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover scale-[1.4]" alt={drill.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
@@ -349,7 +349,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 드릴</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
                                                                         {drill.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
@@ -377,7 +377,7 @@ export const LandingPage: React.FC = () => {
                                                 const lesson = slide.data;
                                                 return (
                                                     <div key={`slide-lesson-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full">
+                                                        <div className="relative w-full h-full overflow-hidden">
                                                             {lesson.thumbnailUrl ? (
                                                                 <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={lesson.title} />
                                                             ) : (
@@ -391,7 +391,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 레슨</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
                                                                         {lesson.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
@@ -419,7 +419,7 @@ export const LandingPage: React.FC = () => {
                                                 const sparring = slide.data;
                                                 return (
                                                     <div key={`slide-sparring-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full">
+                                                        <div className="relative w-full h-full overflow-hidden">
                                                             {sparring.thumbnailUrl ? (
                                                                 <img src={sparring.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={sparring.title} />
                                                             ) : (
@@ -433,7 +433,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 스파링</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
                                                                         {sparring.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">

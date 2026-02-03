@@ -517,6 +517,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }}
             />
 
+            {/* 
+              * Pointer Shield: captures clicks/drags when controls are hidden.
+              * This allows drag events to bubble up to the carousel (Embla) 
+              * for click-and-drag scrolling on desktop.
+              */}
+            {!showControls && (
+                <div className="absolute inset-0 z-[5] cursor-pointer" />
+            )}
+
             {/* Direct Video Fallback */}
             {(!playerRef.current && vimeoId && (vimeoId.includes('storage') || vimeoId.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i))) && (
                 <video
