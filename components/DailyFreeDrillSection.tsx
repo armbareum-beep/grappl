@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../lib/api';
+import { Play, Clapperboard, ChevronUp, ChevronDown, Bookmark, Share2, Clock } from 'lucide-react';
 import { Drill, Lesson, SparringVideo } from '../types';
-import { Clock } from 'lucide-react';
+import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../lib/api';
+import { cn, upgradeThumbnailQuality } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
 import { HighlightedText } from './common/HighlightedText';
-import { upgradeThumbnailQuality } from '../lib/utils';
 
 interface DailyFreeDrillSectionProps {
     title?: string;
@@ -178,18 +178,22 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
                                             emblaApi?.scrollTo(idx);
                                         }
                                     }}
-                                    className={`relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex-shrink-0
-                                        ${isActive ? 'opacity-100 flex-[0_0_85%] md:flex-[0_0_60%]' : 'opacity-60 flex-[0_0_40%] md:flex-[0_0_20%] hover:opacity-80'}
-                                        ${isActive ? 'contrast-100' : 'contrast-75'}
-                                        h-[400px] md:h-[500px]
-                                    `}
+                                    className={cn(
+                                        "relative rounded-[32px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex-shrink-0",
+                                        isActive ? 'opacity-100 flex-[0_0_85%] md:flex-[0_0_60%]' : 'opacity-60 flex-[0_0_40%] md:flex-[0_0_20%] hover:opacity-80',
+                                        isActive ? 'contrast-100' : 'contrast-75',
+                                        item.id === 'drill' ? "aspect-[2/3]" :
+                                            item.id === 'lesson' ? "aspect-[4/3]" : "aspect-square"
+                                    )}
                                 >
                                     {/* Aspect Ratio Preservation Strategy: Object-Cover + Alignment */}
                                     <img
                                         src={upgradeThumbnailQuality(item.img)}
-                                        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${isActive ? 'scale-100' : 'scale-110'}
-                                            ${item.id === 'drill' ? 'object-top' : 'object-center'}
-                                        `}
+                                        className={cn(
+                                            "absolute inset-0 w-full h-full object-cover transition-transform duration-1000",
+                                            isActive ? 'scale-100' : 'scale-110',
+                                            item.id === 'drill' ? 'object-top' : 'object-center'
+                                        )}
                                         style={{ imageRendering: 'auto' }}
                                         alt={item.data.title}
                                     />
