@@ -301,7 +301,7 @@ export const LandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <h2 className="text-5xl md:text-7xl font-black text-zinc-50 mb-6 tracking-tight uppercase italic">
+                        <h2 className="text-5xl md:text-7xl font-black text-zinc-50 mb-6 tracking-tight uppercase italic pr-12 overflow-visible">
                             {siteSettings?.sectionContent?.dailyFreePass?.title ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>TODAY'S <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">FREE PASS</span></>}
                         </h2>
 
@@ -337,7 +337,7 @@ export const LandingPage: React.FC = () => {
                                                     <div key={`slide-drill-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
                                                         <div className="relative w-full h-full overflow-hidden">
                                                             {drill.thumbnailUrl ? (
-                                                                <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover scale-[1.4]" alt={drill.title} />
+                                                                <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover scale-[1.6] origin-center" alt={drill.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
@@ -379,7 +379,7 @@ export const LandingPage: React.FC = () => {
                                                     <div key={`slide-lesson-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
                                                         <div className="relative w-full h-full overflow-hidden">
                                                             {lesson.thumbnailUrl ? (
-                                                                <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={lesson.title} />
+                                                                <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover min-w-full min-h-full" alt={lesson.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
