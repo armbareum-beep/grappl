@@ -149,17 +149,34 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                         <div className="flex flex-col md:relative md:aspect-video rounded-3xl md:rounded-[3rem] overflow-hidden bg-zinc-900/50 md:bg-zinc-900 ring-1 ring-white/5 shadow-2xl group/card transition-all">
                                             {/* Video Frame */}
                                             <div className="relative aspect-video md:absolute md:inset-0">
-                                                <VideoPlayer
-                                                    vimeoId={course.previewVimeoId || ''}
-                                                    title={course.title}
-                                                    isPreviewMode={true}
-                                                    maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
-                                                    onPreviewLimitReached={() => setIsPaywallOpen(true)}
-                                                    showControls={isPlaying}
-                                                    playing={isPlaying && !isActuallyPaused}
-                                                    isPaused={isPaywallOpen || (isPlaying && isActuallyPaused) || (playingId !== null && !isPlaying)}
-                                                    autoplay={false}
-                                                />
+                                                {isPlaying ? (
+                                                    <VideoPlayer
+                                                        vimeoId={course.previewVimeoId || ''}
+                                                        title={course.title}
+                                                        isPreviewMode={true}
+                                                        maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
+                                                        onPreviewLimitReached={() => setIsPaywallOpen(true)}
+                                                        showControls={isPlaying}
+                                                        playing={isPlaying && !isActuallyPaused}
+                                                        isPaused={isPaywallOpen || (isPlaying && isActuallyPaused) || (playingId !== null && !isPlaying)}
+                                                        autoplay={true}
+                                                        fillContainer={true}
+                                                    />
+                                                ) : (
+                                                    <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                                        {course.thumbnailUrl ? (
+                                                            <img
+                                                                src={course.thumbnailUrl}
+                                                                className="w-full h-full object-cover scale-[1.01] transition-transform duration-700 group-hover/card:scale-110"
+                                                                alt={course.title}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-zinc-900" />
+                                                        )}
+                                                        {/* Gradient Overlay for thumbnail */}
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                                    </div>
+                                                )}
 
                                                 {/* Centered Action Button */}
                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
@@ -188,7 +205,7 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
 
                                             {/* Info - Bottom Left (Responsive) - fade out when playing */}
                                             <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 opacity-100`}>
-                                                <div className="max-w-3xl">
+                                                <div className="max-w-3xl text-left">
                                                     <h3
                                                         className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep cursor-pointer hover:text-violet-400 transition-colors pointer-events-auto"
                                                         onClick={() => navigate(`/courses/${course.id}`)}

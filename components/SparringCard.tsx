@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SparringVideo } from '../types';
-import { Play, Bookmark } from 'lucide-react';
+import { Play, Bookmark, PlayCircle } from 'lucide-react';
 import Player from '@vimeo/player';
 import { toggleSparringSave, checkSparringSaved } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -247,7 +247,10 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                     />
                     <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
                     <span className="flex-shrink-0">•</span>
-                    <span className="flex-shrink-0">{video.views?.toLocaleString()} 조회</span>
+                    <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold ml-auto">
+                        <PlayCircle className="w-3 h-3" />
+                        <span>{video.views?.toLocaleString()} 조회</span>
+                    </div>
                 </div>
             </div>
             <style>{`

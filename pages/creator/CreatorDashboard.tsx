@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
-import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse } from '../../lib/api';
+import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse, getRoutineById } from '../../lib/api';
 import { Course, Drill, Lesson, DrillRoutine, SparringVideo } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
@@ -60,9 +60,23 @@ export const CreatorDashboard: React.FC = () => {
         setShowContentModal(true);
     };
 
-    const openRoutineModal = (routine?: DrillRoutine) => {
+    const openRoutineModal = async (routine?: DrillRoutine) => {
         setContentModalType('routine');
-        setEditingContent(routine || null);
+        if (routine) {
+            setLoading(true);
+            try {
+                const { data: fullRoutine, error } = await getRoutineById(routine.id);
+                if (error) throw error;
+                setEditingContent(fullRoutine || routine);
+            } catch (err) {
+                console.error('Failed to fetch full routine:', err);
+                setEditingContent(routine);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setEditingContent(null);
+        }
         setShowContentModal(true);
     };
 
@@ -562,7 +576,7 @@ export const CreatorDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
                 {/* Header & Stats */}
                 <div className="space-y-8">
                     <div>
@@ -706,7 +720,7 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                                                 {courseControls.paginatedData.map((course) => (
                                                     <ContentCard
                                                         key={course.id}
@@ -776,7 +790,7 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                                                 {routineControls.paginatedData.map((routine) => (
                                                     <ContentCard
                                                         key={routine.id}
@@ -832,7 +846,7 @@ export const CreatorDashboard: React.FC = () => {
                                     </div>
 
                                     {/* Filter sparring videos where price > 0 */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                                         {salesSparringControls.paginatedData.map((video) => (
                                             <ContentCard
                                                 key={video.id}
@@ -911,7 +925,7 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                                                 {lessonControls.paginatedData.map((lesson) => (
                                                     <ContentCard
                                                         key={lesson.id}
@@ -919,7 +933,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         title={lesson.title}
                                                         description={lesson.description}
                                                         thumbnailUrl={lesson.thumbnailUrl || (lesson as any).course?.thumbnailUrl}
-                                                        views={0} // Logic for lesson views can be added later
+                                                        views={lesson.views || 0}
                                                         duration={lesson.durationMinutes}
                                                         createdAt={lesson.createdAt}
                                                         isProcessing={!lesson.vimeoUrl}
@@ -977,7 +991,7 @@ export const CreatorDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                                                 {drillControls.paginatedData.map((drill) => (
                                                     <ContentCard
                                                         key={drill.id}

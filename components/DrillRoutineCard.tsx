@@ -131,7 +131,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
             {/* Thumbnail */}
             <div
                 className={cn(
-                    "relative aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
+                    "relative aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
                     "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
                 )}
             >

@@ -149,7 +149,7 @@ export const AdminSiteSettings: React.FC = () => {
                         <button type="button" onClick={() => navigate('/admin')} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><ArrowLeft className="w-5 h-5" /></button>
                         <div>
                             <h1 className="text-3xl font-black tracking-tight">사이트 상세 설정</h1>
-                            <p className="text-zinc-500 text-sm mt-1">강조할 문구는 <span className="text-violet-400 font-bold">{"{괄호}"}</span>로 감싸주세요.</p>
+                            <p className="text-zinc-500 text-sm mt-1">강조할 문구는 <span className="text-violet-400 font-bold">{"{괄호}"}</span>로 감싸주세요. <span className="text-zinc-400 font-bold ml-2">Enter</span> 키로 자유롭게 줄을 바꿀 수 있습니다.</p>
                         </div>
                     </div>
                     <button
@@ -197,11 +197,11 @@ export const AdminSiteSettings: React.FC = () => {
                                 <div className="space-y-6">
                                     <div>
                                         <label className="block text-sm font-bold text-zinc-400 mb-2">메인 타이틀 (Title)</label>
-                                        <input
-                                            type="text"
+                                        <textarea
+                                            rows={2}
                                             value={settings?.hero.title || ''}
                                             onChange={(e) => setSettings(prev => prev ? ({ ...prev, hero: { ...prev.hero, title: e.target.value } }) : null)}
-                                            className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-2xl focus:border-violet-500 outline-none transition-all"
+                                            className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-2xl focus:border-violet-500 outline-none resize-none transition-all font-bold"
                                             placeholder="유튜브엔 없는..."
                                         />
                                     </div>
@@ -258,8 +258,8 @@ export const AdminSiteSettings: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-tighter mb-2">섹션 타이틀</label>
-                                            <input
-                                                type="text"
+                                            <textarea
+                                                rows={2}
                                                 value={(settings?.sectionContent?.[section.id as keyof typeof settings.sectionContent] as any)?.title || ''}
                                                 onChange={(e) => setSettings(prev => {
                                                     if (!prev) return null;
@@ -270,13 +270,13 @@ export const AdminSiteSettings: React.FC = () => {
                                                     };
                                                     return { ...prev, sectionContent: content };
                                                 })}
-                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none"
+                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none resize-none transition-all font-bold"
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-tighter mb-2">섹션 설명 (Subtitle)</label>
-                                            <input
-                                                type="text"
+                                            <textarea
+                                                rows={3}
                                                 value={(settings?.sectionContent?.[section.id as keyof typeof settings.sectionContent] as any)?.subtitle || ''}
                                                 onChange={(e) => setSettings(prev => {
                                                     if (!prev) return null;
@@ -287,7 +287,7 @@ export const AdminSiteSettings: React.FC = () => {
                                                     };
                                                     return { ...prev, sectionContent: content };
                                                 })}
-                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none"
+                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none resize-none transition-all"
                                             />
                                         </div>
                                         {section.id === 'finalCTA' && (

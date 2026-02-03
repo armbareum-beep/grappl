@@ -972,10 +972,30 @@ export async function incrementVideoViews(videoId: string): Promise<void> {
     }
 }
 
+export async function incrementRoutineViews(routineId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_routine_views', {
+        p_routine_id: routineId,
+    });
+
+    if (error) {
+        console.error('Error incrementing routine views:', error);
+    }
+}
+
+export async function incrementSparringViews(videoId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_sparring_views', {
+        p_video_id: videoId,
+    });
+
+    if (error) {
+        console.error('Error incrementing sparring views:', error);
+    }
+}
+
 // Record Sparring View History
 export async function recordSparringView(userId: string, videoId: string) {
     // 1. Increment global view count
-    await incrementVideoViews(videoId);
+    await incrementSparringViews(videoId);
 
     // 2. Track user history
     const { error } = await supabase
@@ -998,6 +1018,10 @@ export async function recordSparringView(userId: string, videoId: string) {
 
 // Record Routine View History
 export async function recordRoutineView(userId: string, routineId: string) {
+    // 1. Increment global view count
+    await incrementRoutineViews(routineId);
+
+    // 2. Track user history
     const { error } = await supabase
         .from('user_routine_views')
         .upsert({
@@ -6168,7 +6192,8 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         difficulty: routineData.difficulty,
         total_duration_minutes: routineData.totalDurationMinutes || 0,
         related_items: routineData.relatedItems || [],
-        uniform_type: routineData.uniformType
+        uniform_type: routineData.uniformType,
+        drill_count: drillIds.length
     };
 
     const { data: routine, error: routineError } = await supabase
@@ -6212,6 +6237,7 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
+    if (drillIds) dbData.drill_count = drillIds.length;
 
     const { data: routine, error: routineError } = await supabase
         .from('routines')
