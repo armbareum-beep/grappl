@@ -132,9 +132,17 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
                 const upload = new tus.Upload(task.file, {
                     uploadUrl: uploadLink,
+                    retryDelays: [0, 1000, 3000, 5000, 10000], // Retry configuration
                     onError: (error) => {
                         console.error('Vimeo Upload Error:', error);
-                        updateTaskStatus(task.id, 'error', error.message);
+
+                        let message = error.message;
+                        // Handle generic network errors (often shows as [object ProgressEvent] in tus)
+                        if (message.includes('object ProgressEvent') || message.includes('n/a') || message.includes('failed to upload chunk')) {
+                            message = '네트워크 연결이 불안정하여 업로드가 중단되었습니다. (잠시 후 자동 재시도됨)';
+                        }
+
+                        updateTaskStatus(task.id, 'error', message);
                     },
                     onProgress: (bytesUploaded, bytesTotal) => {
                         const percentage = (bytesUploaded / bytesTotal * 100);

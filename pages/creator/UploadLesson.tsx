@@ -108,15 +108,20 @@ export const UploadLesson: React.FC = () => {
     };
 
     const captureFromVideo = () => {
-        if (!videoRef.current) return;
-        const video = videoRef.current;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
+        try {
+            if (!videoRef.current) return;
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
+        } catch (e: any) {
+            console.error('Capture failed:', e);
+            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+        }
     };
 
     const handleCropComplete = async (blob: Blob) => {
@@ -320,7 +325,7 @@ export const UploadLesson: React.FC = () => {
                         ) : (
                             <div className="space-y-4">
                                 <div className="aspect-video rounded-2xl overflow-hidden bg-black relative border border-zinc-800">
-                                    <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" controls autoPlay muted loop playsInline />
+                                    <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
                                     <div className="absolute top-4 right-4 flex gap-2">
                                         <button onClick={captureFromVideo} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
                                             <Camera className="w-4 h-4" /> 화면 캡처

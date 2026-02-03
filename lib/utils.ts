@@ -37,9 +37,16 @@ export function hasHighlight(text: string | null | undefined): boolean {
  * 3. Clearing LocalStorage and SessionStorage
  * 4. Reloading the page from server
  */
-export async function hardReload() {
+export async function hardReload(preserveKeys: string[] = []) {
     try {
         console.log('[HardReload] Starting full cleanup...');
+
+        // 0. Preserve specified keys
+        const preservedValues: Record<string, string> = {};
+        for (const key of preserveKeys) {
+            const val = localStorage.getItem(key);
+            if (val) preservedValues[key] = val;
+        }
 
         // 1. Unregister Service Workers
         if ('serviceWorker' in navigator) {
@@ -61,10 +68,15 @@ export async function hardReload() {
         localStorage.clear();
         sessionStorage.clear();
 
+        // 4. Restore preserved keys
+        for (const [key, val] of Object.entries(preservedValues)) {
+            localStorage.setItem(key, val);
+        }
+
     } catch (error) {
         console.error('[HardReload] Error during cleanup:', error);
     }
 
-    // 4. Force Reload
+    // 5. Force Reload
     window.location.reload();
 }

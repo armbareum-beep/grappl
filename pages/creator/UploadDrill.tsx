@@ -124,16 +124,21 @@ export const UploadDrill: React.FC = () => {
     };
 
     const captureFromVideo = (type: 'action' | 'desc') => {
-        const video = type === 'action' ? actionVideoRef.current : descVideoRef.current;
-        if (!video) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
-        setActiveCropper(type);
+        try {
+            const video = type === 'action' ? actionVideoRef.current : descVideoRef.current;
+            if (!video) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
+            setActiveCropper(type);
+        } catch (e: any) {
+            console.error('Capture failed:', e);
+            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+        }
     };
 
     const handleCropComplete = async (blob: Blob) => {
@@ -197,6 +202,7 @@ export const UploadDrill: React.FC = () => {
                     filename: `${vId}.${actionVideo.file.name.split('.').pop() || 'mp4'}`,
                     cuts: [],
                     title: `[Drill] ${formData.title}`,
+                    description: formData.description,
                     drillId,
                     videoType: 'action',
                     instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown',
@@ -211,6 +217,7 @@ export const UploadDrill: React.FC = () => {
                     filename: `${vId}.${descVideo.file.name.split('.').pop() || 'mp4'}`,
                     cuts: [],
                     title: `[Drill Desc] ${formData.title}`,
+                    description: formData.description,
                     drillId,
                     videoType: 'desc',
                     instructorName: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Unknown',

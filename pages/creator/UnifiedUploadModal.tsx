@@ -219,16 +219,21 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     };
 
     const captureFromVideo = (type: 'main' | 'desc') => {
-        const video = type === 'main' ? mainVideoRef.current : descVideoRef.current;
-        if (!video) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
-        setActiveCropper(type);
+        try {
+            const video = type === 'main' ? mainVideoRef.current : descVideoRef.current;
+            if (!video) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
+            setActiveCropper(type);
+        } catch (e: any) {
+            console.error('Capture failed:', e);
+            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+        }
     };
 
     const handleCropComplete = async (blob: Blob) => {
@@ -404,7 +409,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 <iframe src={state.previewUrl} className="w-full h-full flex-grow" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
                             ) : (
                                 <div className="absolute inset-0 bg-black">
-                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover" controls autoPlay muted loop playsInline />
+                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
                                 </div>
                             )
                         ) : null}
