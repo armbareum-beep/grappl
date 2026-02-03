@@ -234,74 +234,163 @@ export const UploadDrill: React.FC = () => {
         const ref = isAction ? actionVideoRef : descVideoRef;
 
         return (
-            <div className=\"h-full flex flex-col\">
-        {
-            state.status === 'idle' || state.status === 'error' ? (
-                <div className=\"border-2 border-dashed border-zinc-800 rounded-xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative min-h-[300px] flex flex-col items-center justify-center group\">
-                    < input type =\"file\" accept=\"video/*\" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], type, setter)} className=\"absolute inset-0 w-full h-full opacity-0 cursor-pointer\" />
-                        < Upload className =\"w-12 h-12 text-zinc-700 group-hover:text-violet-500 mb-4\" />
-                            < p className =\"font-bold text-white\">{label} 업로드</p>
-                    </div >
+            <div className="h-full flex flex-col">
+                {state.status === 'idle' || state.status === 'error' ? (
+                    <div className="border-2 border-dashed border-zinc-800 rounded-xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative min-h-[300px] flex flex-col items-center justify-center group">
+                        <input
+                            type="file"
+                            accept="video/*"
+                            onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], type, setter)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <Upload className="w-12 h-12 text-zinc-700 group-hover:text-violet-500 mb-4" />
+                        <p className="font-bold text-white">{label} 업로드</p>
+                    </div>
                 ) : (
-    <div className=\"space-y-4\">
-        < div className =\"aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black relative border border-zinc-800\">
-            < video ref = { ref } src = { state.previewUrl! } className =\"w-full h-full object-contain\" controls />
-                < div className =\"absolute top-4 right-4 flex gap-2\">
-                    < button onClick = {() => captureFromVideo(type)} className =\"px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10\"><Camera className=\"w-4 h-4\" /> 화면 캡처</button>
-                        < button onClick = {() => setter(initialProcessingState)} className =\"p-2 bg-black/60 backdrop-blur rounded-xl text-rose-400 border border-white/10 hover:bg-rose-500/10\"><Trash2 className=\"w-5 h-5\" /></button>
-                            </div >
-                        </div >
-    <div className=\"flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl\"><FileVideo className=\"w-5 h-5 text-violet-400\" /><span className=\"text-zinc-400 truncate\">{state.file?.name || 'Uploaded Video'}</span></div>
-                    </div >
+                    <div className="space-y-4">
+                        <div className="aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black relative border border-zinc-800">
+                            <video
+                                ref={ref}
+                                src={state.previewUrl!}
+                                className="w-full h-full object-contain"
+                                controls
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                            />
+                            <div className="absolute top-4 right-4 flex gap-2">
+                                <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
+                                    <Camera className="w-4 h-4" /> 화면 캡처
+                                </button>
+                                <button onClick={() => setter(initialProcessingState)} className="p-2 bg-black/60 backdrop-blur rounded-xl text-rose-400 border border-white/10 hover:bg-rose-500/10">
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
+                            <FileVideo className="w-5 h-5 text-violet-400" />
+                            <span className="text-zinc-400 truncate">{state.file?.name || 'Uploaded Video'}</span>
+                        </div>
+                    </div>
                 )}
-            </div >
+            </div>
         );
     };
 
-return (
-    <div className=\"min-h-screen bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8 relative\">
-{ croppingImage && <ThumbnailCropper imageSrc={croppingImage} onCropComplete={handleCropComplete} onCancel={() => setCroppingImage(null)} aspectRatio={9 / 16} /> }
-<div className=\"max-w-2xl mx-auto\">
-    < div className =\"flex items-center gap-4 mb-8\">
-        < button onClick = {() => navigate('/creator')} className =\"p-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-white\"><ArrowLeft className=\"w-5 h-5\" /></button>
-            < h1 className =\"text-2xl font-bold text-white\">{isEditMode ? '드릴 수정' : '새 드릴 만들기'}</h1>
-                </div >
+    return (
+        <div className="min-h-screen bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8 relative">
+            {croppingImage && (
+                <ThumbnailCropper
+                    imageSrc={croppingImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => setCroppingImage(null)}
+                    aspectRatio={9 / 16}
+                />
+            )}
+            <div className="max-w-2xl mx-auto">
+                <div className="flex items-center gap-4 mb-8">
+                    <button onClick={() => navigate('/creator')} className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-white">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <h1 className="text-2xl font-bold text-white">{isEditMode ? '드릴 수정' : '새 드릴 만들기'}</h1>
+                </div>
 
-    <div className=\"bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 p-8 space-y-6 shadow-2xl\">
-        < div className =\"space-y-5\">
-            < div > <label className=\"block text-sm font-semibold text-zinc-400 mb-2\">드릴 제목</label><input type=\"text\" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className=\"w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500\" /></div>
-                < div className =\"grid grid-cols-3 gap-4\">
-                    < div > <label className=\"block text-sm font-semibold text-zinc-400 mb-2\">카테고리</label><select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })} className=\"w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none\">{Object.values(VideoCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
-                        < div > <label className=\"block text-sm font-semibold text-zinc-400 mb-2\">난이도</label><select value={formData.difficulty} onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })} className=\"w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none\">{Object.values(Difficulty).map(diff => <option key={diff} value={diff}>{diff}</option>)}</select></div>
-                            < div > <label className=\"block text-sm font-semibold text-zinc-400 mb-2\">복장</label><select value={formData.uniformType} onChange={e => setFormData({ ...formData, uniformType: e.target.value as UniformType })} className=\"w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none\">{Object.values(UniformType).map(u => <option key={u} value={u}>{u}</option>)}</select></div>
-                        </div >
-                        <div><label className=\"block text-sm font-semibold text-zinc-400 mb-2\">설명</label><textarea rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className=\"w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 resize-none\" /></div>
-                    </div >
+                <div className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl border border-zinc-800 p-8 space-y-6 shadow-2xl">
+                    <div className="space-y-5">
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2">드릴 제목</label>
+                            <input
+                                type="text"
+                                value={formData.title}
+                                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500"
+                            />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2">카테고리</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none"
+                                >
+                                    {Object.values(VideoCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2">난이도</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={e => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none"
+                                >
+                                    {Object.values(Difficulty).map(diff => <option key={diff} value={diff}>{diff}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2">복장</label>
+                                <select
+                                    value={formData.uniformType}
+                                    onChange={e => setFormData({ ...formData, uniformType: e.target.value as UniformType })}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none"
+                                >
+                                    {Object.values(UniformType).map(u => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2">설명</label>
+                            <textarea
+                                rows={3}
+                                value={formData.description}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 resize-none"
+                            />
+                        </div>
+                    </div>
 
-    <div className=\"border-t border-zinc-800/50 pt-8\">
-        < div className =\"flex border-b border-zinc-800 mb-6\">
-            < button onClick = {() => setActiveTab('action')} className = {`flex-1 py-4 font-bold transition-all ${activeTab === 'action' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}> 동작 영상</button >
-                <button onClick={() => setActiveTab('desc')} className={`flex-1 py-4 font-bold transition-all ${activeTab === 'desc' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}>설명 영상</button>
-                        </div >
-    <div className=\"p-2\">{activeTab === 'action' ? renderVideoBox('action', actionVideo, '동작 영상') : renderVideoBox('desc', descVideo, '설명 영상')}</div>
-                    </div >
+                    <div className="border-t border-zinc-800/50 pt-8">
+                        <div className="flex border-b border-zinc-800 mb-6">
+                            <button
+                                onClick={() => setActiveTab('action')}
+                                className={`flex-1 py-4 font-bold transition-all ${activeTab === 'action' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                            >
+                                동작 영상
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('desc')}
+                                className={`flex-1 py-4 font-bold transition-all ${activeTab === 'desc' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-500/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+                            >
+                                설명 영상
+                            </button>
+                        </div>
+                        <div className="p-2">
+                            {activeTab === 'action' ? renderVideoBox('action', actionVideo, '동작 영상') : renderVideoBox('desc', descVideo, '설명 영상')}
+                        </div>
+                    </div>
 
-    { thumbnailUrl && (
-        <div className=\"pt-4\">
-            < p className =\"text-sm font-semibold text-zinc-400 mb-3\">썸네일 미리보기</p>
-                < div className =\"w-32 aspect-[9/16] rounded-xl overflow-hidden border border-zinc-800\"><img src={thumbnailUrl} alt=\"Thumbnail\" className=\"w-full h-full object-cover\" /></div>
-                        </div >
+                    {thumbnailUrl && (
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-zinc-400 mb-3">썸네일 미리보기</p>
+                            <div className="w-32 aspect-[9/16] rounded-xl overflow-hidden border border-zinc-800">
+                                <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                            </div>
+                        </div>
                     )}
 
-<div className=\"pt-8 border-t border-zinc-800/50 flex gap-3\">
-    < button onClick = {() => navigate('/creator')} className =\"flex-1 px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold\">취소</button>
-        < button onClick = { handleSubmit } disabled = { isSubmitting || !formData.title || (!isEditMode && (!actionVideo.file || !descVideo.file))} className =\"flex-[2] px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold disabled:opacity-50\">
-{
-    isSubmitting ? <Loader className=\"w-5 h-5 animate-spin mx-auto\" /> : (isEditMode ? '수정사항 저장' : '업로드 시작')}
-                        </button >
-                    </div >
-                </div >
-            </div >
-        </div >
+                    <div className="pt-8 border-t border-zinc-800/50 flex gap-3">
+                        <button onClick={() => navigate('/creator')} className="flex-1 px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || !formData.title || (!isEditMode && (!actionVideo.file || !descVideo.file))}
+                            className="flex-[2] px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold disabled:opacity-50"
+                        >
+                            {isSubmitting ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : (isEditMode ? '수정사항 저장' : '업로드 시작')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };
