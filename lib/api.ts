@@ -14,7 +14,7 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
-    promise: Promise<T>,
+    promise: Promise<T> | PromiseLike<T>,
     timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
     const timeout = new Promise<never>((_, reject) =>
@@ -1593,22 +1593,6 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
     }
 
     return { error };
-}
-
-export async function getLessonProgress(userId: string, lessonId: string) {
-    const { data, error } = await supabase
-        .from('lesson_progress')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('lesson_id', lessonId)
-        .maybeSingle();
-
-    if (error) {
-        console.error('Error fetching lesson progress:', error);
-        return null;
-    }
-
-    return data;
 }
 
 // Enhanced Recent Activity (Lessons Only)
@@ -8596,6 +8580,8 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
                 difficulty: r.difficulty || 'Beginner',
                 thumbnailUrl: r.thumbnail_url,
                 price: r.price || 0,
+                views: r.views || 0,
+                createdAt: r.created_at || new Date().toISOString(),
             }));
         }
 
@@ -8613,6 +8599,8 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
                 difficulty: r.difficulty || 'Beginner',
                 thumbnailUrl: r.thumbnail_url,
                 price: r.price || 0,
+                views: r.views || 0,
+                createdAt: r.created_at,
             }));
         }
 
@@ -8647,6 +8635,8 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
             difficulty: r.difficulty || 'Beginner',
             thumbnailUrl: r.thumbnail_url,
             price: r.price || 0,
+            views: r.views || 0,
+            createdAt: r.created_at,
         }));
     } catch (e) {
         console.error("Critical error in getFeaturedRoutines:", e);
@@ -8789,6 +8779,7 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
                 bio: '',
                 subscriberCount: 0
             } : undefined,
+            relatedItems: full.related_items || [],
             createdAt: full.created_at
         } as SparringVideo;
     });

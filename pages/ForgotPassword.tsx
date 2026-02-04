@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Mail, AlertCircle, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 export const ForgotPassword: React.FC = () => {
@@ -9,7 +10,7 @@ export const ForgotPassword: React.FC = () => {
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const { resetPassword } = useAuth();
+    const { } = useAuth(); // or just remove if not needed
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -17,7 +18,9 @@ export const ForgotPassword: React.FC = () => {
         setLoading(true);
 
         try {
-            const { error } = await resetPassword(email);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
 
             if (error) {
                 setError(error.message);

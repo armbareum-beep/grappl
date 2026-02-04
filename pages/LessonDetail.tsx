@@ -19,7 +19,6 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ConfirmModal } from '../components/common/ConfirmModal';
-import { supabase } from '../lib/supabase';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 
@@ -63,7 +62,7 @@ export const LessonDetail: React.FC = () => {
         fetchProgress();
     }, [user, id]);
 
-    const handleProgress = React.useCallback(async (seconds: number, duration?: number, percent?: number) => {
+    const handleProgress = React.useCallback(async (seconds: number, _duration?: number, percent?: number) => {
         setCurrentTime(seconds);
 
         if (!user || !lesson) return;

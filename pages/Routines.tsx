@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
@@ -53,7 +52,7 @@ export const Routines: React.FC<{
             setError(null);
 
             const [routinesRes, dailyDrillRes] = await Promise.all([
-                fetchRoutines(100, user?.id),
+                fetchRoutines(100),
                 getDailyFreeDrill()
             ]);
 

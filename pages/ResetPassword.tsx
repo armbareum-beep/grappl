@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Lock, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 
 export const ResetPassword: React.FC = () => {
@@ -10,7 +11,7 @@ export const ResetPassword: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    const { updatePassword } = useAuth();
+    const { } = useAuth();
     const navigate = useNavigate();
 
     // Check if we have a valid session (user clicked the reset link)
@@ -45,7 +46,7 @@ export const ResetPassword: React.FC = () => {
         setLoading(true);
 
         try {
-            const { error } = await updatePassword(newPassword);
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
 
             if (error) {
                 setError(error.message);

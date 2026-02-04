@@ -10,8 +10,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
-import { useToast } from '../components/ui/use-toast';
-import { supabase } from '../lib/supabase';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)

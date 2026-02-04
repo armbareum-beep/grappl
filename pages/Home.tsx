@@ -122,7 +122,7 @@ export const Home: React.FC = () => {
 
                 // F. New Courses (For Tab)
                 try {
-                    const courses = await getNewCourses(10, user?.id);
+                    const courses = await getNewCourses(10);
                     if (courses && courses.length > 0) {
                         setNewCourses(courses);
                     }
@@ -132,7 +132,7 @@ export const Home: React.FC = () => {
 
                 // G. New Routines (For Tab)
                 try {
-                    const routinesRes = await fetchRoutines(20, user?.id);
+                    const routinesRes = await fetchRoutines(20);
                     if (routinesRes.data && routinesRes.data.length > 0) {
                         setNewRoutines(routinesRes.data);
                     }
@@ -142,7 +142,7 @@ export const Home: React.FC = () => {
 
                 // H. New Sparring (For Tab)
                 try {
-                    const sparringRes = await getPublicSparringVideos(20, user?.id);
+                    const sparringRes = await getPublicSparringVideos(20);
                     if (sparringRes && sparringRes.length > 0) {
                         setNewSparring(sparringRes);
                     }
