@@ -226,6 +226,7 @@ const VideoItem: React.FC<{
                         // Sparse logging to avoid too many renders if not needed
                     }}
                     onReady={onVideoReady}
+                    onAutoplayBlocked={() => setMuted(true)}
                     onDoubleTap={handleLike}
                     onEnded={() => {
                         if (!hasAccess && video.previewVimeoId) {
@@ -247,6 +248,7 @@ const VideoItem: React.FC<{
                 fillContainer={true}
                 onAspectRatioChange={setAspectRatio}
                 onReady={onVideoReady}
+                onAutoplayBlocked={() => setMuted(true)}
                 onDoubleTap={handleLike}
             />
         );

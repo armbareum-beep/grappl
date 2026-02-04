@@ -27,6 +27,7 @@ interface VideoPlayerProps {
     muted?: boolean;
     onDuration?: (duration: number) => void;
     onAspectRatioChange?: (ratio: number) => void;
+    onAutoplayBlocked?: () => void;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -50,7 +51,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onReady,
     muted = false, // Default to false
     onDuration,
-    onAspectRatioChange
+    onAspectRatioChange,
+    onAutoplayBlocked
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
@@ -228,11 +230,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 currentPlayer.on('play', () => {
                     // Strict enforcement: if we shouldn't be playing, pause immediately
+                    // DISABLED: This causes issues when user manually plays but parent prop hasn't updated yet.
+                    // Trust the user's interaction if they clicked play on the control bar.
+                    /*
                     if (!playingRef.current) {
                         console.log('[VideoPlayer] Play event detected but playing prop is false -> Forcing pause');
                         currentPlayer.pause().catch(() => { });
                         return;
                     }
+                    */
                     setIsPlaying(true);
                 });
                 currentPlayer.on('pause', () => setIsPlaying(false));
@@ -321,12 +327,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
         }
 
+        // ... (inside useEffect)
+
         // Cleanup function for the effect
-        const currentContainer = containerRef.current; // Capture ref value for cleanup
+        const currentContainer = containerRef.current;
 
         return () => {
+            // Priority 1: Destroy the Vimeo Player instance FIRST to stop audio/playback logic
+            if (player) {
+                try {
+                    player.unload().then(() => player?.destroy()).catch(() => {
+                        // Fallback destruction
+                        try { player?.destroy(); } catch (e) { }
+                    });
+                } catch (_e) { }
+            }
+
+            // Priority 2: Nuke the DOM to ensure no iframe remains
             if (currentContainer) {
-                // Stop iframe src to kill buffering
+                // Force stop any iframe src
                 const iframes = currentContainer.querySelectorAll('iframe');
                 iframes.forEach(iframe => {
                     try {
@@ -334,16 +353,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         iframe.removeAttribute('src');
                     } catch (e) { /* ignore */ }
                 });
-
                 currentContainer.innerHTML = '';
-            }
-
-            if (player) {
-                try {
-                    player.pause().catch(() => { });
-                    player.unload().catch(() => { });
-                    player.destroy().catch(() => { });
-                } catch (_e) { }
             }
         };
     }, [vimeoId]);
@@ -355,33 +365,41 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const syncPlayback = async () => {
             try {
                 if (!playing) {
-                    // Always force pause if playing is false.
-                    // We do NOT check getPaused() here because of race conditions:
-                    // if a 'play' operation is pending, getPaused() might still return true,
-                    // causing us to skip the pause command, resulting in "echoing".
                     await playerRef.current!.pause();
                 } else {
-                    // When playing, we check status to avoid unnecessary play calls (which might throw)
-                    const isPaused = await playerRef.current!.getPaused();
-                    if (isPaused) {
+                    // Try to play
+                    try {
                         await playerRef.current!.play();
+                    } catch (error: any) {
+                        // Handle browser autoplay policy (NotAllowedError)
+                        if (error.name === 'NotAllowedError' && !muted) {
+                            console.warn('[VideoPlayer] Autoplay with sound blocked. Muting and retrying.');
+                            await playerRef.current!.setMuted(true);
+                            if (onAutoplayBlocked) onAutoplayBlocked();
+                            await playerRef.current!.play();
+                        } else {
+                            throw error;
+                        }
                     }
                 }
             } catch (err) {
-                // Ignore playback errors (e.g., when video is not ready)
                 console.warn('[VideoPlayer] Playback sync error:', err);
             }
         };
 
         syncPlayback();
-    }, [playing]);
+    }, [playing, muted]); // Add muted to dependency to retry if props change matches logic
 
     // Sync muted state
     useEffect(() => {
         if (!playerRef.current) return;
 
-        playerRef.current.setMuted(muted).catch(err => {
-            console.warn('[VideoPlayer] Failed to set muted state:', err);
+        playerRef.current.getMuted().then(currentMuted => {
+            if (currentMuted !== muted) {
+                playerRef.current?.setMuted(muted).catch(err => {
+                    console.warn('[VideoPlayer] Failed to set muted state:', err);
+                });
+            }
         });
     }, [muted]);
 
