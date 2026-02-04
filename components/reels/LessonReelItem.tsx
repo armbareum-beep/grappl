@@ -88,10 +88,11 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     const accumulatedTimeRef = useRef<number>(0);
 
     // Initial View Record (mark as recent)
+    // Initial View Record (mark as recent)
     useEffect(() => {
         if (isActive && user) {
-            // Record initial view with 0 duration to mark as recent
-            updateLastWatched(user.id, lesson.id, 0).catch(console.error);
+            // Record initial view to mark as recent without resetting progress
+            updateLastWatched(user.id, lesson.id).catch(console.error);
         }
     }, [isActive, user, lesson.id]);
 

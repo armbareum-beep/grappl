@@ -216,10 +216,44 @@ export const LessonDetail: React.FC = () => {
     }, [lesson?.id, owns, id]);
 
 
+    // Refs for saveOnLeave
+    const currentTimeRef = React.useRef(currentTime);
+    const lessonRef = React.useRef(lesson);
+    const userRef = React.useRef(user);
+
+    React.useEffect(() => {
+        currentTimeRef.current = currentTime;
+        lessonRef.current = lesson;
+        userRef.current = user;
+    }, [currentTime, lesson, user]);
+
+    // Save progress on page leave (unmount / beforeunload)
+    React.useEffect(() => {
+        const saveOnLeave = () => {
+            const u = userRef.current;
+            const l = lessonRef.current;
+            const t = currentTimeRef.current;
+
+            if (u && l && t > 0) {
+                // Determine if we need to save.
+                // We should save if the current time is different enough from last saved, or just save to be safe.
+                // Since updateLastWatched is an upsert, it's safe to call.
+                updateLastWatched(u.id, l.id, Math.floor(t)).catch(console.error);
+            }
+        };
+
+        window.addEventListener('beforeunload', saveOnLeave);
+        return () => {
+            window.removeEventListener('beforeunload', saveOnLeave);
+            saveOnLeave();
+        };
+    }, []);
+
     // Record initial view for history (Recent Activity)
     useEffect(() => {
         if (user && lesson && lesson.id) {
-            updateLastWatched(user.id, lesson.id, 0).catch(console.error);
+            // Updated to NOT reset time to 0. Calling without 3rd arg updates "last_watched_at" only.
+            updateLastWatched(user.id, lesson.id).catch(console.error);
         }
     }, [user, lesson?.id]);
 

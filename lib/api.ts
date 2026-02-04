@@ -1577,14 +1577,19 @@ export async function getCourseProgress(userId: string, courseId: string): Promi
 }
 
 export async function updateLastWatched(userId: string, lessonId: string, watchedSeconds?: number) {
+    const updates: any = {
+        user_id: userId,
+        lesson_id: lessonId,
+        last_watched_at: new Date().toISOString(),
+    };
+
+    if (typeof watchedSeconds === 'number') {
+        updates.watched_seconds = watchedSeconds;
+    }
+
     const { error } = await supabase
         .from('lesson_progress')
-        .upsert({
-            user_id: userId,
-            lesson_id: lessonId,
-            last_watched_at: new Date().toISOString(),
-            watched_seconds: watchedSeconds
-        }, {
+        .upsert(updates, {
             onConflict: 'user_id,lesson_id'
         });
 
@@ -1605,6 +1610,7 @@ export async function getRecentActivity(userId: string) {
             *,
             lesson:lessons (
                 id, title, lesson_number, duration_minutes, thumbnail_url,
+                creator_id,
                 course:courses (
                     id, title, thumbnail_url, category,
                     creator:creators ( id, name, profile_image )
@@ -1637,13 +1643,18 @@ export async function getRecentActivity(userId: string) {
             progress = Math.min(Math.round((watchedSec / totalSec) * 100), 99);
         }
 
+        // Determine creator info (prioritize course creator, then lesson creator if needed)
+        // But lesson structure usually has course.creator.
+        // If course is null, we might need lesson.creator if we fetched it, but currently query fetches course->creator.
+        // Let's assume standalone lessons might be supported now.
+
         return {
             id: l.id,
             courseId: l.course?.id,
-            creatorId: l.course?.creator?.id,
+            creatorId: l.course?.creator?.id || l.creator_id,
             type: 'lesson',
             title: l.title,
-            courseTitle: l.course?.title || l.title,
+            courseTitle: l.course?.title || l.title, // Fallback to lesson title if no course
             progress,
             watchedSeconds: watchedSec,
             thumbnail: l.thumbnail_url || l.course?.thumbnail_url,
@@ -1653,7 +1664,7 @@ export async function getRecentActivity(userId: string) {
             creatorName: l.course?.creator?.name,
             creatorProfileImage: l.course?.creator?.profile_image
         };
-    }).filter((item: any) => item && item.id && item.courseId);
+    }).filter((item: any) => item && item.id); // Removed item.courseId requirement
 
     return lessonItems;
 }
@@ -5990,7 +6001,7 @@ export async function getDailyFreeSparring() {
         if (selectedSparring.creator_id) {
             const { data: userData } = await supabase
                 .from('users')
-                .select('id, name, avatar_url')
+                .select('id, name, avatar_url, profile_image_url')
                 .eq('id', selectedSparring.creator_id)
                 .maybeSingle();
 
@@ -5998,7 +6009,7 @@ export async function getDailyFreeSparring() {
                 creatorInfo = {
                     id: userData.id,
                     name: userData.name || '알 수 없음',
-                    profileImage: userData.avatar_url,
+                    profileImage: userData.profile_image_url || userData.avatar_url, // Prioritize profile_image_url
                     bio: '',
                     subscriberCount: 0
                 };
